@@ -145,3 +145,6 @@ The originator should reply with the "thank you secret" back to its peer.
 # Discussion
 All the aspects that can break the protocol
 
+# Applications
+Sweet Gossip Protocol is an enabler for building P2P apps 
+...
