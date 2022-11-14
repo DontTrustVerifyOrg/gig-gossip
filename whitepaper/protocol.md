@@ -149,27 +149,7 @@ The node needs to construct utxo on the LN channel that will cover the requested
 ### Validation and Verification
 The originator is decompressing the message using his PrivateKey and compares message with the original message. If message is the same the next step is to directly call the replying party and confirm that there was not message intrusion by sending the message directly to its inet-addr. If the response is OK then the originator is sure that the reply was not compromised by any of the broadasting nodes.
 
-```mermaid
-sequenceDiagram
-    Replier->>Middleman1 : Reply
-    Middleman1->>Middleman2 : Reply
-    Middleman2->>Originator : Reply
-    Originator->>Replier: Validate
-    Replier->>Originator: Ack
-    Replier->>Middleman1: ThankYou
-    Middleman1->>Middleman2 : ThankYou
-    Middleman2->>Originator : ThankYou
-```
-
 At the end of the, the originator should reply with the "thank you secret" back to its broadcasting peer.
-
-
-### Thank you
-|field|value
-|----|---|
-|originator "thank you secret" Private Key|number|
-
-### Big Picture
 
 ```mermaid
 sequenceDiagram
@@ -187,6 +167,12 @@ sequenceDiagram
     Middleman2->>Middleman1 : ThankYou
     Middleman1->>Originator : ThankYou
 ```
+
+### Thank you
+|field|value
+|----|---|
+|originator "thank you secret" Private Key|number|
+
 
 # Discussion
 [MORE! All the aspects that can break the protocol.]
