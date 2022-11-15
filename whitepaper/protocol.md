@@ -173,6 +173,8 @@ sequenceDiagram
 |----|---|
 |originator "thank you secret" Private Key|number|
 
+### Lack of Thank you and increase in PoW complexity/or network cost
+If the Replier for some reason refuses sending "Thank you secret" broadcaster can deside to increase the Pow complexity for the next interacion / increase the price of the broadcast.
 
 # Discussion
 [MORE! All the aspects that can break the protocol.]
