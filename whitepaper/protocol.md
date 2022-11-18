@@ -16,8 +16,8 @@ We are proposing the protocol designed for GIG economy, that by eliminating need
 
 Lack of central organization also means that minimal volume of data is shared between GIG workers and end-customers, just enough to fulfill the job according to the protocol-driven off-chain smart-contract that uses P2P money like Lightning Network on Bitcoin, therefore forming layer 3 protocol from the Bitcoin perspective.
 
-## Sweet Gossip P2P Network
 
+## Sweet Gossip P2P Network
 Sweet Gossip P2P Network is a globally symmetric P2P network, meaning that there is no direct need to run any operation critical services in the cloud. Nodes can run as apps for modern mobile devices. The need for implementation of supporting services that are cloud or edge computing based helps make the service more user friendly, but is never critical for the system operation itself. Sweet Gossip node is a software module that is run by every device that uses Sweet Gossip protocol and forms a basis of communication. 
 
 Its important to explicitly say that we are not inventing any new coin or token, but rather we are speaking how Sweet Gossip Protocol can be built as a layer 3 protocol on top of the Lightning Network (being itself a layer 2 network sitting on top of Bitcoin network), therefore if any, the Bitcoin is a native token of the Sweet Gossip Network.
@@ -44,13 +44,13 @@ Fig 1. The intuition behind gossip protocol
 Sweet Gossip has single purpose: to broadcast the job proposal to the interesting parties and collect job offers from interested contractors. 
 
 For sake of clarity we use the following nameing convention:
-1. Peer - any gossip network node
+1. Peer - any gossip network node. Every peer maintains list of its peers.
 1. Originator - Peer that is the origin of the broadcasted message. From the Gig economy point of view it is a customer.
 2. Middleman - Peer that is passing the broadcast further as well as bringing back the reply
 3. Replier - Peer that is replynig to the broadcast.
 To target the job proposal it uses topics. Topics are filesystem like paths and all of the topics form a topic tree.
 
-Lets describe how the broadcast works from the message passing perspective. Here we assume that nodes of the gossip network are already connected to their peers via some internet transport protocol (e.g. TCP, UDP with or without hole punching, mobile mesh e.t.c) and the other peer is also accepting sweet gossip protocol. How the nodes discover its peers is not a part of the protocol.
+Here we assume that nodes of the gossip network are already connected to their peers via some internet transport protocol (e.g. TCP, UDP with or without hole punching, mobile mesh e.t.c) and the other peer is also accepting sweet gossip protocol. How the nodes discover its peers is not a part of the protocol.
 
 As the Originator (e.g. Node A) wants to broadcast the message (job proposal) first step is to ask its selected peer (e.g. Node B) how can the message be broadcasted.
 
@@ -58,16 +58,18 @@ The sequence diagram is show below:
 
 ```mermaid
 sequenceDiagram
-    Originator->>Peer: Ask For Favour frame
+    Originator->>Peer: Ask-For-Favour
     activate Peer
-    Peer-->>Originator: Ask For Favour Reply frame
+    Peer-->>Originator: Favour-Conditions
     deactivate Peer
+    activate Originator
     Originator->>Peer: Broadcast
+    deactivate Originator
 ```
 
 This is done by sending the following frame:
 
-### Ask For Favour
+### Ask-For-Favour
 |field|value
 |----|---|
 |topic|string|
@@ -88,7 +90,7 @@ If the peer B is willing to cooperate, it sends back the PoW frame or Lightning 
 
 
 Reply of the peer (if any) is a frame specifying the following fields:
-### Ask For Favor Reply
+### Favour-Conditions
 |field|value
 |----|---|
 |favour|number:timestamp|
@@ -115,10 +117,12 @@ The node A can then accept the requirements of the peer B by sending the broadca
 
 ```mermaid
 sequenceDiagram
+par Gossiping
     Middleman->>Its Peer #1: Ask For Favour & Broadcast
     Middleman->>Its Peer #2: Ask For Favour & Broadcast
     Middleman->>Its Peer #3: Ask For Favour & Broadcast
     Middleman->>...:Ask For Favour & Broadcast
+end
 ```
 
 ### Broadcast
@@ -140,7 +144,7 @@ The node needs to construct utxo on the LN channel that will cover the requested
 - timeout
 - receiving the "thank you secret Private Key" from the originator of the broadcasting message
 
-### Reply Request
+### Reply
 |field|value
 |----|---|
 |encrypted [message/reply/inet-addr]|string|
@@ -153,19 +157,43 @@ At the end of the, the originator should reply with the "thank you secret" back 
 
 ```mermaid
 sequenceDiagram
-    Originator->>Middleman1: AskForFavour
-    Middleman1->>Originator: AskForFavourReply
+    Originator->>+Middleman1: Ask-For-Favour
+    Middleman1-->>-Originator: Favour-Conditions
+    activate Originator
     Originator->>Middleman1: Broadcast
-    Middleman1->>Middleman2 : AskForFavour & Broadcast
-    Middleman2->>Replier : AskForFavour & Broadcast
-    Replier->>Middleman2 : Reply
+    deactivate Originator
+    activate Middleman1
+    Middleman1->>+Middleman2: Ask-For-Favour
+    deactivate Middleman1
+    Middleman2-->>-Middleman1: Favour-Conditions
+    activate Middleman1
+    Middleman1->>+Middleman2: Broadcast
+    deactivate Middleman1
+    activate Middleman2
+    Middleman2->>+Replier: Ask-For-Favour
+    deactivate Middleman2
+    Replier-->>-Middleman2: Favour-Conditions
+    activate Middleman2
+    Middleman2->>+Replier: Broadcast
+    deactivate Middleman2
+    Replier->>-Middleman2 : Reply
+    activate Middleman2
     Middleman2->>Middleman1 : Reply
-    Middleman1->>Originator : Reply
-    Originator->>Replier: Validate
-    Replier->>Originator: Ack
+    deactivate Middleman2
+    activate Middleman1
+    Middleman1->>+Originator : Reply
+    deactivate Middleman1
+    Originator->>-Replier: Validate
+    activate Replier
+    Replier-->>Originator: Ack
     Replier->>Middleman2: ThankYou
+    activate Middleman2
     Middleman2->>Middleman1 : ThankYou
+    deactivate Middleman2
+    activate Middleman1
     Middleman1->>Originator : ThankYou
+    deactivate Middleman1
+    deactivate Replier
 ```
 
 ### Thank you
@@ -213,3 +241,4 @@ Sweet Gossip Protocol is an enabler for building P2P apps.
 # References
 1. WebRTC https://en.wikipedia.org/wiki/WebRTC
 2. Bitmessage https://en.wikipedia.org/wiki/Bitmessage
+3. Hypercore https://github.com/hypercore-protocol
