@@ -86,11 +86,16 @@ US --> NY & Boston
 Poland --> Warsaw & Krakow & Gdansk
 ```
 
-If the peer B is willing to cooperate, it sends back the PoW frame or Lightning Network (LN) frame:
+It is important to highlight that the Broadcasted message is not encrypted so even ig one can put in the topic exact geolocation e.g. /Drive/Australia/Sydney/(151.2015102,-33.86018194) allowing for early evaluation of the reachibility for the e.g. drivers, it makes possible to determine the exact location or the Originator.
 
-
-Reply of the peer (if any) is a frame specifying the following fields:
 ### Favour-Conditions
+
+If the Peer is willing to broadcast the messaage, it sends back the Favour-Conditions frame. This frame explains conditions under which the Peer is willing to broadcast the message to its peers.
+
+There are two kinds of Favour-Condition frames: PoW frame and Lightning Network (LN) frame.
+
+PoW Frame specfies the properties of Proof of Work that needs to be computed by the sending Peer (Originator or other Middleman) so it can be accepted for firther broadcasting. This mechainsm is based on the idea of PoW for email spamming reduction.
+
 |field|value
 |----|---|
 |favour|number:timestamp|
