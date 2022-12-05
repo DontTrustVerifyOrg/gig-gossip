@@ -20,9 +20,9 @@ Lack of central organization also means that a minimal volume of data is shared 
 
 
 ## Sweet Gossip P2P Network
-Sweet Gossip P2P Network is a globally symmetric P2P network, meaning that there is no direct need to run any operation critical services in the cloud. Nodes can run as apps for modern mobile devices. The need for implementation of supporting services that are cloud-based or edge-computing-based helps make the service more user-friendly but is never critical for the system operation itself. Sweet Gossip node is a software module that is run by every device that uses Sweet Gossip protocol and forms a basis of communication. 
+Sweet Gossip P2P Network is a global, symmetric, P2P network, meaning that there is no direct need to run any operation critical services in the cloud or any other centralised computing environment. Sweet Gossip node is a software module that is run by every device that uses Sweet Gossip protocol and forms a basis of communication. Sweet Gossip nodes can be implemented as apps and run efficiently on cheap modern mobile devices. The need for implementation of supporting services that are cloud-based or edge-computing-based helps make the service more user-friendly but is never critical for the network operation. 
 
-Its important to explicitly say that we are not inventing any new coin or token, but rather we are speaking about how Sweet Gossip Protocol can be built as a layer 3 protocol on top of the Lightning Network (being itself a layer 2 network sitting on top of Bitcoin network), therefore if any, the Bitcoin is a native token of the Sweet Gossip Network.
+It is important to state explicitly that we are not inventing any new coin or crypto token, but rather we are speaking about how Sweet Gossip protocol forms a layer 3 protocol on top of the Lightning Network (being itself a layer 2 network sitting on top of Bitcoin network), therefore if any, the Bitcoin is a native token of the Sweet Gossip Network.
 
 Sweet Gossip P2P Network preserves:
 - P2P Symmetry - every node does the same thing
@@ -34,7 +34,7 @@ Sweet Gossip P2P Network preserves:
 - Sustainability - the protocol is designed so all its participants benefit from joining the network
 - Implicit punishment - the protocol do not explicitly punish unhonest participants, but rather makes honest participant benefit more than unhonest ones
 
-Sweet Gossip Protocol is a gossip protocol, that allows a network to broadcast in a similar way to gossip spreads. Assuming that each sweet gossip node is connected to its peers and that the network graph is connected, each node works independently and in the event of receiving a message that needs to be broadcasted. It selects several peers and sends the message, in its owner's interest, to peers making the message spread over the network like gossip (Fig 1.). There inevitably occurs a situation that, if some node will not send the message to all of its peers, some nodes will not receive a broadcasted message even if a network graph is connected (e.g. node C on Fig 1.), but from the game theoretic perspective it will not be a beneficial situation, so this is up to the network operators to make the flow as efficient as possible.
+Sweet Gossip Protocol is a gossip protocol [Gossip2005](#gossip2005), that allows a network to broadcast in a similar way to gossip spreads. Assuming that each sweet gossip node is connected to its peers and that the network graph is connected, each node works independently and in the event of receiving a message that needs to be broadcasted. It selects several peers and sends the message, in its owner's interest, to peers making the message spread over the network like gossip (Fig 1.). There inevitably occurs a situation that, if some node will not send the message to all of its peers, some nodes will not receive a broadcasted message even if a network graph is connected (e.g. node C on Fig 1.), but from the game theoretic perspective it will not be a beneficial situation, so this is up to the network operators to make the flow as efficient as possible.
 
 Sweet Gossip is a protocol, meaning that it only specifies the minimal set of rules to make it beneficial for all the nodes. It doesn't say explicitly how the network node should be implemented. The node implementation is free to do whatever is best to make it beneficial for the node owner.
 
@@ -43,7 +43,7 @@ Fig 1. The intuition behind gossip protocol
 
 # The protocol
 
-Sweet Gossip has a single purpose: to broadcast the job proposal to interested parties and collect job offers from interested contractors. 
+Sweet Gossip protocol has a single purpose: to broadcast the job proposal to interested parties and collect job offers from interested contractors. 
 
 For sake of clarity we use the following naming convention:
 1. Peer - any gossip network node. Every peer maintains a list of their peers.
@@ -206,10 +206,80 @@ sequenceDiagram
 |----|---|
 |originator "thank you secret" Private Key|number|
 
-# Discussion
+# Attack resilience
 
 ### Lack of Thank you and increase in PoW complexity/or network cost
 If the Replier for some reason refuses to send "Thank you secret" the broadcaster can decide to increase the Pow complexity for the next interaction / increase the price of the broadcast.
+
+## Trivial attacks
+From [Brumster2007](#burmster2007)
+Both the silent attack and the chatterbox attack belong to a general family of attacks on
+gossip protocols in which the adversary tries to distort the distribution of the gossipy nodes to
+cause propagation failure.
+
+### The Silent Attack
+A malicious node may fail to respond to the gossip protocol. This will
+distort the distribution of gossip nodes, resulting in propagation failure. F
+
+### Chaterbox Attack 
+A malicious node can retransmit repeatedly the same message. This
+will distort the distribution of the gossip nodes (some nodes that would normally be gossipy
+will now be silent), resulting in propagation failure. In particular, if the hop envelope of the
+chatterbox nodes encloses the hop circle of the source node, the coverage is restricted to the
+envelope.
+
+## Simple attacks
+From [GossipSub](#gossipsub)
+
+### Sybil Attack
+This is the most common form of attack in
+P2P networks, since creating large numbers of identities is
+generally cheap resource-wise, unless cryptographic puzzles
+are included as part of joining the system. In the case of
+GossipSub, Sybils will attempt to get into the mesh, through
+a process called grafting, as we will see in the next Section.
+This is a first step for carrying out all of the following attacks.
+
+### Eclipse Attack
+This attack can be carried out against
+a single victim or the whole network. The objective is to
+silence the victim by refusing to propagate messages from
+it or to distort its view by delaying message propagation
+towards it.
+
+### Censorship Attack
+Sybils seek to establish themselves
+in the mesh and propagate all messages except those published by the target peer. In contrast to the Eclipse Attack,
+in the Censorship Attack Sybils appear to behave properly
+from all vantage points, but hairpin-drop the victim’s messages. The objective of the attacker is to censor the target and
+prevent its messages from reaching the rest of the network.
+This attack is difficult to detect by monitoring and scoring
+peers, as the Sybils build up score by virtue of propagating
+all other messages.
+
+### Cold Boot Attack
+In this attack, honest and Sybil nodes
+join concurrently when the network bootstraps; honest peers
+attempt to build their mesh, while connecting to both Sybil 
+and honest peers. Since there is no score built up from a
+warm, honest-only network to protect the mesh, the Sybils
+manage to largely take over.
+The attack can take place in two cases: i) when the network
+bootstraps with Sybils joining at t0, and ii) when new nodes
+are joining the network while the network is under attack.
+Although the first one is quite unlikely to happen, the second
+is likely to occur as the network grows.
+
+### Flash & Covert Flash Attack
+In the Flash attack, Sybils
+connect and attack the network at once. In the Covert Flash
+Attack, Sybils connect to the network but behave properly
+for some time in order to build up score. Then, they execute a
+coordinated attack whereby they stop propagating messages
+altogether in an attempt to completely disrupt the network.
+The attack is difficult to identify before the attackers turn
+malicious as they behave properly up to that point and build
+a good profile.
 
 
 [:bangbang:][MORE! All the aspects that can break the protocol.]
@@ -246,6 +316,24 @@ Sweet Gossip Protocol is an enabler for building P2P apps.
 [:bangbang:][MORE!]
 
 # References
-1. WebRTC https://en.wikipedia.org/wiki/WebRTC
-2. Bitmessage https://en.wikipedia.org/wiki/Bitmessage
-3. Hypercore https://github.com/hypercore-protocol
+
+#### [Gossip2005] 
+[S. Verma and Wei Tsang Ooi, "Controlling Gossip Protocol Infection Pattern Using Adaptive Fanout," 25th IEEE International Conference on Distributed Computing Systems (ICDCS'05), 2005, pp. 665-674, doi: 10.1109/ICDCS.2005.20.](https://www.comp.nus.edu.sg/~ooiwt/papers/fanout-icdcs05-final.pdf)
+
+#### [WebRTC]
+[WebRTC](https://en.wikipedia.org/wiki/WebRTC)
+
+#### [Bitmessage]
+[Bitmessage](https://en.wikipedia.org/wiki/Bitmessage)
+
+#### [Hypercore]
+[Hypercore](https://github.com/hypercore-protocol)
+
+#### [GossipSub]
+[GossipSub: Attack-Resilient Message Propagation in the Filecoin and ETH2.0 Networks](https://arxiv.org/pdf/2007.02754.pdf)
+
+#### [Lamport1982]
+[Lamport, Leslie, Shostak, Robert E. and Pease, Marshall C.. "The Byzantine Generals Problem.." ACM Trans. Program. Lang. Syst. 4 , no. 3 (1982): 382-401.](https://lamport.azurewebsites.net/pubs/byz.pdf)
+
+#### [Burmster2007]
+[Mike Burmester, Tri Van Le, Alec Yasinsac, Adaptive gossip protocols: Managing security and redundancy in dense ad hoc networks, Ad Hoc Networks, Volume 5, Issue 3, 2007, Pages 313-323, ISSN 1570-8705,](http://www.cs.fsu.edu/~burmeste/adhocjourn.pdf)
