@@ -1,4 +1,5 @@
 # %%
+import pow
 import hashlib
 import pickle
 import random
@@ -13,11 +14,14 @@ import simpy
 from tqdm.auto import tqdm
 
 import crypto
+import cert
 from mass import Agent, execute_simulation, simulate, trace
 from mass_tools import time_to_int
 from run_tools import is_notebook
 from stopwatch import Stopwatch
 from datetime import datetime
+
+from payments import PaymentChannel, Invoice, ProofOfPayment, is_invoice_paid, validate_proof_of_payment
 
 if is_notebook():
     PARAM_ID = 295
@@ -87,17 +91,15 @@ class POWFavourConditionsFrame(FavourConditionsFrame):
 
 
 class LNFavourConditionsFrame(FavourConditionsFrame):
-    def __init__(self, topic: str, buf_size: int, valid_till: datetime, ln_addr, satoshis: int):
+    def __init__(self, topic: str, buf_size: int, valid_till: datetime, invoice: Invoice):
         super().__init__(topic, buf_size, valid_till)
-        self.ln_addr = ln_addr
-        self.satoshis = satoshis
+        self.invoice = invoice
 
     def __repr__(self):
         return f"""{super().__repr__()}
         <-
         LNFavourConditionsFrame(
-        ln_addr={self.ln_addr},
-        satoshis={self.satoshis})"""
+        invoice={self.invoice})"""
 
 
 # %%
@@ -238,27 +240,11 @@ class POWBroadcastFrame(BroadcastFrame):
                          backward_onion)
 
     def compute_pow(self, pow_scheme: str, pow_target: int):
-        if pow_scheme.lower() == "sha256":
-            buf = bytearray(pickle.dumps(self.message_frame))
-            for n in range(sys.maxsize):
-                m = hashlib.sha256()
-                m.update(buf)
-                m.update(n.to_bytes(4, "big"))
-                d = int.from_bytes(m.digest(), "big")
-                if d <= pow_target:
-                    self.nuance = n
-                    return
+        self.nuance = pow.compute_pow(
+            self.message_frame, pow_scheme, pow_target)
 
-    def validate_pow(self, pow_scheme: str, pow_target: int):
-        if pow_scheme.lower() == "sha256":
-            buf = bytearray(pickle.dumps(self.message_frame))
-            m = hashlib.sha256()
-            m.update(buf)
-            m.update(self.nuance.to_bytes(4, "big"))
-            d = int.from_bytes(m.digest(), "big")
-            if d <= pow_target:
-                return True
-        return False
+    def validate_pow(self, pow_scheme: str, pow_target: int) -> bool:
+        return pow.validate_pow(self.message_frame, self.nuance, pow_scheme, pow_target)
 
     def __repr__(self):
         return f"""{super().__repr__()}
@@ -427,7 +413,7 @@ class SweetGossipNode(Agent):
             payload = self.accept_broadcast(brd_frame)
             if payload is not None:
                 self.communicate(e, payload=payload,
-                                forward_onion=brd_frame.backward_onion)
+                                 forward_onion=brd_frame.backward_onion)
             else:
                 self.broadcast(e, topic=brd_frame.topic, message=brd_frame.message,
                                backward_onion=brd_frame.backward_onion)
