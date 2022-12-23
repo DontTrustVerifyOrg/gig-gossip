@@ -27,7 +27,7 @@ It is important to state explicitly that we are not inventing any new coin or cr
 Sweet Gossip P2P Network preserves:
 - P2P Symmetry - every node does the same thing
 - Permissionlessness - anyone with internet access can join Sweet Gossip P2P network
-- Mobile first - the cost of running Sweet Gossip node is marginal on modern mobile devices
+- Mobile first - the cost of running Sweet Gossip node is marginal on modern mobile devices. Also, the protocol handles mobile connectivity issues.
 - Privacy - the communication is encrypted
 - Anonymity - any information about the people behind the nodes is hidden
 - DDos and Spam protection - it uses Proof of Work (PoW) and/or micropayments to protect the network from DDoS and Spam 
@@ -43,7 +43,7 @@ Fig 1. The intuition behind gossip protocol
 
 # The protocol
 
-Sweet Gossip protocol has a single purpose: to broadcast the job proposal to interested parties and collect job offers from interested contractors. 
+Sweet Gossip protocol has a single purpose: to broadcast the job proposal to interested parties and collect job offers from interested contractors. It is designed to work accordingly to Pub-Sub pattern.
 
 For sake of clarity we use the following naming convention:
 1. Peer - any gossip network node. Every peer maintains a list of their peers.
@@ -206,10 +206,16 @@ sequenceDiagram
 |----|---|
 |originator "thank you secret" Private Key|number|
 
-# Attack resilience
+
+# Discussions
 
 ### Lack of Thank you and increase in PoW complexity/or network cost
 If the Replier for some reason refuses to send "Thank you secret" the broadcaster can decide to increase the Pow complexity for the next interaction / increase the price of the broadcast.
+
+## Mobile device connectivity issues
+### Holepunching
+
+### Broken connection
 
 ## Trivial attacks
 From [Brumster2007](#burmster2007)
@@ -219,7 +225,7 @@ cause propagation failure.
 
 ### The Silent Attack
 A malicious node may fail to respond to the gossip protocol. This will
-distort the distribution of gossip nodes, resulting in propagation failure. F
+distort the distribution of gossip nodes, resulting in propagation failure. 
 
 ### Chaterbox Attack 
 A malicious node can retransmit repeatedly the same message. This
