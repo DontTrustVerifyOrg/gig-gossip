@@ -38,8 +38,6 @@ FOLDNAME = f"sim/{PARAM_ID:08d}_"+(str(datetime.now())+" "+uuid.uuid4().hex).rep
 RUN_START = time_to_int(1, 8, 0)
 
 # %%
-MAX_POW_TARGET_SHA256 = int.from_bytes(
-    b'\x0F\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF', 'big')
 
 # %%
 
@@ -392,7 +390,7 @@ class SweetGossipNode(Agent):
                 aff_frame.topic, aff_frame.buf_size,
                 valid_till=datetime.now()+timedelta(minutes=10),
                 pow_scheme="sha256",
-                pow_target=MAX_POW_TARGET_SHA256)
+                pow_target=pow.MAX_POW_TARGET_SHA256)
             self.reply(e, m, fc_cond)
         elif isinstance(m.data, POWFavourConditionsFrame):
             fc_cond = m.data

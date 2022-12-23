@@ -2,6 +2,9 @@ import crypto
 import pickle
 import sys
 
+MAX_POW_TARGET_SHA256 = int.from_bytes(
+    b'\x0F\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF', 'big')
+
 
 def _validate_sha25_pow(buf: bytes, nuance: int, pow_target: int) -> bool:
     return int.from_bytes(crypto.compute_sha256([
