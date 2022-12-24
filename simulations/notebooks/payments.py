@@ -1,58 +1,37 @@
-
 from datetime import datetime
+from myrepr import ReprObject
 
 
 class Invoice:
-    def __init__(self, account: str, amount: int, valid_till: datetime, message: str) -> None:
+    pass
+
+
+class ProofOfPayment(ReprObject):
+    def __init__(self, invoice: Invoice) -> None:
+        self.invoice = invoice
+
+    def validate(self) -> bool:
+        return self.invoice.is_paid()
+
+
+class Invoice(ReprObject):
+    def __init__(self, account: str, amount: int, valid_till: datetime) -> None:
         self.account = account
         self.amount = amount
         self.valid_till = valid_till
-        self.message = message
+        self._is_paid = False
 
-    def __repr__(self):
-        return f"""Invoice(
-        account={self.account},
-        amount={self.amount},
-        message={self.message},
-        valid_till={self.valid_till})"""
+    def pay(self, account: str) -> ProofOfPayment:
+        self._is_paid = True
+        return ProofOfPayment(self)
 
-    def __str__(self):
-        return self.__repr__()
+    def is_paid(self) -> bool:
+        return self._is_paid
 
 
-class ProofOfPayment:
-    def __init__(self, message: str) -> None:
-        self.message = message
-
-    def __repr__(self):
-        return f"""ProofOfPayment(
-        message={self.message})"""
-
-    def __str__(self):
-        return self.__repr__()
-
-
-class PaymentChannel:
+class PaymentChannel(ReprObject):
     def __init__(self, account: str) -> None:
         self.account = account
 
-    def create_invoice(self, amount: int, valid_till: datetime, message: str) -> Invoice:
-        return Invoice(amount, valid_till, message)
-
-    def pay_invoice(self, invoice: Invoice, message: str) -> ProofOfPayment:
-        return ProofOfPayment(message)
-
-    def __repr__(self):
-        return f"""PaymentChannel(
-        account={self.account})"""
-
-    def __str__(self):
-        return self.__repr__()
-
-
-def is_invoice_paid(invoice: Invoice) -> bool:
-    return False
-
-
-def validate_proof_of_payment(invoice: Invoice, pop: ProofOfPayment) -> bool:
-    return True
+    def create_invoice(self, amount: int, valid_till: datetime) -> Invoice:
+        return Invoice(self.account, amount, valid_till)

@@ -1,124 +1,73 @@
 # %%
-import pow
-import hashlib
-import pickle
-import random
-import sys
-import time
-import uuid
 from datetime import datetime, timedelta
 from functools import partial
+from typing import List
 
-import numpy as np
 import simpy
 from tqdm.auto import tqdm
 
 import crypto
-import cert
 from mass import Agent, execute_simulation, simulate, trace
 from mass_tools import time_to_int
-from run_tools import is_notebook
 from stopwatch import Stopwatch
 from datetime import datetime
 
+from cert import Certificate, CertificationAuthority, verify_certificate
 from payments import PaymentChannel, Invoice, ProofOfPayment, is_invoice_paid, validate_proof_of_payment
+from pow import WorkRequest, ProofOfWork
 
-if is_notebook():
-    PARAM_ID = 295
-else:
-    PARAM_ID = int(sys.argv[-1])
-
-RANDOM_SEED = 1234
-
-random.seed(RANDOM_SEED)
-np.random.seed(RANDOM_SEED)
-
-FOLDNAME = f"sim/{PARAM_ID:08d}_"+(str(datetime.now())+" "+uuid.uuid4().hex).replace('-',
-                                                                                     '').replace(' ', '_').replace(':', '').replace('.', '_')
-RUN_START = time_to_int(1, 8, 0)
-
+from experiment_tools import FOLDNAME, RUN_START
+from myrepr import ReprObject
 # %%
 
-# %%
+from uuid import UUID
 
 
-class AskForFavourFrame:
-    def __init__(self, topic: str, buf_size: int):
+class AskForBroadcastFrame(ReprObject):
+    def __init__(self, certificate: Certificate, topic: str, buf_size: int, ask_id: UUID) -> None:
+        self.certificate = certificate
         self.topic = topic
         self.buf_size = buf_size
 
-    def __repr__(self):
-        return f"""AskForFavourFrame(
-        topic={self.topic},
-        buf_size={self.buf_size})"""
 
-    def __str__(self):
-        return self.__repr__()
-
-# %%
-
-
-class FavourConditionsFrame:
-    def __init__(self, topic: str, buf_size: int, valid_till: datetime):
-        self.topic = topic
-        self.buf_size = buf_size
+class BroadcastConditionsFrame(ReprObject):
+    def __init__(self, ask_id: UUID, valid_till: datetime) -> None:
+        self.ask_id = ask_id
         self.valid_till = valid_till
 
-    def __repr__(self):
-        return f"""FavourConditionsFrame(
-        topic={self.topic},
-        buf_size={self.buf_size},
-        valid_till={self.valid_till})"""
 
-    def __str__(self):
-        return self.__repr__()
+class POWBroadcastConditionsFrame(BroadcastConditionsFrame):
+    def __init__(self, ask_id: UUID, valid_till: datetime, work_request: WorkRequest) -> None:
+        super().__init__(ask_id, valid_till)
+        self.work_request = work_request
 
 
-class POWFavourConditionsFrame(FavourConditionsFrame):
-    def __init__(self, topic: str, buf_size: int, valid_till: datetime, pow_scheme: str, pow_target: int):
-        super().__init__(topic, buf_size, valid_till)
-        self.pow_scheme = pow_scheme
-        self.pow_target = pow_target
-
-    def __repr__(self):
-        return f"""{super().__repr__()}
-        <-
-        POWFavourConditionsFrame(
-        pow_scheme={self.pow_scheme},
-        pow_target={self.pow_target})"""
-
-
-class LNFavourConditionsFrame(FavourConditionsFrame):
-    def __init__(self, topic: str, buf_size: int, valid_till: datetime, invoice: Invoice):
-        super().__init__(topic, buf_size, valid_till)
+class InvoicedBroadcastConditionsFrame(BroadcastConditionsFrame):
+    def __init__(self, ask_id: UUID, valid_till: datetime, invoice: Invoice) -> None:
+        super().__init__(ask_id, valid_till)
         self.invoice = invoice
-
-    def __repr__(self):
-        return f"""{super().__repr__()}
-        <-
-        LNFavourConditionsFrame(
-        invoice={self.invoice})"""
-
 
 # %%
 
-class OnionLayer:
-    def __init__(self, peer_name: str, reward_ln_addr, reward_satoshis: int):
+
+class OnionLayer(ReprObject):
+    def __init__(self, peer_name: str):
         self.peer_name = peer_name
-        self.reward_ln_addr = reward_ln_addr
-        self.reward_satoshis = reward_satoshis
-
-    def __repr__(self):
-        return f"""OnionLayer(
-            peer_name={self.peer_name},
-            reward_ln_addr={self.reward_ln_addr},
-            reward_satoshis={self.reward_satoshis})"""
-
-    def __str__(self):
-        return self.__repr__()
 
 
-class OnionRoute:
+class POWOnionLayer(OnionLayer):
+    def __init__(self, peer_name: str, work_request: WorkRequest):
+        super().__init__(peer_name)
+        self.work_request = WorkRequest
+
+
+class InvoicedOnionLayer(OnionLayer):
+    def __init__(self, peer_name: str, invoice: Invoice):
+        super().__init__(peer_name)
+        self.invoice = invoice
+
+
+class OnionRoute(ReprObject):
     def __init__(self):
         self._onion = b""
 
@@ -138,16 +87,11 @@ class OnionRoute:
         onion._onion = self._onion
         return onion
 
-    def __repr__(self):
-        return f"""OnionRoute({self._onion})"""
-
-    def __str__(self):
-        return self.__repr__()
 
 # %%
 
 
-class Payload:
+class Payload(ReprObject):
     def __init__(self):
         self._buf = None
 
@@ -157,16 +101,10 @@ class Payload:
     def decrypt(self, priv_key: bytes):
         return crypto.decrypt_object(self._buf, priv_key)
 
-    def __repr__(self):
-        return f"""Payload({self._buf})"""
-
-    def __str__(self):
-        return self.__repr__()
-
 # %%
 
 
-class MessageFrame:
+class MessageFrame(ReprObject):
     def __init__(self, topic: str,
                  message: str,
                  thank_you_secret: bytes,
@@ -176,17 +114,6 @@ class MessageFrame:
         self.message = message
         self.thank_you_secret = thank_you_secret
         self.reply_pubkey = reply_pubkey
-
-    def __repr__(self):
-        return f"""MessageFrame(
-        topic={self.topic},
-        message={self.message},
-        thank_you_secret={self.thank_you_secret},
-        reply_pubkey={self.reply_pubkey},
-        )"""
-
-    def __str__(self):
-        return self.__repr__()
 
     def same_as(self, other):
         return ((self.topic == other.topic)
@@ -210,67 +137,45 @@ class MessageFrame:
                 + len(self.reply_pubkey)
                 )
 
+# %%
 
-class BroadcastFrame:
-    def __init__(self, message_frame: MessageFrame,
+
+class BroadcastFrame(ReprObject):
+    def __init__(self, ask_id: UUID,
+                 message_frame: MessageFrame,
                  backward_onion: OnionRoute,
                  ):
+        self.ask_id = ask_id
         self.message_frame = message_frame
         self.backward_onion = backward_onion
 
-    def __repr__(self):
-        return f"""BroadcastFrame(
-        message_frame={self.message_frame},
-        backward_onion={self.backward_onion}
-        )"""
-
-    def __str__(self):
-        return self.__repr__()
-
-# %%
-
 
 class POWBroadcastFrame(BroadcastFrame):
-    def __init__(self, message_frame: MessageFrame,
-                 backward_onion: OnionRoute
-                 ):
-        super().__init__(message_frame,
-                         backward_onion)
-
-    def compute_pow(self, pow_scheme: str, pow_target: int):
-        self.nuance = pow.compute_pow(
-            self.message_frame, pow_scheme, pow_target)
-
-    def validate_pow(self, pow_scheme: str, pow_target: int) -> bool:
-        return pow.validate_pow(self.message_frame, self.nuance, pow_scheme, pow_target)
-
-    def __repr__(self):
-        return f"""{super().__repr__()}
-        <-
-        POWBroadcastFrame(nuance={self.nuance})"""
-
-    def __str__(self):
-        return self.__repr__()
-
-
-class LNBroadcastFrame(BroadcastFrame):
-    def __init__(self, message_frame: MessageFrame,
+    def __init__(self, ask_id: UUID,
+                 message_frame: MessageFrame,
                  backward_onion: OnionRoute,
-                 ln_utxo,
+                 proof_of_work: ProofOfWork,
                  ):
-        super().__init__(message_frame,
+        super().__init__(ask_id,
+                         message_frame,
                          backward_onion)
-        self.ln_utxo = ln_utxo
+        self.proof_of_work = proof_of_work
 
-    def __repr__(self):
-        return f"""{super().__repr__()}
-        <-
-        LNBroadcastFrame(ln_utxo={self.ln_utxo})
-        """
+
+class InvoicedBroadcastFrame(BroadcastFrame):
+    def __init__(self, ask_id: UUID,
+                 message_frame: MessageFrame,
+                 backward_onion: OnionRoute,
+                 proof_of_payment: ProofOfPayment,
+                 ):
+        super().__init__(ask_id,
+                         message_frame,
+                         backward_onion)
+        self.proof_of_payment = proof_of_payment
 
 
 # %%
-class CommunicateFrame:
+class CommunicationFrame(ReprObject):
     def __init__(self, payload: Payload,
                  forward_onion: OnionRoute,
                  backward_onion: OnionRoute,
@@ -279,49 +184,53 @@ class CommunicateFrame:
         self.forward_onion = forward_onion
         self.backward_onion = backward_onion
 
-    def __repr__(self):
-        return f"""CommunicateFrame(
-        payload={self.payload},
-        forward_onion={self.forward_onion},
-        backward_onion={self.backward_onion}
-        )"""
 
-    def __str__(self):
-        return self.__repr__()
-
-# %%
-
-
-class ThankYouFrame:
-    def __init__(self, thank_you_key: bytes,
+class POWCommunicationFrame(CommunicationFrame):
+    def __init__(self, payload: Payload,
                  forward_onion: OnionRoute,
+                 backward_onion: OnionRoute,
+                 proof_of_work: ProofOfWork,
                  ):
-        self.thank_you_key = thank_you_key
-        self.forward_onion = forward_onion
+        super().__init__(payload,
+                         forward_onion,
+                         backward_onion)
+        self.proof_of_work = proof_of_work
 
-    def __repr__(self):
-        return f"""ThankYouFrame(
-        thank_you_key={self.thank_you_key},
-        forward_onion={self.forward_onion}
-        )"""
 
-    def __str__(self):
-        return self.__repr__()
-
+class InvoicedCommunicationFrame(CommunicationFrame):
+    def __init__(self, payload: Payload,
+                 forward_onion: OnionRoute,
+                 backward_onion: OnionRoute,
+                 proof_of_payment: ProofOfPayment
+                 ):
+        super().__init__(payload,
+                         forward_onion,
+                         backward_onion)
+        self.proof_of_payment = proof_of_payment
 # %%
 
+
+# self._priv_key, self.pub_key = crypto.create_keys()
+# self.certificate = ca.issue_certificate(self.pub_key,properties)
 
 class SweetGossipNode(Agent):
-    def __init__(self, context_name, name, ln_addr):
-        super().__init__(context_name, name, ln_addr)
+    def __init__(self,
+                 context_name,
+                 name,
+                 ca: CertificationAuthority,
+                 payment_channel: PaymentChannel):
+        super().__init__(context_name, name)
         self.name = name
+        self._private_key, self.public_key = crypto.create_keys()
+        self.ca = ca
+        self.base_certificate = self.ca.issue_certificate(self.public_key,{"valid":True})
+
+        self.payment_channel = payment_channel
         self.history = []
         self._log_i = 0
         self._known_hosts = dict()
         self._asks_for = dict()
-        self._priv_key, self.pub_key = crypto.create_keys()
         self._already_seen = []
-        self._ln_addr = ln_addr
 
     def log_history(self, e, what, d={}):
         self.ctx(e, lambda: self.trace(e, str(d)))
@@ -342,7 +251,7 @@ class SweetGossipNode(Agent):
 
         message_frame = MessageFrame(
             topic, message, thank_you_secret, reply_pubkey)
-        aff_frame = AskForFavourFrame(
+        aff_frame = AskForBroadcastFrame(
             topic, message_frame.size())
         self._already_seen.append(message_frame.clone())
         for peer in self._known_hosts.values():
@@ -362,7 +271,7 @@ class SweetGossipNode(Agent):
         elif top_layer.name in self._known_hosts:
             layer = OnionLayer(self.name, self._ln_addr, reward_satoshis)
             backward_onion.enclose(layer, self._priv_key)
-            com_frame = CommunicateFrame(
+            com_frame = CommunicationFrame(
                 payload, forward_onion, backward_onion)
             self.new_message(e, self._known_hosts[top_layer.name], com_frame)
 
@@ -373,26 +282,17 @@ class SweetGossipNode(Agent):
                          forward_onion=forward_onion,
                          backward_onion=OnionRoute())
 
-    def thankyou(self, e, secret_key: str, forward_onion: OnionRoute):
-        top_layer = forward_onion.peel()
-        if top_layer.name != self.name:
-            if top_layer.name in self._known_hosts:
-                thx_frame = ThankYouFrame(secret_key, forward_onion)
-                self.new_message(
-                    e, self._known_hosts[top_layer.name], thx_frame)
-        self.on_thankyou(secret_key)
-
     def on_message(self, e, m):
-        if isinstance(m.data, AskForFavourFrame):
+        if isinstance(m.data, AskForBroadcastFrame):
             aff_frame = m.data
             peer_name = m.sender.name
-            fc_cond = POWFavourConditionsFrame(
+            fc_cond = POWBroadcastConditionsFrame(
                 aff_frame.topic, aff_frame.buf_size,
                 valid_till=datetime.now()+timedelta(minutes=10),
                 pow_scheme="sha256",
                 pow_target=pow.MAX_POW_TARGET_SHA256)
             self.reply(e, m, fc_cond)
-        elif isinstance(m.data, POWFavourConditionsFrame):
+        elif isinstance(m.data, POWBroadcastConditionsFrame):
             fc_cond = m.data
             if fc_cond.valid_till <= datetime.now():
                 for i in range(len(self._asks_for[peer_name])):
@@ -404,7 +304,7 @@ class SweetGossipNode(Agent):
                         fc_cond.pow_scheme,
                         fc_cond.pow_target)
                     self.reply(e, m, brd_frame)
-                elif isinstance(brd_frame, LNBroadcastFrame):
+                elif isinstance(brd_frame, InvoicedBroadcastFrame):
                     pass
         elif isinstance(m.data, BroadcastFrame):
             brd_frame = m.data
@@ -415,14 +315,10 @@ class SweetGossipNode(Agent):
             else:
                 self.broadcast(e, topic=brd_frame.topic, message=brd_frame.message,
                                backward_onion=brd_frame.backward_onion)
-        elif isinstance(m.data, CommunicateFrame):
+        elif isinstance(m.data, CommunicationFrame):
             com_frame = m.data
             self.communicate(e, payload=com_frame.payload,
                              onion=com_frame.onion)
-        elif isinstance(m.data, ThankYouFrame):
-            thx_frame = m.data
-            self.thankyou(e, secret_key=thx_frame.secret_key,
-                          onion=thx_frame.onion)
         else:
             self.ctx(e, lambda: self.trace(e, "unknown request:", m))
 
@@ -480,41 +376,36 @@ class Customer(SweetGossipNode):
 
 # %%
 def main(sim_id):
-    start = time.time()
+    with Stopwatch() as sw:
+        def printMessages(msgs):
+            for m in msgs:
+                print(m)
 
-    def printMessages(msgs):
-        for m in msgs:
-            print(m)
+        things = {}
 
-    things = {}
+        things["Gossiper1"] = Gossiper("Gossipers", "Gossiper1")
+        things["GigWorker1"] = GigWorker("GigWorkers", "GigWorker1")
+        things["Customer1"] = Customer("Customers", "Customer1")
 
-    things["Gossiper1"] = Gossiper("Gossipers", "Gossiper1")
-    things["GigWorker1"] = GigWorker("GigWorkers", "GigWorker1")
-    things["Customer1"] = Customer("Customers", "Customer1")
+        things["GigWorker1"].connect_to(things["Gossiper1"])
+        things["Customer1"].connect_to(things["Gossiper1"])
 
-    things["GigWorker1"].connect_to(things["Gossiper1"])
-    things["Customer1"].connect_to(things["Gossiper1"])
+        simulate(sim_id, things, verbose={
+            "message flow",
+            "GigWorkers",
+            "Gossipers",
+            "Customers",
+            "unknown message"}, until=float('inf'))
 
-    simulate(sim_id, things, verbose={
-        "message flow",
-        "GigWorkers",
-        "Gossipers",
-        "Customers",
-        "unknown message"}, until=float('inf'))
+        for a in things:
+            if (len(things[a].queue.items) > 0):
+                print(a)
+                printMessages(things[a].queue.items)
 
-    for a in things:
-        if (len(things[a].queue.items) > 0):
-            print(a)
-            printMessages(things[a].queue.items)
-
-    end = time.time()
-    print(end - start)
+    print(sw.total())
 
 
 # %%
 execute_simulation(main, sim_id=FOLDNAME)
-
-# %%
-
 
 # %%
