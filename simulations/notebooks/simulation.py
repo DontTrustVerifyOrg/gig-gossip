@@ -210,21 +210,32 @@ class InvoicedCommunicationFrame(CommunicationFrame):
 # %%
 
 
-# self._priv_key, self.pub_key = crypto.create_keys()
-# self.certificate = ca.issue_certificate(self.pub_key,properties)
+class Topic(ReprObject):
+    def __init__(self, name: str, path: str, after: datetime, before: datetime) -> None:
+        self.name = name
+        self.path = path
+        self.after = after
+        self.before = before
+
+    def sign(self, private_key: bytes):
+        obj = (self.name, self.path, self.after, self.before)
+        self.signature = crypto.sign_object(obj, private_key)
+
+    def verify(self, public_key: bytes):
+        obj = (self.name, self.path, self.after, self.before)
+        return crypto.verify_object(obj, self.signature, public_key)
+
+# %%
+
 
 class SweetGossipNode(Agent):
     def __init__(self,
                  context_name,
                  name,
-                 ca: CertificationAuthority,
                  payment_channel: PaymentChannel):
         super().__init__(context_name, name)
         self.name = name
         self._private_key, self.public_key = crypto.create_keys()
-        self.ca = ca
-        self.base_certificate = self.ca.issue_certificate(self.public_key,{"valid":True})
-
         self.payment_channel = payment_channel
         self.history = []
         self._log_i = 0
@@ -242,15 +253,13 @@ class SweetGossipNode(Agent):
         other._known_hosts[self.name] = self
 
     def broadcast(self, e,
-                  topic: str,
-                  message: str,
-                  thank_you_secret: bytes,
-                  reply_pubkey: bytes,
-                  reward_satoshis: int,
+                  certificate: Certificate,
+                  topic: Topic,
                   backward_onion: OnionRoute = OnionRoute()):
 
-        message_frame = MessageFrame(
-            topic, message, thank_you_secret, reply_pubkey)
+        topic.sign(self._private_key)
+        message_frame = MessageFrame(certificate,
+                                     topic)
         aff_frame = AskForBroadcastFrame(
             topic, message_frame.size())
         self._already_seen.append(message_frame.clone())
