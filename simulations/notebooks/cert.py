@@ -1,13 +1,10 @@
+from __future__ import annotations
+
 from typing import Tuple, Dict
 
 import crypto
 from myrepr import ReprObject
 from datetime import datetime
-
-
-class CertificationAuthority:
-    pass
-
 
 CA_BY_NAME: Dict[str, CertificationAuthority] = dict()
 

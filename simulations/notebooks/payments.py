@@ -1,10 +1,8 @@
+from __future__ import annotations
+
 from datetime import datetime
 from myrepr import ReprObject
 from crypto import compute_sha512
-
-
-class ProofOfPayment:
-    pass
 
 
 def compute_payment_hash(preimage: bytes) -> bytes:
