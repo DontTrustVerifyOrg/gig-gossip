@@ -1,6 +1,7 @@
-from typing import Tuple
+from typing import Tuple, List
 from cryptography.hazmat.primitives.asymmetric import rsa, padding, utils
 from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.exceptions import InvalidSignature
 from cryptography.fernet import Fernet
 import pickle
 
@@ -82,20 +83,45 @@ def verify_object(obj, signature: bytes, public_key: bytes) -> bool:
     chosen_hash = hashes.SHA256()
     hasher = hashes.Hash(chosen_hash)
     hasher.update(bobj)
-    return pub_key.verify(
-        signature,
-        hasher.finalize(),
-        padding.PSS(
-            mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=padding.PSS.MAX_LENGTH
-        ),
-        utils.Prehashed(chosen_hash)
-    )
+    try:
+        pub_key.verify(
+            signature,
+            hasher.finalize(),
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            utils.Prehashed(chosen_hash)
+        )
+        return True
+    except InvalidSignature:
+        return False
 
 
-def compute_sha256(items: list) -> bytes:
-    chosen_hash = hashes.SHA256()
+def _compute_hash(items: list, chosen_hash) -> bytes:
     hasher = hashes.Hash(chosen_hash)
     for l in items:
         hasher.update(l)
     return hasher.finalize()
+
+
+def compute_sha256(items: list) -> bytes:
+    return _compute_hash(hashes.SHA256())
+
+
+def compute_sha512(items: list) -> bytes:
+    return _compute_hash(hashes.SHA512())
+
+
+def generate_symmetric_keys(num: int) -> List[bytes]:
+    return [Fernet.generate_key() for _ in range(num)]
+
+
+def symmetric_encrypt(key: bytes, obj) -> bytes:
+    bobj = pickle.dumps(obj)
+    return Fernet(key).encrypt(bobj)
+
+
+def symmetric_decrypt(key: bytes, ebobj: bytes):
+    bobj = Fernet(key).decrypt(ebobj)
+    return pickle.loads(bobj)

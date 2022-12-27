@@ -1,7 +1,7 @@
 # %%
 from datetime import datetime, timedelta
 from functools import partial
-from typing import List
+from typing import List, Dict
 
 import simpy
 from tqdm.auto import tqdm
@@ -12,63 +12,41 @@ from mass_tools import time_to_int
 from stopwatch import Stopwatch
 from datetime import datetime
 
-from cert import Certificate, CertificationAuthority, verify_certificate
-from payments import PaymentChannel, Invoice, ProofOfPayment, is_invoice_paid, validate_proof_of_payment
-from pow import WorkRequest, ProofOfWork
+from cert import Certificate, CertificationAuthority, create_certification_authority, get_certification_authority_by_name
+from payments import PaymentChannel, Invoice, ProofOfPayment, compute_payment_hash
+from pow import WorkRequest, ProofOfWork, pow_target_from_complexity
 
 from experiment_tools import FOLDNAME, RUN_START
 from myrepr import ReprObject
+
+from uuid import UUID, uuid4
 # %%
 
-from uuid import UUID
 
+class SignableObject(ReprObject):
+    def sign(self, private_key: bytes) -> None:
+        self.signature = None
+        self.signature = crypto.sign_object(self, private_key)
 
-class AskForBroadcastFrame(ReprObject):
-    def __init__(self, certificate: Certificate, topic: str, buf_size: int, ask_id: UUID) -> None:
-        self.certificate = certificate
-        self.topic = topic
-        self.buf_size = buf_size
-
-
-class BroadcastConditionsFrame(ReprObject):
-    def __init__(self, ask_id: UUID, valid_till: datetime) -> None:
-        self.ask_id = ask_id
-        self.valid_till = valid_till
-
-
-class POWBroadcastConditionsFrame(BroadcastConditionsFrame):
-    def __init__(self, ask_id: UUID, valid_till: datetime, work_request: WorkRequest) -> None:
-        super().__init__(ask_id, valid_till)
-        self.work_request = work_request
-
-
-class InvoicedBroadcastConditionsFrame(BroadcastConditionsFrame):
-    def __init__(self, ask_id: UUID, valid_till: datetime, invoice: Invoice) -> None:
-        super().__init__(ask_id, valid_till)
-        self.invoice = invoice
-
-# %%
+    def verify(self, public_key: bytes) -> bool:
+        signature = self.signature
+        self.signature = None
+        result = crypto.verify_object(self, signature, public_key)
+        self.signature = signature
+        return result
 
 
 class OnionLayer(ReprObject):
-    def __init__(self, peer_name: str):
+    def __init__(self, peer_name: str) -> None:
         self.peer_name = peer_name
 
 
-class POWOnionLayer(OnionLayer):
-    def __init__(self, peer_name: str, work_request: WorkRequest):
-        super().__init__(peer_name)
-        self.work_request = WorkRequest
-
-
-class InvoicedOnionLayer(OnionLayer):
-    def __init__(self, peer_name: str, invoice: Invoice):
-        super().__init__(peer_name)
-        self.invoice = invoice
+class OnionRoute:
+    pass
 
 
 class OnionRoute(ReprObject):
-    def __init__(self):
+    def __init__(self) -> None:
         self._onion = b""
 
     def peel(self, priv_key: bytes) -> OnionLayer:
@@ -76,13 +54,10 @@ class OnionRoute(ReprObject):
         self._onion = rest
         return layer
 
-    def grow(self, layer: OnionLayer, pub_key: bytes):
+    def grow(self, layer: OnionLayer, pub_key: bytes) -> None:
         self._onion = crypto.encrypt_object((layer, self._onion), pub_key)
 
-    def buf_size(self):
-        return len(self._onion)
-
-    def clone(self):
+    def clone(self) -> OnionRoute:
         onion = OnionRoute()
         onion._onion = self._onion
         return onion
@@ -91,157 +66,186 @@ class OnionRoute(ReprObject):
 # %%
 
 
-class Payload(ReprObject):
-    def __init__(self):
-        self._buf = None
-
-    def encrypt(self, message, pub_key: bytes) -> bytes:
-        self._buf = crypto.encrypt_object(message, pub_key)
-
-    def decrypt(self, priv_key: bytes):
-        return crypto.decrypt_object(self._buf, priv_key)
-
-# %%
-
-
-class MessageFrame(ReprObject):
-    def __init__(self, topic: str,
-                 message: str,
-                 thank_you_secret: bytes,
-                 reply_pubkey: bytes,
-                 ):
-        self.topic = topic
-        self.message = message
-        self.thank_you_secret = thank_you_secret
-        self.reply_pubkey = reply_pubkey
-
-    def same_as(self, other):
-        return ((self.topic == other.topic)
-                and (self.message == other.message)
-                and (self.thank_you_secret == other.thank_you_secret)
-                and (self.reply_pubkey == other.reply_pubkey)
-                )
-
-    def clone(self):
-        frame = MessageFrame()
-        frame.topic = self.topic
-        frame.message = self.message
-        frame.thank_you_secret = self.thank_you_secret
-        frame.reply_pubkey = self.reply_pubkey
-        return frame
-
-    def size(self):
-        return (len(self.topic)
-                + len(self.message)
-                + len(self.thank_you_secret)
-                + len(self.reply_pubkey)
-                )
-
-# %%
-
-
-class BroadcastFrame(ReprObject):
-    def __init__(self, ask_id: UUID,
-                 message_frame: MessageFrame,
-                 backward_onion: OnionRoute,
-                 ):
-        self.ask_id = ask_id
-        self.message_frame = message_frame
-        self.backward_onion = backward_onion
-
-
-class POWBroadcastFrame(BroadcastFrame):
-    def __init__(self, ask_id: UUID,
-                 message_frame: MessageFrame,
-                 backward_onion: OnionRoute,
-                 proof_of_work: ProofOfWork,
-                 ):
-        super().__init__(ask_id,
-                         message_frame,
-                         backward_onion)
-        self.proof_of_work = proof_of_work
-
-
-class InvoicedBroadcastFrame(BroadcastFrame):
-    def __init__(self, ask_id: UUID,
-                 message_frame: MessageFrame,
-                 backward_onion: OnionRoute,
-                 proof_of_payment: ProofOfPayment,
-                 ):
-        super().__init__(ask_id,
-                         message_frame,
-                         backward_onion)
-        self.proof_of_payment = proof_of_payment
-
-
-# %%
-class CommunicationFrame(ReprObject):
-    def __init__(self, payload: Payload,
-                 forward_onion: OnionRoute,
-                 backward_onion: OnionRoute,
-                 ):
-        self.payload = payload
-        self.forward_onion = forward_onion
-        self.backward_onion = backward_onion
-
-
-class POWCommunicationFrame(CommunicationFrame):
-    def __init__(self, payload: Payload,
-                 forward_onion: OnionRoute,
-                 backward_onion: OnionRoute,
-                 proof_of_work: ProofOfWork,
-                 ):
-        super().__init__(payload,
-                         forward_onion,
-                         backward_onion)
-        self.proof_of_work = proof_of_work
-
-
-class InvoicedCommunicationFrame(CommunicationFrame):
-    def __init__(self, payload: Payload,
-                 forward_onion: OnionRoute,
-                 backward_onion: OnionRoute,
-                 proof_of_payment: ProofOfPayment
-                 ):
-        super().__init__(payload,
-                         forward_onion,
-                         backward_onion)
-        self.proof_of_payment = proof_of_payment
-# %%
-
-
-class Topic(ReprObject):
-    def __init__(self, name: str, path: str, after: datetime, before: datetime) -> None:
+class Topic(SignableObject):
+    def __init__(self, id: UUID, name: str, path: str, after: datetime, before: datetime) -> None:
+        self.id = id
         self.name = name
         self.path = path
         self.after = after
         self.before = before
 
-    def sign(self, private_key: bytes):
-        obj = (self.name, self.path, self.after, self.before)
-        self.signature = crypto.sign_object(obj, private_key)
+# %%
 
-    def verify(self, public_key: bytes):
-        obj = (self.name, self.path, self.after, self.before)
-        return crypto.verify_object(obj, self.signature, public_key)
+
+class AskForBroadcastFrame(ReprObject):
+    def __init__(self, originator_certificate: Certificate, signed_topic: Topic) -> None:
+        self.originator_certificate = originator_certificate
+        self.signed_topic = signed_topic
+
+
+class BroadcastConditionsFrame(ReprObject):
+    def __init__(self, topic_id: UUID,  valid_till: datetime) -> None:
+        self.topic_id = topic_id
+        self.valid_till = valid_till
+
+
+class POWBroadcastConditionsFrame(BroadcastConditionsFrame):
+    def __init__(self, topic_id: UUID, valid_till: datetime, work_request: WorkRequest) -> None:
+        super().__init__(topic_id, valid_till)
+        self.work_request = work_request
+
+
+class InvoicedBroadcastConditionsFrame(BroadcastConditionsFrame):
+    def __init__(self, topic_id: UUID, valid_till: datetime, invoice: Invoice) -> None:
+        super().__init__(topic_id, valid_till)
+        self.invoice = invoice
+
+
+class RoutePaymentLayer(ReprObject):
+    def __init__(self, account: bytes, amount: int) -> None:
+        self.account = account
+        self.amount = amount
+
+
+class BroadcastFrame(ReprObject):
+    def __init__(self,
+                 originator_certificate: Certificate,
+                 signed_topic: Topic,
+                 backward_onion: OnionRoute,
+                 route_payment_list: List[RoutePaymentLayer]
+                 ):
+        self.originator_certificate = originator_certificate
+        self.signed_topic = signed_topic
+        self.backward_onion = backward_onion
+        self.route_payment_list = route_payment_list
+
+
+class POWBroadcastFrame(ReprObject):
+    def __init__(self,
+                 broadcast_frame: BroadcastFrame,
+                 proof_of_work: ProofOfWork
+                 ):
+        self.broadcast_frame = broadcast_frame
+        self.proof_of_work = proof_of_work
+
 
 # %%
 
+
+class PreimageList(ReprObject):
+    def __init__(self, num: int) -> None:
+        self.preimages = crypto.generate_symmetric_keys(num)
+
+    def compute_payment_hashes(self):
+        return [compute_payment_hash(preimage) for preimage in self.preimages]
+
+    def pop(self) -> bytes:
+        return self.preimages.pop()
+
+
+class InvoiceBuilderSeed(SignableObject):
+    def __init__(self,
+                 route_payment_list: List[RoutePaymentLayer],
+                 payment_hash_list: List[bytes]
+                 ) -> None:
+        self.route_payment_list = route_payment_list
+        self.payment_hash_list = payment_hash_list
+
+
+class ResponseFrame(ReprObject):
+    def __init__(self,
+                 replier_private_key: bytes,
+                 replier_certificate: Certificate,
+                 route_payment_list: List[RoutePaymentLayer],
+                 forward_onion: OnionRoute,
+                 originator_public_key: bytes,
+                 message: bytes) -> None:
+        self.replier_certificate = replier_certificate
+        self.preimage_list = PreimageList(len(route_payment_list))
+        self.invoice_builder_seed = InvoiceBuilderSeed(
+            route_payment_list, self.preimage_list.compute_payment_hashes())
+        self.invoice_builder_seed.sign(replier_private_key)
+        self.forward_onion = forward_onion
+        self.invoices: List[Invoice] = list()
+        self.data = self.encrypt(message, originator_public_key)
+
+    def pop_invoice(self, broadcaster_payment_channel: PaymentChannel, valid_till: datetime) -> Invoice:
+        if self.replier_certificate.verify():
+            if self.invoice_builder_seed.verify(self.replier_certificate.public_key):
+                idx = len(self.preimage_list)
+                layer = self.invoice_builder_seed.route_payment_list[idx]
+                payment_hash = self.invoice_builder_seed.payment_hash_list[idx]
+                if layer.account == broadcaster_payment_channel.account:
+                    preimage = self.preimage_list.pop()
+                    if compute_payment_hash(preimage) == payment_hash:
+                        return broadcaster_payment_channel.create_invoice(layer.amount, preimage, valid_till)
+        return None
+
+    def encrypt(self, message: bytes, originator_public_key: bytes) -> bytes:
+        data = message
+        data = crypto.encrypt_object(data, originator_public_key)
+        for key in self.preimage_list:
+            data = crypto.symmetric_encrypt(key, data)
+        return data
+
+    def verify(self):
+        if self.replier_certificate.verify():
+            if self.invoice_builder_seed.verify(self.replier_certificate.public_key):
+                payment_account_list_a = [
+                    invoice.account for invoice in self.invoices]
+                payment_account_list_b = [
+                    layer.account for layer in self.invoice_builder_seed.route_payment_list]
+                if payment_account_list_a == payment_account_list_b:
+                    payment_amount_list_a = [
+                        invoice.amount for invoice in self.invoices]
+                    payment_amount_list_b = [
+                        layer.amount for layer in self.invoice_builder_seed.route_payment_list]
+                    if payment_amount_list_a == payment_amount_list_b:
+                        payment_hash_list_a = [
+                            invoice.payment_hash for invoice in self.invoices]
+                        payment_hash_list_b = self.invoice_builder_seed.payment_hash_list
+                        if payment_hash_list_a == payment_hash_list_b:
+                            return True
+        return False
+
+    def contains_route_payment_layer(self, layer: RoutePaymentLayer) -> bool:
+        if self.verify():
+            for invoice in self.invoices:
+                if invoice.account == layer.account and invoice.amount == layer.amount:
+                    return True
+        return False
+
+    def pay(self, originator_payment_channel: PaymentChannel, originator_private_key: bytes) -> bytes:
+        if self.verify():
+            proofs_of_payments = [originator_payment_channel.pay_invoice(invoice)
+                                  for invoice in self.invoices]
+            message = self.data
+            for key in reversed([pop.preimage for pop in proofs_of_payments]):
+                message = crypto.symmetric_decrypt(key, message)
+
+            return crypto.decrypt_object(message, originator_private_key)
+        return None
+
+
+# %%
 
 class SweetGossipNode(Agent):
     def __init__(self,
                  context_name,
                  name,
+                 certificate: Certificate,
+                 private_key: bytes,
                  payment_channel: PaymentChannel):
         super().__init__(context_name, name)
         self.name = name
-        self._private_key, self.public_key = crypto.create_keys()
+        self.certificate = certificate
+        self.private_key = private_key
         self.payment_channel = payment_channel
         self.history = []
         self._log_i = 0
-        self._known_hosts = dict()
-        self._asks_for = dict()
-        self._already_seen = []
+        self._known_hosts: Dict[str, str] = dict()
+        self._asks_for: Dict[str, Dict[UUID, BroadcastFrame]] = dict()
+        self._already_seen: List[UUID] = []
 
     def log_history(self, e, what, d={}):
         self.ctx(e, lambda: self.trace(e, str(d)))
@@ -253,92 +257,90 @@ class SweetGossipNode(Agent):
         other._known_hosts[self.name] = self
 
     def broadcast(self, e,
-                  certificate: Certificate,
                   topic: Topic,
-                  backward_onion: OnionRoute = OnionRoute()):
+                  backward_onion: OnionRoute = OnionRoute(),
+                  route_payment_list: List[RoutePaymentLayer] = list()):
 
         topic.sign(self._private_key)
-        message_frame = MessageFrame(certificate,
-                                     topic)
-        aff_frame = AskForBroadcastFrame(
-            topic, message_frame.size())
-        self._already_seen.append(message_frame.clone())
+        aff_frame = AskForBroadcastFrame(self.certificate, topic)
+        self._already_seen.append(topic.id)
         for peer in self._known_hosts.values():
             if not peer.name in self._asks_for:
-                self._asks_for[peer.name] = []
-            layer = OnionLayer(self.name, self._ln_addr, reward_satoshis)
-            backward_onion.enclose(layer, self._priv_key)
-            brd = POWBroadcastFrame(message_frame,
-                                    backward_onion)
-            self._asks_for[peer.name].append(brd)
+                self._asks_for[peer.name] = dict()
+            backward_onion.enclose(OnionLayer(self.name), self._priv_key)
+            route_payment_list.append(
+                RoutePaymentLayer(self.payment_channel.account, 10))  # 10 satoshis
+            brd = BroadcastFrame(self.certificate,
+                                 topic,
+                                 backward_onion,
+                                 route_payment_list)
+            self._asks_for[peer.name][topic.id] = brd
             self.new_message(e, peer, aff_frame)
 
-    def communicate(self, e, payload: Payload, reward_satoshis: int, forward_onion: OnionRoute, backward_onion: OnionRoute):
-        top_layer = forward_onion.peel()
-        if top_layer.name == self.name:
-            self.on_communicate(payload.decrypt(), backward_onion)
-        elif top_layer.name in self._known_hosts:
-            layer = OnionLayer(self.name, self._ln_addr, reward_satoshis)
-            backward_onion.enclose(layer, self._priv_key)
-            com_frame = CommunicationFrame(
-                payload, forward_onion, backward_onion)
-            self.new_message(e, self._known_hosts[top_layer.name], com_frame)
+    def on_ask_for_broadcast(self, e, m, peer_name: str, aff_frame: AskForBroadcastFrame):
+        fc_cond = POWBroadcastConditionsFrame(
+            topic_id=aff_frame.topic.id,
+            valid_till=datetime.now()+timedelta(minutes=10),
+            work_request=WorkRequest(pow_scheme="sha256",
+                                     pow_target=pow_target_from_complexity(
+                                         "sha256", 1)))
+        self.reply(e, m, fc_cond)
 
-    def respond(self, e, message: str, reward_satoshis: int, forward_onion: OnionRoute):
-        payload = Payload()
-        payload.encrypt(message, pub_key=self.pub_key)
-        self.communicate(e, payload, reward_satoshis,
-                         forward_onion=forward_onion,
-                         backward_onion=OnionRoute())
+    def on_pow_broadcast_conditions(self, e, m, peer_name: str, fc_cond: POWBroadcastConditionsFrame):
+        if fc_cond.valid_till <= datetime.now():
+            if fc_cond.topic_id in self._asks_for[peer_name]:
+                brd_frame = self._asks_for[peer_name][fc_cond.topic_id]
+                pow_brd = POWBroadcastFrame(brd_frame,
+                                            fc_cond.work_request.compute_proof(
+                                                brd_frame))
+                self.reply(e, m, pow_brd)
+
+    def accept_broadcast(self, brd_frame: BroadcastFrame) -> InvoiceBuilderFrame:
+        reply_frame = ResponseFrame(
+            replier_private_key=self.private_key,
+            replier_certificate=self.certificate,
+            route_payment_list=brd_frame.route_payment_list,
+            forward_onion=brd_frame.backward_onion,
+            originator_public_key=brd_frame.originator_certificate.public_key,
+            message="hello"
+        )
+        return reply_frame
+
+    def on_pow_broadcast(self, e, m, peer_name: str, pow_frame: POWBroadcastFrame):
+        if pow_frame.proof_of_work.validate(pow_frame.broadcast_frame):
+            ib_frame = self.accept_broadcast(pow_frame.broadcast_frame)
+            if ib_frame is not None:
+                self.on_response(e, m, peer_name, ib_frame=ib_frame)
+            else:
+                self.broadcast(e, topic=pow_frame.topic,
+                               backward_onion=pow_frame.broadcast_frame.backward_onion,
+                               route_payment_list=pow_frame.broadcast_frame.route_payment_list)
+
+    def on_response(self, e, m, peer_name: str, response_frame: ResponseFrame):
+        top_layer = response_frame.forward_onion.peel()
+        if top_layer.name == self.name:
+            self.on_response_received(response_frame)
+        elif top_layer.name in self._known_hosts:
+            invoice = response_frame.pop_invoice(
+                self.payment_channel, datetime.now()+timedelta.days(1))
+            response_frame.invoices.append(invoice)
+            self.new_message(
+                e, self._known_hosts[top_layer.name], response_frame)
+
+    def on_response_received(self, response_frame: ResponseFrame):
+        message = response_frame.pay(self.payment_channel, self.private_key)
 
     def on_message(self, e, m):
         if isinstance(m.data, AskForBroadcastFrame):
-            aff_frame = m.data
-            peer_name = m.sender.name
-            fc_cond = POWBroadcastConditionsFrame(
-                aff_frame.topic, aff_frame.buf_size,
-                valid_till=datetime.now()+timedelta(minutes=10),
-                pow_scheme="sha256",
-                pow_target=pow.MAX_POW_TARGET_SHA256)
-            self.reply(e, m, fc_cond)
+            self.on_ask_for_broadcast(e, m, m.sender, m.data)
         elif isinstance(m.data, POWBroadcastConditionsFrame):
-            fc_cond = m.data
-            if fc_cond.valid_till <= datetime.now():
-                for i in range(len(self._asks_for[peer_name])):
-                    if self._asks_for[peer_name].peek(i).message_frame.size() == fc_cond.buf_size:
-                        brd_frame = self._asks_for[peer_name].pop(i)
-                        break
-                if isinstance(brd_frame, POWBroadcastFrame):
-                    brd_frame.compute_pow(
-                        fc_cond.pow_scheme,
-                        fc_cond.pow_target)
-                    self.reply(e, m, brd_frame)
-                elif isinstance(brd_frame, InvoicedBroadcastFrame):
-                    pass
-        elif isinstance(m.data, BroadcastFrame):
-            brd_frame = m.data
-            payload = self.accept_broadcast(brd_frame)
-            if payload is not None:
-                self.communicate(e, payload=payload,
-                                 forward_onion=brd_frame.backward_onion)
-            else:
-                self.broadcast(e, topic=brd_frame.topic, message=brd_frame.message,
-                               backward_onion=brd_frame.backward_onion)
-        elif isinstance(m.data, CommunicationFrame):
-            com_frame = m.data
-            self.communicate(e, payload=com_frame.payload,
-                             onion=com_frame.onion)
+            self.on_pow_broadcast_conditions(e, m, m.sender, m.data)
+        elif isinstance(m.data, POWBroadcastFrame):
+            self.on_pow_broadcast(e, m, m.sender, m.data)
+        elif isinstance(m.data, ResponseFrame):
+            self.on_response(e, m, m.sender, m.data)
         else:
             self.ctx(e, lambda: self.trace(e, "unknown request:", m))
-
-    def accept_broadcast(self, brd_frame: BroadcastFrame) -> Payload:
-        return None
-
-    def on_communicate(self, message: str, forward_onion: OnionRoute):
-        pass
-
-    def on_thankyou(self, secret_key: str):
-        pass
 
 
 # %%

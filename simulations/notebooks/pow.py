@@ -1,3 +1,4 @@
+# %%
 import crypto
 import pickle
 import sys
@@ -6,6 +7,12 @@ from myrepr import ReprObject
 
 MAX_POW_TARGET_SHA256 = int.from_bytes(
     b'\x0F\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF', 'big')
+
+
+def pow_target_from_complexity(pow_scheme: str, complexity: int) -> int:
+    if pow_scheme.lower() == "sha256":
+        return MAX_POW_TARGET_SHA256//complexity
+    raise NotImplementedError()
 
 
 def _validate_sha25_pow(buf: bytes, nuance: int, pow_target: int) -> bool:
@@ -52,3 +59,5 @@ class WorkRequest(ReprObject):
         return ProofOfWork(
             self.pow_scheme, self.pow_target,
             compute_pow(row, self.pow_scheme, self.pow_target))
+
+# %%
