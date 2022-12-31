@@ -276,7 +276,7 @@ class SweetGossipNode(Agent):
             self._broadcast_payloads_by_host_by_id[peer.name][topic.id] = broadcast_payload
             self.new_message(e, peer, ask_for_broadcast_frame)
 
-    def on_ask_for_broadcast_frame(self, e, m, peer_name: str, ask_for_broadcast_frame: AskForBroadcastFrame):
+    def on_ask_for_broadcast_frame(self, e, m, peer: SweetGossipNode, ask_for_broadcast_frame: AskForBroadcastFrame):
         pow_broadcast_conditions_frame = POWBroadcastConditionsFrame(
             topic_id=ask_for_broadcast_frame.signed_topic.id,
             valid_till=datetime.now()+self.broadcast_conditions_timeout,
@@ -285,12 +285,12 @@ class SweetGossipNode(Agent):
                                          self.broadcast_conditions_pow_scheme, self.broadcast_conditions_pow_complexity)))
         self.reply(e, m, pow_broadcast_conditions_frame)
 
-    def on_pow_broadcast_conditions_frame(self, e, m, peer_name: str, pow_broadcast_condtitions_frame: POWBroadcastConditionsFrame):
-        if pow_broadcast_condtitions_frame.valid_till <= datetime.now():
-            if peer_name in self._broadcast_payloads_by_host_by_id:
-                if pow_broadcast_condtitions_frame.topic_id in self._broadcast_payloads_by_host_by_id[peer_name]:
+    def on_pow_broadcast_conditions_frame(self, e, m, peer: SweetGossipNode, pow_broadcast_condtitions_frame: POWBroadcastConditionsFrame):
+        if datetime.now()<= pow_broadcast_condtitions_frame.valid_till:
+            if peer.name in self._broadcast_payloads_by_host_by_id:
+                if pow_broadcast_condtitions_frame.topic_id in self._broadcast_payloads_by_host_by_id[peer.name]:
                     broadcast_payload = self._broadcast_payloads_by_host_by_id[
-                        peer_name][pow_broadcast_condtitions_frame.topic_id]
+                        peer.name][pow_broadcast_condtitions_frame.topic_id]
                     pow_broadcast_frame = POWBroadcastFrame(broadcast_payload,
                                                             pow_broadcast_condtitions_frame.work_request.compute_proof(
                                                                 broadcast_payload))
@@ -298,17 +298,17 @@ class SweetGossipNode(Agent):
 
     def accept_broadcast(self, broadcast_payload: BroadcastPayload) -> ResponseFrame:
         reply_frame = ResponseFrame(
-            replier_private_key=self.private_key,
+            replier_private_key=self._private_key,
             replier_certificate=self.certificate,
             routing_payment_instruction_list=broadcast_payload.routing_payment_instruction_list,
             forward_onion=broadcast_payload.backward_onion,
             signed_topic=broadcast_payload.signed_topic,
-            originator_public_key=broadcast_payload.originator_certificate,
+            originator_certificate=broadcast_payload.originator_certificate,
             message=bytes(f"mynameis={self.name}", encoding="utf8")
         )
         return reply_frame
 
-    def on_pow_broadcast_frame(self, e, m, peer_name: str, pow_broadcast_frame: POWBroadcastFrame):
+    def on_pow_broadcast_frame(self, e, m, peer: SweetGossipNode, pow_broadcast_frame: POWBroadcastFrame):
         if not pow_broadcast_frame.verify():
             return
 
@@ -316,13 +316,13 @@ class SweetGossipNode(Agent):
             pow_broadcast_frame.broadcast_payload)
         if response_frame is not None:
             self.on_response_frame(
-                e, m, peer_name, response_frame=response_frame)
+                e, m, peer.name, response_frame=response_frame)
         else:
             self.broadcast(e, topic=pow_broadcast_frame.topic,
                            backward_onion=pow_broadcast_frame.broadcast_payload.backward_onion,
                            routing_payment_instruction_list=pow_broadcast_frame.broadcast_payload.routing_payment_instruction_list)
 
-    def on_response_frame(self, e, m, peer_name: str, response_frame: ResponseFrame):
+    def on_response_frame(self, e, m, peer: SweetGossipNode, response_frame: ResponseFrame):
         if not response_frame.verify():
             return
 

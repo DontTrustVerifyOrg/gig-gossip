@@ -30,7 +30,7 @@ class Certificate(ReprObject):
                 if not ca.is_revoked(self):
                     obj = (self.ca_name, self.public_key, self.name, self.value,
                            self.not_valid_after, self.not_valid_before)
-                    return crypto.verify_object(obj, self.signature, ca.public_key)
+                    return crypto.verify_object(obj, self.signature, ca.ca_public_key)
         return False
 
 
@@ -52,7 +52,7 @@ class CertificationAuthority(ReprObject):
         signature = crypto.sign_object(obj, self._ca_private_key)
         return Certificate(self.ca_name, public_key, name, value, not_valid_after, not_valid_before, signature)
 
-    def is_revoked(certificate: Certificate) -> bool:
+    def is_revoked(self, certificate: Certificate) -> bool:
         return False
 
 

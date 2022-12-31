@@ -106,11 +106,11 @@ def _compute_hash(items: list, chosen_hash) -> bytes:
 
 
 def compute_sha256(items: list) -> bytes:
-    return _compute_hash(hashes.SHA256())
+    return _compute_hash(items, hashes.SHA256())
 
 
 def compute_sha512(items: list) -> bytes:
-    return _compute_hash(hashes.SHA512())
+    return _compute_hash(items, hashes.SHA512())
 
 
 def generate_symmetric_keys(num: int) -> List[bytes]:
