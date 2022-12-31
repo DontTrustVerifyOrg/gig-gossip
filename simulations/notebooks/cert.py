@@ -24,12 +24,13 @@ class Certificate(ReprObject):
         self.signature = signature
 
     def verify(self):
-        ca = get_certification_authority_by_name(self.ca_name)
-        if not ca is None:
-            if not ca.is_revoked(self):
-                obj = (self.ca_name, self.public_key, self.name, self.value,
-                       self.not_valid_after, self.not_valid_before)
-                return crypto.verify_object(obj, self.signature, ca.public_key)
+        if self.not_valid_after >= datetime.now() and self.not_valid_before <= datetime.now():
+            ca = get_certification_authority_by_name(self.ca_name)
+            if not ca is None:
+                if not ca.is_revoked(self):
+                    obj = (self.ca_name, self.public_key, self.name, self.value,
+                           self.not_valid_after, self.not_valid_before)
+                    return crypto.verify_object(obj, self.signature, ca.public_key)
         return False
 
 

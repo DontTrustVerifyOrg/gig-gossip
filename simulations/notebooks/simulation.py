@@ -121,7 +121,7 @@ class POWBroadcastFrame(ReprObject):
         if not self.broadcast_payload.signed_topic.verify(self.broadcast_payload.originator_certificate.public_key):
             return False
 
-        return self.proof_of_work.validate(self.broadcast_payload):
+        return self.proof_of_work.validate(self.broadcast_payload)
 
 
 class PaymentStone(SignableObject):
@@ -229,7 +229,7 @@ class SweetGossipNode(Agent):
         super().__init__(context_name, name)
         self.name = name
         self.certificate = certificate
-        self.private_key = private_key
+        self._private_key = private_key
         self.payment_channel = payment_channel
         self.price_amount_for_routing = price_amount_for_routing
         self.broadcast_conditions_timeout = broadcast_conditions_timeout
@@ -278,7 +278,7 @@ class SweetGossipNode(Agent):
 
     def on_ask_for_broadcast_frame(self, e, m, peer_name: str, ask_for_broadcast_frame: AskForBroadcastFrame):
         pow_broadcast_conditions_frame = POWBroadcastConditionsFrame(
-            topic_id=ask_for_broadcast_frame.topic.id,
+            topic_id=ask_for_broadcast_frame.signed_topic.id,
             valid_till=datetime.now()+self.broadcast_conditions_timeout,
             work_request=WorkRequest(pow_scheme=self.broadcast_conditions_pow_scheme,
                                      pow_target=pow_target_from_complexity(
@@ -354,18 +354,26 @@ class SweetGossipNode(Agent):
 
 # %%
 class Gossiper(SweetGossipNode):
+    def __init__(self, context_name, name, ca: CertificationAuthority, price_amount_for_routing):
+        private_key, public_key = crypto.create_keys()
+        certificate = ca.issue_certificate(public_key, "is_ok", True, not_valid_after=datetime.now(
+        )+timedelta(days=7), not_valid_before=datetime.now()-timedelta(days=7))
+        account = uuid4().bytes
+        payment_channel = PaymentChannel(account)
+        super().__init__(context_name, name, certificate, private_key, payment_channel, price_amount_for_routing,
+                         broadcast_conditions_timeout=timedelta(days=7), broadcast_conditions_pow_scheme="sha256", broadcast_conditions_pow_complexity=1)
+
+
+# %%
+
+
+class GigWorker(Gossiper):
     pass
 
 # %%
 
 
-class GigWorker(SweetGossipNode):
-    pass
-
-# %%
-
-
-class Customer(SweetGossipNode):
+class Customer(Gossiper):
 
     def homeostasis(self, e):
         self.ctx(e, lambda: self.trace(e, "is starting..."))
@@ -381,7 +389,8 @@ class Customer(SweetGossipNode):
         def processor():
             if False:
                 yield e.timeout(0)
-            self.broadcast(e, "test topic", "test message")
+            topic = Topic(uuid4(),"Test Topic","/a/b/c",datetime.now()+timedelta(days=10),datetime.now()-timedelta(days=10))
+            self.broadcast(e, topic)
             return None,
 
         self.ctx(e, lambda: self.trace(e, what))
@@ -401,11 +410,13 @@ def main(sim_id):
             for m in msgs:
                 print(m)
 
+        ca_private_key, ca_public_key = crypto.create_keys()
+        ca = CertificationAuthority("CA", ca_private_key, ca_public_key)
         things = {}
 
-        things["Gossiper1"] = Gossiper("Gossipers", "Gossiper1")
-        things["GigWorker1"] = GigWorker("GigWorkers", "GigWorker1")
-        things["Customer1"] = Customer("Customers", "Customer1")
+        things["Gossiper1"] = Gossiper("Gossipers", "Gossiper1",ca, 1)
+        things["GigWorker1"] = GigWorker("GigWorkers", "GigWorker1",ca, 1)
+        things["Customer1"] = Customer("Customers", "Customer1", ca,1)
 
         things["GigWorker1"].connect_to(things["Gossiper1"])
         things["Customer1"].connect_to(things["Gossiper1"])
@@ -422,7 +433,7 @@ def main(sim_id):
                 print(a)
                 printMessages(things[a].queue.items)
 
-    print(sw.total())
+    print(sw.total)
 
 
 # %%

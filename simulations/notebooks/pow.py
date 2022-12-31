@@ -1,4 +1,3 @@
-# %%
 import crypto
 import pickle
 import sys
@@ -59,5 +58,3 @@ class WorkRequest(ReprObject):
         return ProofOfWork(
             self.pow_scheme, self.pow_target,
             compute_pow(row, self.pow_scheme, self.pow_target))
-
-# %%
