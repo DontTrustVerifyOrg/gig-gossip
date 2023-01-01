@@ -148,7 +148,8 @@ class ResponseFrame(ReprObject):
         self.forward_onion = forward_onion
         self.signed_topic = signed_topic
         self.invoices: List[Invoice] = list()
-        self.data = self._encrypt(message, signed_topic.originator_certificate.public_key)
+        self.data = self._encrypt(
+            message, signed_topic.originator_certificate.public_key)
 
     def pop_invoice(self, broadcaster_payment_channel: PaymentChannel, valid_till: datetime) -> Invoice:
         idx = len(self.preimage_list)-1
@@ -204,11 +205,14 @@ class ResponseFrame(ReprObject):
         return False
 
     def pay(self, originator_payment_channel: PaymentChannel, originator_private_key: bytes) -> bytes:
-        proofs_of_payments = [originator_payment_channel.pay_invoice(invoice)
-                              for invoice in self.invoices]
         message = self.data
-        for key in [pop.preimage for pop in proofs_of_payments]:
-            message = crypto.symmetric_decrypt(key, message)
+        for proof_of_payment in (originator_payment_channel.pay_invoice(invoice)
+                                 for invoice in self.invoices):
+            if proof_of_payment is None:  # unsuccessful payment
+                return None
+
+            message = crypto.symmetric_decrypt(
+                proof_of_payment.preimage, message)
 
         return crypto.decrypt_object(message, originator_private_key)
 
@@ -403,7 +407,8 @@ class Customer(Gossiper):
             if False:
                 yield e.timeout(0)
             topic = Topic(uuid4(), "Test Topic", "/a/b/c", datetime.now() +
-                          timedelta(days=10), datetime.now()-timedelta(days=10),
+                          timedelta(days=10), datetime.now() -
+                          timedelta(days=10),
                           self.certificate)
             topic.sign(self._private_key)
             self.broadcast(e, topic)
