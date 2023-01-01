@@ -22,7 +22,7 @@ class Gossiper(SweetGossipNode):
         account = uuid4().bytes
         payment_channel = PaymentChannel(account)
         super().__init__(context_name, name, certificate, private_key, payment_channel, price_amount_for_routing,
-                         broadcast_conditions_timeout=timedelta(days=7), broadcast_conditions_pow_scheme="sha256", broadcast_conditions_pow_complexity=0, invoice_payment_timeout=timedelta(days=1))
+                         broadcast_conditions_timeout=timedelta(days=7), broadcast_conditions_pow_scheme="sha256", broadcast_conditions_pow_complexity=1, invoice_payment_timeout=timedelta(days=1))
 
 
 class GigWorker(Gossiper):
@@ -70,18 +70,14 @@ def main(sim_id):
 
         ca_private_key, ca_public_key = crypto.create_keys()
         ca = CertificationAuthority("CA", ca_private_key, ca_public_key)
-        things = {}
+        things = dict()
 
         things["GigWorker1"] = GigWorker("GigWorkers", "GigWorker1", ca, 1)
-        NUM_IN = 10
-        for i in range(1,NUM_IN):
-            things[f"Gossiper{i}"] = Gossiper("Gossipers", f"Gossiper{i}", ca, 2)
-        things["Customer1"] = Customer("Customers", "Customer1", ca, 6)
+        things["Customer1"] = Customer("Customers", "Customer1", ca, 1)
 
-        things["GigWorker1"].connect_to(things["Gossiper1"])
-        for i in range(1,NUM_IN-1):
-            things[f"Gossiper{i+1}"].connect_to(things[f"Gossiper{i}"])
-        things["Customer1"].connect_to(things[f"Gossiper{NUM_IN-1}"])
+        things["GigWorker1"].connect_to(things["Customer1"])
+
+        print(things)
 
         simulate(sim_id, things, verbose={
             "message flow",
