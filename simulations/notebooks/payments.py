@@ -33,7 +33,7 @@ class PaymentChannel(ReprObject):
         self.account = account
 
     def create_invoice(self, amount: int, preimage: bytes, valid_till: datetime) -> Invoice:
-        return Invoice(self.account, amount, preimage, valid_till)
+        return Invoice(self.account, preimage, amount,  valid_till)
 
     def pay_invoice(self, invoice: Invoice) -> ProofOfPayment:
         invoice.is_paid = True
