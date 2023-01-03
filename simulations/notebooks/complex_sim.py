@@ -17,7 +17,7 @@ import simpy
 import itertools
 
 from enum import Enum
-import logging
+import random
 # %%
 
 
@@ -88,7 +88,7 @@ def main(sim_id):
         ca = CertificationAuthority("CA", ca_private_key, ca_public_key)
         things: Dict[str, GridNode] = dict()
 
-        GRID_SHAPE = (6, 5,4)
+        GRID_SHAPE = (10, 10)
 
         for nod_idx in itertools.product(*(range(s) for s in GRID_SHAPE)):
             node_name = f"GridNode<{nod_idx}>"
@@ -113,18 +113,16 @@ def main(sim_id):
                 things[node_name].connect_to(things[node_name_1])
                 already.add(node_name+":"+node_name_1)
                 already.add(node_name_1+":"+node_name)
-#                nod2_idx = tuple([(x-1) % GRID_SHAPE[k] if i ==
-#                                  k else x for i, x in enumerate(nod_idx)])
-#                node_name_2 = f"GridNode<{nod2_idx}>"
-#                things[node_name].connect_to(things[node_name_2])
 
                 print(node_name, "<->", node_name_1)
- #               print(node_name,"<->",node_name_2)
 
         things_list = list(things.values())
 
-        things_list[0].set_grid_node_type(GridNodeType.Customer)
-        things_list[-1].set_grid_node_type(GridNodeType.GigWorker)
+        start_idx=random.randint(0,len(things_list)-1)
+        end_idx=random.randint(0,len(things_list)-1)
+
+        things_list[start_idx].set_grid_node_type(GridNodeType.Customer)
+        things_list[end_idx].set_grid_node_type(GridNodeType.GigWorker)
 
         simulate(sim_id, things, until=float('inf'),
                  history=history, message_flow_in_trace=False)
