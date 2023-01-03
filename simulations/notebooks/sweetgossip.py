@@ -63,15 +63,10 @@ class AskForBroadcastFrame(ReprObject):
         self.signed_topic = signed_topic
 
 
-class BroadcastConditionsFrame(ReprObject):
-    def __init__(self, ask_id: UUID,  valid_till: datetime) -> None:
+class POWBroadcastConditionsFrame(ReprObject):
+    def __init__(self, ask_id: UUID, valid_till: datetime, work_request: WorkRequest) -> None:
         self.ask_id = ask_id
         self.valid_till = valid_till
-
-
-class POWBroadcastConditionsFrame(BroadcastConditionsFrame):
-    def __init__(self, ask_id: UUID, valid_till: datetime, work_request: WorkRequest) -> None:
-        super().__init__(ask_id, valid_till)
         self.work_request = work_request
 
 
