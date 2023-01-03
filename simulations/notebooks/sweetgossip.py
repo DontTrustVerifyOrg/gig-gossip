@@ -247,8 +247,6 @@ class SweetGossipNode(Agent):
             return
         self._already_broadcasted_topic_ids.add(topic.id)
 
-        routing_payment_instruction_list = routing_payment_instruction_list
-
         if originator_peer_name is not None:
             routing_payment_instruction_list.append(
                 RoutingPaymentInstruction(self.payment_channel.account, self.price_amount_for_routing))
