@@ -36,8 +36,11 @@ class PaymentChannel(ReprObject):
         return Invoice(self.account, preimage, amount,  valid_till)
 
     def pay_invoice(self, invoice: Invoice) -> ProofOfPayment:
-        if datetime.now()<=invoice.valid_till:
-            invoice.is_paid = True
-            invoice.preimage = invoice._preimage
-            return ProofOfPayment(invoice.preimage)
-        return None
+        if invoice.is_paid:
+            return None
+        if datetime.now()>invoice.valid_till:
+            return None
+
+        invoice.is_paid = True
+        invoice.preimage = invoice._preimage
+        return ProofOfPayment(invoice.preimage)

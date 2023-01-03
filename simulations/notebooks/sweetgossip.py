@@ -326,7 +326,10 @@ class SweetGossipNode(Agent):
             if response_frame.invoices_are_coherent_with_stone():
                 message = response_frame.pay(
                     self.payment_channel, self._private_key)
-                self.info(e, message)
+                if message is None:
+                    self.error(e, "cant pay for the invoice")
+                else:
+                    self.info(e, message)
         else:
             if response_frame.contains_route_payment_layer(
                     RoutingPaymentInstruction(self.payment_channel.account, self.price_amount_for_routing)):

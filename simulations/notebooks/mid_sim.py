@@ -4,7 +4,7 @@ from experiment_tools import FOLDNAME, RUN_START
 
 from stopwatch import Stopwatch
 from datetime import datetime, timedelta
-from cert import CertificationAuthority
+from cert import CertificationAuthority,create_certification_authority
 import crypto
 from payments import PaymentChannel
 
@@ -67,8 +67,8 @@ def main(sim_id):
             for m in msgs:
                 print(m)
 
-        ca_private_key, ca_public_key = crypto.create_keys()
-        ca = CertificationAuthority("CA", ca_private_key, ca_public_key)
+        ca = create_certification_authority("CA")
+
         things = {}
 
         things["GigWorker1"] = GigWorker("GigWorker1", ca, 1)
