@@ -15,33 +15,29 @@ from units import minute
 
 import uuid
 
+import logging
+from copy import deepcopy
 
 class bcolors:
     DEFAULT = '\x1b[0m'
+    WHITE = '\x1b[0m'
     RED = '\x1b[31m'
     GREEN = '\x1b[32m'
     YELLOW = '\x1b[33m'
     BLUE = '\x1b[34m'
+    GRAY = '\x1b[90m'
     MAGENTA = '\x1b[35m'
     CYAN = '\x1b[36m'
     BOLD = '\x1b[1m'
     UNDERLINE = '\x1b[4m'
 
 
-def ctx(env, context, trs):
-    if (context in env.verbose):
-        trs()
-
-
-def trace(env, *argv):
-    """Main debugging tool. It generates a trace for `env` in specific `context`. Set of visible `context`s can be selected then via verbose argument of the `simulate` function.
-
-    Note:
-        If env is None and context="?" the function prints all the `context` strings used during the simulation.
+def simulation_trace(env, color: bcolors, name, *argv):
+    """Main debugging tool. It generates a trace 
 
     Args:
         env: the simpy environment
-        context: string that describes the verbosity context
+        *argv: print arguments
 
     Returns:
         nothing, it just prints the trace
@@ -52,29 +48,34 @@ def trace(env, *argv):
     h = int((n - d*24*60)/60)
     m = int(n - d*24*60 - h*60)
     dow = [bcolors.RED+'Sun', bcolors.BLUE+'Mon', bcolors.CYAN+'Tue', bcolors.BLUE +
-           'Wed', bcolors.CYAN+'Thu', bcolors.BLUE+'Fri', bcolors.YELLOW+'Sat'][d % 7]
-    print(sid + (" : " if sid != "" else ""), ")", dow, str(d)+" " +
-          str(h).zfill(2)+":"+str(m).zfill(2), bcolors.DEFAULT, "|", *argv)
+           'Wed', bcolors.CYAN+'Thu', bcolors.BLUE+'Fri', bcolors.RED+'Sat'][d % 7]
+    row = [sid + (" : " if sid != "" else "") + dow, str(d)+" " +
+           str(h).zfill(2)+":"+str(m).zfill(2)+bcolors.WHITE+"|"+str(name)+">" + color, *argv, bcolors.DEFAULT]
+    print(*row)
+    if env.history is not None:
+        env.history.append(row)
 
 
 class Thing:
     """The base class for an `Agent` class and for a `Broadcaster` class."""
 
-    def __init__(self, context_name, name):
-        self.context_name = context_name
+    def __init__(self, name):
         self.name = name
 
     def create_queue(self, env):
         self.queue = simpy.Store(env)
 
-    def ctx(self, env, trs, verb_pfx=None):
-        ctx(env, self.context_name if verb_pfx is None else self.context_name+verb_pfx, trs)
-
     def trace(self, env, *args):
-        trace(env, self.name, *args)
+        simulation_trace(env, bcolors.GRAY, self.name, *args)
+
+    def info(self, env, *args):
+        simulation_trace(env, bcolors.YELLOW, self.name, *args)
+
+    def error(self, env, *args):
+        simulation_trace(env, bcolors.RED, self.name, *args)
 
     def homeostasis(self, env):
-        self.ctx(env, lambda: self.trace(env, "STARTS"))
+        self.trace(env, "STARTS")
         yield env.timeout(float('inf'))
 
 
@@ -88,13 +89,13 @@ class Agent(Thing, Scheduler):
 
     _sessionIDCnt = 0
 
-    def __init__(self, context_name, name):
+    def __init__(self, name):
         """Constructor for the `Agent` class.
 
         Args:
             name (str): The name of the Agent for reporting purposes. It should be an unique identifier of the object.
         """
-        Thing.__init__(self, context_name, name)
+        Thing.__init__(self, name)
         Scheduler.__init__(self)
         self._collectors = {}
 
@@ -120,13 +121,15 @@ class Agent(Thing, Scheduler):
             A reply to reply messages (None means that timeout was reached before the reply to this reply was delivered)
         """
 
+        data = deepcopy(data)
+
         def generator():
             item = self._prepare_for_response(env)
             data['__sid__'] = item.sid
             rpl = msg.reply(env, data, -1)
             rpl.target.queue.put(rpl)
 
-            self.ctx(env, lambda: self.trace(env, "waits for ..."))
+            self.trace(env, "waits for ...")
             if (not timeout is None):
                 yield env.timeout(timeout/minute)
 
@@ -146,6 +149,8 @@ class Agent(Thing, Scheduler):
         Returns:
             Nothing
         """
+        data = deepcopy(data)
+
         rpl = msg.reply(env, data)
         rpl.target.queue.put(rpl)
 
@@ -159,6 +164,8 @@ class Agent(Thing, Scheduler):
         Returns:
             Nothing
         """
+        data = deepcopy(data)
+
         msg = DirectMessage(sender=self, target=target, data=data)
         target.queue.put(msg)
 
@@ -174,13 +181,15 @@ class Agent(Thing, Scheduler):
             A reply to message (None means that timeout was reached before the reply was delivered)
         """
 
+        data = deepcopy(data)
+
         def generator():
             msg = DirectMessage(sender=self, target=target, data=data)
             target.queue.put(msg)
 
             item = self._prepare_for_response(env)
 
-            self.ctx(env, lambda: self.trace(env, "waits for ..."))
+            self.trace(env, "waits for ...")
             if (not timeout is None):
                 yield env.timeout(timeout/minute)
             del self._collectors[item.sid]
@@ -190,16 +199,15 @@ class Agent(Thing, Scheduler):
         return env.process(generator())
 
     def start_state(self, env, m):
-        self.ctx(env, lambda: self.trace(
-            env, "received a request ", m.data, "from", m.sender), " rec")
+        self.trace(env, "received a request ", m.data, "from", m.sender)
         if (m.data is not None):
             if (inspect.isgeneratorfunction(self.on_message)):
                 env.process(self.on_message(env, m))
             else:
                 self.on_message(env, m)
 
-    def on_message(self, e, m):
-        self.ctx(e, lambda: self.trace(e, "unknown request:", m))
+    def on_message(self, env, m):
+        self.trace(env, "unknown request:", m)
 
     def run_scheduler(self, e):
         oldcur = e.now
@@ -244,33 +252,33 @@ class DirectMessage:
             ("DATA:" + str(self.data)) if not self.data is None else "") + " ]--> " + str(self.target)
 
 
-def _message_loop(target, env):
+def _message_loop(target, env, message_flow_in_trace):
     while (True):
         message = yield target.queue.get()
 
-        ctx(env, "message flow", lambda: trace(env, bcolors.GREEN, " {", message.id, "} ", message.sender, ">--[",
-                                               ("DATA:" + str(message.data)
-                                                ) if not message.data is None else "",
-            "]-->",
-                                               message.target, bcolors.DEFAULT))
+        if message_flow_in_trace:
+            simulation_trace(env, bcolors.GREEN, "", message.sender, ">--[",
+                             ("DATA:" + str(message.data)
+                              ) if not message.data is None else "",
+                             "]-->",
+                             message.target)
 
         message.target.start_state(env, message)
 
 
-def simulate(sim_id, things, until=None, verbose={}):
+def simulate(sim_id, things, until=None, history=None, message_flow_in_trace=True):
     """The simulation entry message
 
     Args:
         msgs (list of messages): the initial list of messages
         things (list of things): the initial list of things (agents and broadcasters)
         until (int): simulation time (None - forever)
-        verbose(set(str)): set of context strings to show the `trace` from
     """
 
     env = simpy.Environment()
-    env.verbose = verbose
     env.sim_id = sim_id
     env.things = things
+    env.history = history
 
     for k, t in things.items():
         t.create_queue(env)
@@ -281,7 +289,7 @@ def simulate(sim_id, things, until=None, verbose={}):
 
     while True:
         for k, t in things.items():
-            env.process(_message_loop(t, env))
+            env.process(_message_loop(t, env, message_flow_in_trace))
 
         while env.peek() < until:
             lastnow = env.now
@@ -291,7 +299,3 @@ def simulate(sim_id, things, until=None, verbose={}):
             break
 
         env._now = lastnow
-
-
-def execute_simulation(main, sim_id):
-    main(sim_id)

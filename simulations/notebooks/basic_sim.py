@@ -1,4 +1,4 @@
-from mass import execute_simulation, simulate, trace
+from mass import simulate, simulation_trace
 from mass_tools import time_to_int
 from experiment_tools import FOLDNAME, RUN_START
 
@@ -15,13 +15,13 @@ import simpy
 
 
 class Gossiper(SweetGossipNode):
-    def __init__(self, context_name, name, ca: CertificationAuthority, price_amount_for_routing):
+    def __init__(self, name, ca: CertificationAuthority, price_amount_for_routing):
         private_key, public_key = crypto.create_keys()
         certificate = ca.issue_certificate(public_key, "is_ok", True, not_valid_after=datetime.now(
         )+timedelta(days=7), not_valid_before=datetime.now()-timedelta(days=7))
         account = uuid4().bytes
         payment_channel = PaymentChannel(account)
-        super().__init__(context_name, name, certificate, private_key, payment_channel, price_amount_for_routing,
+        super().__init__(name, certificate, private_key, payment_channel, price_amount_for_routing,
                          broadcast_conditions_timeout=timedelta(days=7), broadcast_conditions_pow_scheme="sha256", broadcast_conditions_pow_complexity=1, invoice_payment_timeout=timedelta(days=1))
 
 
@@ -33,7 +33,7 @@ class GigWorker(Gossiper):
 class Customer(Gossiper):
 
     def homeostasis(self, e):
-        self.ctx(e, lambda: self.trace(e, "is starting..."))
+        self.trace(e, "is starting...")
 
         self.schedule(partial(self.run_job, {"run"}),
                       partial(self.on_return, e), RUN_START)
@@ -54,12 +54,11 @@ class Customer(Gossiper):
             self.broadcast(e, topic)
             return None,
 
-        self.ctx(e, lambda: self.trace(e, what))
-        self.log_history(e, "run_job", what)
+        self.trace(e, what)
         return e.process(processor())
 
     def on_return(self, e, val):
-        self.ctx(e, lambda: self.trace(e, val))
+        self.trace(e, val)
 
 
 def main(sim_id):
@@ -72,19 +71,14 @@ def main(sim_id):
         ca = CertificationAuthority("CA", ca_private_key, ca_public_key)
         things = dict()
 
-        things["GigWorker1"] = GigWorker("GigWorkers", "GigWorker1", ca, 1)
-        things["Customer1"] = Customer("Customers", "Customer1", ca, 1)
+        things["GigWorker1"] = GigWorker("GigWorker1", ca, 1)
+        things["Customer1"] = Customer("Customer1", ca, 1)
 
         things["GigWorker1"].connect_to(things["Customer1"])
 
         print(things)
 
-        simulate(sim_id, things, verbose={
-            "message flow",
-            "GigWorkers",
-            "Gossipers",
-            "Customers",
-            "unknown message"}, until=float('inf'))
+        simulate(sim_id, things, until=float('inf'))
 
         for a in things:
             if (len(things[a].queue.items) > 0):
@@ -94,4 +88,4 @@ def main(sim_id):
     print(sw.total)
 
 
-execute_simulation(main, sim_id=FOLDNAME)
+main(sim_id="")

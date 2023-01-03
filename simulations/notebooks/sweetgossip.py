@@ -1,5 +1,5 @@
 from __future__ import annotations
-from uuid import UUID
+from uuid import UUID, uuid4
 from myrepr import ReprObject
 from pow import WorkRequest, ProofOfWork, pow_target_from_complexity
 from payments import PaymentChannel, Invoice, compute_payment_hash
@@ -59,18 +59,19 @@ class Topic(SignableObject):
 
 class AskForBroadcastFrame(ReprObject):
     def __init__(self, signed_topic: Topic) -> None:
+        self.ask_id = uuid4()
         self.signed_topic = signed_topic
 
 
 class BroadcastConditionsFrame(ReprObject):
-    def __init__(self, topic_id: UUID,  valid_till: datetime) -> None:
-        self.topic_id = topic_id
+    def __init__(self, ask_id: UUID,  valid_till: datetime) -> None:
+        self.ask_id = ask_id
         self.valid_till = valid_till
 
 
 class POWBroadcastConditionsFrame(BroadcastConditionsFrame):
-    def __init__(self, topic_id: UUID, valid_till: datetime, work_request: WorkRequest) -> None:
-        super().__init__(topic_id, valid_till)
+    def __init__(self, ask_id: UUID, valid_till: datetime, work_request: WorkRequest) -> None:
+        super().__init__(ask_id, valid_till)
         self.work_request = work_request
 
 
@@ -206,7 +207,6 @@ class ResponseFrame(ReprObject):
 
 class SweetGossipNode(Agent):
     def __init__(self,
-                 context_name,
                  name,
                  certificate: Certificate,
                  private_key: bytes,
@@ -216,7 +216,7 @@ class SweetGossipNode(Agent):
                  broadcast_conditions_pow_scheme: str,
                  broadcast_conditions_pow_complexity: int,
                  invoice_payment_timeout: timedelta):
-        super().__init__(context_name, name)
+        super().__init__(name)
         self.name = name
         self.certificate = certificate
         self._private_key = private_key
@@ -228,19 +228,13 @@ class SweetGossipNode(Agent):
         self.invoice_payment_timeout = invoice_payment_timeout
 
         self._known_hosts: Dict[str, SweetGossipNode] = dict()
-        self._broadcast_payloads_by_host_by_id: Dict[str,
-                                                     Dict[UUID, BroadcastPayload]] = dict()
-        self._already_seen_ids: Set[UUID] = set()
-
-        self.history = []
-        self._log_i = 0
-
-    def log_history(self, e, what, d={}):
-        self.ctx(e, lambda: self.trace(e, str(d)))
-        self.history.append(d)
-        self._log_i += 1
+        self._broadcast_payloads_by_ask_id: Dict[UUID, BroadcastPayload] = dict(
+        )
+        self._already_broadcasted_topic_ids: Set[UUID] = set()
 
     def connect_to(self, other):
+        if other.name == self.name:
+            raise Exception("Cannot connect node to itself")
         self._known_hosts[other.name] = other
         other._known_hosts[self.name] = self
 
@@ -249,44 +243,48 @@ class SweetGossipNode(Agent):
                   originator_peer_name: str = None,
                   backward_onion: OnionRoute = OnionRoute(),
                   routing_payment_instruction_list: List[RoutingPaymentInstruction] = list()):
-        if topic.id in self._already_seen_ids:
+        if topic.id in self._already_broadcasted_topic_ids:
             return
-        self._already_seen_ids.add(topic.id)
-        ask_for_broadcast_frame = AskForBroadcastFrame(topic)
+        self._already_broadcasted_topic_ids.add(topic.id)
+
+        routing_payment_instruction_list = routing_payment_instruction_list
+
+        if originator_peer_name is not None:
+            routing_payment_instruction_list.append(
+                RoutingPaymentInstruction(self.payment_channel.account, self.price_amount_for_routing))
+
         for peer in self._known_hosts.values():
             if peer.name == originator_peer_name:
                 continue
-            if not peer.name in self._broadcast_payloads_by_host_by_id:
-                self._broadcast_payloads_by_host_by_id[peer.name] = dict()
-            if originator_peer_name is not None:
-                routing_payment_instruction_list.append(
-                    RoutingPaymentInstruction(self.payment_channel.account, self.price_amount_for_routing))
+            ask_for_broadcast_frame = AskForBroadcastFrame(topic)
             broadcast_payload = BroadcastPayload(topic,
                                                  backward_onion.grow(OnionLayer(
                                                      self.name), peer.certificate.public_key),
                                                  routing_payment_instruction_list)
-            self._broadcast_payloads_by_host_by_id[peer.name][topic.id] = broadcast_payload
+            self._broadcast_payloads_by_ask_id[ask_for_broadcast_frame.ask_id] = broadcast_payload
             self.new_message(e, peer, ask_for_broadcast_frame)
 
     def on_ask_for_broadcast_frame(self, e, m, peer: SweetGossipNode, ask_for_broadcast_frame: AskForBroadcastFrame):
+        if ask_for_broadcast_frame.signed_topic.id in self._already_broadcasted_topic_ids:
+            self.info(e, "already broadcasted")
+            return
         pow_broadcast_conditions_frame = POWBroadcastConditionsFrame(
-            topic_id=ask_for_broadcast_frame.signed_topic.id,
+            ask_id=ask_for_broadcast_frame.ask_id,
             valid_till=datetime.now()+self.broadcast_conditions_timeout,
             work_request=WorkRequest(pow_scheme=self.broadcast_conditions_pow_scheme,
                                      pow_target=pow_target_from_complexity(
                                          self.broadcast_conditions_pow_scheme, self.broadcast_conditions_pow_complexity)))
-        self.reply(e, m, pow_broadcast_conditions_frame)
+        self.new_message(e, peer, pow_broadcast_conditions_frame)
 
     def on_pow_broadcast_conditions_frame(self, e, m, peer: SweetGossipNode, pow_broadcast_condtitions_frame: POWBroadcastConditionsFrame):
         if datetime.now() <= pow_broadcast_condtitions_frame.valid_till:
-            if peer.name in self._broadcast_payloads_by_host_by_id:
-                if pow_broadcast_condtitions_frame.topic_id in self._broadcast_payloads_by_host_by_id[peer.name]:
-                    broadcast_payload = self._broadcast_payloads_by_host_by_id[
-                        peer.name][pow_broadcast_condtitions_frame.topic_id]
-                    pow_broadcast_frame = POWBroadcastFrame(broadcast_payload,
-                                                            pow_broadcast_condtitions_frame.work_request.compute_proof(
-                                                                broadcast_payload))
-                    self.reply(e, m, pow_broadcast_frame)
+            if pow_broadcast_condtitions_frame.ask_id in self._broadcast_payloads_by_ask_id:
+                broadcast_payload = self._broadcast_payloads_by_ask_id[
+                    pow_broadcast_condtitions_frame.ask_id]
+                pow_broadcast_frame = POWBroadcastFrame(broadcast_payload,
+                                                        pow_broadcast_condtitions_frame.work_request.compute_proof(
+                                                            broadcast_payload))
+                self.new_message(e, peer, pow_broadcast_frame)
 
     def accept_broadcast(self, signed_topic: Topic) -> bytes:
         return None
@@ -313,6 +311,9 @@ class SweetGossipNode(Agent):
             self.on_response_frame(
                 e, m, peer, response_frame=response_frame)
         else:
+            if pow_broadcast_frame.broadcast_payload.signed_topic.id in self._already_broadcasted_topic_ids:
+                self.info(e, "already broadcasted")
+                return
             self.broadcast(e, topic=pow_broadcast_frame.broadcast_payload.signed_topic,
                            originator_peer_name=peer.name,
                            backward_onion=pow_broadcast_frame.broadcast_payload.backward_onion,
@@ -321,12 +322,11 @@ class SweetGossipNode(Agent):
     def on_response_frame(self, e, m, peer: SweetGossipNode, response_frame: ResponseFrame):
         if not response_frame.verify():
             return
-
         if response_frame.forward_onion.is_empty():
             if response_frame.invoices_are_coherent_with_stone():
                 message = response_frame.pay(
                     self.payment_channel, self._private_key)
-                self.ctx(e, lambda: self.trace(e, message))
+                self.info(e, message)
         else:
             if response_frame.contains_route_payment_layer(
                     RoutingPaymentInstruction(self.payment_channel.account, self.price_amount_for_routing)):
@@ -339,6 +339,8 @@ class SweetGossipNode(Agent):
                         response_frame.invoices.append(invoice)
                         self.new_message(
                             e, self._known_hosts[top_layer.peer_name], response_frame)
+                    else:
+                        self.error(e, "POP INVOICE", self.payment_channel)
 
     def on_message(self, e, m):
         if isinstance(m.data, AskForBroadcastFrame):
@@ -350,4 +352,4 @@ class SweetGossipNode(Agent):
         elif isinstance(m.data, ResponseFrame):
             self.on_response_frame(e, m, m.sender, m.data)
         else:
-            self.ctx(e, lambda: self.trace(e, "unknown request:", m))
+            self.trace(e, "unknown request:", m)
