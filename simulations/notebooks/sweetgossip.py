@@ -325,7 +325,7 @@ class SweetGossipNode(Agent):
                 message = response_frame.pay(
                     self.payment_channel, self._private_key)
                 if message is None:
-                    self.error(e, "cant pay for the invoice")
+                    self.error(e, "cant pay for the invoice or decrypt the message")
                 else:
                     self.info(e, message)
         else:
@@ -341,7 +341,7 @@ class SweetGossipNode(Agent):
                         self.new_message(
                             e, self._known_hosts[top_layer.peer_name], response_frame)
                     else:
-                        self.error(e, "POP INVOICE", self.payment_channel)
+                        self.error(e, "pop invoice mismatch", self.payment_channel)
 
     def on_message(self, e, m):
         if isinstance(m.data, AskForBroadcastFrame):
