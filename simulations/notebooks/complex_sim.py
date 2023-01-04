@@ -3,21 +3,24 @@ from typing import Dict
 from mass import simulate
 from mass_tools import time_to_int
 from experiment_tools import FOLDNAME, RUN_START
+from myrepr import ReprObject
 
 from stopwatch import Stopwatch
 from datetime import datetime, timedelta
-from cert import CertificationAuthority,create_certification_authority
+from cert import CertificationAuthority, create_certification_authority
 import crypto
 from payments import PaymentChannel
 
 from uuid import uuid4
-from sweetgossip import SweetGossipNode, Topic
+from sweetgossip import SweetGossipNode, RequestPayload, AbstractTopic
 from functools import partial
 import simpy
 import itertools
 
 from enum import Enum
 import random
+
+import pygeohash as pgh
 # %%
 
 
@@ -25,6 +28,13 @@ class GridNodeType(Enum):
     Gossiper = 0
     Customer = 1
     GigWorker = 2
+
+
+class DriveTopic(ReprObject):
+    def __init__(self, geohash: str, after: datetime, before: datetime) -> None:
+        self.geohash = geohash
+        self.after = after
+        self.before = before
 
 
 class GridNode(SweetGossipNode):
@@ -41,7 +51,12 @@ class GridNode(SweetGossipNode):
     def set_grid_node_type(self, grid_node_type: GridNodeType):
         self.grid_node_type = grid_node_type
 
-    def accept_broadcast(self, signed_topic: Topic) -> bytes:
+    def accept_topic(self, topic: AbstractTopic) -> bool:
+        if isinstance(topic, DriveTopic):
+            return len(topic.geohash) >= 7 and datetime.now() <= topic.before
+        return False
+
+    def accept_broadcast(self, signed_topic: RequestPayload) -> bytes:
         if self.grid_node_type == GridNodeType.GigWorker:
             return bytes(f"mynameis={self.name}", encoding="utf8")
         else:
@@ -62,10 +77,13 @@ class GridNode(SweetGossipNode):
         def processor():
             if False:
                 yield e.timeout(0)
-            topic = Topic(uuid4(), "Test Topic", "/a/b/c", datetime.now() +
-                          timedelta(days=10), datetime.now() -
-                          timedelta(days=10),
-                          self.certificate)
+
+            gh = pgh.encode(latitude=42.6, longitude=-5.6, precision=7)
+            topic = RequestPayload(uuid4(),
+                                   DriveTopic(geohash=gh,
+                                              after=datetime.now(),
+                                              before=datetime.now() + timedelta(minutes=20)),
+                                   self.certificate)
             topic.sign(self._private_key)
             self.broadcast(e, topic)
             return None,
@@ -119,9 +137,10 @@ def main(sim_id):
         things_list = list(things.values())
 
         for i in range(5):
-            start_idx=random.randint(0,len(things_list)-1)
-            end_idx=random.randint(0,len(things_list)-1)
-            print(things_list[start_idx].name,"->>>",things_list[end_idx].name)
+            start_idx = random.randint(0, len(things_list)-1)
+            end_idx = random.randint(0, len(things_list)-1)
+            print(things_list[start_idx].name,
+                  "->>>", things_list[end_idx].name)
 
             things_list[start_idx].set_grid_node_type(GridNodeType.Customer)
             things_list[end_idx].set_grid_node_type(GridNodeType.GigWorker)
