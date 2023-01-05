@@ -1,6 +1,6 @@
-# Sweet Gossip - P2P protocol for the GIG economy
+# Sweet-Gossip - P2P protocol for the GIG economy
 
-Sweet Gossip protocol is a P2P, mobile-first, Proof of Work protected, gossip protocol built on top of the Lightning Network that enables message broadcast (job proposal) and replies (job offer). It uses a game-theoretic approach to preserve its properties that are aligned with the Bitcoin ecosystem.
+Sweet-Gossip protocol is a P2P, mobile-first, Proof of Work protected, gossip protocol built on top of the Lightning Network that enables message broadcast (job proposal) and replies (job offer). It uses a game-theoretic approach to preserve its properties that are aligned with the Bitcoin ecosystem.
 
 #### Version history
 |date|version|author|comment|
@@ -19,76 +19,136 @@ We are proposing a P2P protocol designed for the Gig economy that, by eliminatin
 Lack of central organization also means that a minimal volume of data is shared between GIG workers and end-customers, just enough to fulfil the job according to the protocol-driven off-chain smart contract that uses P2P money i.e. Lightning Network on Bitcoin, therefore forming layer 3 protocol from the Bitcoin perspective.
 
 
-## Sweet Gossip P2P Network
-Sweet Gossip P2P Network is a global, symmetric, P2P network, meaning that there is no direct need to run any operation critical services in the cloud or any other centralised computing environment. Sweet Gossip node is a software module that is run by every device that uses Sweet Gossip protocol and forms a basis of communication. Sweet Gossip nodes can be implemented as apps and run efficiently on cheap modern mobile devices. The need for implementation of supporting services that are cloud-based or edge-computing-based helps make the service more user-friendly but is never critical for the network operation. 
+## Sweet-Gossip P2P Network
+Sweet-Gossip P2P Network is a global, symmetric, P2P network, meaning that there is no direct need to run any operation critical services in the cloud or any other centralised computing environment. Sweet-Gossip node is a software module that is run by every device that uses Sweet-Gossip protocol and forms a basis of communication. Sweet-Gossip nodes can be implemented as apps and run efficiently on cheap modern mobile devices. The need for implementation of supporting services that are cloud-based or edge-computing-based helps make the service more user-friendly but is never critical for the network operation. 
 
-It is important to state explicitly that we are not inventing any new coin or crypto token, but rather we are speaking about how Sweet Gossip protocol forms a layer 3 protocol on top of the Lightning Network (being itself a layer 2 network sitting on top of Bitcoin network), therefore if any, the Bitcoin is a native token of the Sweet Gossip Network.
+It is important to state explicitly that we are not inventing any new coin or crypto token, but rather we are speaking about how Sweet-Gossip protocol forms a layer 3 protocol on top of the Lightning Network (being itself a layer 2 network sitting on top of Bitcoin network), therefore if any, the Bitcoin is a native token of the Sweet-Gossip Network.
 
-Sweet Gossip P2P Network preserves:
+Sweet-Gossip P2P Network preserves:
 - P2P Symmetry - every node does the same thing
-- Permissionlessness - anyone with internet access can join Sweet Gossip P2P network
-- Mobile first - the cost of running Sweet Gossip node is marginal on modern mobile devices. Also, the protocol handles mobile connectivity issues.
+- Permissionlessness - anyone with internet access can join Sweet-Gossip P2P network
+- Mobile first - the cost of running Sweet-Gossip node is marginal on modern mobile devices. Also, the protocol handles mobile connectivity issues.
 - Privacy - the communication is encrypted
 - Anonymity - any information about the people behind the nodes is hidden
 - DDos and Spam protection - it uses Proof of Work (PoW) and/or micropayments to protect the network from DDoS and Spam 
 - Sustainability - the protocol is designed so all its participants benefit from joining the network
 - Implicit punishment - the protocol do not explicitly punish unhonest participants, but rather makes honest participant benefit more than unhonest ones
 
-Sweet Gossip Protocol is a gossip protocol [Gossip2005](#gossip2005), that allows a network to broadcast in a similar way to gossip spreads. Assuming that each sweet gossip node is connected to its peers and that the network graph is connected, each node works independently and in the event of receiving a message that needs to be broadcasted. It selects several peers and sends the message, in its owner's interest, to peers making the message spread over the network like gossip (Fig 1.). There inevitably occurs a situation that, if some node will not send the message to all of its peers, some nodes will not receive a broadcasted message even if a network graph is connected (e.g. node C on Fig 1.), but from the game theoretic perspective it will not be a beneficial situation, so this is up to the network operators to make the flow as efficient as possible.
+Sweet-Gossip Protocol is a gossip protocol [Gossip2005](#gossip2005), that allows a network to broadcast in a similar way to gossip spreads. Assuming that each sweet-gossip node is connected to its peers and that the network graph is connected, each node works independently and in the event of receiving a message that needs to be broadcasted. It selects several peers and sends the message, in its owner's interest, to peers making the message spread over the network like gossip (Fig 1.). There inevitably occurs a situation that, if some node will not send the message to all of its peers, some nodes will not receive a broadcasted message even if a network graph is connected (e.g. node C on Fig 1.), but from the game theoretic perspective it will not be a beneficial situation, so this is up to the network operators to make the flow as efficient as possible.
 
-Sweet Gossip is a protocol, meaning that it only specifies the minimal set of rules to make it beneficial for all the nodes. It doesn't say explicitly how the network node should be implemented. The node implementation is free to do whatever is best to make it beneficial for the node owner.
+Sweet-Gossip is a protocol, meaning that it only specifies the minimal set of rules to make it beneficial for all the nodes. It doesn't say explicitly how the network node should be implemented. The node implementation is free to do whatever is best to make it beneficial for the node owner.
 
 ![Network](./network.svg)
 Fig 1. The intuition behind gossip protocol
 
 # The protocol
 
-Sweet Gossip protocol has a single purpose: to broadcast the job proposal to interested parties and collect job offers from interested contractors. It is designed to work accordingly to Pub-Sub pattern.
+Sweet-Gossip protocol has a single purpose: to broadcast a job proposal (topic) to interested parties and collect job offers (reply messages) from interested contractors. 
 
 For sake of clarity we use the following naming convention:
-1. Peer - any gossip network node. Every peer maintains a list of their peers.
-1. Originator - Peer that is the origin of the broadcasted message. From the Gig economy point of view, it is a customer.
-2. Middleman - Peer that is passing the broadcast further as well as bringing back the reply
-3. Replier - Peer that is replying to the broadcast.
-To target the job proposal it uses topics. Topics are filesystem-like paths and all of the topics form a topic tree.
+1. Topic - the job proposal broadcasted through the network
+2. Reply Message - the job offer for specific topic sent from the contractor
+3. Peer - any gossip network node. Every peer maintains a list of their peers.
+4. Originator - Peer that is the origin of the topic. From the Gig economy point of view, it is a customer.
+5. Middleman - Peer that is passing the broadcasted topic further as well as bringing back the reply message
+6. Replier - Peer that is replying to the broadcasted topic with reply message.
 
-Here we assume that nodes of the gossip network are already connected to their peers via some internet transport protocol (e.g. TCP, UDP with or without hole punching, mobile mesh etc.) and the other peer is also accepting sweet gossip protocol. How the nodes discover their peers is not a part of the protocol.
+We assume that nodes of the sweet-gossip network are already connected to their peers via some internet transport protocol (e.g. TCP, UDP with or without hole punching, mobile mesh etc.) and the other peer is also accepting sweet-gossip protocol. How the nodes discover their peers is not a part of the protocol.
 
-As the Originator (e.g. Node A) wants to broadcast the message (job proposal) first step is to ask its selected peer (e.g. Node B) how can the message be broadcasted.
+In short the sweet-gossip protocol can be summarised as follows:
+1. **Asking for favour:** If the originator (e.g. Node A) wants to broadcast the topic first step is to ask its selected peer (e.g. Node B) how about condition of its coopertation. If the middleman accepts this kind of tipics, it replies to the originator with specific POW properties the originator needs to provide to be able to broadcast the topic with using this specific middleman. 
+2. **Broadcast with POW:** In order to use this middleman the originator must compute hash (e.g. SHA256) that is less or equal to the specific target for the specific POW scheme. The computed POW is passed with the topic to the broadcaster and if the brodcaster validates the hash it brodcast the topic to its peers.
+3. **Replying:** If the middleman instead is interested in accepting the job it becomes the replier. Replier constructs the Reply Message. The Reply Message contains all the information that is required to pay for the reply message delivery to all the middlemans involved. The reply message is passed back to the originator
+4. **Paing for the reply message:** Once the message reaches the originator, the originator needs to pay the network using the specific payment method. Once paid the reply message is revilled and the originator is able to begin direct communication with replier.
 
-The sequence diagram is below:
+### Topic
+
+The topic is a data-structure that defines the basic requirements for the job. It is application specific and by design it should not reveal any information about the originator allowing for their identification. 
+
+Lets use a Taxi-app as an example. The topic of this taxi-app has a form of geohash and time interval describing from where and when the ride can be executed. Geohash here is a way of encoding a specific geographical place (geographical cell that has a form of rectangle) in a form of a string where the lenght of the geohash determines its precision. 
+
+```mermaid
+classDiagram
+    AbstractTopic <|-- TaxiTopic
+    class AbstractTopic{        
+    }
+    class TaxiTopic{
+        +String pickup_geohash
+        +DateTime pickup_after
+        +DateTime pickup_before
+    }
+```
+
+For example Legal Services Counsil in Sydney is located at the following coordinates latitude= -33.8647 and longitude=151.2096 and the corresponding geohash of precision 7 is equal to `r3gx2g5`.
+
+The precision of geohash determines the size of the cell and to be useful for the Taxi-app it needs to be atleast 7 so the cell has size lower than 200m (see table below)
+
+|Geohash length	|Cell width	|Cell height
+|---------------|-----------|-----------
+|1	|≤ 5,000km	|×	5,000km 
+|2	|≤ 1,250km	|×	625km
+|3	|≤ 156km	|×	156km
+|4	|≤ 39.1km	|×	19.5km
+|5	|≤ 4.89km	|×	4.89km
+|6	|≤ 1.22km	|×	0.61km
+|7	|≤ 153m	    |×	153m
+|8	|≤ 38.2m	|×	19.1m
+|9	|≤ 4.77m	|×	4.77m
+|10	|≤ 1.19m	|×	0.596m
+|11	|≤ 149mm	|×	149mm
+|12	|≤ 37.2mm	|×	18.6mm
+
+On the other hand we dont want to be to specific and we might want to restrict the size of geohash to at most 8, so it is not possible to precisly locate the originator (customer) at this stage, but on the other side the precision is enough for the taxi driver to accept/reject to job.
+
+### Digital Certificates
+Every gig economy envinronemnt needs to be safe for both customer and gig-worker. Safety means here the ability to have a level of trust that the other party will not violate civil rights of the other part during the service delivery either if it is a giving a ride, delivering food or programming website. The way to implement a physical levels of trust in the internet is done using Digital Certificates implemented as public-key certificate. These certificates are issued by certification authorities that can be either trusted 3rd parties, or communities. For a taxi-driver the minimal certification requires having valid driveing licence and no criminal record. The trusted 3rd party can issue this kind of certificate and by signing it with its private key so anyone can verify that the specific ceriticate was trully issued by this trusted 3rd party. If the certificate is revoked the information about it is published by the trusted 3rd party in form of a revoked list. Public key certificates contain also a public key of the certified person, so it is possible use it to encrypt a message that is targetted for this person and verify their signatures.
+
+```mermaid
+classDiagram
+    class Certificate{
+        +Bytes public_key
+        +String certificate_name
+        +Object certificate_value
+        +DateTime not_valid_after
+        +DateTime not_valid_before
+        +String cert_auth_name
+        +Bytes cert_auth_signature
+    }
+```
+
+### Asking For Favour
+The first step of sweet-gossip protocol is to send the AskForFavour data-frame to the potencial broadcaster. 
+
+```mermaid
+classDiagram
+    class RequestPayload{
+        +UUID payload_id
+        +AbstractTopic topic
+        +Certificate originator_certificate
+        +Bytes originator_signature
+    }
+    class AskForFavour{
+        +UUID ask_id
+    }
+    AskForFavour  o--  RequestPayload : signed_request_payload
+```
+
+AskForFavour dataframe contains ask identifier and SignedRequestPayload. SignedRequestPayload is made of unique payload id, topic (e.g. TaxiTopic), originator certificate and originator signature. Anyone can verify the Request Payload by validating its signature with originators public key stored within the originator certificate. Originator certificate can always be verified using certification aturhority public key.
+Ask identifier allows for frame identification during the originator<->middleman ping-pong communication, while payload_id is to remain unique id that allows to determine if the message was already broqdcasted by the node of the network or it was never seen before.
 
 ```mermaid
 sequenceDiagram
-    Originator->>Peer: Ask-For-Favour
-    activate Peer
-    Peer-->>Originator: Favour-Conditions
-    deactivate Peer
+    Originator->>Middleman: AskForFavour
+    activate Middleman
+    Middleman-->>Originator: POWFavourConditions
+    deactivate Middleman
     activate Originator
-    Originator->>Peer: Broadcast
+    Originator->>Middleman: POWBroadcast
     deactivate Originator
 ```
 
-This is done by sending the following frame:
 
-### Ask-For-Favour
-|field|value
-|----|---|
-|topic|string|
 
-The topic is a filesystem-like path that is specifying the topic that has a hierarchical structure. 
-
-If the customer is looking for a ride in Sydney, the topic can be used as a form /Drive/Australia/Sydney and is a hint for the Sweet Gossip network nodes allowing them to target the broadcast specifically. The root topic / means that the message is about to be broadcasted on the entire network.
-
-```mermaid
-flowchart TD
-/ --> Drive --> Australia & US & China & Poland
-Australia --> Sydney & Melbourne & Brisbane
-US --> NY & Boston
-Poland --> Warsaw & Krakow & Gdansk
-```
-
-It is important to highlight that the Broadcasted message is not encrypted so even if one can put in the topic exact geolocation e.g. /Drive/Australia/Sydney/(151.2015102,-33.86018194) allowing for early evaluation of the reachability for the e.g. drivers, it makes possible to determine the exact location or the Originator.
 
 ### Favour-Conditions
 
@@ -291,7 +351,7 @@ a good profile.
 [:bangbang:][MORE! All the aspects that can break the protocol.]
 
 # Applications
-Sweet Gossip Protocol is an enabler for building P2P apps.
+Sweet-Gossip Protocol is an enabler for building P2P apps.
 [:bangbang:][MORE!]
 
 ## Supporting Services
