@@ -43,7 +43,7 @@ Fig 1. The intuition behind gossip protocol
 
 # The protocol
 
-Sweet-Gossip protocol has a single purpose: to broadcast a job proposal (topic) to interested parties and collect job offers (reply messages) from interested contractors. 
+Sweet-Gossip protocol has a single purpose: to broadcast a job proposal (topic) to interested parties and collect job offers (reply messages) from interested contractors. Economicly, the customer is interested in exchanging their money for the service, while gig-worker is interested in being paid for the job done. The network to sustain its existance needs to reward broadcasters for quality of the broadcasting. Therefore the protocol is constructed in a way that the customer broadcasts a topic, that contains anonymous job description. This job description is delivered by the network to the gig-worker that respond with network encrypted reply message. The message is delivered back to the customer that can verify basic properties of the gig-worker with their digital certificate but to decrypt contact information of the gig-worker is obligated to pay the network. 
 
 For sake of clarity we use the following naming convention:
 1. Topic - the job proposal broadcasted through the network
@@ -56,7 +56,7 @@ For sake of clarity we use the following naming convention:
 We assume that nodes of the sweet-gossip network are already connected to their peers via some internet transport protocol (e.g. TCP, UDP with or without hole punching, mobile mesh etc.) and the other peer is also accepting sweet-gossip protocol. How the nodes discover their peers is not a part of the protocol.
 
 In short the sweet-gossip protocol can be summarised as follows:
-1. **Asking for favour:** If the originator (e.g. Node A) wants to broadcast the topic first step is to ask its selected peer (e.g. Node B) how about condition of its coopertation. If the middleman accepts this kind of tipics, it replies to the originator with specific POW properties the originator needs to provide to be able to broadcast the topic with using this specific middleman. 
+1. **Asking for broadcast:** If the originator (e.g. Node A) wants to broadcast the topic first step is to ask its selected peer (e.g. Node B) how about condition of its coopertation. If the middleman accepts this kind of tipics, it replies to the originator with specific POW properties the originator needs to provide to be able to broadcast the topic with using this specific middleman. 
 2. **Broadcast with POW:** In order to use this middleman the originator must compute hash (e.g. SHA256) that is less or equal to the specific target for the specific POW scheme. The computed POW is passed with the topic to the broadcaster and if the brodcaster validates the hash it brodcast the topic to its peers.
 3. **Replying:** If the middleman instead is interested in accepting the job it becomes the replier. Replier constructs the Reply Message. The Reply Message contains all the information that is required to pay for the reply message delivery to all the middlemans involved. The reply message is passed back to the originator
 4. **Paing for the reply message:** Once the message reaches the originator, the originator needs to pay the network using the specific payment method. Once paid the reply message is revilled and the originator is able to begin direct communication with replier.
@@ -101,7 +101,7 @@ The precision of geohash determines the size of the cell and to be useful for th
 On the other hand we dont want to be to specific and we might want to restrict the size of geohash to at most 8, so it is not possible to precisly locate the originator (customer) at this stage, but on the other side the precision is enough for the taxi driver to accept/reject to job.
 
 ### Digital Certificates
-Every gig economy envinronemnt needs to be safe for both customer and gig-worker. Safety means here the ability to have a level of trust that the other party will not violate civil rights of the other part during the service delivery either if it is a giving a ride, delivering food or programming website. The way to implement a physical levels of trust in the internet is done using Digital Certificates implemented as public-key certificate. These certificates are issued by certification authorities that can be either trusted 3rd parties, or communities. For a taxi-driver the minimal certification requires having valid driveing licence and no criminal record. The trusted 3rd party can issue this kind of certificate and by signing it with its private key so anyone can verify that the specific ceriticate was trully issued by this trusted 3rd party. If the certificate is revoked the information about it is published by the trusted 3rd party in form of a revoked list. Public key certificates contain also a public key of the certified person, so it is possible use it to encrypt a message that is targetted for this person and verify their signatures.
+Every gig economy envinronemnt needs to be safe for both customer and gig-worker. Safety means here the ability to have a level of trust that the other party will not violate civil rights of the other part during the service delivery either if it is a giving a ride, delivering food or programming website. The way to implement a physical levels of trust in the internet is done using Digital Certificates implemented as public-key certificate (e.g. X.509 certificates). These certificates are issued by certification authorities that can be either trusted 3rd parties, or communities. For a taxi-driver the minimal certification requires having valid driveing licence and no criminal record. The trusted 3rd party can issue this kind of certificate and by signing it with its private key so anyone can verify that the specific ceriticate was trully issued by this trusted 3rd party. If the certificate is revoked the information about it is published by the trusted 3rd party in form of a revocation list. Public key certificates contain also a public key of the certified person, so it is possible use it to encrypt a message that is targetted for this person and verify their signatures.
 
 ```mermaid
 classDiagram
@@ -116,8 +116,8 @@ classDiagram
     }
 ```
 
-### Asking For Favour
-The first step of sweet-gossip protocol is to send the AskForFavour data-frame to the potencial broadcaster. 
+### Asking For Broadcast
+The first step of sweet-gossip protocol is to send the AskForBroadcastFrame to the potencial broadcaster. 
 
 ```mermaid
 classDiagram
@@ -127,59 +127,72 @@ classDiagram
         +Certificate originator_certificate
         +Bytes originator_signature
     }
-    class AskForFavour{
+    class AskForBroadcastFrame{
         +UUID ask_id
     }
-    AskForFavour  o--  RequestPayload : signed_request_payload
+    AskForBroadcastFrame  o--  RequestPayload : signed_request_payload
 ```
 
-AskForFavour dataframe contains ask identifier and SignedRequestPayload. SignedRequestPayload is made of unique payload id, topic (e.g. TaxiTopic), originator certificate and originator signature. Anyone can verify the Request Payload by validating its signature with originators public key stored within the originator certificate. Originator certificate can always be verified using certification aturhority public key.
-Ask identifier allows for frame identification during the originator<->middleman ping-pong communication, while payload_id is to remain unique id that allows to determine if the message was already broqdcasted by the node of the network or it was never seen before.
+AskForBroadcastFrame contains ask-identifier and digitally signed RequestPayload. signed RequestPayload is made of unique payload id, topic (e.g. TaxiTopic), originator certificate and originator signature obtained by signing the RequestPayload with with the originator private key that is complementary to the public key stored withing the originator certificate. Anyone can verify the Request Payload by validating its signature with originators public key from the certificate. Originator certificate can always be verified using  public key of the certification authority and checking its published revocation list.
+Ask-identifier allows for the frame identification during the originator<->middleman ping-pong communication (see figure below). In the gossip protocol it is possible that the same broadcasting message hits the same gossip node many times, so payload_id is to remain unique identifier that allows to determine this situation limiting these situations to minimum. It is the requested responsibility to ensure the uniuqueness of payload_id, risking if it is not unique it will be lost during the broadcast as other nodes can decide that it was already broadcasted if the payload_id was already seen before.
 
 ```mermaid
 sequenceDiagram
-    Originator->>Middleman: AskForFavour
+    Originator->>Middleman: AskForBroadcastFrame
     activate Middleman
-    Middleman-->>Originator: POWFavourConditions
+    Middleman-->>Originator: POWBroadcastConditionsFrame
     deactivate Middleman
     activate Originator
-    Originator->>Middleman: POWBroadcast
+    Originator->>Middleman: POWBroadcastFrame
     deactivate Originator
 ```
 
+### Proof Of Work (POW)
+Message broadcast in protected in sweet-gossip with the idea of Proof of work, famously implemented in bitcoin mining but originally introduced to limit the email spam. The thinking here is that if the originator needs to take some significant computational cost to be able to send the message it will significantly reduce the possibility of DDoS attacks. There are many possible POW schemas, here we are considering SHA256 hash based POW, similar to the one implemented in the bitcoin network. In short, given the topic the middleman decides how complex POW is required to be computed by the originator to allow him for further spreading of this topic. The task is to compute the hash of the BroadcastPayload so the hash itself is lower or equal to specific target. The larger target is the more complex the computation become. On the other hand, once the hash is computed, it is easy to verify that it fits into specific target, so the brodcaster has an easy task here to make sure that the originator has done the work to compute the correct hash.
 
 
+### Broadcast with POW
 
-### Favour-Conditions
+If the middleman accepts the topic specified in the AskForBroadcastFrame, it sends back the POWBroadcastConditionsFrame. 
 
-If the Peer is willing to broadcast the message, it sends back the Favour-Conditions frame. This frame explains conditions under which the Peer is willing to broadcast the message to its peers.
+```mermaid
+classDiagram
+    class WorkRequest{
+        +String pow_scheme
+        +int pow_target
+    }
+    class POWBroadcastConditionsFrame{
+        +UUID ask_id
+        +DateTime valid_till
+        +Certificate originator_certificate
+        +Bytes originator_signature
+    }
+    POWBroadcastConditionsFrame  o--  WorkRequest : work_request
+```
 
-There are two kinds of Favour-Condition frames: PoW frame and Lightning Network (LN) frame.
-PoW Frame specifies the properties of Proof of Work that need to be computed by the sending Peer (Originator or other Middleman) so it can be accepted for further broadcasting. This mechanism is based on the idea of PoW for email spamming reduction.
+Originator then replies with POWBroadcastFrame
+```mermaid
+classDiagram
+    class BroadcastPayload{
+        +RequestPayload signed_request_payload
+        +OnionRoute backward_onion
+        +List[RoutingPaymentInstruction] routing_payment_instruction_list
+    }
+    class ProofOfWork{
+        +String pow_scheme
+        +int pow_target
+        +int nuance
+    }
+    class POWBroadcastFrame{
+        +UUID ask_id
+        +DateTime valid_till
+        +Certificate originator_certificate
+        +Bytes originator_signature
+    }
+    POWBroadcastFrame  o--  ProofOfWork : proof_of_work
+    POWBroadcastFrame  o--  BroadcastPayload : broadcast_payload
+```
 
-|field|value
-|----|---|
-|favour|number:timestamp|
-|pow scheme|string|
-|pow complexity|number|
-
-Where:
-- favour is a unique number combined with the timestamp of now, 
-- pow scheme specifies the PoW algorithm that the peer is willing to use (e.g. SHA256)
-- pow complexity specifies the expected complexity of pow scheme
-
-LN scheme allows the peer to ask for the Bitcoin reward and the frame here has the following scheme:
-
-|field|value
-|----|---|
-|lightning network address|lnaddr|
-|price|satoshis|
-
-Where:
-- the lightning network address is the address where to pay
-- price is the number of satoshis
-
-Node A can then accept the requirements of peer B by sending the broadcast frame. Node B can either send back the job offer to node A or broadcast the job proposal to its selected peers after asking them for favour in the same way. 
 
 ```mermaid
 sequenceDiagram

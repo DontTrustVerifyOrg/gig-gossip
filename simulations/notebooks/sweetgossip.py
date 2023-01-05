@@ -90,9 +90,11 @@ class BroadcastPayload(ReprObject):
 
 class POWBroadcastFrame(ReprObject):
     def __init__(self,
+                 ask_id: UUID,
                  broadcast_payload: BroadcastPayload,
                  proof_of_work: ProofOfWork
                  ):
+        self.ask_id = ask_id
         self.broadcast_payload = broadcast_payload
         self.proof_of_work = proof_of_work
 
@@ -226,6 +228,8 @@ class SweetGossipNode(Agent):
         self._known_hosts: Dict[str, SweetGossipNode] = dict()
         self._broadcast_payloads_by_ask_id: Dict[UUID, BroadcastPayload] = dict(
         )
+        self._my_pow_br_cond_by_ask_id: Dict[UUID,
+                                             POWBroadcastConditionsFrame] = dict()
         self._already_broadcasted_request_payload_ids: Set[UUID] = set()
 
     def connect_to(self, other):
@@ -273,6 +277,7 @@ class SweetGossipNode(Agent):
             work_request=WorkRequest(pow_scheme=self.broadcast_conditions_pow_scheme,
                                      pow_target=pow_target_from_complexity(
                                          self.broadcast_conditions_pow_scheme, self.broadcast_conditions_pow_complexity)))
+        self._my_pow_br_cond_by_ask_id[pow_broadcast_conditions_frame.ask_id] = pow_broadcast_conditions_frame
         self.new_message(e, peer, pow_broadcast_conditions_frame)
 
     def on_pow_broadcast_conditions_frame(self, e, m, peer: SweetGossipNode, pow_broadcast_condtitions_frame: POWBroadcastConditionsFrame):
@@ -280,7 +285,8 @@ class SweetGossipNode(Agent):
             if pow_broadcast_condtitions_frame.ask_id in self._broadcast_payloads_by_ask_id:
                 broadcast_payload = self._broadcast_payloads_by_ask_id[
                     pow_broadcast_condtitions_frame.ask_id]
-                pow_broadcast_frame = POWBroadcastFrame(broadcast_payload,
+                pow_broadcast_frame = POWBroadcastFrame(pow_broadcast_condtitions_frame.ask_id,
+                                                        broadcast_payload,
                                                         pow_broadcast_condtitions_frame.work_request.compute_proof(
                                                             broadcast_payload))
                 self.new_message(e, peer, pow_broadcast_frame)
@@ -289,6 +295,19 @@ class SweetGossipNode(Agent):
         return None
 
     def on_pow_broadcast_frame(self, e, m, peer: SweetGossipNode, pow_broadcast_frame: POWBroadcastFrame):
+
+        if not pow_broadcast_frame.ask_id in self._my_pow_br_cond_by_ask_id:
+            return
+
+        my_pow_broadcast_condition_frame = self._my_pow_br_cond_by_ask_id[
+            pow_broadcast_frame.ask_id]
+
+        if pow_broadcast_frame.proof_of_work.pow_scheme != my_pow_broadcast_condition_frame.work_request.pow_scheme:
+            return
+
+        if pow_broadcast_frame.proof_of_work.pow_target != my_pow_broadcast_condition_frame.work_request.pow_target:
+            return
+
         if not pow_broadcast_frame.verify():
             return
 
