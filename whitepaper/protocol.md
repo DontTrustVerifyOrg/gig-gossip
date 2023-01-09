@@ -49,7 +49,8 @@ For sake of clarity we use the following naming convention:
 1. Topic - the job proposal broadcasted through the network
 2. Reply Message - the job offer for specific topic sent from the contractor
 3. Peer - any gossip network node. Every peer maintains a list of their peers.
-4. Originator - Peer that is the origin of the topic. From the Gig economy point of view, it is a customer.
+4. Sender - Peer that is the source of the topic. From the Gig economy point of view, it is a customer.
+5. Originator - Peer that is currently broadcasting the topic to the its peers.
 5. Middleman - Peer that is passing the broadcasted topic further as well as bringing back the reply message
 6. Replier - Peer that is replying to the broadcasted topic with reply message.
 
@@ -216,13 +217,17 @@ If one use cryptographic keys as a preimage in the scheme described above, one c
 Having a message that is encrypted with K different keys we can construct K invoices using separate key as a preimage and compute payment hash for each of the invoices. To decode the message payee need to pay all the invoices and obtain all the keys (preimages).
 
 
+### Onion-routing
+Sweet gossip is using onion-routing technique to hide the message reply route from the participating middlemen. During the broadcast phase the onion grows layer by layer. Active peer appends its adress to the onion and is using public key of the next peer to encrypt the new onion, therefore only the next peer can decrypt that layer of the onion. Once encrypted the onion is passed to the next peer.
 
-### Onion routing
+![Onion-Routing](./onion.svg)
+Fig 2. Onion-routing
 
-![Onion Routing](./onion.svg)
-Fig 2. Onion routed
+This way of constructing the onion allows then to peel the onion back to the source through the network in a way that none of the nodes knows the source nor the distant peers. 
 
-The broadcasting process is done for all the selected peers.
+### Broadcastring
+
+The broadcasting process is done for the selected peers of the originator.
 
 ```mermaid
 sequenceDiagram

@@ -47,6 +47,12 @@ class OnionRoute(ReprObject):
         return len(self._onion) == 0
 
 
+class RoutingPaymentInstruction(ReprObject):
+    def __init__(self, account: bytes, amount: int) -> None:
+        self.account = account
+        self.amount = amount
+
+
 class AbstractTopic(ReprObject):
     pass
 
@@ -65,16 +71,11 @@ class AskForBroadcastFrame(ReprObject):
 
 
 class POWBroadcastConditionsFrame(ReprObject):
-    def __init__(self, ask_id: UUID, valid_till: datetime, work_request: WorkRequest) -> None:
+    def __init__(self, ask_id: UUID, valid_till: datetime, work_request: WorkRequest, routing_payment_instruction: RoutingPaymentInstruction) -> None:
         self.ask_id = ask_id
         self.valid_till = valid_till
         self.work_request = work_request
-
-
-class RoutingPaymentInstruction(ReprObject):
-    def __init__(self, account: bytes, amount: int) -> None:
-        self.account = account
-        self.amount = amount
+        self.routing_payment_instruction = routing_payment_instruction
 
 
 class BroadcastPayload(ReprObject):
@@ -276,7 +277,8 @@ class SweetGossipNode(Agent):
             valid_till=datetime.now()+self.broadcast_conditions_timeout,
             work_request=WorkRequest(pow_scheme=self.broadcast_conditions_pow_scheme,
                                      pow_target=pow_target_from_complexity(
-                                         self.broadcast_conditions_pow_scheme, self.broadcast_conditions_pow_complexity)))
+                                         self.broadcast_conditions_pow_scheme, self.broadcast_conditions_pow_complexity)),
+            routing_payment_instruction=RoutingPaymentInstruction(self.payment_channel.account, self.price_amount_for_routing))
         self._my_pow_br_cond_by_ask_id[pow_broadcast_conditions_frame.ask_id] = pow_broadcast_conditions_frame
         self.new_message(e, peer, pow_broadcast_conditions_frame)
 
@@ -317,7 +319,7 @@ class SweetGossipNode(Agent):
         if message is not None:
             routing_payment_instruction_list = pow_broadcast_frame.broadcast_payload.routing_payment_instruction_list
             routing_payment_instruction_list.append(
-                RoutingPaymentInstruction(self.payment_channel.account, self.price_amount_for_routing))
+                my_pow_broadcast_condition_frame.routing_payment_instruction)
             response_frame = ResponseFrame(
                 replier_private_key=self._private_key,
                 replier_certificate=self.certificate,
