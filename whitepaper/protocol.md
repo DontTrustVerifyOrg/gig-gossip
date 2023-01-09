@@ -153,7 +153,7 @@ Message broadcast in protected in sweet-gossip with the idea of Proof of work, f
 
 ### Broadcast with POW
 
-If the middleman accepts the topic specified in the AskForBroadcastFrame, it sends back the POWBroadcastConditionsFrame. 
+If the middleman accepts the topic specified in the AskForBroadcastFrame, it sends back the POWBroadcastConditionsFrame. This frame describes the properties of POW expected to be computed by the originator.
 
 ```mermaid
 classDiagram
@@ -164,13 +164,16 @@ classDiagram
     class POWBroadcastConditionsFrame{
         +UUID ask_id
         +DateTime valid_till
-        +Certificate originator_certificate
-        +Bytes originator_signature
     }
     POWBroadcastConditionsFrame  o--  WorkRequest : work_request
 ```
 
-Originator then replies with POWBroadcastFrame
+Starting with ask_id, that matches with AskForBroadcastFrame, and valid_till timeout meaning that the middleman will wait only till the specific time for the POWBroadcastFrame from the originator it contains also WorkRequest that describes properties of POW.
+
+Originator is replying with POWBroadcastFrame that is also marked with corresponding ask_id. The main part is a broadcast payload that contains original signed request payload (the one that was a part of AskForBroadcast and was already signed by the originator) and routing and payment instructions namely: backward_onion and routing_payment_instruction_list that will be discussed later. POWBroadcastFrame also contains ProofOfWork that contains a hash value (nuance) that fits below pow_target for the specific pow_scheme, and was computed as a hash of broadcast_payload part, therefore middleman can easly verify nuance value by computing hash of broadcast_payload and checking if it is lower or equal to the pow_target.
+
+Originator then replies with POWBroadcastFrame:
+
 ```mermaid
 classDiagram
     class BroadcastPayload{
@@ -185,35 +188,51 @@ classDiagram
     }
     class POWBroadcastFrame{
         +UUID ask_id
-        +DateTime valid_till
-        +Certificate originator_certificate
-        +Bytes originator_signature
     }
     POWBroadcastFrame  o--  ProofOfWork : proof_of_work
     POWBroadcastFrame  o--  BroadcastPayload : broadcast_payload
 ```
 
+### Lightning network, invoices, payments, preimages and payment-hashes
+Lightning network is a layer 2 network built on top of bitcoin network that allows for cheap and fast micropayments. 
+It is built around concept of channels. Once channel is opened (that usually means funding it with some amount of BTC), it can be used to issue the invoice and pay the invoce. Payment generates a proof. This idea is extended with cryptographic concept of preimage for payment hash in the following way:
+1. Invoice is issued by the issuer and as one of the fiels it contains specific payment hash. Payment hash is a hash of preimage that itself is a number known only to the invoice issuer at this moment and the payment-hash is the only thing that is exposed on the invoice.
+2. Payer is paing the invoice under condition of having preimage published by the issuer. In other words, the payment means that the invoice is paid if the issuer publish the preimage that has the payment-hash that was presented on the invoice.
+
+```mermaid
+sequenceDiagram
+    activate Issuer
+    Issuer->>Issuer: Compute payment hash for the specific preimage  
+    Issuer->>Invoice: Create an invoice with payment hash
+    deactivate Issuer
+par Maing payment
+    Payer->>Invoice: Pay the invoice
+    Issuer->>Payer: Reveal the preimage
+end
+```
+
+If one use cryptographic keys as a preimage in the scheme described above, one can think about this scheme as being secure, atomic micropayments in exchange for cryptographic keys.
+
+Having a message that is encrypted with K different keys we can construct K invoices using separate key as a preimage and compute payment hash for each of the invoices. To decode the message payee need to pay all the invoices and obtain all the keys (preimages).
+
+
+
+### Onion routing
+
+![Onion Routing](./onion.svg)
+Fig 2. Onion routed
+
+The broadcasting process is done for all the selected peers.
 
 ```mermaid
 sequenceDiagram
 par Gossiping
-    Middleman->>Its Peer #1: Ask For Favour & Broadcast
-    Middleman->>Its Peer #2: Ask For Favour & Broadcast
-    Middleman->>Its Peer #3: Ask For Favour & Broadcast
-    Middleman->>...:Ask For Favour & Broadcast
+    Middleman->>Its Peer #1: Asking for broadcast & Broadcast with POW
+    Middleman->>Its Peer #2: Asking for broadcast & Broadcast with POW
+    Middleman->>Its Peer #3: Asking for broadcast & Broadcast with POW
+    Middleman->>...:Asking for broadcast & Broadcast with POW
 end
 ```
-
-### Broadcast
-|field|value
-|----|---|
-|nounce or utxo|number or lntrans|
-|favour|number:timestamp|
-|message|string|
-|originator "thank you secret" Public Key | public key|
-|reply Public Key | public key|
-|reply lightning network address|lnaddr|
-|reply price|satoshis|
 
 After the gossip is spread, the node that is happy to accept the broadcasted message instead of broadcasting it further is doing it with the Reply Request Frame. The Replying node is doing it to the selected node that was the source of the broadcast frame.
 
