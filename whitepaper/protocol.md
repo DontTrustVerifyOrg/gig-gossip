@@ -152,9 +152,18 @@ sequenceDiagram
 Message broadcast in protected in sweet-gossip with the idea of Proof of work, famously implemented in bitcoin mining but originally introduced to limit the email spam. The thinking here is that if the originator needs to take some significant computational cost to be able to send the message it will significantly reduce the possibility of DDoS attacks. There are many possible POW schemas, here we are considering SHA256 hash based POW, similar to the one implemented in the bitcoin network. In short, given the topic the middleman decides how complex POW is required to be computed by the originator to allow him for further spreading of this topic. The task is to compute the hash of the BroadcastPayload so the hash itself is lower or equal to specific target. The larger target is the more complex the computation become. On the other hand, once the hash is computed, it is easy to verify that it fits into specific target, so the brodcaster has an easy task here to make sure that the originator has done the work to compute the correct hash.
 
 
+### Onion-routing
+Sweet gossip is using onion-routing technique to hide the message reply route from the participating middlemen. During the broadcast phase the onion grows layer by layer. Active peer appends its adress to the onion and is using public key of the next peer to encrypt the new onion, therefore only the next peer can decrypt that layer of the onion. Once encrypted the onion is passed to the next peer.
+
+![Onion-Routing](./onion.svg)
+Fig 2. Onion-routing
+
+This way of constructing the onion allows then to peel the onion back to the source through the network in a way that none of the nodes knows the source nor the distant peers. 
+
+
 ### Broadcast with POW
 
-If the middleman accepts the topic specified in the AskForBroadcastFrame, it sends back the POWBroadcastConditionsFrame. This frame describes the properties of POW expected to be computed by the originator.
+If the middleman accepts the topic specified in the AskForBroadcastFrame, it sends back the POWBroadcastConditionsFrame. This frame describes the properties of POW expected to be computed by the originator and payment instructions expected by the peer for delivering the reply. 
 
 ```mermaid
 classDiagram
@@ -162,18 +171,23 @@ classDiagram
         +String pow_scheme
         +int pow_target
     }
+    class RoutingPaymentInstruction{
+        +String account
+        +int amount
+    }
     class POWBroadcastConditionsFrame{
         +UUID ask_id
         +DateTime valid_till
     }
     POWBroadcastConditionsFrame  o--  WorkRequest : work_request
+    POWBroadcastConditionsFrame  o--  RoutingPaymentInstruction : routing_payment_instruction
 ```
 
-Starting with ask_id, that matches with AskForBroadcastFrame, and valid_till timeout meaning that the middleman will wait only till the specific time for the POWBroadcastFrame from the originator it contains also WorkRequest that describes properties of POW.
+Starting with ask_id, that matches with AskForBroadcastFrame, and valid_till timeout meaning that the middleman will wait only till the specific time for the POWBroadcastConditionFrame from the originator contains also WorkRequest that describes properties of POW. Routing payment instruction consists of the anonymous account and the amount to be paid. The amount here means only the price for this specific broadcast and the entire price of the reply is given as a sum given by all the middlemen that participate in this gossiping activity.
 
-Originator is replying with POWBroadcastFrame that is also marked with corresponding ask_id. The main part is a broadcast payload that contains original signed request payload (the one that was a part of AskForBroadcast and was already signed by the originator) and routing and payment instructions namely: backward_onion and routing_payment_instruction_list that will be discussed later. POWBroadcastFrame also contains ProofOfWork that contains a hash value (nuance) that fits below pow_target for the specific pow_scheme, and was computed as a hash of broadcast_payload part, therefore middleman can easly verify nuance value by computing hash of broadcast_payload and checking if it is lower or equal to the pow_target.
+Originator is replying with POWBroadcastFrame that is also marked with corresponding ask_id. The main part is a broadcast payload that contains original signed request payload (the one that was a part of AskForBroadcast and was already signed by the originator), onnion-routing and routing payment instructions namely: backward_onion and routing_payment_instruction_list, both will be discussed here later. 
 
-Originator then replies with POWBroadcastFrame:
+POWBroadcastFrame also contains ProofOfWork that contains a hash value (nuance) that fits below pow_target for the specific pow_scheme, and was computed as a hash of broadcast_payload part, therefore middleman can easly verify nuance value by computing hash of broadcast_payload and checking if it is lower or equal to the pow_target.
 
 ```mermaid
 classDiagram
@@ -192,6 +206,20 @@ classDiagram
     }
     POWBroadcastFrame  o--  ProofOfWork : proof_of_work
     POWBroadcastFrame  o--  BroadcastPayload : broadcast_payload
+```
+
+Each step of the broadcast involves passing specific Broadcast Payload that consists of Request Payload that is never changed and protected by the cryptographic signature.  Additionally, every Broadcast Payload has growing routing payment instruction list as well as adds new layer to the onion.
+
+In the gossip protocol nodes are randomly selected from the list of all the known peers of the originator. This number is sometimes refered as fanout of the gossip protocol. Once selected the broadcasting process is performed.
+
+```mermaid
+sequenceDiagram
+par Gossiping
+    Middleman->>Its Peer #1: Asking for broadcast & Broadcast with POW
+    Middleman->>Its Peer #2: Asking for broadcast & Broadcast with POW
+    Middleman->>Its Peer #3: Asking for broadcast & Broadcast with POW
+    Middleman->>...:Asking for broadcast & Broadcast with POW
+end
 ```
 
 ### Lightning network, invoices, payments, preimages and payment-hashes
@@ -217,91 +245,26 @@ If one use cryptographic keys as a preimage in the scheme described above, one c
 Having a message that is encrypted with K different keys we can construct K invoices using separate key as a preimage and compute payment hash for each of the invoices. To decode the message payee need to pay all the invoices and obtain all the keys (preimages).
 
 
-### Onion-routing
-Sweet gossip is using onion-routing technique to hide the message reply route from the participating middlemen. During the broadcast phase the onion grows layer by layer. Active peer appends its adress to the onion and is using public key of the next peer to encrypt the new onion, therefore only the next peer can decrypt that layer of the onion. Once encrypted the onion is passed to the next peer.
-
-![Onion-Routing](./onion.svg)
-Fig 2. Onion-routing
-
-This way of constructing the onion allows then to peel the onion back to the source through the network in a way that none of the nodes knows the source nor the distant peers. 
-
-### Broadcastring
-
-The broadcasting process is done for the selected peers of the originator.
+### Replying
+The node that is happy to accept the broadcasted message (replier) instead of broadcasting it further is replying it back. It is done with ResponseFrame that is sent back to the node that was the source of the topic.
 
 ```mermaid
-sequenceDiagram
-par Gossiping
-    Middleman->>Its Peer #1: Asking for broadcast & Broadcast with POW
-    Middleman->>Its Peer #2: Asking for broadcast & Broadcast with POW
-    Middleman->>Its Peer #3: Asking for broadcast & Broadcast with POW
-    Middleman->>...:Asking for broadcast & Broadcast with POW
-end
+classDiagram
+    class PaymentStone{
+        +List[RoutingPaymentInstruction] routing_payment_instruction_list
+        +List[Bytes] payment_hash_list
+    }
+    class ReplyFrame{
+        +Certificate replier_certificate
+        +List[Bytes] preimage_list
+        +OnionRoute forward_onion
+        +RequestPayload signed_request_payload
+        +List[Invoice] invoices
+        +Bytes encrypted_message
+    }
+    ReplyFrame  o--  PaymentStone : payment_stone
 ```
 
-After the gossip is spread, the node that is happy to accept the broadcasted message instead of broadcasting it further is doing it with the Reply Request Frame. The Replying node is doing it to the selected node that was the source of the broadcast frame.
-
-Replying to the broadcast is an expensive activity. The expense is secured by the condition of having confirmation from the initial node that the reply message was delivered back. Also, the reply is encrypted together with the original message so the originator can always verify the consistency of the message. The expense is calculated as the number of satoshis that is specified in the reply price.
-
-The node needs to construct utxo on the LN channel that will cover the requested price on two conditions:
-- timeout
-- receiving the "thank you secret Private Key" from the originator of the broadcasting message
-
-### Reply
-|field|value
-|----|---|
-|encrypted [message/reply/inet-addr]|string|
-|utxo|lntrans|
-
-### Validation and Verification
-The originator is decompressing the message using his PrivateKey and compares the message with the original message. If the message is the same the next step is to directly call the replying party and confirm that there was no message intrusion by sending the message directly to its inet-addr. If the response is OK then the originator is sure that the reply was not compromised by any of the broadcasting nodes.
-In the end, the originator should reply with the "thank you secret" back to its broadcasting peer.
-
-```mermaid
-sequenceDiagram
-    Originator->>+Middleman1: Ask-For-Favour
-    Middleman1-->>-Originator: Favour-Conditions
-    activate Originator
-    Originator->>Middleman1: Broadcast
-    deactivate Originator
-    activate Middleman1
-    Middleman1->>+Middleman2: Ask-For-Favour
-    deactivate Middleman1
-    Middleman2-->>-Middleman1: Favour-Conditions
-    activate Middleman1
-    Middleman1->>+Middleman2: Broadcast
-    deactivate Middleman1
-    activate Middleman2
-    Middleman2->>+Replier: Ask-For-Favour
-    deactivate Middleman2
-    Replier-->>-Middleman2: Favour-Conditions
-    activate Middleman2
-    Middleman2->>+Replier: Broadcast
-    deactivate Middleman2
-    Replier->>-Middleman2 : Reply
-    activate Middleman2
-    Middleman2->>Middleman1 : Reply
-    deactivate Middleman2
-    activate Middleman1
-    Middleman1->>+Originator : Reply
-    deactivate Middleman1
-    Originator->>-Replier: Validate
-    activate Replier
-    Replier-->>Originator: Ack
-    Replier->>Middleman2: ThankYou
-    activate Middleman2
-    Middleman2->>Middleman1 : ThankYou
-    deactivate Middleman2
-    activate Middleman1
-    Middleman1->>Originator : ThankYou
-    deactivate Middleman1
-    deactivate Replier
-```
-
-### Thank you
-|field|value
-|----|---|
-|originator "thank you secret" Private Key|number|
 
 
 # Discussions
