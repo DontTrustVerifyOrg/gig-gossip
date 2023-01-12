@@ -5,7 +5,8 @@ Sweet-Gossip protocol is a P2P, mobile-first, Proof of Work protected, gossip pr
 #### Version history
 |date|version|author|comment|
 |----|-------|------|-------|
-|Thu 10 Nov 2022|1.0|Pawel Kaplanski <<pawel@donttrustverify.org>>|initial version|
+|Thu 10 Nov 2022|0.8|Pawel Kaplanski <<pawel@donttrustverify.org>>|draft version|
+|Thu 12 Jan 2023|0.9|Pawel Kaplanski <<pawel@donttrustverify.org>>|complete protocol|
 
 ## Motivation
 GIG economy refers to the work done by casual workers coordinated by a software system. At the time of this writing, the end-customer of the Gig economy directly interacts with the centralized, cloud-based platform (app). This platform is also used to pay for the services after the job is done to the platform, which in turn is sharing the revenue with the assigned GIG worker. The actual job is done by the GIG worker for their customer, making the online platform a tool that supports and manages the effectiveness of the job. 
@@ -308,8 +309,8 @@ This concludes the gossip.
 
 # Discussions
 
-### Lack of Thank you and increase in PoW complexity/or network cost
-If the Replier for some reason refuses to send "Thank you secret" the broadcaster can decide to increase the Pow complexity for the next interaction / increase the price of the broadcast.
+### Payment problems
+If the one of invoices payment fails for some reason, it makes impossible for the payer to obtain its preimage and therefore decode the message even if all the other payments were succesful.
 
 ## Mobile device connectivity issues
 ### Holepunching
