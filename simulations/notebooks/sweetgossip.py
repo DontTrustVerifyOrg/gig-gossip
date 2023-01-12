@@ -58,10 +58,10 @@ class AbstractTopic(ReprObject):
 
 
 class RequestPayload(SignableObject):
-    def __init__(self, id: UUID, topic: AbstractTopic, originator_certificate: Certificate) -> None:
+    def __init__(self, id: UUID, topic: AbstractTopic, sender_certificate: Certificate) -> None:
         self.id = id
         self.topic = topic
-        self.originator_certificate = originator_certificate
+        self.sender_certificate = sender_certificate
 
 
 class AskForBroadcastFrame(ReprObject):
@@ -100,10 +100,10 @@ class POWBroadcastFrame(ReprObject):
         self.proof_of_work = proof_of_work
 
     def verify(self) -> bool:
-        if not self.broadcast_payload.signed_request_payload.originator_certificate.verify():
+        if not self.broadcast_payload.signed_request_payload.sender_certificate.verify():
             return False
 
-        if not self.broadcast_payload.signed_request_payload.verify(self.broadcast_payload.signed_request_payload.originator_certificate.public_key):
+        if not self.broadcast_payload.signed_request_payload.verify(self.broadcast_payload.signed_request_payload.sender_certificate.public_key):
             return False
 
         return self.proof_of_work.validate(self.broadcast_payload)
@@ -124,9 +124,9 @@ class ReplyPayload(SignableObject):
     def verify_all(self, replier_public_key: bytes):
         if not self.verify(replier_public_key):
             return False
-        if not self.signed_request_payload.originator_certificate.verify():
+        if not self.signed_request_payload.sender_certificate.verify():
             return False
-        if not self.signed_request_payload.verify(self.signed_request_payload.originator_certificate.public_key):
+        if not self.signed_request_payload.verify(self.signed_request_payload.sender_certificate.public_key):
             return False
         return True
 
@@ -147,14 +147,14 @@ class ResponseFrame(ReprObject):
                                                  [compute_payment_hash(
                                                      preimage) for preimage in self.preimage_list],
                                                  self._encrypt(
-                                                     message, signed_request_payload.originator_certificate.public_key))
+                                                     message, signed_request_payload.sender_certificate.public_key))
         self.signed_reply_payload.sign(replier_private_key)
         self.forward_onion = forward_onion
         self.invoices: List[Invoice] = list()
 
-    def _encrypt(self, message: bytes, originator_public_key: bytes) -> bytes:
+    def _encrypt(self, message: bytes, sender_public_key: bytes) -> bytes:
         data = message
-        data = crypto.encrypt_object(data, originator_public_key)
+        data = crypto.encrypt_object(data, sender_public_key)
         for key in self.preimage_list:
             data = crypto.symmetric_encrypt(key, data)
         return data
@@ -201,9 +201,9 @@ class ResponseFrame(ReprObject):
             return False
         return True
 
-    def pay(self, originator_payment_channel: PaymentChannel, originator_private_key: bytes) -> bytes:
+    def pay(self, sender_payment_channel: PaymentChannel, sender_private_key: bytes) -> bytes:
         message = self.signed_reply_payload.data
-        for proof_of_payment in (originator_payment_channel.pay_invoice(invoice)
+        for proof_of_payment in (sender_payment_channel.pay_invoice(invoice)
                                  for invoice in self.invoices):
             if proof_of_payment is None:  # unsuccessful payment
                 return None
@@ -211,7 +211,7 @@ class ResponseFrame(ReprObject):
             message = crypto.symmetric_decrypt(
                 proof_of_payment.preimage, message)
 
-        return crypto.decrypt_object(message, originator_private_key)
+        return crypto.decrypt_object(message, sender_private_key)
 
 
 class SweetGossipNode(Agent):

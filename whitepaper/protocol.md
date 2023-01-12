@@ -122,19 +122,24 @@ The first step of sweet-gossip protocol is to send the AskForBroadcastFrame to t
 
 ```mermaid
 classDiagram
+    class SignableObject{
+        Bytes signature
+        +sign(Bytes private_key)
+        +verify(Bytes public_key):Boolean
+    }
     class RequestPayload{
         +UUID payload_id
         +AbstractTopic topic
-        +Certificate originator_certificate
-        +Bytes originator_signature
+        +Certificate sender_certificate
     }
     class AskForBroadcastFrame{
         +UUID ask_id
     }
     AskForBroadcastFrame  o--  RequestPayload : signed_request_payload
+    RequestPayload --|>SignableObject
 ```
 
-AskForBroadcastFrame contains ask-identifier and digitally signed RequestPayload. signed RequestPayload is made of unique payload id, topic (e.g. TaxiTopic), originator certificate and originator signature obtained by signing the RequestPayload with with the originator private key that is complementary to the public key stored withing the originator certificate. Anyone can verify the Request Payload by validating its signature with originators public key from the certificate. Originator certificate can always be verified using  public key of the certification authority and checking its published revocation list.
+AskForBroadcastFrame contains ask-identifier and digitally signed RequestPayload. signed RequestPayload is made of unique payload id, topic (e.g. TaxiTopic), sender certificate and sender signature obtained by signing the RequestPayload with with the sender private key that is complementary to the public key stored withing the sender certificate. Anyone can verify the Request Payload by validating its signature with sender public key from the certificate. Sender certificate can always be verified using  public key of the certification authority and checking its published revocation list.
 Ask-identifier allows for the frame identification during the originator<->middleman ping-pong communication (see figure below). In the gossip protocol it is possible that the same broadcasting message hits the same gossip node many times, so payload_id is to remain unique identifier that allows to determine this situation limiting these situations to minimum. It is the requested responsibility to ensure the uniuqueness of payload_id, risking if it is not unique it will be lost during the broadcast as other nodes can decide that it was already broadcasted if the payload_id was already seen before.
 
 ```mermaid
@@ -158,7 +163,7 @@ Sweet gossip is using onion-routing technique to hide the message reply route fr
 ![Onion-Routing](./onion.svg)
 Fig 2. Onion-routing
 
-This way of constructing the onion allows then to peel the onion back to the source through the network in a way that none of the nodes knows the source nor the distant peers. 
+This way of constructing the onion allows then to peel the onion back to the sender through the network in a way that none of the nodes knows the sender nor the distant peers. 
 
 
 ### Broadcast with POW
@@ -246,16 +251,20 @@ Having a message that is encrypted with K different keys we can construct K invo
 
 
 ### Replying
-The node that is happy to accept the broadcasted message (replier) instead of broadcasting it further is replying it back. It is done with ResponseFrame that is sent back to the node that was the source of the topic.
+The node that is happy to accept the broadcasted message (replier) instead of broadcasting it further is replying it back. It is done with ResponseFrame that is sent back to the node that was the sender of the topic.
 
 ```mermaid
 classDiagram
+    class SignableObject{
+        Bytes signature
+        +sign(Bytes private_key)
+        +verify(Bytes public_key):Boolean
+    }
     class ReplyPayload{
         +RequestPayload signed_request_payload
         +Bytes encrypted_reply_message
         +List[RoutingPaymentInstruction] routing_payment_instruction_list
         +List[Bytes] payment_hash_list
-        +Bytes replier_signature
     }
     class ReplyFrame{
         +Certificate replier_certificate
@@ -263,14 +272,21 @@ classDiagram
         +List[Bytes] preimage_list
         +List[Invoice] invoices
     }
+    ReplyPayload --|> SignableObject
     ReplyFrame  o--  ReplyPayload : signed_reply_payload
 ```
 
-RequestPayload is just a copy taken from the original POWBroadcastFrame, so the source can verify that it is the same as it was sent and no modification 
-
 The replyier_certificate has two meanings here:
-1. It allows the source of the topic to identify that the gig contractor is a credible service provider by checking the certificate and verifing it with the specific certification authority
-2. It contains the replier public_key that is used to sign the PaymentStone dicsuss below
+1. It allows the sender of the topic to identify that the gig contractor is a credible service provider by checking the certificate and verifing its "hard" certification (e.g. driving licence) with the specific certification authority being a trusted third party (e.g. government agency or specialised certification veryfier)
+2. It contains the replier public_key that is used to sign the Reply Payload.
+
+The main part of the reply is the message that is encrypted so it can be used only after the sender (customer) will pay the network. The encryption is done by the replier and its correctness is verified by the network while traveling back to the sender. This is done in the following way:
+1. Replier encrypts the message with the sender public_key that is a part of senders Certificate in the RequestPayload 
+
+ReplyPayload is a 
+RequestPayload is just a copy taken from the original POWBroadcastFrame, so the sender can verify that it is the same as it was sent and no modification 
+
+# Distributed Trust
 
 
 
