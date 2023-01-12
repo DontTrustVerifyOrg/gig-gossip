@@ -250,20 +250,27 @@ The node that is happy to accept the broadcasted message (replier) instead of br
 
 ```mermaid
 classDiagram
-    class PaymentStone{
+    class ReplyPayload{
+        +RequestPayload signed_request_payload
+        +Bytes encrypted_reply_message
         +List[RoutingPaymentInstruction] routing_payment_instruction_list
         +List[Bytes] payment_hash_list
+        +Bytes replier_signature
     }
     class ReplyFrame{
         +Certificate replier_certificate
-        +List[Bytes] preimage_list
         +OnionRoute forward_onion
-        +RequestPayload signed_request_payload
+        +List[Bytes] preimage_list
         +List[Invoice] invoices
-        +Bytes encrypted_message
     }
-    ReplyFrame  o--  PaymentStone : payment_stone
+    ReplyFrame  o--  ReplyPayload : signed_reply_payload
 ```
+
+RequestPayload is just a copy taken from the original POWBroadcastFrame, so the source can verify that it is the same as it was sent and no modification 
+
+The replyier_certificate has two meanings here:
+1. It allows the source of the topic to identify that the gig contractor is a credible service provider by checking the certificate and verifing it with the specific certification authority
+2. It contains the replier public_key that is used to sign the PaymentStone dicsuss below
 
 
 
