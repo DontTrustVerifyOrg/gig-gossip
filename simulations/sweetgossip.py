@@ -123,10 +123,10 @@ class ReplyPayload(SignableObject):
     def __init__(self,
                  signed_request_payload: RequestPayload,
                  payment_crypto_instruction_list: List[PaymentCryptoInstruction],
-                 data: bytes
+                 encrypted_reply_message: bytes
                  ) -> None:
         self.signed_request_payload = signed_request_payload
-        self.data = data
+        self.encrypted_reply_message = encrypted_reply_message
         self.payment_crypto_instruction_list = payment_crypto_instruction_list
 
     def verify_all(self, replier_public_key: bytes):
@@ -208,7 +208,7 @@ class ResponseFrame(ReprObject):
         return True
 
     def pay(self, sender_payment_channel: PaymentChannel, sender_private_key: bytes) -> bytes:
-        message = self.signed_reply_payload.data
+        message = self.signed_reply_payload.encrypted_reply_message
         for proof_of_payment in (sender_payment_channel.pay_invoice(invoice)
                                  for invoice in self.invoices):
             if proof_of_payment is None:  # unsuccessful payment
