@@ -1,22 +1,19 @@
-import simpy
 import inspect
-
-from collections import namedtuple
-import numpy as np
-import sys
+import logging
 import operator
 import random
-from scheduler import Scheduler
-
+import sys
+import uuid
+from collections import namedtuple
+from copy import deepcopy
 from functools import reduce
 from itertools import groupby
 
+import numpy as np
+import simpy
+from scheduler import Scheduler
 from units import minute
 
-import uuid
-
-import logging
-from copy import deepcopy
 
 class bcolors:
     DEFAULT = '\x1b[0m'
