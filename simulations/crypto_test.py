@@ -1,7 +1,7 @@
 # %%
 import crypto
 
-private_key,public_key = crypto.create_keys()
+private_key,public_key = crypto.generate_asymetric_keys()
 
 # %%
 
@@ -13,7 +13,7 @@ crypto.decrypt_object(cryp,private_key)
 len(cryp)
 # %%
 
-private_key2,public_key2 = crypto.create_keys()
+private_key2,public_key2 = crypto.generate_asymetric_keys()
 crypto.decrypt_object(cryp,private_key2)
 
 # %%

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from myrepr import ReprObject
-from crypto import compute_sha512
+from crypto import compute_sha512, generate_symmetric_key
 
 
 def compute_payment_hash(preimage: bytes) -> bytes:
@@ -32,13 +32,17 @@ class PaymentChannel(ReprObject):
     def __init__(self, account: bytes) -> None:
         self.account = account
 
-    def create_invoice(self, amount: int, preimage: bytes, valid_till: datetime) -> Invoice:
+    def create_invoice(self, amount: int, preimage: bytes = None, valid_till: datetime = None) -> Invoice:
+        if preimage is None:
+            preimage = generate_symmetric_key()
+        if valid_till is None:
+            valid_till = datetime.max
         return Invoice(self.account, preimage, amount,  valid_till)
 
     def pay_invoice(self, invoice: Invoice) -> ProofOfPayment:
         if invoice.is_paid:
             return None
-        if datetime.now()>invoice.valid_till:
+        if datetime.now() > invoice.valid_till:
             return None
 
         invoice.is_paid = True

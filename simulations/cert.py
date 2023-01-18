@@ -57,7 +57,7 @@ class CertificationAuthority(ReprObject):
 
 
 def create_certification_authority(ca_name: str) -> CertificationAuthority:
-    ca_private_key, ca_public_key = crypto.create_keys()
+    ca_private_key, ca_public_key = crypto.generate_asymetric_keys()
     return CertificationAuthority(ca_name, ca_private_key, ca_public_key)
 
 

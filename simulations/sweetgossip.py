@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 from uuid import UUID, uuid4
 
 import crypto
@@ -11,6 +11,7 @@ from myrepr import ReprObject
 from payments import Invoice, PaymentChannel, compute_payment_hash
 from pow import ProofOfWork, WorkRequest, pow_target_from_complexity
 
+from numpy import argmin
 
 class SignableObject(ReprObject):
     def sign(self, private_key: bytes) -> None:
@@ -53,6 +54,9 @@ class RoutingPaymentInstruction(SignableObject):
         self.account = account
         self.amount = amount
         self.public_key = public_key
+
+    def to_tuple(self) -> Tuple[bytes, int, bytes]:
+        return (self.account, self.amount, self.public_key)
 
 
 class AbstractTopic(ReprObject):
@@ -123,11 +127,13 @@ class ReplyPayload(SignableObject):
     def __init__(self,
                  signed_request_payload: RequestPayload,
                  payment_crypto_instruction_list: List[PaymentCryptoInstruction],
-                 encrypted_reply_message: bytes
+                 encrypted_reply_message: bytes,
+                 invoice: Invoice
                  ) -> None:
         self.signed_request_payload = signed_request_payload
         self.encrypted_reply_message = encrypted_reply_message
         self.payment_crypto_instruction_list = payment_crypto_instruction_list
+        self.invoice = invoice
 
     def verify_all(self, replier_public_key: bytes):
         if not self.verify(replier_public_key):
@@ -141,15 +147,14 @@ class ReplyPayload(SignableObject):
 
 class ResponseFrame(ReprObject):
     def __init__(self,
-                 replier_private_key: bytes,
                  replier_certificate: Certificate,
                  routing_payment_instruction_list: List[RoutingPaymentInstruction],
+                 preimage_list: List[bytes],
                  forward_onion: OnionRoute,
                  signed_request_payload: RequestPayload,
-                 message: bytes) -> None:
+                 message: bytes,
+                 invoice: Invoice) -> None:
         self.replier_certificate = replier_certificate
-        preimage_list = crypto.generate_symmetric_keys(
-            len(routing_payment_instruction_list))
         self.signed_reply_payload = ReplyPayload(signed_request_payload,
                                                  [PaymentCryptoInstruction(routing_payment_instruction.account,
                                                                            routing_payment_instruction.amount,
@@ -157,10 +162,13 @@ class ResponseFrame(ReprObject):
                                                                            routing_payment_instruction.public_key) for preimage, routing_payment_instruction in zip(
                                                      preimage_list, routing_payment_instruction_list)],
                                                  self._encrypt(
-                                                     message, signed_request_payload.sender_certificate.public_key, preimage_list))
-        self.signed_reply_payload.sign(replier_private_key)
+                                                     message, signed_request_payload.sender_certificate.public_key, preimage_list),
+                                                 invoice)
         self.forward_onion = forward_onion
         self.invoices: List[Invoice] = list()
+
+    def sign(self, replier_private_key: bytes) -> None:
+        self.signed_reply_payload.sign(replier_private_key)
 
     def _encrypt(self, message: bytes, sender_public_key: bytes, preimage_list: List[bytes]) -> bytes:
         data = message
@@ -207,17 +215,12 @@ class ResponseFrame(ReprObject):
             return False
         return True
 
-    def pay(self, sender_payment_channel: PaymentChannel, sender_private_key: bytes) -> bytes:
-        message = self.signed_reply_payload.encrypted_reply_message
-        for proof_of_payment in (sender_payment_channel.pay_invoice(invoice)
-                                 for invoice in self.invoices):
-            if proof_of_payment is None:  # unsuccessful payment
-                return None
 
-            message = crypto.symmetric_decrypt(
-                proof_of_payment.preimage, message)
-
-        return crypto.decrypt_object(message, sender_private_key)
+class Offer(ReprObject):
+    def __init__(self, repier_certificate: Certificate, network_price: int, offer_price: int) -> None:
+        self.repier_certificate = repier_certificate
+        self.network_price = network_price
+        self.offer_price = offer_price
 
 
 class SweetGossipNode(Agent):
@@ -247,7 +250,11 @@ class SweetGossipNode(Agent):
         )
         self._my_pow_br_cond_by_ask_id: Dict[UUID,
                                              POWBroadcastConditionsFrame] = dict()
-        self._already_broadcasted_request_payload_ids: Set[UUID] = set()
+        self._already_broadcasted_request_payload_ids: Dict[UUID, int] = dict()
+        self._tuples_to_preimages: Dict[UUID,
+                                        Dict[Tuple[bytes, int, bytes], bytes]] = dict()
+        self.response_frames: Dict[UUID,
+                                   Dict[bytes, List[ResponseFrame]]] = dict()
 
     def connect_to(self, other):
         if other.name == self.name:
@@ -258,6 +265,16 @@ class SweetGossipNode(Agent):
     def accept_topic(self, topic: AbstractTopic) -> bool:
         return False
 
+    def increment_broadcasted(self, topic_id: int) -> None:
+        if not topic_id in self._already_broadcasted_request_payload_ids:
+            self._already_broadcasted_request_payload_ids[topic_id] = 0
+        self._already_broadcasted_request_payload_ids[topic_id] += 1
+
+    def can_increment_broadcast(self, topic_id: int) -> bool:
+        if not topic_id in self._already_broadcasted_request_payload_ids:
+            return True
+        return self._already_broadcasted_request_payload_ids[topic_id] <= 2
+
     def broadcast(self, e,
                   request_payload: RequestPayload,
                   originator_peer_name: str = None,
@@ -265,9 +282,12 @@ class SweetGossipNode(Agent):
                   routing_payment_instruction_list: List[RoutingPaymentInstruction] = list()):
         if not self.accept_topic(request_payload.topic):
             return
-        if request_payload.id in self._already_broadcasted_request_payload_ids:
+
+        self.increment_broadcasted(request_payload.id)
+
+        if not self.can_increment_broadcast(request_payload.id):
+            self.info(e, "already broadcasted")
             return
-        self._already_broadcasted_request_payload_ids.add(request_payload.id)
 
         if originator_peer_name is not None:
             routing_payment_instruction_list.append(
@@ -276,6 +296,7 @@ class SweetGossipNode(Agent):
         for peer in self._known_hosts.values():
             if peer.name == originator_peer_name:
                 continue
+            print(self.name, "================>>>>>>>>>", peer.name)
             ask_for_broadcast_frame = AskForBroadcastFrame(request_payload)
             broadcast_payload = BroadcastPayload(request_payload,
                                                  backward_onion.grow(OnionLayer(
@@ -285,8 +306,8 @@ class SweetGossipNode(Agent):
             self.new_message(e, peer, ask_for_broadcast_frame)
 
     def on_ask_for_broadcast_frame(self, e, m, peer: SweetGossipNode, ask_for_broadcast_frame: AskForBroadcastFrame):
-        if ask_for_broadcast_frame.signed_request_payload.id in self._already_broadcasted_request_payload_ids:
-            self.info(e, "already broadcasted")
+        if not self.can_increment_broadcast(ask_for_broadcast_frame.signed_request_payload.id):
+            self.info(e, "already broadcasted dont ask")
             return
         pow_broadcast_conditions_frame = POWBroadcastConditionsFrame(
             ask_id=ask_for_broadcast_frame.ask_id,
@@ -309,8 +330,8 @@ class SweetGossipNode(Agent):
                                                             broadcast_payload))
                 self.new_message(e, peer, pow_broadcast_frame)
 
-    def accept_broadcast(self, signed_request_payload: RequestPayload) -> bytes:
-        return None
+    def accept_broadcast(self, signed_request_payload: RequestPayload) -> Tuple[bytes, int]:
+        return None, 0
 
     def on_pow_broadcast_frame(self, e, m, peer: SweetGossipNode, pow_broadcast_frame: POWBroadcastFrame):
 
@@ -329,27 +350,39 @@ class SweetGossipNode(Agent):
         if not pow_broadcast_frame.verify():
             return
 
-        message = self.accept_broadcast(
+        message, fee = self.accept_broadcast(
             pow_broadcast_frame.broadcast_payload.signed_request_payload)
 
         if message is not None:
             routing_payment_instruction_list = pow_broadcast_frame.broadcast_payload.routing_payment_instruction_list
             routing_payment_instruction_list.append(
                 my_pow_broadcast_condition_frame.routing_payment_instruction)
+            preimage_list = list()
+
+            for routing_payment_instruction in routing_payment_instruction_list:
+                topic_id = pow_broadcast_frame.broadcast_payload.signed_request_payload.id
+                tpl = routing_payment_instruction.to_tuple()
+                if not topic_id in self._tuples_to_preimages:
+                    self._tuples_to_preimages[topic_id] = dict()
+                if not tpl in self._tuples_to_preimages[topic_id]:
+                    self._tuples_to_preimages[topic_id][tpl] = crypto.generate_symmetric_key(
+                    )
+                preimage_list.append(self._tuples_to_preimages[topic_id][tpl])
+
+            invoice = self.payment_channel.create_invoice(fee)
             response_frame = ResponseFrame(
-                replier_private_key=self._private_key,
                 replier_certificate=self.certificate,
                 routing_payment_instruction_list=routing_payment_instruction_list,
+                preimage_list=preimage_list,
                 forward_onion=pow_broadcast_frame.broadcast_payload.backward_onion,
                 signed_request_payload=pow_broadcast_frame.broadcast_payload.signed_request_payload,
-                message=message
+                message=message,
+                invoice=invoice
             )
+            response_frame.sign(replier_private_key=self._private_key)
             self.on_response_frame(
                 e, m, peer, response_frame=response_frame)
         else:
-            if pow_broadcast_frame.broadcast_payload.signed_request_payload.id in self._already_broadcasted_request_payload_ids:
-                self.info(e, "already broadcasted")
-                return
             self.broadcast(e, request_payload=pow_broadcast_frame.broadcast_payload.signed_request_payload,
                            originator_peer_name=peer.name,
                            backward_onion=pow_broadcast_frame.broadcast_payload.backward_onion,
@@ -360,16 +393,19 @@ class SweetGossipNode(Agent):
             return
         if response_frame.forward_onion.is_empty():
             if response_frame.invoices_are_coherent_with_signed_reply_payload():
-                message = response_frame.pay(
-                    self.payment_channel, self._private_key)
-                if message is None:
-                    self.error(
-                        e, "cant pay for the invoice or decrypt the message")
-                else:
-                    self.info(e, message)
+                topic_id = response_frame.signed_reply_payload.signed_request_payload.id
+                if not topic_id in self.response_frames:
+                    self.response_frames[topic_id] = dict()
+                replier_id = response_frame.replier_certificate.public_key
+                if not replier_id in self.response_frames[topic_id]:
+                    self.response_frames[topic_id][replier_id] = list()
+                self.response_frames[topic_id][replier_id].append(
+                    response_frame)
+                self.info(e, "response frame collected")
         else:
             idx = response_frame.find_route_payment_layer(
-                self.payment_channel.account, self.price_amount_for_routing)
+                self.payment_channel.account,
+                self.price_amount_for_routing)
             if idx >= 0:
                 top_layer = response_frame.forward_onion.peel(
                     self._private_key)
@@ -383,6 +419,70 @@ class SweetGossipNode(Agent):
                     else:
                         self.error(e, "make invoice error",
                                    self.payment_channel)
+
+    def get_offers(self, e, topic_id) -> List[Offer]:
+        if not topic_id in self.response_frames:
+            self.error(e, "topic has no responses")
+            return list()
+        return [Offer(self.response_frames[topic_id][key][0].replier_certificate,
+                      sum(
+                          a.amount for a in self.response_frames[topic_id][key][0].invoices),
+                      self.response_frames[topic_id][key][0].signed_reply_payload.invoice.amount)
+                for key in self.response_frames[topic_id].keys()]
+
+    def pay_and_read_response(self, e, topic_id, replier_public_key):
+        if not topic_id in self.response_frames:
+            self.error(e, "topic has no responses")
+            return
+        if not replier_public_key in self.response_frames[topic_id]:
+            self.error(e, "replier has not responsed for this topic")
+            return
+        self.info(e, "paying and reading")
+
+        keys_for_payment_hashes: Dict[bytes, bytes] = dict()
+        failed_payment_hashes: Set[bytes] = set()
+
+        while True:
+            network_fees = [sum(0 if inv.payment_hash in keys_for_payment_hashes else inv.amount
+                                for inv in response_frame.invoices)
+                            for response_frame in self.response_frames[topic_id][replier_public_key]
+                            if all(not inv.payment_hash in failed_payment_hashes for inv in response_frame.invoices)
+                            ]
+
+            if len(network_fees) == 0:
+                self.error(
+                    e, "all payment routes failed, giving up, sorry :(")
+                return None
+
+            min_network_fee_idx = argmin(network_fees)
+            response_frame = self.response_frames[topic_id][replier_public_key][min_network_fee_idx]
+
+            failure = False
+            for invoice in response_frame.invoices:
+                self.info(e, invoice)
+                proof_of_payment = self.payment_channel.pay_invoice(
+                    invoice)
+                if proof_of_payment is None:  # unsuccessful payment
+                    self.error(
+                        e, "cant pay for the invoice or decrypt the message")
+                    failed_payment_hashes.add(invoice.payment_hash)
+                    failure = True
+                    break
+                keys_for_payment_hashes[invoice.payment_hash] = proof_of_payment.preimage
+
+            if not failure:
+                message = response_frame.signed_reply_payload.encrypted_reply_message
+                for invoice in response_frame.invoices:
+                    key = keys_for_payment_hashes[invoice.payment_hash]
+                    message = crypto.symmetric_decrypt(
+                        key, message)
+                message = crypto.decrypt_object(message, self._private_key)
+
+                self.info(e, message)
+                self.info(e, response_frame.invoices)
+                self.info(e, response_frame.signed_reply_payload.invoice)
+                return message
+
 
     def on_message(self, e, m):
         if isinstance(m.data, AskForBroadcastFrame):

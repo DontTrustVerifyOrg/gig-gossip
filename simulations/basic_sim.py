@@ -1,4 +1,6 @@
-from mass import simulate, simulation_trace
+# %%
+from typing import Dict, Set, Tuple
+from mass import simulate
 from mass_tools import time_to_int
 from experiment_tools import FOLDNAME, RUN_START
 from myrepr import ReprObject
@@ -13,18 +15,26 @@ from uuid import uuid4
 from sweetgossip import SweetGossipNode, RequestPayload, AbstractTopic
 from functools import partial
 import simpy
+import itertools
+
+from enum import Enum
+import random
 
 import pygeohash as pgh
 
+
+
+PAYANDREAD_TIME = time_to_int(2, 8, 0)
 class DriveTopic(ReprObject):
-    def __init__(self, geohash: str, after: datetime, before: datetime) -> None:
-        self.geohash = geohash
+    def __init__(self, from_geohash: str,  to_geohash: str, after: datetime, before: datetime) -> None:
+        self.from_geohash = from_geohash
+        self.to_geohash = to_geohash
         self.after = after
         self.before = before
 
 class Gossiper(SweetGossipNode):
     def __init__(self, name, ca: CertificationAuthority, price_amount_for_routing):
-        private_key, public_key = crypto.create_keys()
+        private_key, public_key = crypto.generate_asymetric_keys()
         certificate = ca.issue_certificate(public_key, "is_ok", True, not_valid_after=datetime.now(
         )+timedelta(days=7), not_valid_before=datetime.now()-timedelta(days=7))
         account = uuid4().bytes
@@ -34,12 +44,12 @@ class Gossiper(SweetGossipNode):
 
     def accept_topic(self, topic: AbstractTopic) -> bool:
         if isinstance(topic, DriveTopic):
-            return len(topic.geohash) >= 7 and datetime.now() <= topic.before
+            return len(topic.from_geohash) >= 7 and len(topic.to_geohash) >= 7 and datetime.now() <= topic.before
         return False
 
 class GigWorker(Gossiper):
-    def accept_broadcast(self, signed_topic: RequestPayload) -> bytes:
-        return bytes(f"mynameis={self.name}", encoding="utf8")
+    def accept_broadcast(self, signed_topic: RequestPayload) -> Tuple[bytes, int]:
+        return bytes(f"mynameis={self.name}", encoding="utf8"), 4321
 
 
 class Customer(Gossiper):
@@ -50,6 +60,8 @@ class Customer(Gossiper):
         self.schedule(partial(self.run_job, {"run"}),
                       partial(self.on_return, e), RUN_START)
 
+        self.schedule(partial(self.payandread_job, {"pay&read"}),
+                      partial(self.on_return, e), PAYANDREAD_TIME)
         yield simpy.events.AllOf(e, [e.process(self.run_scheduler(e))])
 
         yield e.timeout(float('inf'))
@@ -59,17 +71,35 @@ class Customer(Gossiper):
             if False:
                 yield e.timeout(0)
 
-            gh = pgh.encode(latitude=42.6, longitude=-5.6, precision=7)
-            topic = RequestPayload(uuid4(),
-                                   DriveTopic(geohash=gh,
+            from_gh = pgh.encode(latitude=42.6, longitude=-5.6, precision=7)
+            to_gh = pgh.encode(latitude=42.5, longitude=-5.7, precision=7)
+            self.topic_id = uuid4()
+            topic = RequestPayload(self.topic_id,
+                                   DriveTopic(from_geohash=from_gh,
+                                              to_geohash=to_gh,
                                               after=datetime.now(),
                                               before=datetime.now() + timedelta(minutes=20)),
-                          self.certificate)
+                                   self.certificate)
             topic.sign(self._private_key)
             self.broadcast(e, topic)
             return None,
 
         self.trace(e, "run_job", what)
+        return e.process(processor())
+
+    def payandread_job(self, what, e):
+        def processor():
+            if False:
+                yield e.timeout(0)
+
+            offers = self.get_offers(
+                e, self.topic_id)
+            print(offers)
+            self.pay_and_read_response(
+                e, self.topic_id, offers[0].repier_certificate.public_key)
+            return None,
+
+        self.trace(e, "pay&read", what)
         return e.process(processor())
 
     def on_return(self, e, val):

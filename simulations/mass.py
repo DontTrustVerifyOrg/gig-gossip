@@ -11,6 +11,7 @@ from itertools import groupby
 
 import numpy as np
 import simpy
+import simpy.core
 from scheduler import Scheduler
 from units import minute
 
@@ -39,6 +40,8 @@ def simulation_trace(env, color: bcolors, name, *argv):
     Returns:
         nothing, it just prints the trace
     """
+    if not isinstance(env,simpy.core.Environment):
+        raise Exception("env arg should be simpy.core.Environment type")
     n = env.now
     sid = env.sim_id
     d = int(n/(24*60))
@@ -296,3 +299,4 @@ def simulate(sim_id, things, until=None, history=None, message_flow_in_trace=Tru
             break
 
         env._now = lastnow
+    return env

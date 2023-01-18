@@ -6,7 +6,7 @@ from cryptography.fernet import Fernet
 import pickle
 
 
-def create_keys() -> Tuple[bytes, bytes]:
+def generate_asymetric_keys() -> Tuple[bytes, bytes]:
     priv_key = rsa.generate_private_key(
         public_exponent=65537,
         key_size=2048,
@@ -113,8 +113,8 @@ def compute_sha512(items: list) -> bytes:
     return _compute_hash(items, hashes.SHA512())
 
 
-def generate_symmetric_keys(num: int) -> List[bytes]:
-    return [Fernet.generate_key() for _ in range(num)]
+def generate_symmetric_key() -> bytes:
+    return Fernet.generate_key()
 
 
 def symmetric_encrypt(key: bytes, obj) -> bytes:

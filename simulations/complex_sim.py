@@ -1,5 +1,5 @@
 # %%
-from typing import Dict
+from typing import Dict, Tuple
 from mass import simulate
 from mass_tools import time_to_int
 from experiment_tools import FOLDNAME, RUN_START
@@ -23,6 +23,8 @@ import random
 import pygeohash as pgh
 # %%
 
+PAYANDREAD_TIME = time_to_int(2, 8, 0)
+
 
 class GridNodeType(Enum):
     Gossiper = 0
@@ -40,7 +42,7 @@ class DriveTopic(ReprObject):
 class GridNode(SweetGossipNode):
     def __init__(self, name,  ca: CertificationAuthority, price_amount_for_routing):
         self.grid_node_type = GridNodeType.Gossiper
-        private_key, public_key = crypto.create_keys()
+        private_key, public_key = crypto.generate_asymetric_keys()
         certificate = ca.issue_certificate(public_key, "is_ok", True, not_valid_after=datetime.now(
         )+timedelta(days=7), not_valid_before=datetime.now()-timedelta(days=7))
         account = uuid4().bytes
@@ -56,11 +58,11 @@ class GridNode(SweetGossipNode):
             return len(topic.geohash) >= 7 and datetime.now() <= topic.before
         return False
 
-    def accept_broadcast(self, signed_topic: RequestPayload) -> bytes:
+    def accept_broadcast(self, signed_topic: RequestPayload) -> Tuple[bytes,int]:
         if self.grid_node_type == GridNodeType.GigWorker:
-            return bytes(f"mynameis={self.name}", encoding="utf8")
+            return bytes(f"mynameis={self.name}", encoding="utf8"), 4321
         else:
-            return None
+            return None, 0
 
     def homeostasis(self, e):
         if self.grid_node_type == GridNodeType.Customer:
@@ -68,6 +70,9 @@ class GridNode(SweetGossipNode):
 
             self.schedule(partial(self.run_job, {"run"}),
                           partial(self.on_return, e), RUN_START)
+
+            self.schedule(partial(self.payandread_job, {"pay&read"}),
+                          partial(self.on_return, e), PAYANDREAD_TIME)
 
             yield simpy.events.AllOf(e, [e.process(self.run_scheduler(e))])
 
@@ -79,7 +84,8 @@ class GridNode(SweetGossipNode):
                 yield e.timeout(0)
 
             gh = pgh.encode(latitude=42.6, longitude=-5.6, precision=7)
-            topic = RequestPayload(uuid4(),
+            self.topic_id = uuid4()
+            topic = RequestPayload(self.topic_id,
                                    DriveTopic(geohash=gh,
                                               after=datetime.now(),
                                               before=datetime.now() + timedelta(minutes=20)),
@@ -89,6 +95,21 @@ class GridNode(SweetGossipNode):
             return None,
 
         self.trace(e, "run_job", what)
+        return e.process(processor())
+
+    def payandread_job(self, what, e):
+        def processor():
+            if False:
+                yield e.timeout(0)
+
+            offers = self.get_offers(
+                e, self.topic_id)
+            print(offers)
+            self.pay_and_read_response(
+                e, self.topic_id, offers[0].repier_certificate.public_key)
+            return None,
+
+        self.trace(e, "pay&read", what)
         return e.process(processor())
 
     def on_return(self, e, val):

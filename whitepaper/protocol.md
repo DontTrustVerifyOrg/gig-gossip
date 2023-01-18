@@ -82,6 +82,7 @@ classDiagram
     }
     class TaxiTopic{
         +String pickup_geohash
+        +String dropoff_geohash
         +DateTime pickup_after
         +DateTime pickup_before
     }
