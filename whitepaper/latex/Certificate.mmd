@@ -1,0 +1,23 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+classDiagram
+    class Certificate{
+        +Bytes public_key
+        +String certificate_name
+        +Object certificate_value
+        +DateTime not_valid_after
+        +DateTime not_valid_before
+        +String cert_auth_name
+        +Bytes cert_auth_signature
+    }

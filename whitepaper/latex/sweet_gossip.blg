@@ -1,0 +1,49 @@
+This is BibTeX, Version 0.99d (TeX Live 2022)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: sweet_gossip.aux
+The style file: abbrv.bst
+Database file #1: references.bib
+Warning--entry type for "Fanout" isn't style-file defined
+--line 1 of file references.bib
+You've used 2 entries,
+            2118 wiz_defined-function locations,
+            509 strings with 3978 characters,
+and the built_in function-call counts, 508 in all, are:
+= -- 43
+> -- 26
+< -- 0
++ -- 10
+- -- 8
+* -- 25
+:= -- 92
+add.period$ -- 5
+call.type$ -- 2
+change.case$ -- 9
+chr.to.int$ -- 0
+cite$ -- 2
+duplicate$ -- 19
+empty$ -- 45
+format.name$ -- 8
+if$ -- 105
+int.to.chr$ -- 0
+int.to.str$ -- 2
+missing$ -- 2
+newline$ -- 12
+num.names$ -- 4
+pop$ -- 18
+preamble$ -- 1
+purify$ -- 8
+quote$ -- 0
+skip$ -- 16
+stack$ -- 0
+substring$ -- 10
+swap$ -- 2
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 6
+warning$ -- 0
+while$ -- 4
+width$ -- 3
+write$ -- 21
+(There was 1 warning)

@@ -1,0 +1,21 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+sequenceDiagram
+    Originator->>Middleman: AskForBroadcastFrame
+    activate Middleman
+    Middleman-->>Originator: POWBroadcastConditionsFrame
+    deactivate Middleman
+    activate Originator
+    Originator->>Middleman: POWBroadcastFrame
+    deactivate Originator

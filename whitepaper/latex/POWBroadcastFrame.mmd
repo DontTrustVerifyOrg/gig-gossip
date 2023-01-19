@@ -1,0 +1,32 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+classDiagram
+    class BroadcastPayload{
+        +RequestPayload signed_request_payload
+        +OnionRoute backward_onion
+        +List[RoutingPaymentInstruction] routing_payment_instruction_list
+    }
+    class ProofOfWork{
+        +String pow_scheme
+        +int pow_target
+        +int nuance
+    }
+    class POWBroadcastFrame{
+        +UUID ask_id
+        +BroadcastPayload broadcast_payload
+        +ProofOfWork proof_of_work
+    }
+    POWBroadcastFrame  o--  ProofOfWork : proof_of_work
+    POWBroadcastFrame  o--  BroadcastPayload : broadcast_payload
+    

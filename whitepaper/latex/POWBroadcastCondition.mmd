@@ -1,0 +1,32 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+classDiagram
+    class WorkRequest{
+        +String pow_scheme
+        +int pow_target
+    }
+    class RoutingPaymentInstruction{
+        +String account
+        +int amount
+        +Bytes public_key
+    }
+    class POWBroadcastConditionsFrame{
+        +UUID ask_id
+        +DateTime valid_till
+        +WorkRequest work_request
+        +RoutingPaymentInstruction routing_payment_instruction
+    }
+    POWBroadcastConditionsFrame  o--  WorkRequest : work_request
+    POWBroadcastConditionsFrame  o--  RoutingPaymentInstruction : routing_payment_instruction
+    

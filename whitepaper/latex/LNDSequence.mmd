@@ -1,0 +1,22 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+sequenceDiagram
+    activate Issuer
+    Issuer->>Issuer: Compute payment hash for the specific preimage  
+    Issuer->>Invoice: Create an invoice with payment hash
+    deactivate Issuer
+par Maing payment
+    Payer->>Invoice: Pay the invoice
+    Issuer->>Payer: Reveal the preimage
+end

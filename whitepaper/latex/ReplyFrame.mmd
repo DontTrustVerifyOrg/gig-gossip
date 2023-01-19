@@ -1,0 +1,41 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+classDiagram
+    class PaymentCryptoInstruction{
+        +Bytes account 
+        +int amount 
+        +Bytes encrypted_preimage
+        +Bytes payment_hash 
+    }
+    class SignableObject{
+        Bytes signature
+        +sign(Bytes private_key)
+        +verify(Bytes public_key):Boolean
+    }
+    class ReplyPayload{
+        +RequestPayload signed_request_payload
+        +Bytes encrypted_reply_message
+        +List[PaymentCryptoInstruction] payment_crypto_instruction_list
+        +Invoice invoice
+    }
+    class ReplyFrame{
+        +Certificate replier_certificate
+        +OnionRoute forward_onion
+        +List[Invoice] invoices
+    }
+    SignableObject <|-- ReplyPayload
+    ReplyFrame  o--  ReplyPayload : signed_reply_payload
+    ReplyPayload  o--  PaymentCryptoInstruction : payment_crypto_instruction_list
+    
+    

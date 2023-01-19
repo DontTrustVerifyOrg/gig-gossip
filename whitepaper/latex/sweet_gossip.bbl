@@ -1,0 +1,13 @@
+\begin{thebibliography}{1}
+
+\bibitem{WebRTC}
+A.~B. Johnston and D.~C. Burnett.
+\newblock {\em WebRTC: APIs and RTCWEB Protocols of the HTML5 Real-Time Web}.
+\newblock Digital Codex LLC, St. Louis, MO, USA, 2012.
+
+\bibitem{Fanout}
+S.~Verma and W.~Ooi.
+\newblock Controlling gossip protocol infection pattern using adaptive fanout,
+  2005.
+
+\end{thebibliography}

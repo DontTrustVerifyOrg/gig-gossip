@@ -7,7 +7,8 @@ Sweet-Gossip protocol is a P2P, mobile-first, Proof of Work protected, gossip pr
 |date|version|author|comment|
 |----|-------|------|-------|
 |Thu 10 Nov 2022|0.8|Pawel Kaplanski <<pawel@donttrustverify.org>>|draft version|
-|Thu 12 Jan 2023|0.9|Pawel Kaplanski <<pawel@donttrustverify.org>>|complete protocol|
+|Thu 12 Jan 2023|0.9|Pawel Kaplanski <<pawel@donttrustverify.org>>|draft version|
+|Thu 19 Jan 2023|1.0|Pawel Kaplanski <<pawel@donttrustverify.org>>|complete protocol|
 
 ## Motivation
 
@@ -57,8 +58,8 @@ For sake of clarity we use the following naming convention:
 3. Peer - any gossip network node. Every peer maintains a list of their peers.
 4. Sender - Peer that is the source of the topic. From the Gig economy point of view, it is a customer.
 5. Originator - Peer that is currently broadcasting the topic to the its peers.
-5. Middleman - Peer that is passing the broadcasted topic further as well as bringing back the reply message
-6. Replier - Peer that is replying to the broadcasted topic with reply message.
+6. Middleman - Peer that is passing the broadcasted topic further as well as bringing back the reply message
+7. Replier - Peer that is replying to the broadcasted topic with reply message.
 
 We assume that nodes of the sweet-gossip network are already connected to their peers via some internet transport protocol (e.g. TCP, UDP with or without hole punching, mobile mesh etc.) and the other peer is also accepting sweet-gossip protocol. How the nodes discover their peers is not a part of the protocol.
 
@@ -67,7 +68,7 @@ In short the sweet-gossip protocol can be summarised as follows:
 1. **Asking for broadcast:** If the originator (e.g. Node A) wants to broadcast the topic first step is to ask its selected peer (e.g. Node B) how about condition of its coopertation. If the middleman accepts this kind of tipics, it replies to the originator with specific POW properties the originator needs to provide to be able to broadcast the topic with using this specific middleman.
 2. **Broadcast with POW:** In order to use this middleman the originator must compute hash (e.g. SHA256) that is less or equal to the specific target for the specific POW scheme. The computed POW is passed with the topic to the broadcaster and if the brodcaster validates the hash it brodcast the topic to its peers.
 3. **Replying:** If the middleman instead is interested in accepting the job it becomes the replier. Replier constructs the Reply Message. The Reply Message contains all the information that is required to pay for the reply message delivery to all the middlemans involved. The reply message is passed back to the originator
-4. **Paing for the reply message:** Once the message reaches the originator, the originator needs to pay the network using the specific payment method. Once paid the reply message is revilled and the originator is able to begin direct communication with replier.
+4. **Paying for the reply message:** Once the message reaches the originator, the originator needs to pay the network using the specific payment method. Once paid the reply message is revilled and the originator is able to begin direct communication with replier.
 
 ### Topic
 
@@ -288,6 +289,7 @@ classDiagram
         +RequestPayload signed_request_payload
         +Bytes encrypted_reply_message
         +List[PaymentCryptoInstruction] payment_crypto_instruction_list
+        +Invoice invoice
     }
     class ReplyFrame{
         +Certificate replier_certificate

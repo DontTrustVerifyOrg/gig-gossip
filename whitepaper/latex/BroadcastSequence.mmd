@@ -1,0 +1,20 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+sequenceDiagram
+par Gossiping
+    Middleman->>Its Peer #1: Asking for broadcast & Broadcast with POW
+    Middleman->>Its Peer #2: Asking for broadcast & Broadcast with POW
+    Middleman->>Its Peer #3: Asking for broadcast & Broadcast with POW
+    Middleman->>...:Asking for broadcast & Broadcast with POW
+end

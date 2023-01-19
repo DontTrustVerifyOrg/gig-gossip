@@ -1,0 +1,31 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+classDiagram
+    class SignableObject{
+        Bytes signature
+        +sign(Bytes private_key)
+        +verify(Bytes public_key):Boolean
+    }
+    class RequestPayload{
+        +UUID payload_id
+        +AbstractTopic topic
+        +Certificate sender_certificate
+    }
+    class AskForBroadcastFrame{
+        +UUID ask_id
+        +RequestPayload signed_request_payload
+    }
+    AskForBroadcastFrame  o--  RequestPayload : signed_request_payload
+    SignableObject <|-- RequestPayload
+    
