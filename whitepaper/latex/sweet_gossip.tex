@@ -24,10 +24,10 @@
 %\date{}
 
 \author{
-	{Sonof Satoshi}\thanks{We are the children of Satoshi Nakamoto} \\
+	{Sonof Satoshi}\thanks{We are the children of Nakamoto} \\
+	Public Key (GPG)~\ref{gpgkey} \\
 	\href{www.donttrustverify.org}{Dont Trust, Verify}\\
 	www.donttrustverify.org \\
-	pgpkey:\\
 	\texttt{sonof.satoshi@donttrustverify.org}\\
 }
 
@@ -55,7 +55,7 @@ Sweet-Gossip protocol is a P2P, mobile-first, Proof of Work protected, gossip pr
 
 
 % keywords can be removed
-\keywords{GIG Economy \and Gossip Protocol \and Distributed System \and P2P \and Bitcoin \and Lightning Network}
+\keywords{GIG Economy \and Gossip Protocol \and Distributed System \and P2P Network\and Bitcoin \and Lightning Network}
 
 
 \section{Motivation}
@@ -72,7 +72,7 @@ This kind of cybernetic system uses the human power of GIG workers managed by AI
 
 We are proposing a P2P protocol designed for the Gig economy that, by eliminating the need for central online platforms, will create a new decentralized, P2P GIG economy. Gig workers will be engaged directly by the end customer and can accomplish their tasks and earn money on a free market without the need for the existence of a central organization or any other trusted third party.
 
-Lack of central organization also means that a minimal volume of data is shared between GIG workers and end-customers, just enough to fulfil the job according to the protocol-driven off-chain smart contract that uses P2P money i.e. Lightning Network on Bitcoin, therefore forming layer 3 protocol from the Bitcoin perspective.
+Lack of central organization also means that a minimal volume of data is shared between GIG workers and end-customers, just enough to fulfil the job according to the protocol-driven off-chain smart contract that uses P2P money i.e. Lightning Network \cite{poon2016bitcoin} on Bitcoin \cite{nakamoto2009bitcoin}, therefore forming layer 3 protocol from the Bitcoin perspective.
 
 \section{Sweet-Gossip P2P Network}
 Sweet-Gossip P2P Network is a global, symmetric, P2P network, meaning that there is no direct need to run any operation critical services in the cloud or any other centralised computing environment. Sweet-Gossip node is a software module that is run by every device that uses Sweet-Gossip protocol and forms a basis of communication. Sweet-Gossip nodes can be implemented as apps and run efficiently on cheap modern mobile devices. The need for implementation of supporting services that are cloud-based or edge-computing-based helps make the service more user-friendly but is never critical for the network operation.
@@ -80,19 +80,18 @@ Sweet-Gossip P2P Network is a global, symmetric, P2P network, meaning that there
 It is important to state explicitly that we are not inventing any new coin or crypto token, but rather we are speaking about how Sweet-Gossip protocol forms a layer 3 protocol on top of the Lightning Network (being itself a layer 2 network sitting on top of Bitcoin network), therefore if any, the Bitcoin is a native token of the Sweet-Gossip Network.
 
 Sweet-Gossip P2P Network preserves:
-
 \begin{itemize}
 \item P2P Symmetry - every node does the same thing
 \item Permissionlessness - anyone with internet access can join Sweet-Gossip P2P network
 \item Mobile first - the cost of running Sweet-Gossip node is marginal on modern mobile devices. Also, the protocol handles mobile connectivity issues.
 \item Privacy - the communication is encrypted
-\item Anonymity - any information about the people behind the nodes is hidden
+\item Anonymity - any personal information about the people behind the nodes is hidden
 \item DDos and Spam protection - it uses Proof of Work (PoW) and/or micropayments to protect the network from DDoS and Spam
 \item Sustainability - the protocol is designed so all its participants benefit from joining the network
 \item Implicit punishment - the protocol do not explicitly punish unhonest participants, but rather makes honest participant benefit more than unhonest ones
 \end{itemize}
 
-Sweet-Gossip Protocol is a gossip protocol [REF], that allows a network to broadcast in a similar way to gossip spreads. Assuming that each sweet-gossip node is connected to its peers and that the network graph is connected, each node works independently and in the event of receiving a message that needs to be broadcasted. It selects several peers and sends the message, in its owner's interest, to peers making the message spread over the network like gossip (Figure~\ref{fig:network}). There inevitably occurs a situation that, if some node will not send the message to all of its peers, some nodes will not receive a broadcasted message even if a network graph is connected (e.g. node C on Fig 1.), but from the game theoretic perspective it will not be a beneficial situation, so this is up to the network operators to make the flow as efficient as possible.
+Sweet-Gossip Protocol is a gossip protocol \cite{Fanout}, that allows a network to broadcast in a similar way to gossip spreads. Assuming that each sweet-gossip node is connected to its peers and that the network graph is connected, each node works independently and in the event of receiving a message that needs to be broadcasted. It selects several peers and sends the message, in its owner's interest, to peers making the message spread over the network like gossip (Figure~\ref{fig:network}). There inevitably occurs a situation that, if some node will not send the message to all of its peers, some nodes will not receive a broadcasted message even if a network graph is connected (e.g. node C on Fig 1.), but from the game theoretic perspective it will not be a beneficial situation, so this is up to the network operators to make the flow as efficient as possible.
 
 Sweet-Gossip is a protocol, meaning that it only specifies the minimal set of rules to make it beneficial for all the nodes. It doesn't say explicitly how the network node should be implemented. The node implementation is free to do whatever is best to make it beneficial for the node owner.
 
@@ -146,7 +145,7 @@ Lets use a Taxi-app as an example {Figure~\ref{fig:fr:topic}}. The topic of this
 
 For example Legal Services Counsil in Sydney is located at the following coordinates latitude= -33.8647 and longitude=151.2096 and the corresponding geohash of precision 7 is equal to `r3gx2g5`.
 
-The precision of geohash determines the size of the cell and to be useful for the Taxi-app it needs to be atleast 7 so the cell has size lower than 200m (see table below)
+The precision of geohash determines the size of the cell (Table~\ref{tab:geoprec}) and to be useful for the Taxi-app it needs to be atleast 7 so the cell has size lower than 200m (see table below)
 
 \begin{table}
 	\centering
@@ -154,23 +153,25 @@ The precision of geohash determines the size of the cell and to be useful for th
 		\toprule
 		Geohash length & Cell width & Cell height \\
 		\midrule
-		1 & $\le$ 5,000km & $\times$ 5,000km  \\
-		2 & $\le$ 1,250km & $\times$ 625km \\
-		3 & $\le$ 156km & $\times$ 156km \\
-		4 & $\le$ 39.1km & $\times$ 19.5km \\
-		5 & $\le$ 4.89km & $\times$ 4.89km \\
-		6 & $\le$ 1.22km & $\times$ 0.61km \\
-		7 & $\le$ 153m     & $\times$ 153m \\
-		8 & $\le$ 38.2m & $\times$ 19.1m \\
-		9 & $\le$ 4.77m & $\times$ 4.77m \\
-		10 & $\le$ 1.19m & $\times$ 0.596m \\
-		11 & $\le$ 149mm & $\times$ 149mm \\
-		12 & $\le$ 37.2mm & $\times$ 18.6mm \\
+		1  & $\le$ 5,000km & $\times$ 5,000km \\
+		2  & $\le$ 1,250km & $\times$ 625km   \\
+		3  & $\le$ 156km   & $\times$ 156km   \\
+		4  & $\le$ 39.1km  & $\times$ 19.5km  \\
+		5  & $\le$ 4.89km  & $\times$ 4.89km  \\
+		6  & $\le$ 1.22km  & $\times$ 0.61km  \\
+		7  & $\le$ 153m    & $\times$ 153m    \\
+		8  & $\le$ 38.2m   & $\times$ 19.1m   \\
+		9  & $\le$ 4.77m   & $\times$ 4.77m   \\
+		10 & $\le$ 1.19m   & $\times$ 0.596m  \\
+		11 & $\le$ 149mm   & $\times$ 149mm   \\
+		12 & $\le$ 37.2mm  & $\times$ 18.6mm  \\
 		\bottomrule
 	\end{tabular}
 	\caption{Geohash precision}
 	\label{tab:geoprec}
 \end{table}
+
+On the other hand we dont want to be to specific and we might want to restrict the size of geohash to at most 8, so it is not possible to precisly locate the originator (customer) at this stage, but on the other side the precision is enough for the taxi driver to accept/reject to job.
 
 \subsection{Digital Certificates}
 
@@ -196,19 +197,19 @@ The first step of sweet-gossip protocol is to send the AskForBroadcastFrame to t
 	\label{fig:fr:askforbroadcast}
 \end{figure}
 
-AskForBroadcastFrame contains ask-identifier and digitally signed RequestPayload. signed RequestPayload is made of unique payload id, topic (e.g. TaxiTopic), sender certificate and sender signature obtained by signing the RequestPayload with with the sender private key that is complementary to the public key stored withing the sender certificate. Anyone can verify the Request Payload by validating its signature with sender public key from the certificate. Sender certificate can always be verified using  public key of the certification authority and checking its published revocation list.
+AskForBroadcastFrame contains ask-identifier and digitally signed RequestPayload. signed RequestPayload is made of unique payload\_id, topic (e.g. TaxiTopic), sender certificate and sender signature obtained by signing the RequestPayload with with the sender private key that is complementary to the public key stored withing the sender certificate. Anyone can verify the Request Payload by validating its signature with sender public key from the certificate. Sender certificate can always be verified using  public key of the certification authority and checking its published revocation list.
 
-Ask-identifier allows for the frame identification during the originator-middleman ping-pong communication (see figure below). In the gossip protocol it is possible that the same broadcasting message hits the same gossip node many times, so payload id is to remain unique identifier that allows to determine this situation limiting these situations to minimum. It is the requested responsibility to ensure the uniuqueness of payload id, risking if it is not unique it will be lost during the broadcast as other nodes can decide that it was already broadcasted if the payload id was already seen before.
+Ask-identifier allows for the frame identification during the originator-middleman ping-pong communication (see figure below). In the gossip protocol it is possible that the same broadcasting message hits the same gossip node many times, so payload\_id is to remain unique identifier that allows to determine this situation limiting these situations to minimum. It is the requested responsibility to ensure the uniuqueness of payload\_id, risking if it is not unique it will be lost during the broadcast as other nodes can decide that it was already broadcasted if the payload\_id was already seen before.
 
 \begin{figure}
 	\centering
-	\includegraphics[scale=1.0]{PingPong.pdf}
+	\includegraphics[scale=0.6]{PingPong.pdf}
 	\caption{Ping Pong Sequence}
 	\label{fig:fr:pingpong}
 \end{figure}
 
 \subsection{Proof Of Work (POW)}
-Message broadcast in protected in sweet-gossip with the idea of Proof of work, famously implemented in bitcoin mining but originally introduced to limit the email spam. The thinking here is that if the originator needs to take some significant computational cost to be able to send the message it will significantly reduce the possibility of DDoS attacks. There are many possible POW schemas, here we are considering SHA256 hash based POW, similar to the one implemented in the bitcoin network. In short, given the topic the middleman decides how complex POW is required to be computed by the originator to allow him for further spreading of this topic. The task is to compute the hash of the BroadcastPayload so the hash itself is lower or equal to specific target. The larger target is the more complex the computation become. On the other hand, once the hash is computed, it is easy to verify that it fits into specific target, so the brodcaster has an easy task here to make sure that the originator has done the work to compute the correct hash.
+Message broadcast in protected in sweet-gossip with the idea of Proof of work, introduced in HashCash \cite{Hashcash} and famously implemented in bitcoin mining but originally introduced to limit the email spam. The thinking here is that if the originator needs to take some significant computational cost to be able to send the message it will significantly reduce the possibility of DDoS attacks. There are many possible POW schemas, here we are considering SHA256 hash based POW, similar to the one implemented in the bitcoin network. In short, given the topic the middleman decides how complex POW is required to be computed by the originator to allow him for further spreading of this topic. The task is to compute the hash of the BroadcastPayload so the hash itself is lower or equal to specific target. The larger target is the more complex the computation become. On the other hand, once the hash is computed, it is easy to verify that it fits into specific target, so the brodcaster has an easy task here to make sure that the originator has done the work to compute the correct hash.
 
 \subsection{Onion-routing}
 
@@ -233,11 +234,6 @@ If the middleman accepts the topic specified in the AskForBroadcastFrame, it sen
 	\caption{POWBroadcastConditionsFrame}
 	\label{fig:fr:powbroadcastcondition}
 \end{figure}
-
-
-
-
-
 
 Starting with ask\_id, that matches with AskForBroadcastFrame, and valid\_till timeout meaning that the middleman will wait only till the specific time for the POWBroadcastConditionFrame from the originator contains also WorkRequest that describes properties of POW. Routing payment instruction consists of the anonymous account and the amount to be paid. The amount here means only the price for this specific broadcast and the entire price of the reply is given as a sum given by all the middlemen that participate in this gossiping activity.
 
@@ -275,7 +271,7 @@ It is built around concept of channels. Once channel is opened (that usually mea
 
 \begin{figure}
 	\centering
-	\includegraphics[scale=0.5]{LNDSequence.pdf}
+	\includegraphics[scale=0.6]{LNDSequence.pdf}
 	\caption{Lightning Network Sequence}
 	\label{fig:fr:lndsequence}
 \end{figure}
@@ -290,7 +286,7 @@ The node that is happy to accept the broadcasted message (replier) instead of br
 
 \begin{figure}
 	\centering
-	\includegraphics[scale=0.5]{ReplyFrame.pdf}
+	\includegraphics[scale=1.0]{ReplyFrame.pdf}
 	\caption{Reply Frame}
 	\label{fig:fr:replyframe}
 \end{figure}
@@ -306,6 +302,7 @@ The main part of the reply is the message that is encrypted so it can be used on
 
 \begin{enumerate}
 	\item Replier encrypts the message with the sender public\_key that is a part of senders Certificate in the RequestPayload
+	\item Replier geneates LND invoice that can be viewed by the sender and must be used to pay for the service after the service is delivered. Sender is not obligated to pay it if decides not to use the replier. On the other hand the invoice is signed by the replier and the replier cannot change it after the sender accepts the service to be provided by the replier.
 	\item It generates N symmetric keys, where N is the number of elements of the routing\_payment\_instruction\_list, so for every instruction list we have a symmetric key. These symmetric keys will be used as preimages for generating all the invoices.
 	\item It performs symmetric encryption using all the generated symmetric keys
 	\item The encrypted message needs all the symmetric keys and the private key of the sender to be decrypted, making obligatory for the sender to obtain all the preimages, and therefore all the proofs of payments for all the invoices.
@@ -341,6 +338,9 @@ Fortunatelly gossip protocols do not prevent multpiple routes to reach the targe
 
 [This concludes the protocol.]
 
+
+\section{Discussion}
+
 \subsection{Distributed Trust}
 
 Certification Authority hierarchy is used commonly in the modern internet design however it is based on the idea of trusted 3rd parties. Having Certification Authorities that coexist in a free market helps with decentralization of trust.
@@ -349,101 +349,103 @@ The other approach for distributed trust is based on the idea of a track record.
 
 The other one is based on the idea of reputation (transitive recommendations), so trustworthy participants are recommending other participants puting their reputation on a table.
 
-\section{Discussion}
-
 \subsection{Mobile device connectivity issues}
 
-Holepunching
+
+Holepunching \cite{HolePunching}
 
 Broken connection
 
-\subsection{Trivial attacks}
+\subsection{Attacks}
+Here we are discussing common attacks that can be perfomed on the sweet-gossip network.
 
-Both the silent attack and the chatterbox attack belong to a general family of attacks on
-gossip protocols in which the adversary tries to distort the distribution of the gossipy nodes to
-cause propagation failure.
+
+\begin{table}  
+	\centering
+	\begin{tabular}{ll}
+		\toprule
+		Attack         &   Sweet-Gossip defense \\
+		\midrule
+		Spam           & POW \\
+		DDoS           & POW \\
+		Silent         & Multibroadcast > 1 \\
+		Chatterbox     & POW \\
+		Sybil          & POW \\
+		Eclipse        & Multibroadcast >1 \\
+		Censorship     & - \\
+		Convert Flash  & - \\
+		\bottomrule
+	\end{tabular}
+	\label{tab:attacks}
+	\caption{Attacks}
+\end{table}
+
 
 \subsubsection{The Silent Attack}
+The adversary tries to distort the distribution of the gossipy nodes to cause propagation failure by failing to respond to the gossip protocol \cite{AdHocNet}. The same behaviour can be just a result of node failure that can happen naturally especially with mobile devices.
 
-A malicious node may fail to respond to the gossip protocol. This will
-distort the distribution of gossip nodes, resulting in propagation failure.
+Multibroadcast > 1
+
 
 \subsubsection{Chaterbox Attack}
-
-A malicious node can retransmit repeatedly the same message. This
-will distort the distribution of the gossip nodes (some nodes that would normally be gossipy
-will now be silent), resulting in propagation failure. In particular, if the hop envelope of the
-chatterbox nodes encloses the hop circle of the source node, the coverage is restricted to the
-envelope.
-
-\subsection{Common attacks}
+A malicious node retransmits repeatedly the same message \cite{AdHocNet}.
 
 \subsubsection{Sybil Attack}
-
-This is the most common form of attack in
-P2P networks, since creating large numbers of identities is
-generally cheap resource-wise, unless cryptographic puzzles
-are included as part of joining the system. In the case of
-GossipSub, Sybils will attempt to get into the mesh, through
-a process called grafting, as we will see in the next Section.
-This is a first step for carrying out all of the following attacks.
+This is the most common form of attack in P2P networks, since creating large numbers of identities is
+generally cheap resource-wise, unless cryptographic puzzles are included as part of joining the system \cite{GossipSub}.
 
 \subsubsection{Eclipse Attack}
-
-This attack can be carried out against
-a single victim or the whole network. The objective is to
-silence the victim by refusing to propagate messages from
-it or to distort its view by delaying message propagation
-towards it.
+This attack can be carried out against a single victim or the whole network. The objective is to
+silence the victim by refusing to propagate messages from it or to distort its view by delaying message propagation towards it \cite{GossipSub}.
+Here the attact can be performed agains specific Certification Authority
 
 \subsubsection{Censorship Attack}
+Sybils seek to establish themselves in the mesh and propagate all messages except those published by the target peer. In contrast to the Eclipse Attack, in the Censorship Attack Sybils appear to behave properly
+from all vantage points, but hairpin-drop the victim's messages. The objective of the attacker is to censor the target and prevent its messages from reaching the rest of the network \cite{GossipSub}.
 
-Sybils seek to establish themselves
-in the mesh and propagate all messages except those published by the target peer. In contrast to the Eclipse Attack,
-in the Censorship Attack Sybils appear to behave properly
-from all vantage points, but hairpin-drop the victim’s messages. The objective of the attacker is to censor the target and
-prevent its messages from reaching the rest of the network.
-This attack is difficult to detect by monitoring and scoring
-peers, as the Sybils build up score by virtue of propagating
-all other messages.
-
-\subsubsection{Cold Boot Attack}
-
-In this attack, honest and Sybil nodes
-join concurrently when the network bootstraps; honest peers
-attempt to build their mesh, while connecting to both Sybil
-and honest peers. Since there is no score built up from a
-warm, honest-only network to protect the mesh, the Sybils
-manage to largely take over.
-The attack can take place in two cases: i) when the network
-bootstraps with Sybils joining at t0, and ii) when new nodes
-are joining the network while the network is under attack.
-Although the first one is quite unlikely to happen, the second
-is likely to occur as the network grows.
-
-\subsubsection{Flash \& Covert Flash Attack}
-
-In the Flash attack, Sybils
-connect and attack the network at once. In the Covert Flash
-Attack, Sybils connect to the network but behave properly
-for some time in order to build up score. Then, they execute a
-coordinated attack whereby they stop propagating messages
-altogether in an attempt to completely disrupt the network.
-The attack is difficult to identify before the attackers turn
-malicious as they behave properly up to that point and build
-a good profile.
-
+\subsubsection{Covert Flash Attack}
+In the Covert Flash Attack, Sybils connect to the network but behave properly for some time in order to build up score. Then, they execute a coordinated attack whereby they stop propagating messages altogether in an attempt to completely disrupt the network. The attack is difficult to identify before the attackers turn malicious as they behave properly up to that point and build a good profile \cite{GossipSub}.
 
 \section{Supporting Services}
+
+\subsection{KYC services as Certification Authorities}
 
 \subsection{Push notification servers}
 
 \subsection{Map servers}
-\subsection{KYC services}
 
 \section{Applications}
 
 Sweet-Gossip Protocol is an enabler for building P2P apps.
+
+
+\section{Public Key}
+This is the Public Key (GPG) of Sonof Satoshi.
+\label{gpgkey}
+\begin{small}
+\begin{verbatim}
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mI0EY8pcpgEEAN+bUaEdg+ylWkdNc6U9LNkWb4ii0Neay4kUyU2NntHMlFAZPNSC
+wxJ8PlbrQnOGeeGNyfZtjZKTSn0Jor5YT4pHNlubGFj3/BrihJCBRSJ878qO2ct9
+4RJXiNADVg1w3jRKRrk1CimmmL7VVK7oFZHd0311+8r/qIT4WNOITydNABEBAAG0
+MVNvbm9mIFNhdG9zaGkgPHNvbm9mLnNhdG9zaGlAZG9udHRydXN0dmVyaWZ5Lm9y
+Zz6I0QQTAQgAOxYhBIaALVutWo8Bqg5fDYtkf+QR5XMgBQJjylymAhsDBQsJCAcC
+AiICBhUKCQgLAgQWAgMBAh4HAheAAAoJEItkf+QR5XMg2PYEAMcEB370PgxAaV+e
+Kt458OPymI/rZOWO6Cm9E6BqMdNqNx7d4udxbQYutkUr1xhLmLH1JTxJwFhe3oMv
+/3MUjm/VjIYrdnXAhHqvZA3502AyiWEQ66OQ9whj57PY04YYcBZP/NDe4QuoUX9r
+b3XzYIeJcqHUNg0zjjQJQ7bU7gcwuI0EY8pcpgEEAK/nkFTpiOiGtUI1RqWD46HA
+nH7wTVXy2BVwHefRiDHz2hGgQiHXF6EU8mk9F2SVBjOTBNHGAwvXssT97Y8jiq6i
+vJosx7VtolxBEDRL1PFMOH4whwu1rjDg8QR3KPkB3kMcXvD9ZHIB6FspVvhx2/Jk
+V+PKLQ0ThhQITxFIKz4nABEBAAGItgQYAQgAIBYhBIaALVutWo8Bqg5fDYtkf+QR
+5XMgBQJjylymAhsMAAoJEItkf+QR5XMgRngD/0GbcDFoL8hqppvuBuXBLHJVMLGh
+fF/3fZyd1ZkjE+Il/LX5G/WSsLcAm/dmAVd8L1zat3PvdL57RHY06BEE4kdDEo8m
+DlZ8SycI1yGaSS8DdGCMaAFLzOxrJgER3NnXxg7BxCfREcUTawq1CEO1QYx/71ib
+GoTF/wPiCY/JQ1Ed
+=Ei5q
+-----END PGP PUBLIC KEY BLOCK-----
+\end{verbatim}
+\end{small}
 
 
 \bibliographystyle{abbrv}
