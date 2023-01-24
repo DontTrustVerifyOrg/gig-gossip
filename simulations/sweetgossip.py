@@ -279,6 +279,17 @@ class SweetGossipNode(Agent):
             network_preimage = crypto.generate_symmetric_key()
             network_payment_hash = compute_payment_hash(network_preimage)
 
+            def on_accepted(i: Invoice):
+                self.payment_channel.settle_hodl_invoice(
+                    i, network_preimage)
+
+            network_payment_hash = compute_payment_hash(
+                network_preimage)
+            network_invoice = self.payment_channel.create_hodl_invoice(
+                self.price_amount_for_routing, network_payment_hash,
+                on_accepted=on_accepted
+            )
+
             encrypted_reply_message = crypto.encrypt_object(
                 message,
                 pow_broadcast_frame.broadcast_payload.signed_request_payload.sender_certificate.public_key)
@@ -295,17 +306,17 @@ class SweetGossipNode(Agent):
                 signed_request_payload=pow_broadcast_frame.broadcast_payload.signed_request_payload,
                 encrypted_reply_message=encrypted_reply_message,
                 reply_invoice=reply_invoice,
-                network_invoice=None,
+                network_invoice=network_invoice,
             )
             response_frame.sign(replier_private_key=self._private_key)
             self.on_response_frame(
-                e, m, peer, response_frame=response_frame, network_preimage=network_preimage)
+                e, m, peer, response_frame=response_frame, new_response=True)
         else:
             self.broadcast(e, request_payload=pow_broadcast_frame.broadcast_payload.signed_request_payload,
                            originator_peer_name=peer.name,
                            backward_onion=pow_broadcast_frame.broadcast_payload.backward_onion)
 
-    def on_response_frame(self, e, m, peer: SweetGossipNode, response_frame: ResponseFrame, network_preimage: bytes = None):
+    def on_response_frame(self, e, m, peer: SweetGossipNode, response_frame: ResponseFrame, new_response: bool = False):
         if not response_frame.verify():
             return
         if response_frame.forward_onion.is_empty():
@@ -323,39 +334,27 @@ class SweetGossipNode(Agent):
                 self._private_key)
             if top_layer.peer_name in self._known_hosts:
                 network_invoice = None
-                if not network_preimage is None:
-                    def on_accepted(i: Invoice):
-                        self.payment_channel.settle_hodl_invoice(
-                            i, network_preimage)
+                if not new_response:
+                    if response_frame.signed_reply_payload.network_payment_hash != response_frame.network_invoice.payment_hash:
+                        return
+                    next_network_invoice = response_frame.network_invoice
+                    def on_accepted(i: HodlInvoice):
+                        def on_settled(_: HodlInvoice, preimage: bytes):
+                            self.payment_channel.settle_hodl_invoice(
+                                i, preimage)
 
-                    network_payment_hash = compute_payment_hash(
-                        network_preimage)
+                        self.payment_channel.pay_hodl_invoice(next_network_invoice,
+                                                                on_settled,
+                                                                )
+
                     network_invoice = self.payment_channel.create_hodl_invoice(
-                        self.price_amount_for_routing, network_payment_hash,
-                        on_accepted=on_accepted
+                        response_frame.network_invoice.amount+self.price_amount_for_routing,
+                        response_frame.network_invoice.payment_hash,
+                        on_accepted,
                     )
-                else:
-                    if response_frame.signed_reply_payload.network_payment_hash == response_frame.network_invoice.payment_hash:
-                        next_network_invoice = response_frame.network_invoice
-                        def on_accepted(i: HodlInvoice):
-                            def on_settled(_: HodlInvoice, preimage: bytes):
-                                self.payment_channel.settle_hodl_invoice(
-                                    i, preimage)
 
-                            self.payment_channel.pay_hodl_invoice(next_network_invoice,
-                                                                  on_settled,
-                                                                  )
-
-                        network_invoice = self.payment_channel.create_hodl_invoice(
-                            response_frame.network_invoice.amount+self.price_amount_for_routing,
-                            response_frame.network_invoice.payment_hash,
-                            on_accepted,
-                        )
-                if network_invoice is None:
-                    return
-
-                response_frame = deepcopy(response_frame)
-                response_frame.network_invoice = network_invoice
+                    response_frame = deepcopy(response_frame)
+                    response_frame.network_invoice = network_invoice
                 self.new_message(
                     e, self._known_hosts[top_layer.peer_name], response_frame)
 
