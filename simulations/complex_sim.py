@@ -45,8 +45,7 @@ class GridNode(SweetGossipNode):
         private_key, public_key = crypto.generate_asymetric_keys()
         certificate = ca.issue_certificate(public_key, "is_ok", True, not_valid_after=datetime.now(
         )+timedelta(days=7), not_valid_before=datetime.now()-timedelta(days=7))
-        account = uuid4().bytes
-        payment_channel = PaymentChannel(account)
+        payment_channel = PaymentChannel()
         super().__init__(name, certificate, private_key, payment_channel, price_amount_for_routing,
                          broadcast_conditions_timeout=timedelta(days=7), broadcast_conditions_pow_scheme="sha256", broadcast_conditions_pow_complexity=0, invoice_payment_timeout=timedelta(days=1))
 
@@ -102,11 +101,10 @@ class GridNode(SweetGossipNode):
             if False:
                 yield e.timeout(0)
 
-            offers = self.get_offers(
-                e, self.topic_id)
-            print(offers)
-            self.pay_and_read_response(
-                e, self.topic_id, offers[0].repier_certificate.public_key)
+            responses = self.get_responses(e, self.topic_id)
+            print(responses)
+            self.pay_and_read_response(e, responses[0][0])
+
             return None,
 
         self.trace(e, "pay&read", what)

@@ -507,3 +507,4 @@ Sweet-Gossip Protocol is an enabler for building P2P apps.
 #### [Burmster2007]
 
 [Mike Burmester, Tri Van Le, Alec Yasinsac, Adaptive gossip protocols: Managing security and redundancy in dense ad hoc networks, Ad Hoc Networks, Volume 5, Issue 3, 2007, Pages 313-323, ISSN 1570-8705,](http://www.cs.fsu.edu/~burmeste/adhocjourn.pdf)
+
