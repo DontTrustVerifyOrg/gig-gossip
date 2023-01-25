@@ -12,11 +12,14 @@
   }
 }%%
 sequenceDiagram
+    activate Settler
+    Settler->>Settler: Generates preimage
+    Settler->>Settler: Computes payment hash for the preimage  
+    Settler->>Issuer: Sends the preimage
+    deactivate Settler
     activate Issuer
-    Issuer->>Issuer: Compute payment hash for the specific preimage  
-    Issuer->>Invoice: Create an invoice with payment hash
+    Issuer->>Issuer: Creates a HODL invoice with the payment hash
+    Issuer->>Payer: Sends the HODL invoice
     deactivate Issuer
-par Maing payment
-    Payer->>Invoice: Pay the invoice
-    Issuer->>Payer: Reveal the preimage
-end
+    Payer->>Issuer: Pay (accepts the HODL invoice)
+    Settler->>Payer: Reveals the preimage (settles the HODL invoice)

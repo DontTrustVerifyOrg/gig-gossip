@@ -126,7 +126,7 @@ class ReplyPayload(SignableObject):
         return True
 
 
-class ResponseFrame(ReprObject):
+class ReplyFrame(ReprObject):
     def __init__(self,
                  replier_certificate: Certificate,
                  network_payment_hash: bytes,
@@ -183,7 +183,7 @@ class SweetGossipNode(Agent):
                                              POWBroadcastConditionsFrame] = dict()
         self._already_broadcasted_request_payload_ids: Dict[UUID, int] = dict()
         self.response_frames: Dict[UUID,
-                                   Dict[bytes, List[ResponseFrame]]] = dict()
+                                   Dict[bytes, List[ReplyFrame]]] = dict()
 
     def connect_to(self, other):
         if other.name == self.name:
@@ -299,7 +299,7 @@ class SweetGossipNode(Agent):
             reply_invoice = self.payment_channel.create_invoice(
                 fee, crypto.generate_symmetric_key())
 
-            response_frame = ResponseFrame(
+            response_frame = ReplyFrame(
                 replier_certificate=self.certificate,
                 network_payment_hash=network_payment_hash,
                 forward_onion=pow_broadcast_frame.broadcast_payload.backward_onion,
@@ -316,7 +316,7 @@ class SweetGossipNode(Agent):
                            originator_peer_name=peer.name,
                            backward_onion=pow_broadcast_frame.broadcast_payload.backward_onion)
 
-    def on_response_frame(self, e, m, peer: SweetGossipNode, response_frame: ResponseFrame, new_response: bool = False):
+    def on_response_frame(self, e, m, peer: SweetGossipNode, response_frame: ReplyFrame, new_response: bool = False):
         if not response_frame.verify():
             return
         if response_frame.forward_onion.is_empty():
@@ -338,14 +338,15 @@ class SweetGossipNode(Agent):
                     if response_frame.signed_reply_payload.network_payment_hash != response_frame.network_invoice.payment_hash:
                         return
                     next_network_invoice = response_frame.network_invoice
+
                     def on_accepted(i: HodlInvoice):
                         def on_settled(_: HodlInvoice, preimage: bytes):
                             self.payment_channel.settle_hodl_invoice(
                                 i, preimage)
 
                         self.payment_channel.pay_hodl_invoice(next_network_invoice,
-                                                                on_settled,
-                                                                )
+                                                              on_settled,
+                                                              )
 
                     network_invoice = self.payment_channel.create_hodl_invoice(
                         response_frame.network_invoice.amount+self.price_amount_for_routing,
@@ -358,13 +359,13 @@ class SweetGossipNode(Agent):
                 self.new_message(
                     e, self._known_hosts[top_layer.peer_name], response_frame)
 
-    def get_responses(self, e, topic_id: UUID) -> List[List[ResponseFrame]]:
+    def get_responses(self, e, topic_id: UUID) -> List[List[ReplyFrame]]:
         if not topic_id in self.response_frames:
             self.error(e, "topic has no responses")
             return list()
         return [list(response_frame_list) for response_frame_list in self.response_frames[topic_id].values()]
 
-    def pay_and_read_response(self, e, response_frame: ResponseFrame):
+    def pay_and_read_response(self, e, response_frame: ReplyFrame):
         topic_id = response_frame.signed_reply_payload.signed_request_payload.id
         if not topic_id in self.response_frames:
             self.error(e, "topic has no responses")
@@ -392,7 +393,7 @@ class SweetGossipNode(Agent):
             self.on_pow_broadcast_conditions_frame(e, m, m.sender, m.data)
         elif isinstance(m.data, POWBroadcastFrame):
             self.on_pow_broadcast_frame(e, m, m.sender, m.data)
-        elif isinstance(m.data, ResponseFrame):
+        elif isinstance(m.data, ReplyFrame):
             self.on_response_frame(e, m, m.sender, m.data)
         else:
             self.trace(e, "unknown request:", m)

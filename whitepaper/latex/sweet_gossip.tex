@@ -260,29 +260,29 @@ In the gossip protocol nodes are randomly selected from the list of all the know
 	\label{fig:fr:broadcastsequence}
 \end{figure}
 
-\subsection{Lightning network, invoices, payments, preimages and payment-hashes}
+\subsection{Lightning network, HODL invoices, payments, preimages and payment-hashes}
 
 Lightning network is a layer 2 network built on top of bitcoin network that allows for cheap and fast micropayments.
 It is built around concept of channels. Once channel is opened (that usually means funding it with some amount of BTC), it can be used to issue the invoice and pay the invoce. Payment generates a proof. This idea is extended with cryptographic concept of preimage for payment hash in the following way:
 \begin{enumerate}
-	\item Invoice is issued by the issuer and as one of the fiels it contains specific payment hash. Payment hash is a hash of preimage that itself is a number known only to the invoice issuer at this moment and the payment-hash is the only thing that is exposed on the invoice.
-	\item Payer is paing the invoice under condition of having preimage published by the issuer. In other words, the payment means that the invoice is paid if the issuer publish the preimage that has the payment-hash that was presented on the invoice.
+	\item Invoice is issued by the issuer and as one of the fiels it contains specific payment hash. Payment hash is a hash of preimage that itself is a number known only to its creator, that in case of HODL invoices is usually a different actor: a settler. The payment-hash is the only thing that is exposed on the invoice.
+	\item Payer is paing the HODL invoice under condition of having preimage published. In other words, the payment means that the invoice is paid if the preimage is revealed and that this preimage has the payment-hash that was presented on the invoice. Once payed the invoice is called Accepted.
+	\item Accepted invoice is Settled once the preimage is revealed.
 \end{enumerate}
 
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.6]{LNDSequence.pdf}
-	\caption{Lightning Network Sequence}
+	\caption{Lightning Network HODL Invoice Sequence}
 	\label{fig:fr:lndsequence}
 \end{figure}
 
 If one use cryptographic keys as a preimage in the scheme described above, one can think about this scheme as being secure, atomic micropayments in exchange for cryptographic keys.
 
-Having a message that is encrypted with K different keys we can construct K invoices using separate key as a preimage and compute payment hash for each of the invoices. To decode the message payee need to pay all the invoices and obtain all the keys (preimages).
+Having a message that is encrypted with a specific key we can construct an invoice using key as a preimage and compute its payment hash. To decode the message payee need to pay the invoice and obtain the key (preimage).
 
 \subsection{Replying}
-The node that is happy to accept the broadcasted message (replier) instead of broadcasting it further is replying it back. It is done with ResponseFrame that is sent back to the node that was the sender of the topic.
-
+The node (replier) that is happy to accept the broadcasted message instead of broadcasting it further is replying it back. It is done with ResponseFrame that is sent back to the node that was the sender of the topic.
 
 \begin{figure}
 	\centering
@@ -302,42 +302,32 @@ The main part of the reply is the message that is encrypted so it can be used on
 
 \begin{enumerate}
 	\item Replier encrypts the message with the sender public\_key that is a part of senders Certificate in the RequestPayload
-	\item Replier geneates LND invoice that can be viewed by the sender and must be used to pay for the service after the service is delivered. Sender is not obligated to pay it if decides not to use the replier. On the other hand the invoice is signed by the replier and the replier cannot change it after the sender accepts the service to be provided by the replier.
-	\item It generates N symmetric keys, where N is the number of elements of the routing\_payment\_instruction\_list, so for every instruction list we have a symmetric key. These symmetric keys will be used as preimages for generating all the invoices.
-	\item It performs symmetric encryption using all the generated symmetric keys
-	\item The encrypted message needs all the symmetric keys and the private key of the sender to be decrypted, making obligatory for the sender to obtain all the preimages, and therefore all the proofs of payments for all the invoices.
-	\item For all the generated symmetric keys (preimages), the sender is computing payment hashes, so the network nodes can verify that the preimages are consistent with the hashes.
-	\item All the preimages are encrypted with the public\_keys of the middleman that are about to generate invoices, so noone else is able to guess them. This computations togheter with payment hashes are stored in payment\_crypto\_instruction\_list.
-	\item Request payload, encrypted message and payment\_crypto\_instruction\_list and are signed with the private key of the replier, so its integrity can be verified with replier Certificate
+	\item Replier geneates reply\_invoice that can be viewed by the sender and must be used to pay for the service after the service is delivered. Sender is not obligated to pay it if decides not to use the replier. On the other hand the invoice is signed by the replier and the replier cannot change it after the sender accepts the service to be provided by the replier.
+	\item Replier generates a symmetric key that will be used as preimage for payment hash used in network invoices.
+	\item Replier performs symmetric encryption using the symmetric key
+	\item Replier computes payment hash for the generated preimage
+	\item The encrypted message needs the symmetric key and the private key of the sender to be decrypted, making obligator for the sender to obtain the preimage, and therefore the network invoice needs to be settled.
+	\item Request payload, encrypted message, network\_payment\_hash and reply\_invoice are signed with the private key of the replier, so its integrity can be verified with the replier Certificate
 \end{enumerate}
 
 The ReplyFrame contains Replier Certificate, ReplyPayload and additionally:
 
 \begin{itemize}
 	\item  forward onion
-	\item  payment\_crypto\_instruction\_list
-	\item  invoices
+	\item  network invoice
 \end{itemize}
 
 When replying the forward onion is simply a copy of the backward onion, then each of the middlemen is peeling one layer of the onion, using its private key and sending it to the node that is found there in the peel.
 
-While traveling back, the ReplyFrame starts with empty list of invoces. Then each of the middleman is decrypting  its preimage from the payment\_crypto\_instruction\_list and is appending invoice with the hash equal to the specific preimage. This way when the frame reaches the source the preimage list is empty and contains all the invoices needed to be paid.
+Replier generates the original network invoice and puts there precomputed payment hash and starts listening on its state change. If the state of this invoice changes to Accepted it settles the invoice with known preimage.
+Then, while travelling back, each of the middleman adds its price on top of the invoiced one and replaces the network invoice with the own one and starts to listen on its Accepted state. Also it makes sure that the payment hash of the network invoice is the same as stored in the ReplyPayload.
+Once it reaches the sender and sender Accepts the network invoice the chain of acceptances reaches the replier. Once the replier settles its invoice the chain of settlement reaches the sender.
 
-The source retrieving the Reply message pays all the invoices and this way it retrievies all the preimages that then are used to decrypt the message
+The sender retrieving the preimage uses it to decrypt the message.
 
-\subsection{Payment errors}
-
-If the one of invoices payment fails for some reason, it makes impossible for the payer to obtain its preimage and therefore decode the message even if all the other payments were succesful.
-
-Fortunatelly gossip protocols do not prevent multpiple routes to reach the target, therefore the replier can reply multiple times for the same topic. This gives the sender a possibility to:
-
-\begin{enumerate}
-	\item select the cheapest route
-	\item recover the payments that were already made in case if some of the other payments were unsuccesful. To implement this approach we need to make sure that the replier is using the same preimages for the same accounts when replying to multiple routes with the same topic. If this is true the sender can collect all the preimages that were paid and chose to use the other route with the maximum amount that was already paid to minimise the cost.
-\end{enumerate}
+If the one of settlements fails for some reason, it can break the preimage delivery process, therefore it is important to publish the preimage in an alternative way.
 
 [This concludes the protocol.]
-
 
 \section{Discussion}
 
