@@ -97,7 +97,8 @@ class Customer(Gossiper):
 
             responses = self.get_responses(e, self.topic_id)
             print(responses)
-            self.pay_and_read_response(e, responses[0][0])
+            reply_payload, network_invoice = responses[0][0]
+            self.pay_and_read_response(e, reply_payload, network_invoice)
             return None,
 
         self.trace(e, "pay&read", what)
