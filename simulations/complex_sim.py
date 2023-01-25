@@ -12,7 +12,7 @@ import crypto
 from payments import PaymentChannel
 
 from uuid import uuid4
-from sweetgossip import SweetGossipNode, RequestPayload, AbstractTopic
+from sweetgossip import SweetGossipNode, RequestPayload, AbstractTopic, Settler
 from functools import partial
 import simpy
 import itertools
@@ -40,14 +40,15 @@ class DriveTopic(ReprObject):
 
 
 class GridNode(SweetGossipNode):
-    def __init__(self, name,  ca: CertificationAuthority, price_amount_for_routing):
+    def __init__(self, name,  ca: CertificationAuthority, price_amount_for_routing, settler: Settler):
         self.grid_node_type = GridNodeType.Gossiper
         private_key, public_key = crypto.generate_asymetric_keys()
         certificate = ca.issue_certificate(public_key, "is_ok", True, not_valid_after=datetime.now(
         )+timedelta(days=7), not_valid_before=datetime.now()-timedelta(days=7))
         payment_channel = PaymentChannel()
         super().__init__(name, certificate, private_key, payment_channel, price_amount_for_routing,
-                         broadcast_conditions_timeout=timedelta(days=7), broadcast_conditions_pow_scheme="sha256", broadcast_conditions_pow_complexity=0, invoice_payment_timeout=timedelta(days=1))
+                         broadcast_conditions_timeout=timedelta(days=7), broadcast_conditions_pow_scheme="sha256", broadcast_conditions_pow_complexity=0, invoice_payment_timeout=timedelta(days=1),
+                         settler=settler)
 
     def set_grid_node_type(self, grid_node_type: GridNodeType):
         self.grid_node_type = grid_node_type
@@ -57,7 +58,7 @@ class GridNode(SweetGossipNode):
             return len(topic.geohash) >= 7 and datetime.now() <= topic.before
         return False
 
-    def accept_broadcast(self, signed_topic: RequestPayload) -> Tuple[bytes,int]:
+    def accept_broadcast(self, signed_topic: RequestPayload) -> Tuple[bytes, int]:
         if self.grid_node_type == GridNodeType.GigWorker:
             return bytes(f"mynameis={self.name}", encoding="utf8"), 4321
         else:
@@ -122,6 +123,15 @@ def main(sim_id):
                 print(m)
 
         ca = create_certification_authority("CA")
+        ca_certificate = ca.issue_certificate(
+            ca.ca_public_key, "is_ok", True,
+            not_valid_after=datetime.now()+timedelta(days=7),
+            not_valid_before=datetime.now()-timedelta(days=7))
+        settler = Settler(
+            ca_certificate,
+            ca._ca_private_key,
+            PaymentChannel(),
+            price_amount_for_settlement=12)
 
         things: Dict[str, GridNode] = dict()
 
@@ -131,7 +141,8 @@ def main(sim_id):
             node_name = f"GridNode<{nod_idx}>"
             things[node_name] = GridNode(node_name,
                                          ca,
-                                         1)
+                                         1,
+                                         settler)
 #            print(node_name, ":", things[node_name].payment_channel)
 
         already = set()

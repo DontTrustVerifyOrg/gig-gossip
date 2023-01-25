@@ -12,7 +12,7 @@ import crypto
 from payments import PaymentChannel
 
 from uuid import uuid4
-from sweetgossip import SweetGossipNode, RequestPayload, AbstractTopic
+from sweetgossip import SweetGossipNode, RequestPayload, AbstractTopic, Settler
 from functools import partial
 import simpy
 import itertools
@@ -36,13 +36,14 @@ class DriveTopic(ReprObject):
 
 
 class Gossiper(SweetGossipNode):
-    def __init__(self, name, ca: CertificationAuthority, price_amount_for_routing):
+    def __init__(self, name, ca: CertificationAuthority, price_amount_for_routing, settler: Settler):
         private_key, public_key = crypto.generate_asymetric_keys()
         certificate = ca.issue_certificate(public_key, "is_ok", True, not_valid_after=datetime.now(
         )+timedelta(days=7), not_valid_before=datetime.now()-timedelta(days=7))
         payment_channel = PaymentChannel()
         super().__init__(name, certificate, private_key, payment_channel, price_amount_for_routing,
-                         broadcast_conditions_timeout=timedelta(days=7), broadcast_conditions_pow_scheme="sha256", broadcast_conditions_pow_complexity=1, invoice_payment_timeout=timedelta(days=1))
+                         broadcast_conditions_timeout=timedelta(days=7), broadcast_conditions_pow_scheme="sha256", broadcast_conditions_pow_complexity=1, invoice_payment_timeout=timedelta(days=1),
+                         settler=settler)
 
     def accept_topic(self, topic: AbstractTopic) -> bool:
         if isinstance(topic, DriveTopic):
@@ -114,14 +115,23 @@ def main(sim_id):
                 print(m)
 
         ca = create_certification_authority("CA")
+        ca_certificate = ca.issue_certificate(
+            ca.ca_public_key, "is_ok", True,
+            not_valid_after=datetime.now()+timedelta(days=7),
+            not_valid_before=datetime.now()-timedelta(days=7))
+        settler = Settler(
+            ca_certificate,
+            ca._ca_private_key,
+            PaymentChannel(),
+            price_amount_for_settlement=12)
 
         things = dict()
 
-        things["GigWorker1"] = GigWorker("GigWorker1", ca, 1)
+        things["GigWorker1"] = GigWorker("GigWorker1", ca, 1, settler)
         NUM_IN = 5
         for i in range(1, NUM_IN):
-            things[f"Gossiper{i}"] = Gossiper(f"Gossiper{i}", ca, 2)
-        things["Customer1"] = Customer("Customer1", ca, 6)
+            things[f"Gossiper{i}"] = Gossiper(f"Gossiper{i}", ca, 2, settler)
+        things["Customer1"] = Customer("Customer1", ca, 6, settler)
 
         things["GigWorker1"].connect_to(things["Gossiper1"])
         print("w1", 1)
