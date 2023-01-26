@@ -107,69 +107,66 @@ class POWBroadcastFrame(ReprObject):
 class SettlementPromise(SignableObject):
     def __init__(self,
                  settler_certificate: Certificate,
-                 network_payment_hash: bytes
+                 network_payment_hash: bytes,
+                 reply_payload_hash: bytes,
                  ) -> None:
         self.settler_certificate = settler_certificate
         self.network_payment_hash = network_payment_hash
+        self.reply_payload_hash = reply_payload_hash
+
+    def verify_all(self, encrypted_signed_reply_payload: bytes) -> bool:
+        if not self.settler_certificate.verify():
+            return False
+        if not self.verify(self.settler_certificate.public_key):
+            return False
+        if crypto.compute_sha256([encrypted_signed_reply_payload]) != self.reply_payload_hash:
+            return False
+        return True
 
 
 class ReplyPayload(SignableObject):
     def __init__(self,
                  replier_certificate: Certificate,
                  signed_request_payload: RequestPayload,
-                 signed_settlement_promise: SettlementPromise,
                  encrypted_reply_message: bytes,
                  invoice: Invoice
                  ) -> None:
         self.replier_certificate = replier_certificate
         self.signed_request_payload = signed_request_payload
         self.encrypted_reply_message = encrypted_reply_message
-        self.signed_settlement_promise = signed_settlement_promise
         self.invoice = invoice
 
-    def verify_all(self, replier_public_key: bytes):
-        if not self.verify(replier_public_key):
+    def verify_all(self):
+        if not self.replier_certificate.verify():
+            return False
+        if not self.verify(self.replier_certificate.public_key):
             return False
         if not self.signed_request_payload.sender_certificate.verify():
             return False
         if not self.signed_request_payload.verify(self.signed_request_payload.sender_certificate.public_key):
-            return False
-        if not self.signed_settlement_promise.settler_certificate.verify():
-            return False
-        if not self.signed_settlement_promise.verify(self.signed_settlement_promise.settler_certificate.public_key):
             return False
         return True
 
 
 class ReplyFrame(ReprObject):
     def __init__(self,
-                 replier_certificate: Certificate,
+                 encrypted_signed_reply_payload: bytes,
                  signed_settlement_promise: SettlementPromise,
                  forward_onion: OnionRoute,
-                 signed_request_payload: RequestPayload,
-                 encrypted_reply_message: bytes,
-                 reply_invoice: Invoice,
-                 network_invoice: HodlInvoice,
-                 replier_private_key: bytes) -> None:
+                 network_invoice: HodlInvoice) -> None:
 
-        signed_reply_payload = ReplyPayload(replier_certificate,
-                                            signed_request_payload,
-                                            signed_settlement_promise,
-                                            encrypted_reply_message,
-                                            reply_invoice)
-        signed_reply_payload.sign(replier_private_key)
-        self.encrypted_signed_reply_payload = crypto.encrypt_object(
-            signed_reply_payload, signed_request_payload.sender_certificate.public_key)
+        self.encrypted_signed_reply_payload = encrypted_signed_reply_payload
+        self.signed_settlement_promise = signed_settlement_promise
         self.forward_onion = forward_onion
         self.network_invoice = network_invoice
 
     def decrypt_and_verify(self, sender_private_key: bytes) -> ReplyPayload:
-        signed_reply_payload = crypto.decrypt_object(
+        signed_reply_payload: ReplyPayload = crypto.decrypt_object(
             self.encrypted_signed_reply_payload, sender_private_key)
 
         if not signed_reply_payload.replier_certificate.verify():
             return None
-        if not signed_reply_payload.verify_all(signed_reply_payload.replier_certificate.public_key):
+        if not signed_reply_payload.verify_all():
             return None
         return signed_reply_payload
 
@@ -187,7 +184,7 @@ class Settler:
         self.payment_channel = payment_channel
         self.price_amount_for_settlement = price_amount_for_settlement
 
-    def generate(self, half_encrypted_reply_message: bytes) -> Tuple[HodlInvoice, SettlementPromise, bytes]:
+    def generate(self, half_encrypted_reply_message: bytes) -> Tuple[HodlInvoice, bytes]:
 
         network_preimage = crypto.generate_symmetric_key()
         network_payment_hash = compute_payment_hash(network_preimage)
@@ -195,23 +192,28 @@ class Settler:
         encrypted_reply_message = crypto.symmetric_encrypt(
             network_preimage, half_encrypted_reply_message)
 
+        network_payment_hash = compute_payment_hash(
+            network_preimage)
+
         def on_accepted(i: Invoice):
             self.payment_channel.settle_hodl_invoice(
                 i, network_preimage)
 
-        network_payment_hash = compute_payment_hash(
-            network_preimage)
-
         network_invoice = self.payment_channel.create_hodl_invoice(
-            self.price_amount_for_settlement, network_payment_hash,
+            self.price_amount_for_settlement,
+            network_payment_hash,
             on_accepted=on_accepted
         )
 
-        signed_settlement_promise = SettlementPromise(
-            self.settler_certificate, network_payment_hash)
-        signed_settlement_promise.sign(self._settler_private_key)
+        return network_invoice, encrypted_reply_message
 
-        return network_invoice, signed_settlement_promise, encrypted_reply_message
+    def sign(self, network_payment_hash: bytes, encrypted_signed_reply_payload: bytes) -> SettlementPromise:
+        reply_payload_hash = crypto.compute_sha256(
+            [encrypted_signed_reply_payload])
+        signed_settlement_promise = SettlementPromise(
+            self.settler_certificate, network_payment_hash, reply_payload_hash)
+        signed_settlement_promise.sign(self._settler_private_key)
+        return signed_settlement_promise
 
 
 class SweetGossipNode(Agent):
@@ -345,22 +347,32 @@ class SweetGossipNode(Agent):
                 message,
                 pow_broadcast_frame.broadcast_payload.signed_request_payload.sender_certificate.public_key)
 
-            network_invoice, signed_settlement_promise, encrypted_reply_message = self.settler.generate(
+            network_invoice, encrypted_reply_message = self.settler.generate(
                 half_encrypted_reply_message)
 
             reply_invoice = self.payment_channel.create_invoice(
                 fee, crypto.generate_symmetric_key())
 
+            signed_reply_payload = ReplyPayload(self.certificate,
+                                                pow_broadcast_frame.broadcast_payload.signed_request_payload,
+                                                encrypted_reply_message,
+                                                reply_invoice)
+
+            signed_reply_payload.sign(self._private_key)
+
+            encrypted_signed_reply_payload = crypto.encrypt_object(
+                signed_reply_payload, pow_broadcast_frame.broadcast_payload.signed_request_payload.sender_certificate.public_key)
+
+            signed_settlement_promise = self.settler.sign(
+                network_invoice.payment_hash, encrypted_signed_reply_payload)
+
             response_frame = ReplyFrame(
-                replier_certificate=self.certificate,
+                encrypted_signed_reply_payload=encrypted_signed_reply_payload,
                 signed_settlement_promise=signed_settlement_promise,
                 forward_onion=pow_broadcast_frame.broadcast_payload.backward_onion,
-                signed_request_payload=pow_broadcast_frame.broadcast_payload.signed_request_payload,
-                encrypted_reply_message=encrypted_reply_message,
-                reply_invoice=reply_invoice,
-                network_invoice=network_invoice,
-                replier_private_key=self._private_key,
+                network_invoice=network_invoice
             )
+
             self.on_response_frame(
                 e, m, peer, response_frame=response_frame, new_response=True)
         else:
@@ -370,6 +382,11 @@ class SweetGossipNode(Agent):
 
     def on_response_frame(self, e, m, peer: SweetGossipNode, response_frame: ReplyFrame, new_response: bool = False):
         if response_frame.forward_onion.is_empty():
+            if response_frame.signed_settlement_promise.network_payment_hash != response_frame.network_invoice.payment_hash:
+                self.error(
+                    e, "reply payload has different network_payment_hash than network_invoice")
+                return
+
             signed_reply_payload = response_frame.decrypt_and_verify(
                 self._private_key)
             if signed_reply_payload is None:
@@ -389,12 +406,16 @@ class SweetGossipNode(Agent):
             top_layer = response_frame.forward_onion.peel(
                 self._private_key)
             if top_layer.peer_name in self._known_hosts:
+                if not response_frame.signed_settlement_promise.verify_all(response_frame.encrypted_signed_reply_payload):
+                    return
+                if response_frame.signed_settlement_promise.network_payment_hash != response_frame.network_invoice.payment_hash:
+                    return
                 network_invoice = None
                 if not new_response:
                     next_network_invoice = response_frame.network_invoice
 
                     def on_accepted(i: HodlInvoice):
-                        def on_settled(_: HodlInvoice, preimage: bytes):
+                        def on_settled(j: HodlInvoice, preimage: bytes):
                             self.payment_channel.settle_hodl_invoice(
                                 i, preimage)
 
@@ -427,11 +448,6 @@ class SweetGossipNode(Agent):
 
         if not reply_payload.replier_certificate.public_key in self.reply_payloads[topic_id]:
             self.error(e, "replier has not responsed for this topic")
-            return
-
-        if reply_payload.signed_settlement_promise.network_payment_hash != network_invoice.payment_hash:
-            self.error(
-                e, "reply payload has different network_payment_hash than network_invoice")
             return
 
         self.info(e, "paying and reading")
