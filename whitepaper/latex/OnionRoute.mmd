@@ -12,12 +12,12 @@
   }
 }%%
 classDiagram
-    AbstractTopic <|-- TaxiTopic
-    class AbstractTopic{        
+    class OnionLayer{       
+        +String peer_name 
     }
-    class TaxiTopic{
-        +String pickup_geohash
-        +String dropoff_geohash
-        +DateTime pickup_after
-        +DateTime dropoff_before
+    class OnionRoute{
+        +peel(Bytes private_key)
+        +grow(OnionLayer layer,Bytes public_key)
+        +is_empty()
     }
+    OnionRoute  o--  OnionLayer : onion

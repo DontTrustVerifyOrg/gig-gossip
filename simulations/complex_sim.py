@@ -32,11 +32,12 @@ class GridNodeType(Enum):
     GigWorker = 2
 
 
-class DriveTopic(ReprObject):
-    def __init__(self, geohash: str, after: datetime, before: datetime) -> None:
-        self.geohash = geohash
-        self.after = after
-        self.before = before
+class TaxiTopic(AbstractTopic):
+    def __init__(self, from_geohash: str,  to_geohash: str, pickup_after: datetime, dropoff_before: datetime) -> None:
+        self.from_geohash = from_geohash
+        self.to_geohash = to_geohash
+        self.pickup_after = pickup_after
+        self.dropoff_before = dropoff_before
 
 
 class GridNode(SweetGossipNode):
@@ -48,14 +49,15 @@ class GridNode(SweetGossipNode):
         payment_channel = PaymentChannel()
         super().__init__(name, certificate, private_key, payment_channel, price_amount_for_routing,
                          broadcast_conditions_timeout=timedelta(days=7), broadcast_conditions_pow_scheme="sha256", broadcast_conditions_pow_complexity=0, invoice_payment_timeout=timedelta(days=1),
+                         timestamp_tolerance=timedelta(seconds=10),
                          settler=settler)
 
     def set_grid_node_type(self, grid_node_type: GridNodeType):
         self.grid_node_type = grid_node_type
 
     def accept_topic(self, topic: AbstractTopic) -> bool:
-        if isinstance(topic, DriveTopic):
-            return len(topic.geohash) >= 7 and datetime.now() <= topic.before
+        if isinstance(topic, TaxiTopic):
+            return len(topic.from_geohash) >= 7 and len(topic.to_geohash) >= 7 and datetime.now() <= topic.dropoff_before
         return False
 
     def accept_broadcast(self, signed_topic: RequestPayload) -> Tuple[bytes, int]:
@@ -83,12 +85,14 @@ class GridNode(SweetGossipNode):
             if False:
                 yield e.timeout(0)
 
-            gh = pgh.encode(latitude=42.6, longitude=-5.6, precision=7)
+            from_gh = pgh.encode(latitude=42.6, longitude=-5.6, precision=7)
+            to_gh = pgh.encode(latitude=42.5, longitude=-5.7, precision=7)
             self.topic_id = uuid4()
             topic = RequestPayload(self.topic_id,
-                                   DriveTopic(geohash=gh,
-                                              after=datetime.now(),
-                                              before=datetime.now() + timedelta(minutes=20)),
+                                   TaxiTopic(from_geohash=from_gh,
+                                             to_geohash=to_gh,
+                                             pickup_after=datetime.now(),
+                                             dropoff_before=datetime.now() + timedelta(minutes=20)),
                                    self.certificate)
             topic.sign(self._private_key)
             self.broadcast(e, topic)

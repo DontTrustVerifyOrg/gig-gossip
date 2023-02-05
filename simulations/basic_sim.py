@@ -26,12 +26,12 @@ import pygeohash as pgh
 PAYANDREAD_TIME = time_to_int(2, 8, 0)
 
 
-class DriveTopic(ReprObject):
-    def __init__(self, from_geohash: str,  to_geohash: str, after: datetime, before: datetime) -> None:
+class TaxiTopic(AbstractTopic):
+    def __init__(self, from_geohash: str,  to_geohash: str, pickup_after: datetime, dropoff_before: datetime) -> None:
         self.from_geohash = from_geohash
         self.to_geohash = to_geohash
-        self.after = after
-        self.before = before
+        self.pickup_after = pickup_after
+        self.dropoff_before = dropoff_before
 
 
 class Gossiper(SweetGossipNode):
@@ -42,11 +42,12 @@ class Gossiper(SweetGossipNode):
         payment_channel = PaymentChannel()
         super().__init__(name, certificate, private_key, payment_channel, price_amount_for_routing,
                          broadcast_conditions_timeout=timedelta(days=7), broadcast_conditions_pow_scheme="sha256", broadcast_conditions_pow_complexity=1, invoice_payment_timeout=timedelta(days=1),
+                         timestamp_tolerance=timedelta(seconds=10),
                          settler=settler)
 
     def accept_topic(self, topic: AbstractTopic) -> bool:
-        if isinstance(topic, DriveTopic):
-            return len(topic.from_geohash) >= 7 and len(topic.to_geohash) >= 7 and datetime.now() <= topic.before
+        if isinstance(topic, TaxiTopic):
+            return len(topic.from_geohash) >= 7 and len(topic.to_geohash) >= 7 and datetime.now() <= topic.dropoff_before
         return False
 
 
@@ -78,10 +79,10 @@ class Customer(Gossiper):
             to_gh = pgh.encode(latitude=42.5, longitude=-5.7, precision=7)
             self.topic_id = uuid4()
             topic = RequestPayload(self.topic_id,
-                                   DriveTopic(from_geohash=from_gh,
-                                              to_geohash=to_gh,
-                                              after=datetime.now(),
-                                              before=datetime.now() + timedelta(minutes=20)),
+                                   TaxiTopic(from_geohash=from_gh,
+                                             to_geohash=to_gh,
+                                             pickup_after=datetime.now(),
+                                             dropoff_before=datetime.now() + timedelta(minutes=20)),
                                    self.certificate)
             topic.sign(self._private_key)
             self.broadcast(e, topic)

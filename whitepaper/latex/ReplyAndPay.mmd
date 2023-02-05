@@ -1,0 +1,61 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'activationBorderColor':'#000',
+      'activationBkgColor':'#F00',
+      'primaryColor': '#FFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#FFF',
+      'labelBoxBorderColor':'#F00',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+sequenceDiagram
+    autonumber
+    participant Settler
+    participant Replier
+    participant Peer 1 ... Peer N
+    participant Sender
+    Replier->>Settler: Ask for trust
+    activate Settler
+      Settler->>Settler: Generates preimage=key
+      Settler->>Settler: Encrypts the message with the key 
+      par
+        Settler-->>Replier: SettlementPromise
+      and
+        Settler-->>Replier: EncryptedReplyPayload
+      and
+        Settler-->>Replier: invoice(hash,amount=s)
+      end
+    deactivate Settler
+    Replier->>Peer 1 ... Peer N: invoice(hash,amount=s+r)
+    activate Peer 1 ... Peer N
+      Peer 1 ... Peer N->>Sender: invoice(hash,amount=s+r+p1+...+pN)
+    deactivate Peer 1 ... Peer N
+    activate Sender
+      Sender->>Peer 1 ... Peer N: pay(amount=s+r+p1+...+pN)
+    deactivate Sender
+    activate Peer 1 ... Peer N
+      Peer 1 ... Peer N->>Replier: pay(amount=s+r)
+    deactivate Peer 1 ... Peer N
+    activate Replier
+      Replier->>Settler: pay(amount=s)
+    deactivate Replier
+    activate Settler
+      par Settlement
+        Settler->>Replier: preimage
+      and
+        Settler->>Peer 1 ... Peer N: preimage
+      and
+        Settler->>Sender: preimage=key
+        activate Sender
+          Sender->>Sender:decrypt message with the key
+        deactivate Sender
+      end
+    deactivate Settler
+
+

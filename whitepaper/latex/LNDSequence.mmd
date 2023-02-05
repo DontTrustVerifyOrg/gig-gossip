@@ -2,16 +2,20 @@
   init: {
     'theme': 'base',
     'themeVariables': {
-      'primaryColor': '#FFFFFF',
+      'activationBorderColor':'#000',
+      'activationBkgColor':'#F00',
+      'primaryColor': '#FFF',
       'primaryTextColor': '#000',
       'primaryBorderColor': '#000',
       'lineColor': '#000',
-      'secondaryColor': '#000',
+      'secondaryColor': '#FFF',
+      'labelBoxBorderColor':'#F00',
       'tertiaryColor': '#000'
     }
   }
 }%%
 sequenceDiagram
+    autonumber
     activate Settler
     Settler->>Settler: Generates preimage
     Settler->>Settler: Computes payment hash for the preimage  

@@ -1,0 +1,57 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'activationBorderColor':'#000',
+      'activationBkgColor':'#F00',
+      'primaryColor': '#FFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#FFF',
+      'labelBoxBorderColor':'#F00',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+sequenceDiagram
+    autonumber
+    participant Settler
+    participant Issuer 1
+    participant Issuer 2 ... Issuer N
+    participant Payer
+    activate Settler
+      Settler->>Settler: Generates preimage=key
+      Settler->>Settler: Encrypts the message with the key 
+      Settler->>Payer:encrypted message
+      Settler->>Settler: Computes payment hash for the preimage  
+      Settler->>Issuer 1: invoice(hash,amount=a1) 
+    deactivate Settler
+    activate Issuer 1
+      Issuer 1->>Issuer 2 ... Issuer N: invoice(hash,amount=a1+a2) 
+    deactivate Issuer 1
+    activate Issuer 2 ... Issuer N
+      Issuer 2 ... Issuer N->>Payer: invoice(hash,amount=a1+...+aN) 
+    deactivate Issuer 2 ... Issuer N
+    activate Payer
+      Payer->>Issuer 2 ... Issuer N:pay(hash,amount=a1+...+aN)
+    deactivate Payer
+    activate Issuer 2 ... Issuer N
+      Issuer 2 ... Issuer N->>Issuer 1:pay(hash,amount=a1+a2)
+    deactivate Issuer 2 ... Issuer N
+    activate Issuer 1
+      Issuer 1->>Settler:pay(hash,amount=a1)
+    deactivate Issuer 1
+    activate Settler
+      par
+        Settler->>Issuer 1:preimage
+      and
+        Settler->>Issuer 2 ... Issuer N:preimage
+      and
+        Settler->>Payer:preimage=key
+        activate Payer
+          Payer->>Payer:decrypt message with the key
+        deactivate Payer
+      end
+    deactivate Settler
+

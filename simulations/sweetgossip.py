@@ -57,7 +57,7 @@ class AbstractTopic(ReprObject):
 
 class RequestPayload(SignableObject):
     def __init__(self, id: UUID, topic: AbstractTopic, sender_certificate: Certificate) -> None:
-        self.id = id
+        self.payload_id = id
         self.topic = topic
         self.sender_certificate = sender_certificate
 
@@ -69,19 +69,24 @@ class AskForBroadcastFrame(ReprObject):
 
 
 class POWBroadcastConditionsFrame(ReprObject):
-    def __init__(self, ask_id: UUID, valid_till: datetime, work_request: WorkRequest) -> None:
+    def __init__(self, ask_id: UUID, valid_till: datetime, work_request: WorkRequest, timestamp_tolerance: timedelta) -> None:
         self.ask_id = ask_id
         self.valid_till = valid_till
         self.work_request = work_request
+        self.timestamp_tolerance = timestamp_tolerance
 
 
 class BroadcastPayload(ReprObject):
     def __init__(self,
                  signed_request_payload: RequestPayload,
-                 backward_onion: OnionRoute,
+                 backward_onion: OnionRoute
                  ) -> None:
         self.signed_request_payload = signed_request_payload
         self.backward_onion = backward_onion
+        self.timestamp = None
+
+    def set_timestamp(self, timestamp: datetime):
+        self.timestamp = timestamp
 
 
 class POWBroadcastFrame(ReprObject):
@@ -108,12 +113,12 @@ class SettlementPromise(SignableObject):
     def __init__(self,
                  settler_certificate: Certificate,
                  network_payment_hash: bytes,
-                 reply_payload_hash: bytes,
+                 hash_of_encrypted_reply_payload: bytes,
                  reply_payment_amount: int
                  ) -> None:
         self.settler_certificate = settler_certificate
         self.network_payment_hash = network_payment_hash
-        self.reply_payload_hash = reply_payload_hash
+        self.hash_of_encrypted_reply_payload = hash_of_encrypted_reply_payload
         self.reply_payment_amount = reply_payment_amount
 
     def verify_all(self, encrypted_signed_reply_payload: bytes) -> bool:
@@ -121,7 +126,7 @@ class SettlementPromise(SignableObject):
             return False
         if not self.verify(self.settler_certificate.public_key):
             return False
-        if crypto.compute_sha256([encrypted_signed_reply_payload]) != self.reply_payload_hash:
+        if crypto.compute_sha256([encrypted_signed_reply_payload]) != self.hash_of_encrypted_reply_payload:
             return False
         return True
 
@@ -184,16 +189,13 @@ class Settler:
         self.payment_channel = payment_channel
         self.price_amount_for_settlement = price_amount_for_settlement
 
-    def generate_trust(self, message: bytes, fee: int, signed_request_payload: RequestPayload, replier_certificate: Certificate) -> Tuple[HodlInvoice, SettlementPromise, bytes]:
-
-        half_encrypted_reply_message = crypto.encrypt_object(
-            message, signed_request_payload.sender_certificate.public_key)
+    def generate_trust(self, message: bytes, reply_invoice: Invoice, signed_request_payload: RequestPayload, replier_certificate: Certificate) -> Tuple[HodlInvoice, SettlementPromise, bytes]:
 
         network_preimage = crypto.generate_symmetric_key()
         network_payment_hash = compute_payment_hash(network_preimage)
 
         encrypted_reply_message = crypto.symmetric_encrypt(
-            network_preimage, half_encrypted_reply_message)
+            network_preimage, message)
 
         network_payment_hash = compute_payment_hash(
             network_preimage)
@@ -208,9 +210,6 @@ class Settler:
             on_accepted=on_accepted
         )
 
-        reply_invoice = self.payment_channel.create_invoice(
-            fee, crypto.generate_symmetric_key())
-
         reply_payload = ReplyPayload(replier_certificate,
                                      signed_request_payload,
                                      encrypted_reply_message,
@@ -219,9 +218,10 @@ class Settler:
         encrypted_reply_payload = crypto.encrypt_object(
             reply_payload, signed_request_payload.sender_certificate.public_key)
 
-        reply_payload_hash = crypto.compute_sha256([encrypted_reply_payload])
+        hash_of_encrypted_reply_payload = crypto.compute_sha256(
+            [encrypted_reply_payload])
         signed_settlement_promise = SettlementPromise(
-            self.settler_certificate, network_payment_hash, reply_payload_hash, fee)
+            self.settler_certificate, network_payment_hash, hash_of_encrypted_reply_payload, reply_invoice.amount)
         signed_settlement_promise.sign(self._settler_private_key)
         return signed_settlement_promise, network_invoice, encrypted_reply_payload
 
@@ -236,6 +236,7 @@ class SweetGossipNode(Agent):
                  broadcast_conditions_timeout: timedelta,
                  broadcast_conditions_pow_scheme: str,
                  broadcast_conditions_pow_complexity: int,
+                 timestamp_tolerance: timedelta,
                  invoice_payment_timeout: timedelta,
                  settler: Settler,
                  ):
@@ -248,6 +249,7 @@ class SweetGossipNode(Agent):
         self.broadcast_conditions_timeout = broadcast_conditions_timeout
         self.broadcast_conditions_pow_scheme = broadcast_conditions_pow_scheme
         self.broadcast_conditions_pow_complexity = broadcast_conditions_pow_complexity
+        self.timestamp_tolerance = timestamp_tolerance
         self.invoice_payment_timeout = invoice_payment_timeout
         self.settler = settler
 
@@ -270,15 +272,15 @@ class SweetGossipNode(Agent):
     def accept_topic(self, topic: AbstractTopic) -> bool:
         return False
 
-    def increment_broadcasted(self, topic_id: int) -> None:
-        if not topic_id in self._already_broadcasted_request_payload_ids:
-            self._already_broadcasted_request_payload_ids[topic_id] = 0
-        self._already_broadcasted_request_payload_ids[topic_id] += 1
+    def increment_broadcasted(self, payload_id: int) -> None:
+        if not payload_id in self._already_broadcasted_request_payload_ids:
+            self._already_broadcasted_request_payload_ids[payload_id] = 0
+        self._already_broadcasted_request_payload_ids[payload_id] += 1
 
-    def can_increment_broadcast(self, topic_id: int) -> bool:
-        if not topic_id in self._already_broadcasted_request_payload_ids:
+    def can_increment_broadcast(self, payload_id: int) -> bool:
+        if not payload_id in self._already_broadcasted_request_payload_ids:
             return True
-        return self._already_broadcasted_request_payload_ids[topic_id] <= 2
+        return self._already_broadcasted_request_payload_ids[payload_id] <= 2
 
     def broadcast(self, e,
                   request_payload: RequestPayload,
@@ -287,9 +289,9 @@ class SweetGossipNode(Agent):
         if not self.accept_topic(request_payload.topic):
             return
 
-        self.increment_broadcasted(request_payload.id)
+        self.increment_broadcasted(request_payload.payload_id)
 
-        if not self.can_increment_broadcast(request_payload.id):
+        if not self.can_increment_broadcast(request_payload.payload_id):
             self.info(e, "already broadcasted")
             return
 
@@ -305,7 +307,7 @@ class SweetGossipNode(Agent):
             self.new_message(e, peer, ask_for_broadcast_frame)
 
     def on_ask_for_broadcast_frame(self, e, m, peer: SweetGossipNode, ask_for_broadcast_frame: AskForBroadcastFrame):
-        if not self.can_increment_broadcast(ask_for_broadcast_frame.signed_request_payload.id):
+        if not self.can_increment_broadcast(ask_for_broadcast_frame.signed_request_payload.payload_id):
             self.info(e, "already broadcasted dont ask")
             return
         pow_broadcast_conditions_frame = POWBroadcastConditionsFrame(
@@ -313,7 +315,8 @@ class SweetGossipNode(Agent):
             valid_till=datetime.now()+self.broadcast_conditions_timeout,
             work_request=WorkRequest(pow_scheme=self.broadcast_conditions_pow_scheme,
                                      pow_target=pow_target_from_complexity(
-                                         self.broadcast_conditions_pow_scheme, self.broadcast_conditions_pow_complexity)))
+                                         self.broadcast_conditions_pow_scheme, self.broadcast_conditions_pow_complexity)),
+            timestamp_tolerance=self.timestamp_tolerance)
         self._my_pow_br_cond_by_ask_id[pow_broadcast_conditions_frame.ask_id] = pow_broadcast_conditions_frame
         self.new_message(e, peer, pow_broadcast_conditions_frame)
 
@@ -322,10 +325,12 @@ class SweetGossipNode(Agent):
             if pow_broadcast_condtitions_frame.ask_id in self._broadcast_payloads_by_ask_id:
                 broadcast_payload = self._broadcast_payloads_by_ask_id[
                     pow_broadcast_condtitions_frame.ask_id]
+                broadcast_payload.set_timestamp(datetime.now())
+                pow = pow_broadcast_condtitions_frame.work_request.compute_proof(
+                    broadcast_payload)
                 pow_broadcast_frame = POWBroadcastFrame(pow_broadcast_condtitions_frame.ask_id,
                                                         broadcast_payload,
-                                                        pow_broadcast_condtitions_frame.work_request.compute_proof(
-                                                            broadcast_payload))
+                                                        pow)
                 self.new_message(e, peer, pow_broadcast_frame)
 
     def accept_broadcast(self, signed_request_payload: RequestPayload) -> Tuple[bytes, int]:
@@ -345,6 +350,12 @@ class SweetGossipNode(Agent):
         if pow_broadcast_frame.proof_of_work.pow_target != my_pow_broadcast_condition_frame.work_request.pow_target:
             return
 
+        if pow_broadcast_frame.broadcast_payload.timestamp > datetime.now():
+            return
+
+        if pow_broadcast_frame.broadcast_payload.timestamp+my_pow_broadcast_condition_frame.timestamp_tolerance < datetime.now():
+            return
+
         if not pow_broadcast_frame.verify():
             return
 
@@ -352,10 +363,12 @@ class SweetGossipNode(Agent):
             pow_broadcast_frame.broadcast_payload.signed_request_payload)
 
         if message is not None:
+            reply_invoice = self.payment_channel.create_invoice(
+                fee, crypto.generate_symmetric_key())
 
             signed_settlement_promise, network_invoice, encrypted_reply_payload = self.settler.generate_trust(
                 message=message,
-                fee=fee,
+                reply_invoice=reply_invoice,
                 signed_request_payload=pow_broadcast_frame.broadcast_payload.signed_request_payload,
                 replier_certificate=self.certificate)
 
@@ -385,14 +398,14 @@ class SweetGossipNode(Agent):
             if reply_payload is None:
                 self.error(e, "reply payload mismatch")
                 return
-            topic_id = reply_payload.signed_request_payload.id
-            if not topic_id in self.reply_payloads:
-                self.reply_payloads[topic_id] = dict()
+            payload_id = reply_payload.signed_request_payload.payload_id
+            if not payload_id in self.reply_payloads:
+                self.reply_payloads[payload_id] = dict()
             replier_id = reply_payload.replier_certificate.public_key
-            if not replier_id in self.reply_payloads[topic_id]:
-                self.reply_payloads[topic_id][replier_id] = list()
+            if not replier_id in self.reply_payloads[payload_id]:
+                self.reply_payloads[payload_id][replier_id] = list()
 
-            self.reply_payloads[topic_id][replier_id].append(
+            self.reply_payloads[payload_id][replier_id].append(
                 (reply_payload, response_frame.network_invoice))
             self.info(e, "reply payload frame collected")
         else:
@@ -427,19 +440,19 @@ class SweetGossipNode(Agent):
                 self.new_message(
                     e, self._known_hosts[top_layer.peer_name], response_frame)
 
-    def get_responses(self, e, topic_id: UUID) -> List[List[Tuple[ReplyPayload, HodlInvoice]]]:
-        if not topic_id in self.reply_payloads:
+    def get_responses(self, e, payload_id: UUID) -> List[List[Tuple[ReplyPayload, HodlInvoice]]]:
+        if not payload_id in self.reply_payloads:
             self.error(e, "topic has no responses")
             return list()
-        return [list(response_frame_list) for response_frame_list in self.reply_payloads[topic_id].values()]
+        return [list(response_frame_list) for response_frame_list in self.reply_payloads[payload_id].values()]
 
     def pay_and_read_response(self, e, reply_payload: ReplyPayload, network_invoice: HodlInvoice):
-        topic_id = reply_payload.signed_request_payload.id
-        if not topic_id in self.reply_payloads:
+        payload_id = reply_payload.signed_request_payload.payload_id
+        if not payload_id in self.reply_payloads:
             self.error(e, "topic has no responses")
             return
 
-        if not reply_payload.replier_certificate.public_key in self.reply_payloads[topic_id]:
+        if not reply_payload.replier_certificate.public_key in self.reply_payloads[payload_id]:
             self.error(e, "replier has not responsed for this topic")
             return
 
@@ -449,7 +462,6 @@ class SweetGossipNode(Agent):
             message = crypto.symmetric_decrypt(preimage,
                                                reply_payload.encrypted_reply_message)
 
-            message = crypto.decrypt_object(message, self._private_key)
             self.info(e, message)
 
         self.payment_channel.pay_hodl_invoice(

@@ -15,7 +15,7 @@ classDiagram
     class BroadcastPayload{
         +RequestPayload signed_request_payload
         +OnionRoute backward_onion
-        +List[RoutingPaymentInstruction] routing_payment_instruction_list
+        +DateTime timestamp
     }
     class ProofOfWork{
         +String pow_scheme
