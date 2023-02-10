@@ -48,7 +48,7 @@ classDiagram
         +OnionRoute forward_onion
         +HODLInvoice network_invoice
     }
-    Invoice <-- HODLInvoice
+    Invoice <|-- HODLInvoice
     SignableObject <|-- SettlementPromise
     ReplyFrame  o--  ReplyPayload : encrypted_reply_payload
     ReplyFrame  o--  SettlementPromise : signed_settlement_promise
