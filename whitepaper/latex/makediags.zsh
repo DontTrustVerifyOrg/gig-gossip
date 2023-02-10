@@ -1,0 +1,12 @@
+mmdc -i AskForBroadcast.mmd -o AskForBroadcast.pdf -f -b transparent
+mmdc -i BroadcastSequence.mmd -o BroadcastSequence.pdf -f -b transparent
+mmdc -i Certificate.mmd -o Certificate.pdf -f -b transparent
+mmdc -i LNDSequence.mmd -o LNDSequence.pdf -f -b transparent
+mmdc -i OnionRoute.mmd -o OnionRoute.pdf -f -b transparent
+mmdc -i PaymentChain.mmd -o PaymentChain.pdf -f -b transparent
+mmdc -i PingPong.mmd -o PingPong.pdf -f -b transparent
+mmdc -i POWBroadcastCondition.mmd -o POWBroadcastCondition.pdf -f -b transparent
+mmdc -i POWBroadcastFrame.mmd -o POWBroadcastFrame.pdf -f -b transparent
+mmdc -i ReplyAndPay.mmd -o ReplyAndPay.pdf -f -b transparent
+mmdc -i ReplyFrame.mmd -o ReplyFrame.pdf -f -b transparent
+mmdc -i Topic.mmd -o Topic.pdf -f -b transparent

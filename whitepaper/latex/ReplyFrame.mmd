@@ -7,7 +7,12 @@
       'primaryBorderColor': '#000',
       'lineColor': '#000',
       'secondaryColor': '#000',
-      'tertiaryColor': '#000'
+      'secondaryTextColor': '#000',
+      'secondaryBorderColor': '#000',
+      'tertiaryColor': '#000',
+      'tertiaryTextColor': '#000',
+      'tertiaryBorderColor': '#000',
+      'fontFamily':'Times New Roman'
     }
   }
 }%%
@@ -25,18 +30,28 @@ classDiagram
         +Bytes payment_hash
         +settle(Bytes preimage)
     }
+    class SettlementPromise{
+        +Certificate settler_certificate
+        +Bytes network_payment_hash
+        +Bytes hash_of_encrypted_network_payload
+        +int reply_payment_amount
+    }
     class ReplyPayload{
+        +Certificate replier_certificate
         +RequestPayload signed_request_payload
         +Bytes encrypted_reply_message
-        +Bytes network_payment_hash
+        +Invoice reply_invoice
     }
     class ReplyFrame{
-        +Certificate replier_certificate
+        +Bytes encrypted_reply_payload
+        +SettlementPromise signed_settlement_promise
         +OnionRoute forward_onion
+        +HODLInvoice network_invoice
     }
-    SignableObject <|-- ReplyPayload
-    Invoice <|-- HODLInvoice
-    ReplyFrame  o--  ReplyPayload : signed_reply_payload
+    Invoice <-- HODLInvoice
+    SignableObject <|-- SettlementPromise
+    ReplyFrame  o--  ReplyPayload : encrypted_reply_payload
+    ReplyFrame  o--  SettlementPromise : signed_settlement_promise
     ReplyPayload o-- Invoice: reply_invoice
     ReplyFrame o-- HODLInvoice: network_invoice
     
