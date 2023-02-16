@@ -53,7 +53,7 @@ pdfkeywords={GIG Economy, Gossip Protocol, Distributed System, P2P, Bitcoin, Lig
 \maketitle
 
 \begin{abstract}
-Gig-gossip protocol is a P2P, mobile-first protocol, that enables the decentralisation of the gig economy. It is built on top of Bitcoin financial infrastructure with Lightning Network for micropayments. It is spam and DDoS protected with its countermeasure on Proof of Work. Gig-gossip network nodes are financially gratified for enabling prompt communication between parties. Final payment settlements are controlled by trusted parties that certify gig workers and help in conflict resolution. These parties - payment settlers - are competing on a free market and are rewarded for the quality of their service.
+Gig-gossip protocol is a P2P, mobile-first protocol, that enables the decentralisation of the gig economy. It is built on top of Bitcoin financial infrastructure with Lightning Network used for micropayments. It is spam and DDoS protected with its countermeasure on POW (proof of work). Network nodes are financially gratified for enabling prompt communication between parties. Gig dispute resolution is done by payment settlers - organizations that control final payment settlements. Payment settlers are beneficiaries of the integrity of the process and are naturally interested in providing complementary services (like gig worker screening, KYC and making dispute resolution online) that, on the other hand, are beneficial for the quality of service of the proposed decentralised gig economy.
 \end{abstract}
 
 % keywords can be removed
@@ -66,14 +66,12 @@ This kind of cybernetic system uses the human power of gig workers managed by AI
 
 \begin{enumerate}
 \item dictates the revenue sharing and can change this anytime dependingly on the socioeconomic circumstances without giving any reason to gig workers
-
-\item punish workers that are not behaving properly, that is aligned with company benefit, e.g. by blocking them from access to the platform
+\item punish workers that are not behaving properly, meaning that their behaviour is not aligned with the company benefit, and doing it e.g. by blocking them from access to the platform
 \end{enumerate}
 
-We are proposing a P2P protocol designed for the gig economy that, by eliminating the need for central online platforms, will create a new decentralized, P2P gig economy (Figure \ref{fig:decent}). Gig workers will be engaged directly by the end customer and can accomplish their tasks and earn money on a free market without the need for the existence of a central organization. Safety of the service delivery and conflict resolution is preserved by payment settlers - companies that earn their revenue by ensuring the quality of service delivery.
+We are proposing a P2P protocol designed for the gig economy that, by eliminating the need for central online platforms, will create a new decentralized, P2P gig economy (Figure \ref{fig:decent}). Gig workers will be engaged directly by the end customer and can accomplish their tasks and earn money on a free market without the need for the existence of a central organization. Quality of service delivery and conflict resolution is preserved by payment settlers - companies that earn their revenue by assuring compliance consistency of the system - the ability to maintain compliance with all relevant laws, regulations, and standards consistently over time. 
 
-The lack of central organization also means that a minimal volume of data is shared between gig workers customers and payment settlers. Just enough to fulfil the job according to the protocol-driven off-chain smart contract that uses P2P money i.e. Lightning Network \cite{poon2016bitcoin} on Bitcoin \cite{nakamoto2009bitcoin}, therefore forming layer 3 protocol from the Bitcoin perspective.
-
+The lack of central organization also means that minimal data is shared between gig workers customers and payment settlers. Just enough to fulfil the job according to the protocol-driven off-chain smart contract that uses P2P money i.e. Lightning Network \cite{poon2016bitcoin} on Bitcoin \cite{nakamoto2009bitcoin}, therefore forming layer 3 protocol from the Bitcoin perspective.
 
 \begin{figure*}[t!]
     \centering
@@ -93,25 +91,24 @@ The lack of central organization also means that a minimal volume of data is sha
 \end{figure*}
 
 \section{Gig-gossip P2P Network}
-Gig-gossip P2P Network is a global, symmetric, P2P network, meaning that there is no direct need to run any operation critical services in the cloud or any other centralised computing environment. Gig-gossip node is a software module that is run by every device that uses Gig-gossip protocol and forms a basis of communication. Gig-gossip nodes can be implemented as apps and run efficiently on cheap modern mobile devices. The need for implementation of supporting services that are cloud-based or edge-computing-based helps make the service more user-friendly but is never critical for the network operation.
+Gig-gossip P2P Network is a globally symmetric, P2P network, meaning that there is no direct need to run any operation critical services in the cloud or any other centralised computing environment, you just need your mobile phone. In other words, Gig-gossip node is a software module that is run by every device that uses Gig-gossip protocol and it forms a basis of communication. Moreover, Gig-gossip nodes can be implemented as apps and run efficiently on cheap modern mobile devices. 
 
-It is important to state explicitly that we are not inventing any new coin or crypto token, but rather we are speaking about how Gig-gossip protocol forms a layer 3 protocol on top of the Lightning Network (being itself a layer 2 network sitting on top of Bitcoin network), therefore if any, the Bitcoin is a native token of the Gig-gossip network.
+We are not inventing any new coin or crypto token, but rather we are speaking about the way how Gig-gossip protocol forms a layer 3 protocol on top of the Lightning Network (being itself a layer 2 network sitting on top of the Bitcoin network), therefore the Bitcoin is a native token of the Gig-gossip network.
 
 Gig-gossip P2P network preserves:
 \begin{itemize}
 \item P2P Symmetry - every node does the same thing
 \item Permissionlessness - anyone with internet access can join Gig-gossip P2P network
-\item Mobile first - the cost of running a Gig-gossip node is marginal on modern mobile devices. Also, the protocol handles mobile connectivity issues.
+\item Mobile first - the cost of running a Gig-gossip node is marginal on modern mobile devices. 
 \item Privacy - the communication is encrypted
-\item Anonymity - any personal information about the people behind the nodes is hidden
-\item DDos and Spam protection - it uses Proof of Work (PoW) to protect the network from DDoS and Spam
-\item Sustainability - the protocol is designed so all its participants benefit from joining the network
-\item Implicit punishment - the protocol does not explicitly punish unhonest participants, but rather makes honest participants benefit more than unhonest ones
+\item Anonymity - any sensitive information about the people behind the nodes is encrypted
+\item DDos and Spam protection - it uses POW (proof of work) as a countermeasure for DDoS and Spam
+\item Sustainability - the protocol is designed so that honest participants are more beneficial than unhonest ones implementing the implicit punishment principle
 \end{itemize}
 
-Gig-gossip Protocol is a gossip protocol \cite{Fanout}, that allows a network to broadcast in a similar way to gossip spreads. Assuming that each Gig-gossip node is connected to its peers and that the network graph is connected, each node works independently and in the event of receiving a message that needs to be broadcasted. It selects several peers and sends the message, in its owner's interest, to peers making the message spread over the network like gossip (Figure~\ref{fig:network}). 
+Gig-gossip Protocol is a gossip protocol \cite{Fanout}, that allows a network to broadcast messages in a similar way to gossip spreads. Assuming that each Gig-gossip node is connected to its peers and that the network graph is connected, each node works independently and in the event of receiving a message that needs to be broadcasted it spreads it to its peers (Figure~\ref{fig:network}). 
 
-Gig-gossip is a protocol, meaning that it only specifies the minimal set of rules to make it beneficial for all the nodes. It doesn't say explicitly how the network node should be implemented. The node implementation is free to do whatever is best to make it beneficial for the node owner.
+Gig-gossip is a protocol, meaning that it only specifies a minimal set of rules. It doesn't say explicitly how the network node should be implemented. The node implementation is free to do whatever is best and beneficial for the node owner.
 
 \begin{figure}
 	\centering
@@ -120,11 +117,26 @@ Gig-gossip is a protocol, meaning that it only specifies the minimal set of rule
 	\label{fig:network}
 \end{figure}
 
+\subsection{Payment settler as the compliance consistency enforcer}
+Every gig economy environment needs to maintain safety understood as protection from fraudulent activities during service delivery, either if it is a taxi ride, delivering food or programming a website. Gig-gossip has built-in tools for the countermeasure for activities like:
+\begin{enumerate}
+	\item Incompetence of the gig worker that can result in physical/financial harm to the customer
+	\item Making sure that the customer has money to pay the gig worker before the service is provided
+	\item Disputes between customer and gig worker
+	\item Criminal acts associated with the service delivery that require law enforcement actions
+	\item Terrorism funding
+\end{enumerate}
+
+Gig-gossip brings the building blocks for the institutions that directly benefit from the compliance consistency of the system:
+\begin{enumerate}
+	\item Digital certificates - the way how gig workers can prove their competencies. It also enables KYC allowing for dispute resolutions and counterterrorism actions 
+	\item HODL invoices - the Lightning Invoices that require settlement of the payment implementing Authorisation Hold on the customer side, making sure that the customer has the money but the payment settler controls the final settlement and preventing terrorism funding.
+\end{enumerate}
+ 
 \section{The protocol}
+The core task of Gig-gossip protocol is to broadcast a job proposal (topic) to interested parties and collect job offers (reply messages) from interested contractors. Economically, the customer is interested in exchanging their money for the service, while gig worker is interested in being paid for the job done. The network to sustain its existence needs to reward broadcasters for the quality of the broadcasting. Therefore the protocol is constructed in a way that the customer broadcasts a topic, that contains an anonymous job description. This job description is delivered by the network to the gig worker that is happy to respond with an encrypted message that is targeted solely to the customer. The message is delivered back to the customer that can verify the basic properties of the gig worker with their digital certificate but to decrypt the contact information allowing for further P2P communication with the gig worker, the customer is obligated to pay the network and lock the required amount of money proposed in the job offer. The payment settlement is secured by payment settlers - companies that secure compliance consistency of the system.
 
-The main purpose of Gig-gossip protocol is to broadcast a job proposal (topic) to interested parties and collect job offers (reply messages) from interested contractors. Economically, the customer is interested in exchanging their money for the service, while gig worker is interested in being paid for the job done. The network to sustain its existence needs to reward broadcasters for the quality of the broadcasting. Therefore the protocol is constructed in a way that the customer broadcasts a topic, that contains an anonymous job description. This job description is delivered by the network to the gig worker that responds with a network-encrypted reply message. The message is delivered back to the customer that can verify the basic properties of the gig worker with their digital certificate but to decrypt the contact information of the gig worker is obligated to pay the network. The payment settlement is secured by payment settlers - companies that secure service quality.
-
-For sake of clarity, we use the following naming convention:
+For clarity, we use the following naming convention:
 
 \begin{enumerate}
 	\item Topic - the job proposal broadcasted through the network
@@ -137,7 +149,7 @@ For sake of clarity, we use the following naming convention:
 	\item Settler - the specific payment-settler
 \end{enumerate}
 
-We assume that nodes of the Gig-gossip network are already connected to their peers via some internet transport protocol (e.g. TCP, UDP with or without hole punching \cite{WebRTC}, mobile mesh etc.) and all the peers are accepting Gig-gossip protocol. How the nodes discover their peers is not a part of the protocol.
+Here, we assume that nodes of the Gig-gossip network are already connected to their peers via some internet transport protocol (e.g. TCP, UDP with or without hole punching \cite{WebRTC}, mobile mesh etc.) and all the peers are accepting Gig-gossip protocol. How the nodes discover their peers is not a part of the protocol.
 
 In short, the Gig-gossip protocol can be summarised as follows:
 
@@ -145,7 +157,8 @@ In short, the Gig-gossip protocol can be summarised as follows:
 	\item  \textbf{Asking for broadcast} If the originator wants to broadcast the topic the first step is to ask its peer (the middleman) about the condition on which the peer is happy to broadcast the specific topic. If the middleman accepts this kind of topic, it replies to the originator with specific POW properties the originator needs to compute to be able to broadcast the topic by this middleman.
 	\item  \textbf{Broadcast with POW:} In order to use this middleman the originator must compute a hash (e.g. SHA256) that is less or equal to the specific target for the specific POW scheme. The computed POW is passed with the topic to the broadcaster and if the broadcaster validates the hash it broadcast the topic to its peers.
 	\item  \textbf{Replying:} If instead, the middleman is interested in accepting the job it becomes the replier. Replier constructs the reply message. The reply message has to be encrypted by the selected payment settler. The message is then passed back to the sender by the network. The reply message contains all the information that is required to pay for the reply message delivery to all the middlemen involved. 
-	\item  \textbf{Paying for the reply message:} Once the message reaches the sender, the sender needs to pay the network to obtain the key allowing for message description. Once paid the reply message is revealed and the originator can begin direct communication with the replier. The payment is settled by the payment settler and the settlement of the payment involves also the payment to the network.
+	\item  \textbf{Paying for the reply message:} Once the message reaches the sender, the sender needs to pay the network to obtain the key allowing for message description. The payment here is not settled until the payment settler reveals the key and can be revoked by the payment settler. 
+	\item \textbf{Payment settlement:} The payment is settled by the payment settler and the settlement of the payment involves also the payment to the network. Once, the payment settler reveals the key the originator can begin direct communication with the replier. The payment settlement of the money required to pay for the gig is delayed until the job is done and all the disputes are resolved.
 \end{enumerate}
 
 \subsection{Topic}
@@ -191,12 +204,10 @@ The precision of geo-hash determines the size of the cell (Table~\ref{tab:geopre
 \end{table}
 
 On the other hand, we do not want to be too specific and we might want to restrict the size of geo-hash to at most 8, so it is not possible to precisely locate the originator (customer) at this stage, but on the other side, the precision is enough for the taxi driver to accept/reject to the job.
+Network nodes will prefer to make the exact position confidential at the moment of broadcast, therefore they might not accept locations in taxi-topicks that are too specific.
 
 \subsection{Digital Certificates}
-
-Every gig economy environment needs to be safe for both customers and gig workers. Safety means here the ability to have physical protection from fraud during the service delivery, either if it is a taxi ride, delivering food or programming a website. The way to implement physical levels of trust in the internet is done with Digital Certificates implemented as public-key certificates (e.g. X.509 certificates). These certificates are issued by certification authorities that can be either trusted 3rd parties or communities. For a taxi driver, the minimal certification requires having a valid driving licence and no criminal record. The trusted 3rd party can issue this kind of certificate by signing it with its private key so anyone can verify that the specific certificate was truly issued by this trusted 3rd party. If the certificate is revoked the information about it is published by a trusted 3rd party in form of a revocation list. Public key certificates contain also a public key of the certified person (Figure \ref{fig:fr:certificate}), so it is possible to use it to encrypt a message that is targetted for this person and verify their signatures.
-
-A trusted 3rd party can be a payment settler. This will make the certification authorities financially benefit from being a part of the Gig-gossip protocol and allow them to focus on their work.
+Digital Certificates are the way to implement gig worker screening and KYC flexibly and are implemented as public-key certificates (e.g. X.509 certificates). For the internet, these certificates are issued by certification authorities that can be either trusted 3rd parties or communities. For a taxi driver, the screening requires having a valid driving licence and no criminal record. The payment settler can issue this kind of certificate by signing it with its private key so anyone can verify that the specific certificate was truly issued by the issuing organization. If the certificate is revoked the information about it is published by the issuing organization in form of a revocation list. Public key certificates usually contain also a public key of the certified person (Figure \ref{fig:fr:certificate}), so it is possible to use it to encrypt a message that is targetted for this person and verify their signatures.
 
 \begin{figure}
 	\centering
@@ -215,7 +226,7 @@ The first step of Gig-gossip protocol is to send the AskForBroadcastFrame (Figur
 	\label{fig:fr:askforbroadcast}
 \end{figure}
 
-AskForBroadcastFrame contains ask\_identifier and digitally signed RequestPayload. Signed RequestPayload is made of unique payload\_id, topic (e.g. TaxiTopic), sender\_certificate and sender signature obtained by signing the RequestPayload with the sender private key that is complementary to the public key stored within the sender\_certificate. Anyone can verify the RequestPayload by validating its signature with the sender's public key from the certificate. The sender certificate can always be verified using the public key of the certification authority and checking its published revocation list.
+AskForBroadcastFrame contains ask\_identifier and digitally signed RequestPayload. Signed RequestPayload is made of unique payload\_id, topic (e.g. TaxiTopic), sender\_certificate and sender signature obtained by signing the RequestPayload with the sender private key that is complementary to the public key stored within the sender\_certificate. Anyone can verify the RequestPayload by validating its signature with the sender's public key from the certificate. The sender certificate can always be verified using the public key of the payment settler and checking its published revocation list.
 
 Ask\_identifier identifies the frame during the originator-middleman ping-pong communication (Figure \ref{fig:fr:pingpong}). In the gossip protocol, the same broadcasting message may hit the same gossip node many times, so payload\_id is to remain a unique identifier that allows one to determine this situation and react accordingly to the node policy. Some nodes might wish not to broadcast the RequestPayload more than once, others if working on small fanout might wish to broadcast the same RequestPayload many times. Anyway, it is the requested responsibility to ensure the uniqueness of payload\_id, risking if it is not unique it will be lost during the broadcast as other nodes can decide that it was already broadcasted if the payload\_id was already seen before.
 
@@ -258,7 +269,7 @@ This way of constructing the onion allows peeling the onion back to the sender t
 
 If the middleman accepts the topic specified in the AskForBroadcastFrame, it sends back the POWBroadcastConditionsFrame (Figure \ref{fig:fr:pingpong}). This frame describes the properties of POW expected to be computed by the originator and payment instructions expected by the peer for delivering the reply.
 
-Starting with ask\_id, which matches with AskForBroadcastFrame, and valid\_till timeout meaning that the middleman will wait only till the specific time for the POWBroadcastConditionFrame (Figure \ref{fig:fr:powbroadcastcondition}) from the originator, it contains also WorkRequest that describes properties of POW. Additionally, to prevent reusing POW the timestamp\_tolerance is sent, meaning the maximal time-distance from the timeout that is accepted by the broadcaster.
+Starting with ask\_id, which matches with AskForBroadcastFrame, and valid\_till timeout meaning that the middleman will wait only till the specific time for the POWBroadcastConditionFrame (Figure \ref{fig:fr:powbroadcastcondition}) from the originator, it contains also WorkRequest that describes properties of POW. Additionally, to prevent reusing POW the timestamp\_tolerance is sent, meaning the maximal time distance from the timeout that is accepted by the broadcaster.
 
 \begin{figure}
 	\centering
@@ -300,8 +311,7 @@ It's important to notice that while in vanilla gossip we are focused on making s
 
 \subsection{Lightning Network, HODL invoices, payments, preimages and payment-hashes}
 
-Lightning Network is a layer 2 network built on top of the Bitcoin network that allows for cheap and fast micropayments.
-It is built around the concept of channels. Once the channel is opened (that usually means funding it with some amount of Bitcoin), it can be used to issue and pay the invoice. Payment generates proof. 
+Lightning Network is a layer 2 network built on top of the Bitcoin network that allows for cheap and fast micropayments. It is built around the concept of channels. Once the channel is opened (that usually means funding it with some amount of Bitcoin), it can be used to issue and pay the invoice. Payment generates proof. 
 
 The interesting kind of invoices implemented in Lightning Network is HODL invoices. This idea extends the invoice-payment process with the cryptographic concept of preimage for payment hash in the following way:
 \begin{enumerate}
@@ -319,17 +329,15 @@ The interesting kind of invoices implemented in Lightning Network is HODL invoic
 \end{figure}
 
 \subsection{Cryptographic Payment Chains base on HODL invoices}
-If one uses cryptographic keys as a preimage for generating payment-hash for the invoice it implements a payment transaction for cryptographic keys. These keys might allow the description of the specific encrypted message. In other words, having a message that is encrypted with a specific key we can construct an invoice using the key as a preimage and compute its payment hash. To decode the message payer need to pay the invoice and obtain the key (preimage).
+If one uses a cryptographic key as a preimage for generating a payment hash for the invoice it implements a payment transaction for cryptographic keys. These keys might allow the description of the specific encrypted message. In other words, having a message that is encrypted with a specific key we can construct an invoice using the key as a preimage and compute its payment hash. To decode the message payer need to pay the invoice and obtain the key (preimage).
 
-We can also create a chain of issuers that are becoming middlemen between the payee and settler (Figure \ref{fig:cryptopaychain}). The settler generates the preimage (cryptographic key) and uses it to encrypt the specific message that is revealed to the public. The settler issue the invoice containing the payment hash for the generated preimage. Issuers in the chain, one after another are generating invoices using the same payment hash received from the settler. Once the last one - a payee is reached, the payer can decide to pay the final invoice so they can receive the preimage = key to decode the message. HODL invoice ensures the issuers that the payment was done (invoice is accepted) but to have control on the money, they need to use the preimage, so all the chain needs to see the preimage, therefore they are forced to pay invoices of their peers. Once the last invoice is paid to the settler, the settler reveals the preimage and all the invoices are settled at the same time. Also as the preimage = key, the message can be decoded.
+We can also create a chain of issuers that are becoming middlemen between the payee and settler (Figure \ref{fig:cryptopaychain}). The settler generates the preimage (cryptographic key) and uses it to encrypt the specific message that is revealed to the public. The settler issue the invoice containing the payment hash for the generated preimage. Issuers in the chain, one after another are generating invoices using the same payment hash received from the settler. Once the last one - a payee is reached, the payer can decide to pay the final invoice so they can receive the preimage = key to decode the message. HODL invoice ensures the issuers that the payment was done (invoice is accepted) but to have control of the money, they need to use the preimage, so all the chain needs to see the preimage, therefore they are forced to pay invoices of their peers. Once the last invoice is paid to the settler, the settler reveals the preimage and all the invoices are settled at the same time. Also as the preimage = key, the message can be decoded.
 
 There are two issues with this scheme that make the settler a special entity that manages the trust:
 \begin{enumerate}
 	\item The preimage = key corresponds to the encrypted message, but it is not possible to see that just looking at the payment hash and the encrypted message, therefore all the issuers and the payer need to trust the settler that he has encrypted the message with the specific preimage, that corresponds to the payment-hash on all the invoices.
 	\item Preimage must be revealed only \textbf{after} the settler receives the payment. If for some reason the settler decides to reveal the preimage=key before receiving the payment the payer does not need to pay the invoice and therefore no one will be paid.
 \end{enumerate}
-
-Removing the need for trust settler is one of the challenges at this stage but do not limit the application of the protocol to the specific scenario, which is the decentralisation of the Gig-economy. Gig workers are fulfilling physical services, and therefore there is a need for their certification and managing trust anyway. The certification authorities are already needed and they can naturally become the payment settlers for Gig-gossip.
 
 \begin{figure}
 	\centering
@@ -338,9 +346,15 @@ Removing the need for trust settler is one of the challenges at this stage but d
 	\label{fig:cryptopaychain}
 \end{figure}
 
-
+ 
 \subsection{Replying}
-The node (replier) that is happy to accept the broadcasted message instead of broadcasting it further is replying to it back. It is done with ReplyFrame which is sent back to the node that was the sender of the topic.
+The node (replier) that is happy to accept the job described in the topic, instead of broadcasting it further is replying with ReplyFrame which is sent back over the Gig-gossip network to the node that was the sender of the topic. 
+
+The replying sequence is illustrated in Figure \ref{fig:replyandpay}. Replying requires communication and approval from the selected payment settler, otherwise, the protocol is not secure for the sender.
+
+The replier needs to specify its price for the required service and can send the encrypted message to the sender. This message should contain all the details allowing for further P2P communication between the sender and the replier (e.g. replier's IP address).
+
+The replier now needs to communicate with the payment settler that will encrypt the message and generate SettlementPromise being itself a set of hashes and certificates allowing use by the Gig-gossip network node to verify the correctness of the ReplyFrame. To do so, the payment settler will generate the preimage and will use this preimage to encrypt the message and generate a payment hash for the cryptographic payment chain. 
 
 \begin{figure}
 	\centering
@@ -405,7 +419,6 @@ The other approach for distributed trust is based on the idea of a track record.
 The other one is based on the idea of reputation (transitive recommendations), so trustworthy participants are recommending other participants put their reputation on a table.
 
 \subsection{Mobile device connectivity issues}
-
 
 Holepunching \cite{HolePunching}
 
