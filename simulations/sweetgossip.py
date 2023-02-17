@@ -2,7 +2,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Set, Tuple
+from typing import Callable, Dict, List, Set, Tuple
 from uuid import UUID, uuid4
 
 import crypto
@@ -136,7 +136,7 @@ class ReplyPayload(ReprObject):
                  replier_certificate: Certificate,
                  signed_request_payload: RequestPayload,
                  encrypted_reply_message: bytes,
-                 reply_invoice: Invoice
+                 reply_invoice: HodlInvoice
                  ) -> None:
         self.replier_certificate = replier_certificate
         self.signed_request_payload = signed_request_payload
@@ -176,6 +176,20 @@ class ReplyFrame(ReprObject):
         return reply_payload
 
 
+InvoiceById: Dict[UUID, Tuple[PaymentChannel, bytes]] = dict()
+
+
+def SetSettementCommand(payment_channel: PaymentChannel, invoice_id: UUID, preimage) -> None:
+    global InvoiceById
+    InvoiceById[invoice_id] = (payment_channel, preimage)
+
+
+def OnSettementCommand(invoice: HodlInvoice) -> None:
+    global InvoiceById
+    payment_channel,  preimage = InvoiceById[invoice.id]
+    payment_channel.settle_hodl_invoice(invoice, preimage)
+
+
 class Settler:
 
     def __init__(self,
@@ -189,7 +203,15 @@ class Settler:
         self.payment_channel = payment_channel
         self.price_amount_for_settlement = price_amount_for_settlement
 
-    def generate_trust(self, message: bytes, reply_invoice: Invoice, signed_request_payload: RequestPayload, replier_certificate: Certificate) -> Tuple[HodlInvoice, SettlementPromise, bytes]:
+    def generate_reply_payment_trust(self) -> Tuple[bytes, Callable[[HodlInvoice]]]:
+        reply_preimage = crypto.generate_symmetric_key()
+        reply_payment_hash = compute_payment_hash(reply_preimage)
+
+        invoice_id = uuid4()
+        SetSettementCommand(self.payment_channel, invoice_id, reply_preimage)
+        return invoice_id, reply_payment_hash, OnSettementCommand
+
+    def generate_trust(self, message: bytes, reply_invoice: HodlInvoice, signed_request_payload: RequestPayload, replier_certificate: Certificate) -> Tuple[HodlInvoice, SettlementPromise, bytes]:
 
         network_preimage = crypto.generate_symmetric_key()
         network_payment_hash = compute_payment_hash(network_preimage)
@@ -363,8 +385,11 @@ class SweetGossipNode(Agent):
             pow_broadcast_frame.broadcast_payload.signed_request_payload)
 
         if message is not None:
-            reply_invoice = self.payment_channel.create_invoice(
-                fee, crypto.generate_symmetric_key())
+
+            invoice_id, reply_payment_hash, on_accepted = self.settler.generate_reply_payment_trust()
+
+            reply_invoice = self.payment_channel.create_hodl_invoice(
+                fee, reply_payment_hash, on_accepted, invoice_id=invoice_id)
 
             signed_settlement_promise, network_invoice, encrypted_reply_payload = self.settler.generate_trust(
                 message=message,

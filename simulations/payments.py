@@ -4,6 +4,7 @@ from datetime import datetime
 from myrepr import ReprObject
 from crypto import compute_sha512, generate_symmetric_key
 from collections.abc import Callable
+from uuid import UUID, uuid4
 
 
 def compute_payment_hash(preimage: bytes) -> bytes:
@@ -14,7 +15,9 @@ class HodlInvoice(ReprObject):
     def __init__(self, payment_hash: bytes, amount: int,
                  on_accepted: Callable[[HodlInvoice]],
                  valid_till: datetime,
+                 id: UUID = None,
                  ) -> None:
+        self.id = uuid4() if id is None else id
         self.payment_hash = payment_hash
         self.amount = amount
         self.valid_till = valid_till
@@ -38,8 +41,9 @@ class PaymentChannel(ReprObject):
     def create_hodl_invoice(self, amount: int, payment_hash: bytes,
                             on_accepted: Callable[[HodlInvoice]],
                             valid_till: datetime = datetime.max,
+                            invoice_id: UUID = None,
                             ) -> HodlInvoice:
-        return HodlInvoice(payment_hash, amount, on_accepted, valid_till)
+        return HodlInvoice(payment_hash, amount, on_accepted, valid_till, invoice_id)
 
     def create_invoice(self, amount: int, preimage: bytes,
                        valid_till: datetime = datetime.max,
