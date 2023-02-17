@@ -349,7 +349,7 @@ There are two issues with this scheme that make the payment settler an entity th
 \subsection{Replying}
 The node (replier) that is happy to accept the job described in the topic, instead of broadcasting it further is replying with ReplyFrame which is sent back over the Gig-gossip network to the node that was the sender of the topic. The replier needs to specify its price for the required service and can send the encrypted message to the sender. This message should contain all the details allowing for further P2P communication between the sender and the replier (e.g. replier's IP address).
 
-The replying sequence is illustrated in figure \ref{fig:replyandpay}. 
+The replying sequence is illustrated in Figure \ref{fig:replyandpay} and \ref{fig:payforservice}. 
 
 The replier starts with constructing a ReplyPayload. This payload contains replier\_certificate, signed\_request\_payload, encrypted\_reply\_message and reply\_invoice.
 
@@ -393,6 +393,13 @@ The ReplyFrame contains Replier Certificate, ReplyPayload and additionally:
 	\includegraphics[scale=0.8]{ReplyAndPay.pdf}
 	\caption{Reply/Payment/Decryption Sequence}
 	\label{fig:replyandpay}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\includegraphics[scale=0.8]{PayForService.pdf}
+	\caption{Payment/Settlement Sequence}
+	\label{fig:payforservice}
 \end{figure}
 
 \begin{itemize}

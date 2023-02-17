@@ -1,0 +1,38 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'activationBorderColor':'#000',
+      'activationBkgColor':'#F00',
+      'primaryColor': '#FFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#FFF',
+      'labelBoxBorderColor':'#F00',
+      'tertiaryColor': '#000',
+      'fontFamily':'Times New Roman'
+    }
+  }
+}%%
+sequenceDiagram
+    autonumber
+    participant Settler
+    participant Replier
+    participant Sender
+    Replier->>Settler: Ask for reply payment
+    activate Settler
+      Settler->>Settler: Generates reply payment preimage
+      Settler-->>Replier: reply-payment hash
+    deactivate Settler
+    activate Replier
+      Replier->>Sender: invoice(reply-payment hash,amount=fee) 
+    deactivate Replier
+    activate Sender
+      Sender->>Replier: pay(amount=fee)
+    deactivate Sender
+    activate Replier
+      Settler->>Replier: payment settement
+    deactivate Replier
+
+

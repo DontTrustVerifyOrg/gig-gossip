@@ -22,11 +22,9 @@ classDiagram
         +sign(Bytes private_key)
         +verify(Bytes public_key):Boolean
     }
-    class Invoice{
+    class HODLInvoice{
         +int amount
         +pay()
-    }
-    class HODLInvoice{
         +Bytes payment_hash
         +settle(Bytes preimage)
     }
@@ -40,7 +38,7 @@ classDiagram
         +Certificate replier_certificate
         +RequestPayload signed_request_payload
         +Bytes encrypted_reply_message
-        +Invoice reply_invoice
+        +HODLInvoice reply_invoice
     }
     class ReplyFrame{
         +Bytes encrypted_reply_payload
@@ -48,11 +46,10 @@ classDiagram
         +OnionRoute forward_onion
         +HODLInvoice network_invoice
     }
-    Invoice <|-- HODLInvoice
     SignableObject <|-- SettlementPromise
     ReplyFrame  o--  ReplyPayload : encrypted_reply_payload
     ReplyFrame  o--  SettlementPromise : signed_settlement_promise
-    ReplyPayload o-- Invoice: reply_invoice
+    ReplyPayload o-- HODLInvoice: reply_invoice
     ReplyFrame o-- HODLInvoice: network_invoice
     
     

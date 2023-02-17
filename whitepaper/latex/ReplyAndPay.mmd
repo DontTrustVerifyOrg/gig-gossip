@@ -21,7 +21,7 @@ sequenceDiagram
     participant Replier
     participant Peer 1 ... Peer N
     participant Sender
-    Replier->>Settler: Ask for trust
+    Replier->>Settler: Ask for artifacts 
     activate Settler
       Settler->>Settler: Generates preimage=key
       Settler->>Settler: Encrypts the message with the key 
