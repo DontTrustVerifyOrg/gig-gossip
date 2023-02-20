@@ -23,8 +23,12 @@ sequenceDiagram
     Settler->>Issuer: Sends the preimage
     deactivate Settler
     activate Issuer
-    Issuer->>Issuer: Creates a HODL invoice with the payment hash
+    Issuer->>Issuer: Creates a HODL invoice with the payment hash and timeout
     Issuer->>Payer: Sends the HODL invoice
     deactivate Issuer
     Payer->>Issuer: Pay (accepts the HODL invoice)
-    Settler->>Payer: Reveals the preimage (settles the HODL invoice)
+    alt settler confirms
+      Settler->>Payer: Reveals the preimage (settles the HODL invoice)
+    else timeout
+      Issuer->>Payer: Gets payment back
+    end
