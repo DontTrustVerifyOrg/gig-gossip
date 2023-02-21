@@ -21,7 +21,7 @@
 \title{Gig-gossip - P2P protocol for distributed Gig economy}
 
 % Here you can change the date presented in the paper title
-\date{February 9, 2023}
+\date{February 21, 2023}
 % Or remove it
 %\date{}
 
@@ -299,7 +299,7 @@ Each step of the broadcast involves passing a specific BroadcastPayload that con
 
 In the gossip protocol nodes are randomly selected from the list of all the known peers of the originator. This number is sometimes referred to as fanout \cite{Fanout} of the gossip protocol. Once selected the broadcasting process is performed.
 
-It's important to notice that while in vanilla gossip we are focused on making sure most of the nodes have retrieved the message, in Gig-gossip it is beneficiary for the network to build multiple routes that will provide the customer with a way to choose the one that has the minimal network fee. Therefore, here we allow for multiple crossing of the same node with the same topic on purpose, being a decision made by the node owner.
+It's important to notice that while in vanilla gossip we are focused on making sure most of the nodes have retrieved the message, in Gig-gossip it is beneficiary for the network to build multiple routes that will provide the customer with a way to choose the one that has the minimal network fee. Therefore, here we allow for multiple crossing of the same node with the same topic on purpose, being a decision made by the node owner. The number of times the node sends the same topic is called here multibroadcast number. Multibroadcast=1 means the topic is broadcasted by the same node only once and multibroadcast>1 means same topic more than once. Gig-gossip is using onion routing to hide the route information, therefore multibroadcast>1 can result in routes that are crossing same nodes multiple times. This can result in very complex routes that will be naturally very expensive and therefore they will be rejected by the sender.
 
 \begin{figure}
 	\centering
@@ -417,13 +417,16 @@ The other possible approach for distributed trust is based on the idea of a trac
 The other one is based on the idea of reputation (transitive recommendations), so trustworthy participants are recommending other participants put their reputation on a table.
 
 \subsection{Mobile device connectivity issues}
+\label{mobdev}
 
 Creating the mesh of mobile devices requires the ability to establish connectivity between P2P nodes while some of them are behind NAT. The way modern streaming platforms overcome this limitation is based on UDP Holepunching \cite{HolePunching}. Protocols like WebRTC \cite{WebRTC} are well-positioned to solve this issue.
 
 A broken connection between the customer and network or gig worker and network can lead to problems if the routing is based on IP addresses. Next time the mobile network provider connects the device that temporarily lost access, it can assign a different IP address, making the ongoing routing impossible.
 
+Above situation can lead to lose of funds if the network payment was made by the Sender (step 9 on Figure \ref{fig:replyandpay}) and the Settler has settled the network payment but the Replier has lost connection and is not able to perform the service. To solve this situation the only fair solution is to make sure the settler will settle the network payment at the time the service was delivered and the reply payment was settled.
+
 \subsection{Attacks}
-Here we are discussing common attacks that can be performed on the Gig-gossip network.
+Here we are discussing common attacks on the Gig-gossip network.
 
 
 \begin{table}  
@@ -434,12 +437,12 @@ Here we are discussing common attacks that can be performed on the Gig-gossip ne
 		\midrule
 		Spam           & POW \\
 		DDoS           & POW \\
-		Silent         & Multibroadcast > 1 \\
-		Chatterbox     & POW \\
+		Silent         & Network payment after job is done \\
+		Chatterbox     & Timestamp\_tolerance on POW\\
 		Sybil          & POW \\
 		Eclipse        & Multibroadcast >1 \\
-		Censorship     & - \\
-		Convert Flash  & - \\
+		Censorship     & POW and the Free Market \\
+		Convert Flash  & Free Market \\
 		\bottomrule
 	\end{tabular}
 	\label{tab:attacks}
@@ -448,29 +451,24 @@ Here we are discussing common attacks that can be performed on the Gig-gossip ne
 
 
 \subsubsection{The Silent Attack}
-The adversary tries to distort the distribution of the gossipy nodes to cause propagation failure by failing to respond to the gossip protocol \cite{AdHocNet}. The same behaviour can be just a result of node failure that can happen naturally, especially with mobile devices.
-
-Multibroadcast > 1
-
+The adversary tries to distort the distribution of the gossipy nodes to cause propagation failure by failing to respond to the gossip protocol \cite{AdHocNet}. The same behaviour can be just a result of node failure that can happen naturally, especially with mobile devices described in section \ref{mobdev} 
 
 \subsubsection{Chaterbox Attack}
-A malicious node retransmits repeatedly the same message \cite{AdHocNet}.
+A malicious node retransmits repeatedly the same message \cite{AdHocNet}. This is solved in Gig-gossip by timestamp\_tolerance included in POWBroadcastFrame that makes the frame POW impossible to use after the timestamp\_tolerance is reached.
 
 \subsubsection{Sybil Attack}
-This is the most common form of attack in P2P networks, since creating large numbers of identities is
-generally, cheap resource-wise, unless cryptographic puzzles are included as part of joining the system \cite{GossipSub}.
+This is the most common form of attack in P2P networks, since creating large numbers of identities is generally, cheap resource-wise, unless cryptographic puzzles are included as part of joining the system \cite{GossipSub}. This is solved in Git-gossip with POW.
 
 \subsubsection{Eclipse Attack}
 This attack can be carried out against a single victim or the whole network. The objective is to
 silence the victim by refusing to propagate messages from it or to distort its view by delaying message propagation towards it \cite{GossipSub}.
-Here the attack can be performed against a specific Certification Authority
+Here the attack can be performed against a specific payment settler but the multibroadcast>1 makes it impossible.
 
 \subsubsection{Censorship Attack}
-Sybils seek to establish themselves in the mesh and propagate all messages except those published by the target peer. In contrast to the Eclipse Attack, in the Censorship Attack Sybils appear to behave properly
-from all vantage points, but hairpin-drop the victim's messages. The objective of the attacker is to censor the target and prevent its messages from reaching the rest of the network \cite{GossipSub}.
+Sybils seek to establish themselves in the mesh and propagate all messages except those published by the target peer. In contrast to the Eclipse Attack, in the Censorship Attack Sybils appear to behave properly from all vantage points, but hairpin-drop the victim's messages. The objective of the attacker is to censor the target and prevent its messages from reaching the rest of the network \cite{GossipSub}. This is solved by the combination of POW and allowing payment settlers work on the free makret.
 
 \subsubsection{Covert Flash Attack}
-In the Covert Flash Attack, Sybils connect to the network but behave properly for some time in order to build up the score. Then, they execute a coordinated attack whereby they stop propagating messages altogether in an attempt to completely disrupt the network. The attack is difficult to identify before the attackers turn malicious as they behave properly up to that point and build a good profile \cite{GossipSub}.
+In the Covert Flash Attack, Sybils connect to the network but behave properly for some time in order to build up the score. Then, they execute a coordinated attack whereby they stop propagating messages altogether in an attempt to completely disrupt the network. The attack is difficult to identify before the attackers turn malicious as they behave properly up to that point and build a good profile \cite{GossipSub}. This attack is resolved on the free market, gig gossip will implicitly punish with time the bad behaviour as less economical than proper one. 
 
 \section{Reference implementation}
 The reference implementation of the Gig-gossip protocol is open-sourced and can be found at \url{https://gig-gossip.org}. The reference implementation is a discrete-time simulation of the protocol running on multiple simulated nodes.
