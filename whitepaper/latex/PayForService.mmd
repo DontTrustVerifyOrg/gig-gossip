@@ -20,19 +20,30 @@ sequenceDiagram
     participant Settler
     participant Replier
     participant Sender
-    Replier->>Settler: Ask for reply payment
+    Replier->>Settler: Ask for reply-payment hash
     activate Settler
       Settler->>Settler: Generates reply payment preimage
       Settler-->>Replier: reply-payment hash
     deactivate Settler
     activate Replier
-      Replier->>Sender: invoice(reply-payment hash,amount=fee) 
+      Replier->>Sender: invoice(reply-payment hash,fee,dispute timeout) 
     deactivate Replier
     activate Sender
       Sender->>Replier: pay(amount=fee)
     deactivate Sender
     activate Replier
-      Settler->>Replier: payment settement
+      Replier->>Settler: asks for settlement 
     deactivate Replier
+    activate Settler
+      par
+        Settler-->>Sender: any claims? 
+        Settler-->>Replier: 
+      end
+      alt everything is fine
+          Settler->>Replier: payment settement
+      else problem with the service
+          Replier->>Sender: automatic refund (after dispute timeout)
+      end
+    deactivate Settler
 
 

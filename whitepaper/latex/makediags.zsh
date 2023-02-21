@@ -10,3 +10,4 @@ mmdc -i POWBroadcastFrame.mmd -o POWBroadcastFrame.pdf -f -b transparent
 mmdc -i ReplyAndPay.mmd -o ReplyAndPay.pdf -f -b transparent
 mmdc -i ReplyFrame.mmd -o ReplyFrame.pdf -f -b transparent
 mmdc -i Topic.mmd -o Topic.pdf -f -b transparent
+mmdc -i PayForService.mmd -o PayForService.pdf -f -b transparent
