@@ -423,7 +423,7 @@ Creating the mesh of mobile devices requires the ability to establish connectivi
 
 A broken connection between the customer and network or gig worker and network can lead to problems if the routing is based on IP addresses. Next time the mobile network provider connects the device that temporarily lost access, it can assign a different IP address, making the ongoing routing impossible.
 
-Above situation can lead to lose of funds if the network payment was made by the Sender (step 9 on Figure \ref{fig:replyandpay}) and the Settler has settled the network payment but the Replier has lost connection and is not able to perform the service. To solve this situation the only fair solution is to make sure the settler will settle the network payment at the time the service was delivered and the reply payment was settled.
+The above situation can lead to loss of funds if the network payment was made by the Sender (step 9 on Figure \ref{fig:replyandpay}) and the Settler has settled the network payment but the Replier has lost connection and is not able to perform the service. To solve this situation the only fair solution is to make sure the settler will settle the network payment at the time the service was delivered and the reply payment was settled.
 
 \subsection{Attacks}
 Here we are discussing common attacks on the Gig-gossip network.
@@ -437,7 +437,7 @@ Here we are discussing common attacks on the Gig-gossip network.
 		\midrule
 		Spam           & POW \\
 		DDoS           & POW \\
-		Silent         & Network payment after job is done \\
+		Silent         & Network payment after the job is done \\
 		Chatterbox     & Timestamp\_tolerance on POW\\
 		Sybil          & POW \\
 		Eclipse        & Multibroadcast >1 \\
@@ -465,7 +465,7 @@ silence the victim by refusing to propagate messages from it or to distort its v
 Here the attack can be performed against a specific payment settler but the multibroadcast>1 makes it impossible.
 
 \subsubsection{Censorship Attack}
-Sybils seek to establish themselves in the mesh and propagate all messages except those published by the target peer. In contrast to the Eclipse Attack, in the Censorship Attack Sybils appear to behave properly from all vantage points, but hairpin-drop the victim's messages. The objective of the attacker is to censor the target and prevent its messages from reaching the rest of the network \cite{GossipSub}. This is solved by the combination of POW and allowing payment settlers work on the free makret.
+Sybils seek to establish themselves in the mesh and propagate all messages except those published by the target peer. In contrast to the Eclipse Attack, in the Censorship Attack Sybils appear to behave properly from all vantage points, but hairpin-drop the victim's messages. The objective of the attacker is to censor the target and prevent its messages from reaching the rest of the network \cite{GossipSub}. This is solved by the combination of POW and allowing payment settlers to work on the free market.
 
 \subsubsection{Covert Flash Attack}
 In the Covert Flash Attack, Sybils connect to the network but behave properly for some time in order to build up the score. Then, they execute a coordinated attack whereby they stop propagating messages altogether in an attempt to completely disrupt the network. The attack is difficult to identify before the attackers turn malicious as they behave properly up to that point and build a good profile \cite{GossipSub}. This attack is resolved on the free market, gig gossip will implicitly punish with time the bad behaviour as less economical than proper one. 
