@@ -1,4 +1,107 @@
-# Gig-gossip - P2P protocol for distributed Gig economy
+# Gig-Gossip Protocol: Decentralized P2P Gig Economy
+
+Visit our website: [gig-gossip.org](https://gig-gossip.org)
+
+Get in touch: [hello@gig-gossip.org](mailto:hello@gig-gossip.org)
+
+Overview
+--------
+
+Gig-Gossip is a decentralized, peer-to-peer protocol for gig economy applications, such as ride-sharing and freelance work. The protocol enables direct communication, negotiation, and secure payments using Bitcoin and the Lightning Network, all without central intermediaries.
+
+Key Features
+------------
+
+*   Decentralized global P2P network
+*   Direct communication and price negotiation
+*   Secure payments using Bitcoin and Lightning Network
+*   Protection against common attacks
+*   Mobile device connectivity support
+
+How it Works
+------------
+
+With Gig-Gossip, customers and service providers connect directly through a P2P network, negotiate prices on a free market, and make secure payments using Bitcoin and the Lightning Network. This eliminates the need for centralized platforms and intermediaries, creating a more efficient and cost-effective marketplace.
+
+Gig-Gossip Protocol: Decentralized P2P Gig Economy
+==================================================
+
+Gig-Gossip is a decentralized, peer-to-peer protocol for gig economy applications, such as ride-sharing and freelance work. The protocol enables direct communication, negotiation, and secure payments using Bitcoin and the Lightning Network, all without central intermediaries.
+
+This repository contains the reference implementation of the Gig-Gossip protocol, as well as resources and documentation for developers.
+
+Features
+--------
+
+*   Decentralized global P2P network
+*   Direct communication and price negotiation
+*   Secure payments using Bitcoin and the Lightning Network
+*   Protection against common attacks
+*   Mobile device connectivity support
+
+Getting Started
+---------------
+
+### Prerequisites
+
+*   [Python](https://python.org/) (version 3.5 or later)
+
+### Installation
+
+1.  Clone the repository:
+
+`git clone https://github.com/gig-gossip/gig-gossip.git`
+
+2.  Change to the project directory:
+
+`cd gig-gossip/simulation`
+
+### Running the Simulation
+
+To run the discrete-time simulation of the Gig-Gossip protocol, execute the following command:
+
+`python run basic_sim.py`
+
+or
+
+`python run mid_sim.py`
+
+or
+
+`python run complex_sim.py`
+
+Documentation
+-------------
+
+For a detailed explanation of the Gig-Gossip protocol, please refer to the [whitepaper](https://github.com/gig-gossip/gig-gossip/blob/main/whitepaper.pdf).
+
+Contributing
+------------
+
+We welcome contributions to the Gig-Gossip project! To get involved, please follow these steps:
+
+1.  Fork the repository.
+2.  Create a new branch for your feature or bugfix.
+3.  Make your changes and commit them to your branch.
+4.  Create a pull request, clearly describing your changes.
+
+License
+-------
+
+This project is licensed under the [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+
+Support
+-------
+
+If you have any questions, suggestions, or need help, please feel free to reach out to us at [hello@gig-gossip.org](mailto:hello@gig-gossip.org).
+
+-------------
+
+-------------
+
+-------------
+
+# Whitepaper
 
 * Webpage: __[Gig-gossip.org](https://www.Gig-gossip.org)__
 * Author: __[Sonof Satoshi](mailto:sonof.satoshi@donttrustverify.org)__ we are the children of Nakamoto
