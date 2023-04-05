@@ -1072,7 +1072,7 @@ sequenceDiagram
       end
     deactivate Settler
 ```
-*Payment/Settlement Sequence
+*Payment/Settlement Sequence*
 
 The last field in ReplyFrame is the network_invoice. Replier receives
 the first network_invoice from the settler, puts network fee on top of
@@ -1164,9 +1164,7 @@ Here we are discussing common attacks on the Gig-gossip network.
 The adversary tries to distort the distribution of the gossipy nodes to
 cause propagation failure by failing to respond to the gossip protocol.
 The same behaviour can be just a result of node failure that can happen
-naturally, especially with mobile devices described in section
-<a href="#mobdev" data-reference-type="ref"
-data-reference="mobdev">4.2</a>
+naturally, especially with mobile devices.
 
 ### Chaterbox Attack
 
@@ -1220,5 +1218,55 @@ multiple simulated nodes.
 
 # Public Key
 
-This is the Public Key (GPG) of Sonof Satoshi. <span id="gpgkey"
-label="gpgkey"></span>
+This is the Public Key (GPG) of Sonof Satoshi. 
+```
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mI0EY8pcpgEEAN+bUaEdg+ylWkdNc6U9LNkWb4ii0Neay4kUyU2NntHMlFAZPNSC
+wxJ8PlbrQnOGeeGNyfZtjZKTSn0Jor5YT4pHNlubGFj3/BrihJCBRSJ878qO2ct9
+4RJXiNADVg1w3jRKRrk1CimmmL7VVK7oFZHd0311+8r/qIT4WNOITydNABEBAAG0
+MVNvbm9mIFNhdG9zaGkgPHNvbm9mLnNhdG9zaGlAZG9udHRydXN0dmVyaWZ5Lm9y
+Zz6I0QQTAQgAOxYhBIaALVutWo8Bqg5fDYtkf+QR5XMgBQJjylymAhsDBQsJCAcC
+AiICBhUKCQgLAgQWAgMBAh4HAheAAAoJEItkf+QR5XMg2PYEAMcEB370PgxAaV+e
+Kt458OPymI/rZOWO6Cm9E6BqMdNqNx7d4udxbQYutkUr1xhLmLH1JTxJwFhe3oMv
+/3MUjm/VjIYrdnXAhHqvZA3502AyiWEQ66OQ9whj57PY04YYcBZP/NDe4QuoUX9r
+b3XzYIeJcqHUNg0zjjQJQ7bU7gcwuI0EY8pcpgEEAK/nkFTpiOiGtUI1RqWD46HA
+nH7wTVXy2BVwHefRiDHz2hGgQiHXF6EU8mk9F2SVBjOTBNHGAwvXssT97Y8jiq6i
+vJosx7VtolxBEDRL1PFMOH4whwu1rjDg8QR3KPkB3kMcXvD9ZHIB6FspVvhx2/Jk
+V+PKLQ0ThhQITxFIKz4nABEBAAGItgQYAQgAIBYhBIaALVutWo8Bqg5fDYtkf+QR
+5XMgBQJjylymAhsMAAoJEItkf+QR5XMgRngD/0GbcDFoL8hqppvuBuXBLHJVMLGh
+fF/3fZyd1ZkjE+Il/LX5G/WSsLcAm/dmAVd8L1zat3PvdL57RHY06BEE4kdDEo8m
+DlZ8SycI1yGaSS8DdGCMaAFLzOxrJgER3NnXxg7BxCfREcUTawq1CEO1QYx/71ib
+GoTF/wPiCY/JQ1Ed
+=Ei5q
+-----END PGP PUBLIC KEY BLOCK-----
+```
+
+# References
+
+[1] A. Back. Hashcash - a denial of service counter-measure. 09 2002.
+
+[2] N. Bitansky, R. Canetti, A. Chiesa, and E. Tromer. From extractable collision resistance to succinct non-
+interactive arguments of knowledge, and back again. Cryptology ePrint Archive, Paper 2011/443, 2011. https:
+//eprint.iacr.org/2011/443.
+
+[3] M. Burmester, T. V. Le, and A. Yasinsac. Adaptive gossip protocols: Managing security and redundancy in dense
+ad hoc networks. Ad Hoc Networks, 5(3):313–323, 2007.
+
+[4] D. Cooper, S. Santesson, S. Farrell, S. Boeyen, R. Housley, and W. Polk. Internet X.509 Public Key Infrastructure
+Certificate and Certificate Revocation List (CRL) Profile. RFC 5280 (Proposed Standard), May 2008.
+
+[5] B. Ford, P. Srisuresh, and D. Kegel. Peer-to-peer communication across network address translators. CoRR,
+abs/cs/0603074, 2006.
+
+[6] A. B. Johnston and D. C. Burnett. WebRTC: APIs and RTCWEB Protocols of the HTML5 Real-Time Web. Digital
+Codex LLC, St. Louis, MO, USA, 2012.
+
+[7] S. Nakamoto. Bitcoin: A peer-to-peer electronic cash system. May 2009.
+
+[8] J. Poon and T. Dryja. The bitcoin lightning network: Scalable off-chain instant payments, 2016.
+
+[9] S. Verma and W. Ooi. Controlling gossip protocol infection pattern using adaptive fanout, 2005.
+
+[10] D. Vyzovitis, Y. Napora, D. McCormick, D. Dias, and Y. Psaras. Gossipsub: Attack-resilient message propagation
+in the filecoin and ETH2.0 networks. CoRR, abs/2007.02754, 2020
