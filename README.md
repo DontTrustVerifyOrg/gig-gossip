@@ -47,7 +47,7 @@ Getting Started
 
 1.  Clone the repository:
 
-`git clone https://github.com/gig-gossip/gig-gossip.git`
+`git clone https://github.com/DontTrustVerifyOrg/gig-gossip.git`
 
 2.  Change to the project directory:
 
@@ -70,7 +70,7 @@ or
 Documentation
 -------------
 
-For a detailed explanation of the Gig-Gossip protocol, please refer to the [whitepaper](https://github.com/gig-gossip/gig-gossip/blob/main/whitepaper.pdf).
+For a detailed explanation of the Gig-Gossip protocol, please refer to the [whitepaper](https://github.com/DontTrustVerifyOrg/gig-gossip/blob/main/whitepaper/gig_gossip.pdf).
 
 Contributing
 ------------
