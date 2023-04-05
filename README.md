@@ -1,3 +1,12 @@
+# Gig-gossip - P2P protocol for distributed Gig economy
+
+* Webpage: __[Gig-gossip.org](https://www.Gig-gossip.org)__
+* Author: __[Sonof Satoshi](mailto:sonof.satoshi@donttrustverify.org)__ we are the children of Nakamoto
+
+# Abstract
+
+Gig-gossip protocol is a P2P, mobile-first protocol, that enables the decentralisation of the gig economy. It is built on top of Bitcoin financial infrastructure and can make use of Lightning Network for micropayments. It is spam and DDoS protected with its countermeasure on POW (proof of work). Network nodes are financially gratified for enabling prompt communication between parties. Gig dispute resolution is done by payment settlers - organizations that control final payment settlements. Payment settlers are beneficiaries of the integrity of the process and are naturally interested in providing complementary services (like gig worker screening, KYC and making dispute resolution online) that, on the other hand, are beneficial for the quality of service of the proposed decentralised gig economy.
+
 # Motivation
 
 The gig economy refers to the work done by casual workers coordinated by
@@ -32,9 +41,11 @@ the platform operator:
 
 We are proposing a P2P protocol designed for the gig economy that, by
 eliminating the need for central online platforms, will create a new
-decentralized, P2P gig economy (Figure
-<a href="#fig:decent" data-reference-type="ref"
-data-reference="fig:decent">[fig:decent]</a>). Gig workers will be
+decentralized, P2P gig economy.
+
+![Centralised vs. Decentralised System](whitepaper/centdecent.png)
+
+Gig workers will be
 engaged directly by the end customer and can accomplish their tasks and
 earn money on a free market without the need for the existence of a
 central organization. Quality of service delivery and conflict
@@ -49,18 +60,6 @@ fulfil the job according to the protocol-driven off-chain smart contract
 that uses P2P money i.e. Bitcoin directly (using on-chain Hashed
 Time-Lock Contract - HTLC ) or by using Lightning Network (using HODL
 Invoices) forming layer 3 protocol from the Bitcoin perspective.
-
-<figure>
-<embed src="centralised.pdf" />
-<figcaption>Centralised system</figcaption>
-</figure>
-
- 
-
-<figure>
-<embed src="decentralised.pdf" />
-<figcaption>Decentralised system</figcaption>
-</figure>
 
 # Gig-gossip P2P Network
 
@@ -107,19 +106,14 @@ Gig-gossip Protocol is a gossip protocol , that allows the broadcast of
 messages in a similar way to gossip spreads. Assuming that each
 Gig-gossip node is connected to its peers and that the network graph is
 connected, each node works independently and in the event of receiving a
-message that needs to be broadcasted it forwards it to its peers
-(Figure <a href="#fig:network" data-reference-type="ref"
-data-reference="fig:network">1</a>).
+message that needs to be broadcasted it forwards it to its peers.
+
+![The intuition behind gossip protocol](whitepaper/network.png)
 
 Gig-gossip is a protocol, meaning that it only specifies a minimal set
 of rules. It doesn’t say explicitly how the network node should be
 implemented. The node implementation is free to do whatever is best and
 beneficial for the node owner.
-
-<figure id="fig:network">
-<embed src="network.pdf" />
-<figcaption>The intuition behind gossip protocol</figcaption>
-</figure>
 
 ## Payment settler as the compliance consistency enforcer
 
@@ -247,27 +241,45 @@ The topic is a data structure that defines the basic requirements for
 the job. It is application specific and by design, it should not reveal
 any information about senders allowing for their identification.
 
-Let’s use a taxi app as an example
-Figure <a href="#fig:fr:topic" data-reference-type="ref"
-data-reference="fig:fr:topic">2</a>. The topic of this taxi app has a
+Let’s use a taxi app as an example. The topic of this taxi app has a
 form of two geo-hashes and time intervals describing from where and when
 the ride can be executed. Geo-hash here is a way of encoding a specific
 geographical place (a geographical cell that has a form of rectangle) in
 a form of a string where the length of the geo-hash determines its
 precision.
 
-<figure id="fig:fr:topic">
-<embed src="Topic.pdf" />
-<figcaption>The topic frame</figcaption>
-</figure>
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+classDiagram
+    AbstractTopic <|-- TaxiTopic
+    class AbstractTopic{        
+    }
+    class TaxiTopic{
+        +String pickup_geohash
+        +String dropoff_geohash
+        +DateTime pickup_after
+        +DateTime dropoff_before
+    }
+``` 
+*The topic frame*
 
 For example, Legal Services Council in Sydney is located at the
 following coordinates latitude= -33.8647 and longitude=151.2096 and the
 corresponding geo-hash of precision 7 is equal to ‘r3gx2g5‘.
 
-The precision of geo-hash determines the size of the cell
-(Table <a href="#tab:geoprec" data-reference-type="ref"
-data-reference="tab:geoprec">1</a>) and to be useful for the taxi app it
+The precision of geo-hash determines the size of the cell and to be useful for the taxi app it
 needs to be at least 7 so the cell has a size lower than 200m (see table
 below)
 
@@ -308,29 +320,76 @@ signing it with its private key so anyone can verify that the specific
 certificate was truly issued by the issuing organization. If the
 certificate is revoked the information about it is published by the
 issuing organization in form of a revocation list. Public key
-certificates usually contain also a public key of the certified person
-(Figure <a href="#fig:fr:certificate" data-reference-type="ref"
-data-reference="fig:fr:certificate">3</a>), so it is possible to use it
-to encrypt a message that is targetted for this person and verify their
+certificates usually contain also a public key of the certified person, so it is possible to use it
+to encrypt a message that is targeted for this person and verify their
 signatures.
 
-<figure id="fig:fr:certificate">
-<embed src="Certificate.pdf" />
-<figcaption>The digital certificate</figcaption>
-</figure>
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'tertiaryColor': '#000'
+      }
+  }
+}%%
+classDiagram
+    class Certificate{
+        +Bytes public_key
+        +String certificate_name
+        +Object certificate_value
+        +DateTime not_valid_after
+        +DateTime not_valid_before
+        +String cert_auth_name
+        +Bytes cert_auth_signature
+    }
+```
+*The digital certificate*
 
 ## Asking For Broadcast
 
 The first step of Gig-gossip protocol is to send the
-AskForBroadcastFrame (Figure
-<a href="#fig:fr:askforbroadcast" data-reference-type="ref"
-data-reference="fig:fr:askforbroadcast">4</a>) to the potential
+AskForBroadcastFrame to the potential
 broadcaster.
 
-<figure id="fig:fr:askforbroadcast">
-<embed src="AskForBroadcast.pdf" />
-<figcaption>The AskForBroadcastFrame</figcaption>
-</figure>
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+classDiagram
+    class SignableObject{
+        Bytes signature
+        +sign(Bytes private_key)
+        +verify(Bytes public_key):Boolean
+    }
+    class RequestPayload{
+        +UUID payload_id
+        +AbstractTopic topic
+        +Certificate sender_certificate
+    }
+    class AskForBroadcastFrame{
+        +UUID ask_id
+        +RequestPayload signed_request_payload
+    }
+    AskForBroadcastFrame  o--  RequestPayload : signed_request_payload
+    SignableObject <|-- RequestPayload
+```
+*The AskForBroadcastFrame*
 
 AskForBroadcastFrame contains ask_identifier and digitally signed
 RequestPayload. Signed RequestPayload is made of unique payload_id,
@@ -345,9 +404,7 @@ issued after KYC, by the organization responsible for dispute
 resolutions.
 
 Ask_identifier identifies the frame during the originator-middleman
-ping-pong communication (Figure
-<a href="#fig:fr:pingpong" data-reference-type="ref"
-data-reference="fig:fr:pingpong">5</a>). In the gossip protocol, the
+ping-pong communication. In the gossip protocol, the
 same broadcasting message may hit the same gossip node many times, so
 payload_id is to remain a unique identifier that allows one to determine
 this situation and react accordingly to the node policy. Some nodes
@@ -358,10 +415,34 @@ uniqueness of payload_id, risking that if it is not unique it will be
 lost during the broadcast as other nodes can decide that it was already
 broadcasted if the payload_id was already seen before.
 
-<figure id="fig:fr:pingpong">
-<embed src="PingPong.pdf" />
-<figcaption>Ping Pong communication sequence</figcaption>
-</figure>
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'activationBorderColor':'#000',
+      'activationBkgColor':'#F00',
+      'primaryColor': '#FFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#FFF',
+      'labelBoxBorderColor':'#F00',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+sequenceDiagram
+    autonumber
+    Originator->>Middleman: AskForBroadcastFrame
+    activate Middleman
+    Middleman-->>Originator: POWBroadcastConditionsFrame
+    deactivate Middleman
+    activate Originator
+    Originator->>Middleman: POWBroadcastFrame
+    deactivate Originator
+```
+*Ping Pong communication sequence*
 
 ## Proof Of Work (POW)
 
@@ -394,15 +475,34 @@ onion and is using the public key of the next peer to encrypt the grown
 onion, therefore only the next peer can decrypt that layer of the onion.
 Once encrypted the onion is passed to the next peer.
 
-<figure>
-<embed src="OnionRoute.pdf" />
-</figure>
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+classDiagram
+    class OnionLayer{       
+        +String peer_name 
+    }
+    class OnionRoute{
+        +peel(Bytes private_key):OnionLayer
+        +grow(OnionLayer layer,Bytes public_key)
+        +is_empty():Boolean
+    }
+    OnionRoute  o--  OnionLayer : onion
+```
+*OnionRoute and OnionLayer*
 
- 
-
-<figure>
-<embed src="onion.pdf" />
-</figure>
+![Onion Routing](whitepaper/onion.png) 
 
 This way of constructing the onion allows peeling the onion back to the
 sender through the network in a way that none of the nodes knows the
@@ -411,26 +511,46 @@ sender nor the distant peers.
 ## Broadcast with POW
 
 If the middleman accepts the topic specified in the
-AskForBroadcastFrame, it sends back the POWBroadcastConditionsFrame
-(Figure <a href="#fig:fr:pingpong" data-reference-type="ref"
-data-reference="fig:fr:pingpong">5</a>). This frame describes the
+AskForBroadcastFrame, it sends back the POWBroadcastConditionsFrame. This frame describes the
 properties of POW expected to be computed by the originator and payment
 instructions expected by the peer for delivering the reply.
 
 Starting with ask_id, which matches with AskForBroadcastFrame, and
 valid_till timeout meaning that the middleman will wait only till the
-specific time for the POWBroadcastConditionFrame (Figure
-<a href="#fig:fr:powbroadcastcondition" data-reference-type="ref"
-data-reference="fig:fr:powbroadcastcondition">6</a>) from the
+specific time for the POWBroadcastConditionFrame from the
 originator, it contains also WorkRequest that describes properties of
 POW and, to prevent reusing POW the timestamp_tolerance is sent.
 Timestamp_tolerance is the maximal time distance from the timeout that
 is accepted by the broadcaster.
 
-<figure id="fig:fr:powbroadcastcondition">
-<embed src="POWBroadcastCondition.pdf" />
-<figcaption>POWBroadcastConditionsFrame</figcaption>
-</figure>
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+classDiagram
+    class WorkRequest{
+        +String pow_scheme
+        +int pow_target
+    }
+    class POWBroadcastConditionsFrame{
+        +UUID ask_id
+        +DateTime valid_till
+        +WorkRequest work_request
+        +TimeDelta timestamp_tolerance
+    }
+    POWBroadcastConditionsFrame  o--  WorkRequest : work_request
+```
+*POWBroadcastConditionsFrame*
 
 The originator is replying to it with POWBroadcastFrame which is also
 marked with the corresponding ask_id. The main part is a
@@ -450,10 +570,40 @@ other words, the following must hold:
 
 timestamp≤ **now**≤ timestamp+timestamp_tolerance
 
-<figure id="fig:fr:powbroadcastframe">
-<embed src="POWBroadcastFrame.pdf" />
-<figcaption>POWBroadcastFrame</figcaption>
-</figure>
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+classDiagram
+    class BroadcastPayload{
+        +RequestPayload signed_request_payload
+        +OnionRoute backward_onion
+        +DateTime timestamp
+    }
+    class ProofOfWork{
+        +String pow_scheme
+        +int pow_target
+        +int nuance
+    }
+    class POWBroadcastFrame{
+        +UUID ask_id
+        +BroadcastPayload broadcast_payload
+        +ProofOfWork proof_of_work
+    }
+    POWBroadcastFrame  o--  ProofOfWork : proof_of_work
+    POWBroadcastFrame  o--  BroadcastPayload : broadcast_payload
+```
+*POWBroadcastFrame*
 
 Each step of the broadcast involves passing a specific BroadcastPayload
 that consists of RequestPayload that is never changed and protected by
@@ -480,17 +630,43 @@ crossing same nodes multiple times. This can result in very complex
 routes that will be naturally very expensive and therefore they will be
 rejected by the sender.
 
-<figure id="fig:fr:broadcastsequence">
-<embed src="BroadcastSequence.pdf" />
-<figcaption>Broadcast Sequence</figcaption>
-</figure>
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'activationBorderColor':'#000',
+      'activationBkgColor':'#F00',
+      'primaryColor': '#FFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#FFF',
+      'labelBoxBorderColor':'#F00',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+sequenceDiagram
+    autonumber
+    activate Middleman
+      par Gossiping
+          Middleman->>Its Peer #1: Asking for broadcast & Broadcast with POW
+      and
+          Middleman->>Its Peer #2: Asking for broadcast & Broadcast with POW
+      and
+          Middleman->>Its Peer #3: Asking for broadcast & Broadcast with POW
+      and
+          Middleman->>...:Asking for broadcast & Broadcast with POW
+      end
+    deactivate Middleman
+```
+*Broadcast Sequence*
 
 ## HODL invoices, payments, preimages and payment-hashes
 
 HODL invoice payment process with the cryptographic concept of preimage
-for payment hash works in the following way (Figure
-<a href="#fig:lndsequence" data-reference-type="ref"
-data-reference="fig:lndsequence">9</a>):
+for payment hash works in the following way:
 
 1.  Invoice is issued by the issuer and it contains a specific payment
     hash. Payment hash is a hash of preimage that itself is a number
@@ -510,10 +686,42 @@ data-reference="fig:lndsequence">9</a>):
 4.  If the preimage is not revealed within the specific time frame, the
     payment is Cancelled and the payer can use funds somewhere else.
 
-<figure id="fig:lndsequence">
-<embed src="LNDSequence.pdf" />
-<figcaption>HODL Invoice Sequence</figcaption>
-</figure>
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'activationBorderColor':'#000',
+      'activationBkgColor':'#F00',
+      'primaryColor': '#FFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#FFF',
+      'labelBoxBorderColor':'#F00',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+sequenceDiagram
+    autonumber
+    activate Settler
+    Settler->>Settler: Generates preimage
+    Settler->>Settler: Computes payment hash for the preimage  
+    Settler->>Issuer: Sends the payment hash
+    deactivate Settler
+    activate Issuer
+    Issuer->>Issuer: Creates a HODL invoice with the payment hash and timeout
+    Issuer->>Payer: Sends the HODL invoice
+    deactivate Issuer
+    Payer->>Issuer: Pay (accepts the HODL invoice)
+    alt settler confirms
+      Settler->>Payer: Reveals the preimage (settles the HODL invoice)
+    else timeout
+      Issuer->>Payer: Gets payment back
+    end
+```
+*HODL Invoice Sequence*
 
 HODL invoices are implemented with Hashed Time-Lock Contracts (HTLCs),
 which are a type of smart contract used in blockchain technology to
@@ -551,9 +759,7 @@ needs to pay the invoice and the key (preimage) needs to be revealed by
 the settler (that will settle the payment).
 
 We can create a chain of issuers that are becoming middlemen between the
-payer and settler (Figure
-<a href="#fig:cryptopaychain" data-reference-type="ref"
-data-reference="fig:cryptopaychain">10</a>). The settler generates the
+payer and settler. The settler generates the
 preimage (cryptographic key) and uses it to encrypt the specific message
 that is revealed to the public. The settler issue the invoice containing
 the payment hash for the generated preimage. Issuers in the chain, one
@@ -570,16 +776,72 @@ their peers. Once the last invoice is paid to the settler, the settler
 reveals the preimage and all the invoices are settled at the same time.
 Also as the preimage = key, the message can be decoded.
 
-<figure id="fig:cryptopaychain">
-<embed src="PaymentChain.pdf" />
-<figcaption>Cryptographic Payment Chain Sequence</figcaption>
-</figure>
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'activationBorderColor':'#000',
+      'activationBkgColor':'#F00',
+      'primaryColor': '#FFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#FFF',
+      'labelBoxBorderColor':'#F00',
+      'tertiaryColor': '#000',
+      'fontFamily':'Times New Roman'
+    }
+  }
+}%%
+sequenceDiagram
+    autonumber
+    participant Settler
+    participant Issuer 1
+    participant Issuer 2 ... Issuer N
+    participant Payer
+    activate Settler
+      Settler->>Settler: Generates preimage=key
+      Settler->>Settler: Encrypts the message with the key 
+      Settler->>Payer:encrypted message
+      Settler->>Settler: Computes payment hash for the preimage  
+      Settler->>Issuer 1: invoice(hash,amount=a1) 
+    deactivate Settler
+    activate Issuer 1
+      Issuer 1->>Issuer 2 ... Issuer N: invoice(hash,amount=a1+a2) 
+    deactivate Issuer 1
+    activate Issuer 2 ... Issuer N
+      Issuer 2 ... Issuer N->>Payer: invoice(hash,amount=a1+...+aN) 
+    deactivate Issuer 2 ... Issuer N
+    activate Payer
+      Payer->>Issuer 2 ... Issuer N:pay(hash,amount=a1+...+aN)
+    deactivate Payer
+    activate Issuer 2 ... Issuer N
+      Issuer 2 ... Issuer N->>Issuer 1:pay(hash,amount=a1+a2)
+    deactivate Issuer 2 ... Issuer N
+    activate Issuer 1
+      Issuer 1->>Settler:pay(hash,amount=a1)
+    deactivate Issuer 1
+    activate Settler
+      par
+        Settler->>Issuer 1:preimage
+      and
+        Settler->>Issuer 2 ... Issuer N:preimage
+      and
+        Settler->>Payer:preimage=key
+        activate Payer
+          Payer->>Payer:decrypt message with the key
+        deactivate Payer
+      end
+    deactivate Settler
+```
+*Cryptographic Payment Chain Sequence*
 
 There are two issues with this scheme that make the payment settler an
 entity that manages the trust in the cryptographic payment chain:
 
 1.  The preimage = key corresponds to the encrypted message, but it is
-    not possible [2] to see that just looking at the payment hash and
+    not possible (*this can be solved in the future by zk-snark*) to see that just by looking at the payment hash and
     the encrypted message, therefore all the issuers and the payer need
     to trust the settler that he has encrypted the message with the
     specific preimage, that corresponds to the payment-hash on all the
@@ -602,11 +864,7 @@ message should contain all the details allowing for further P2P
 communication between the sender and the replier (e.g. replier’s IP
 address).
 
-The replying sequence is illustrated in Figure
-<a href="#fig:replyandpay" data-reference-type="ref"
-data-reference="fig:replyandpay">12</a> and
-<a href="#fig:payforservice" data-reference-type="ref"
-data-reference="fig:payforservice">13</a>.
+The replying sequence is illustrated below.
 
 The replier starts with constructing a ReplyPayload. This payload
 contains replier_certificate, signed_request_payload and
@@ -623,12 +881,12 @@ verifying that the topic is the same as the one that was sent by the
 sender and that no one has modified it.
 
 The encrypted_reply_message is the message that is encrypted with the
-sender public_key that is a part of the sender’s certificate in the
+sender public_key which is a part of the sender’s certificate in the
 signed_request_payload, so only the sender can read it.
 
 The payment settler will generate the preimage and will use this
 preimage to encrypt the ReplyPayload and generate a network_payment_hash
-for the cryptographic payment chain. Payment settler returns the
+for the cryptographic payment chain. The payment settler returns the
 SettlementPromise to the replier, being itself a set of hashes and
 certificates allowing use by the Gig-gossip network node to verify the
 correctness of the ReplyFrame. One of them is the
@@ -638,9 +896,7 @@ and contains the settler_certificate, which allows verification of the
 specific settler.
 
 At the same time, the replier needs to ask the settler about the payment
-hash of the main reply_invoice (Figure
-<a href="#fig:payforservice" data-reference-type="ref"
-data-reference="fig:payforservice">13</a>). The reply_invoice is the
+hash of the main reply_invoice. The reply_invoice is the
 invoice that must be used by the sender to pay for the service.
 
 Another field of the ReplyFrame is the forward_onion that starts as a
@@ -648,20 +904,175 @@ copy of the backward_onion, and then each of the middlemen is peeling
 one layer of the onion, using its private key and sending it to the node
 that is found there in the peel.
 
-<figure id="fig:fr:replyframe">
-<embed src="ReplyFrame.pdf" />
-<figcaption>Reply Frame</figcaption>
-</figure>
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#FFFFFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#000',
+      'secondaryTextColor': '#000',
+      'secondaryBorderColor': '#000',
+      'tertiaryColor': '#000',
+      'tertiaryTextColor': '#000',
+      'tertiaryBorderColor': '#000'
+    }
+  }
+}%%
+classDiagram
+    class SignableObject{
+        Bytes signature
+        +sign(Bytes private_key)
+        +verify(Bytes public_key):Boolean
+    }
+    class HODLInvoice{
+        +int amount
+        +pay()
+        +Bytes payment_hash
+        +settle(Bytes preimage)
+    }
+    class SettlementPromise{
+        +Certificate settler_certificate
+        +Bytes network_payment_hash
+        +Bytes hash_of_encrypted_reply_payload
+        +int reply_payment_amount
+    }
+    class ReplyPayload{
+        +Certificate replier_certificate
+        +RequestPayload signed_request_payload
+        +Bytes encrypted_reply_message
+        +HODLInvoice reply_invoice
+    }
+    class ReplyFrame{
+        +Bytes encrypted_reply_payload
+        +SettlementPromise signed_settlement_promise
+        +OnionRoute forward_onion
+        +HODLInvoice network_invoice
+    }
+    SignableObject <|-- SettlementPromise
+    ReplyFrame  o--  ReplyPayload : encrypted_reply_payload
+    ReplyFrame  o--  SettlementPromise : signed_settlement_promise
+    ReplyPayload o-- HODLInvoice: reply_invoice
+    ReplyFrame o-- HODLInvoice: network_invoice
+```
 
-<figure id="fig:replyandpay">
-<embed src="ReplyAndPay.pdf" />
-<figcaption>Reply/Payment/Decryption Sequence</figcaption>
-</figure>
+*Reply Frame*
 
-<figure id="fig:payforservice">
-<embed src="PayForService.pdf" />
-<figcaption>Payment/Settlement Sequence</figcaption>
-</figure>
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'activationBorderColor':'#000',
+      'activationBkgColor':'#F00',
+      'primaryColor': '#FFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#FFF',
+      'labelBoxBorderColor':'#F00',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+sequenceDiagram
+    autonumber
+    participant Settler
+    participant Replier
+    participant Peer 1 ... Peer N
+    participant Sender
+    Replier->>Settler: Ask for artifacts 
+    activate Settler
+      Settler->>Settler: Generates preimage=key
+      Settler->>Settler: Encrypts the message with the key 
+      par
+        Settler-->>Replier: SettlementPromise
+      and
+        Settler-->>Replier: EncryptedReplyPayload
+      and
+        Settler-->>Replier: invoice(hash,amount=s)
+      end
+    deactivate Settler
+    Replier->>Peer 1 ... Peer N: invoice(hash,amount=s+r)
+    activate Peer 1 ... Peer N
+      Peer 1 ... Peer N->>Sender: invoice(hash,amount=s+r+p1+...+pN)
+    deactivate Peer 1 ... Peer N
+    activate Sender
+      Sender->>Peer 1 ... Peer N: pay(amount=s+r+p1+...+pN)
+    deactivate Sender
+    activate Peer 1 ... Peer N
+      Peer 1 ... Peer N->>Replier: pay(amount=s+r)
+    deactivate Peer 1 ... Peer N
+    activate Replier
+      Replier->>Settler: pay(amount=s)
+    deactivate Replier
+    activate Settler
+      par Settlement
+        Settler->>Replier: preimage
+      and
+        Settler->>Peer 1 ... Peer N: preimage
+      and
+        Settler->>Sender: preimage=key
+        activate Sender
+          Sender->>Sender:decrypt message with the key
+        deactivate Sender
+      end
+    deactivate Settler
+```
+*Reply/Payment/Decryption Sequence*
+
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'activationBorderColor':'#000',
+      'activationBkgColor':'#F00',
+      'primaryColor': '#FFF',
+      'primaryTextColor': '#000',
+      'primaryBorderColor': '#000',
+      'lineColor': '#000',
+      'secondaryColor': '#FFF',
+      'labelBoxBorderColor':'#F00',
+      'tertiaryColor': '#000'
+    }
+  }
+}%%
+sequenceDiagram
+    autonumber
+    participant Settler
+    participant Replier
+    participant Sender
+    Replier->>Settler: Ask for reply-payment hash
+    activate Settler
+      Settler->>Settler: Generates reply payment preimage
+      Settler-->>Replier: reply-payment hash
+    deactivate Settler
+    activate Replier
+      Replier->>Sender: invoice(reply-payment hash,fee,dispute timeout) 
+    deactivate Replier
+    activate Sender
+      Sender->>Replier: pay(amount=fee)
+    deactivate Sender
+    activate Replier
+      Replier->>Settler: asks for settlement 
+    deactivate Replier
+    activate Settler
+      par
+        Settler-->>Sender: any claims? 
+        Settler-->>Replier: 
+      end
+      alt everything is fine
+          Settler->>Replier: payment settement
+      else problem with the service
+          Replier->>Sender: automatic refund (after dispute timeout)
+      end
+    deactivate Settler
+```
+*Payment/Settlement Sequence
 
 The last field in ReplyFrame is the network_invoice. Replier receives
 the first network_invoice from the settler, puts network fee on top of
@@ -726,9 +1137,7 @@ temporarily lost access, it can assign a different IP address, making
 the ongoing routing impossible.
 
 The above situation can lead to loss of funds if the network payment was
-made by the Sender (step 9 on Figure
-<a href="#fig:replyandpay" data-reference-type="ref"
-data-reference="fig:replyandpay">12</a>) and the Settler has settled the
+made by the Sender and the Settler has settled the
 network payment but the Replier has lost connection and is not able to
 perform the service. To solve this situation the only fair solution is
 to make sure the settler will settle the network payment at the time the
@@ -749,14 +1158,11 @@ Here we are discussing common attacks on the Gig-gossip network.
 | Censorship    | POW and the Free Market               |
 | Convert Flash | Free Market                           |
 
-Attacks
-
-<span id="tab:attacks" label="tab:attacks"></span>
-
+## Attacks
 ### The Silent Attack
 
 The adversary tries to distort the distribution of the gossipy nodes to
-cause propagation failure by failing to respond to the gossip protocol .
+cause propagation failure by failing to respond to the gossip protocol.
 The same behaviour can be just a result of node failure that can happen
 naturally, especially with mobile devices described in section
 <a href="#mobdev" data-reference-type="ref"
@@ -764,9 +1170,8 @@ data-reference="mobdev">4.2</a>
 
 ### Chaterbox Attack
 
-A malicious node retransmits repeatedly the same message . This is
-solved in Gig-gossip by timestamp_tolerance included in
-POWBroadcastFrame that makes the frame POW impossible to use after the
+A malicious node retransmits repeatedly the same message. This is
+solved in Gig-gossip by timestamp_tolerance included in POWBroadcastFrame which makes the frame POW impossible to use after the
 timestamp_tolerance is reached.
 
 ### Sybil Attack
@@ -817,7 +1222,3 @@ multiple simulated nodes.
 
 This is the Public Key (GPG) of Sonof Satoshi. <span id="gpgkey"
 label="gpgkey"></span>
-
-[1] We are the children of Nakamoto
-
-[2] This can be solved in the future by zk-snark
