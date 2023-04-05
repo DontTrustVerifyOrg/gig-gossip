@@ -23,10 +23,7 @@ How it Works
 
 With Gig-Gossip, customers and service providers connect directly through a P2P network, negotiate prices on a free market, and make secure payments using Bitcoin and the Lightning Network. This eliminates the need for centralized platforms and intermediaries, creating a more efficient and cost-effective marketplace.
 
-Gig-Gossip Protocol: Decentralized P2P Gig Economy
 ==================================================
-
-Gig-Gossip is a decentralized, peer-to-peer protocol for gig economy applications, such as ride-sharing and freelance work. The protocol enables direct communication, negotiation, and secure payments using Bitcoin and the Lightning Network, all without central intermediaries.
 
 This repository contains the reference implementation of the Gig-Gossip protocol, as well as resources and documentation for developers.
 
@@ -95,11 +92,8 @@ Support
 
 If you have any questions, suggestions, or need help, please feel free to reach out to us at [hello@gig-gossip.org](mailto:hello@gig-gossip.org).
 
--------------
+==================================================
 
--------------
-
--------------
 
 # Whitepaper
 
