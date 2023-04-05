@@ -20,7 +20,7 @@ sequenceDiagram
     activate Settler
     Settler->>Settler: Generates preimage
     Settler->>Settler: Computes payment hash for the preimage  
-    Settler->>Issuer: Sends the preimage
+    Settler->>Issuer: Sends the payment hash
     deactivate Settler
     activate Issuer
     Issuer->>Issuer: Creates a HODL invoice with the payment hash and timeout
