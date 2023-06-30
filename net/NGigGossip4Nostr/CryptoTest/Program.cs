@@ -1,6 +1,11 @@
 ﻿using System.Text;
 using System.Text.Json;
 using NGigGossip4Nostr;
+using NNostr.Client;
+using NBitcoin.Secp256k1;
+using NNostr.Client.Crypto;
+using NNostr.Client.Protocols;
+using NNostr.Client.JsonConverters;
 
 Console.WriteLine("Hello, World!");
 
@@ -36,9 +41,15 @@ var decr1 = Crypto.SymmetricDecrypt(symKey,encrypted1);
 
 Console.WriteLine(JsonSerializer.Serialize(decr1));
 
-var wr = new WorkRequest() { PowScheme = "sha256", PowTarget = ProofOfWork.PowTargetFromComplexity("sha256", 1000) };
+var wr = new WorkRequest() { PowScheme = "sha256", PowTarget = ProofOfWork.PowTargetFromComplexity("sha256", 100) };
 var pow = wr.ComputeProof(obj);
 Console.WriteLine(pow.Nuance);
 Console.WriteLine(pow.Validate(obj));
+
+var ser = Crypto.SerializeObject(myPubKey);
+var deser = (ECXOnlyPubKey) Crypto.DeserializeObject(ser);
+
+Console.WriteLine(myPubKey.ToHex());
+Console.WriteLine(deser.ToHex());
 
 Console.ReadKey();

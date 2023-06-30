@@ -1,7 +1,8 @@
 ﻿using NBitcoin.Secp256k1;
 namespace NGigGossip4Nostr;
 
-public abstract class SignableObject
+[Serializable]
+public class SignableObject
 {
     public byte[] Signature { get; set; }
 

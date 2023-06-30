@@ -1,27 +1,62 @@
-﻿using System.Text;
+﻿using System.Runtime.InteropServices;
+using System.Text;
+using Newtonsoft.Json;
 using NGigGossip4Nostr;
 using NGigTaxiLib;
+using CommandLine;
+using NGeoHash;
 
-Console.WriteLine("start");
+namespace GigWorkerTest;
 
-
-public class GigWorker : Gossiper
+internal class Program
 {
-    public GigWorker(string name, CertificationAuthority ca, int priceAmountForRouting, Settler settler)
-         : base(name, ca, priceAmountForRouting, settler)
+
+    class Options
     {
+        [Option('r', "read", Required = true, HelpText = "Input files to be processed.")]
+        public IEnumerable<string> InputFiles { get; set; }
+
+        // Omitting long name, defaults to name of property, ie "--verbose"
+        [Option(
+          Default = false,
+          HelpText = "Prints all messages to standard output.")]
+        public bool Verbose { get; set; }
+
+        [Option("stdin",
+          Default = false,
+          HelpText = "Read from stdin")]
+        public bool stdin { get; set; }
+
+        [Value(0, MetaName = "offset", HelpText = "File offset.")]
+        public long? Offset { get; set; }
     }
 
-    public override Tuple<byte[]?, int> AcceptBroadcast(RequestPayload signedTopic)
+    static void Main(string[] args)
     {
-        return new Tuple<byte[]?, int>(Encoding.Default.GetBytes($"mynameis={this.name}"), 4321);
+        RunOptions(null);
+        return;
+        Parser.Default.ParseArguments<Options>(args)
+          .WithParsed(RunOptions)
+          .WithNotParsed(HandleParseError);
+    }
+
+    static void HandleParseError(IEnumerable<Error> errs)
+    {
+        //handle errors
+    }
+
+    static void RunOptions(Options opts)
+    {
+        var ca = Cert.CreateCertificationAuthority("CA");
+        var settlerPrivKey = Crypto.GeneratECPrivKey();
+        var setter_certificate = ca.IssueCertificate(settlerPrivKey.CreateXOnlyPubKey(), "is_ok", true, DateTime.Now.AddDays(7), DateTime.Now.AddDays(-7));
+        var settler = new Settler(setter_certificate, settlerPrivKey, new PaymentChannel(), 12);
+
+        var gigWorker = new GigWorker("GigWorker1", ca, 1, settler);
+        var customer = new Customer("Customer1", ca, 1, settler);
+
+        customer.Go();
+
     }
 }
 
-public class Customer : Gossiper
-{
-    public Customer(string name, CertificationAuthority ca, int priceAmountForRouting, Settler settler)
-         : base(name, ca, priceAmountForRouting, settler)
-    {
-    }
-}

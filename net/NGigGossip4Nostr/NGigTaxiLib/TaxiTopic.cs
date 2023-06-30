@@ -6,6 +6,7 @@ using System.Xml.Linq;
 
 namespace NGigTaxiLib;
 
+[Serializable]
 public class TaxiTopic : AbstractTopic
 {
     public string FromGeohash { get; set; }

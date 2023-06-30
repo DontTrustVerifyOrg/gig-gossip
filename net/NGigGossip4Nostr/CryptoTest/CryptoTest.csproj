@@ -10,4 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\NGigGossip4Nostr\NGigGossip4Nostr.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NNostr.Client" Version="0.0.29" />
+  </ItemGroup>
 </Project>

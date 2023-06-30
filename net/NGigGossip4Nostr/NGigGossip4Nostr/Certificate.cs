@@ -3,12 +3,17 @@ namespace NGigGossip4Nostr;
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using NBitcoin.Secp256k1;
+using NNostr.Client;
 
+
+[Serializable]
 public class Certificate
 {
     public string CaName { get; set; }
     public ECXOnlyPubKey PublicKey { get; set; }
+
     public string Name { get; set; }
     public object Value { get; set; }
     public DateTime NotValidAfter { get; set; }
@@ -24,7 +29,7 @@ public class Certificate
             {
                 if (!ca.IsRevoked(this))
                 {
-                    var obj = (CaName, PublicKey, Name, Value, NotValidAfter, NotValidBefore);
+                    var obj = (CaName, PublicKey.ToHex(), Name, Value, NotValidAfter, NotValidBefore);
                     return Crypto.VerifyObject(obj, Signature, ca.CaXOnlyPublicKey);
                 }
             }
@@ -51,7 +56,7 @@ public class CertificationAuthority
 
     public Certificate IssueCertificate(ECXOnlyPubKey caxOnlypublicKey, string name, object value, DateTime notValidAfter, DateTime notValidBefore)
     {
-        var obj = (CaName, caxOnlypublicKey, name, value, notValidAfter, notValidBefore);
+        var obj = (CaName, caxOnlypublicKey.ToHex(), name, value, notValidAfter, notValidBefore);
         var signature = Crypto.SignObject(obj, CaPrivateKey);
         return new Certificate { CaName = CaName, PublicKey = caxOnlypublicKey, Name = name, Value = value, NotValidAfter = notValidAfter, NotValidBefore = notValidBefore, Signature = signature };
     }

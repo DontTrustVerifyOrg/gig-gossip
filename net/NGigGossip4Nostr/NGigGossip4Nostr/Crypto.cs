@@ -11,6 +11,8 @@ using NBitcoin.Protocol;
 using System.Diagnostics.CodeAnalysis;
 using NNostr.Client.Crypto;
 using NBitcoin.Crypto;
+using System.Runtime.Serialization;
+using NNostr.Client;
 
 namespace NGigGossip4Nostr
 {
@@ -186,23 +188,48 @@ namespace NGigGossip4Nostr
             }
         }
 
+        public class ECXOnlyPubKeySurrogate : ISerializationSurrogate
+        {
+            public void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
+            {
+                var key = (ECXOnlyPubKey)obj;
+                info.AddValue("XOnlyPubKey", key.ToHex());
+            }
+
+            public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector? selector)
+            {
+                return ECXOnlyPubKey.Create(Convert.FromHexString(info.GetString("XOnlyPubKey")));
+            }
+        }
+
 #pragma warning disable SYSLIB0011
         public static byte[] SerializeObject(object obj)
         {
+            //Configure our surrogate selectors.
+            var surrogateSelector = new SurrogateSelector();
+            surrogateSelector.AddSurrogate(typeof(ECXOnlyPubKey), new StreamingContext(StreamingContextStates.All),
+                                           new ECXOnlyPubKeySurrogate());
+
             using (MemoryStream ms = new MemoryStream())
             {
                 BinaryFormatter formatter = new BinaryFormatter();
+                formatter.SurrogateSelector = surrogateSelector;
                 formatter.Serialize(ms, obj);
 
                 return ms.ToArray();
             }
         }
 
-        static object DeserializeObject(byte[] data)
+        public static object DeserializeObject(byte[] data)
         {
             using (MemoryStream ms = new MemoryStream(data))
             {
+                var surrogateSelector = new SurrogateSelector();
+                surrogateSelector.AddSurrogate(typeof(ECXOnlyPubKey), new StreamingContext(StreamingContextStates.All),
+                                               new ECXOnlyPubKeySurrogate());
+
                 BinaryFormatter formatter = new BinaryFormatter();
+                formatter.SurrogateSelector = surrogateSelector;
                 object obj = formatter.Deserialize(ms);
 
                 return obj;
