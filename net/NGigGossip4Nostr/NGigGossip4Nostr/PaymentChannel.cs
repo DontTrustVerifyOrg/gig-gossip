@@ -7,7 +7,7 @@ public class PaymentChannel
 
 
     public HodlInvoice CreateHodlInvoice(int amount, byte[] paymentHash, Action<HodlInvoice> onAccepted,
-        DateTime validTill = default, Guid? invoiceId = null)
+        DateTime validTill, Guid? invoiceId)
     {
         return new HodlInvoice(paymentHash, amount, onAccepted, validTill, invoiceId);
     }

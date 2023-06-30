@@ -187,7 +187,7 @@ namespace NGigGossip4Nostr
         }
 
 #pragma warning disable SYSLIB0011
-        private static byte[] SerializeObject(object obj)
+        public static byte[] SerializeObject(object obj)
         {
             using (MemoryStream ms = new MemoryStream())
             {
@@ -198,7 +198,7 @@ namespace NGigGossip4Nostr
             }
         }
 
-        private static object DeserializeObject(byte[] data)
+        static object DeserializeObject(byte[] data)
         {
             using (MemoryStream ms = new MemoryStream(data))
             {

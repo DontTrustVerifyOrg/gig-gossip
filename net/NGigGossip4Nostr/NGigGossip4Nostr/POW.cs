@@ -8,54 +8,13 @@ using System.Security.Cryptography;
 using System.Text;
 using System.IO;
 using System.Threading.Tasks;
+using System.Numerics;
 
 public class ProofOfWork
 {
-    public string PowScheme { get; set; }
-    public long PowTarget { get; set; }
-    public int Nuance { get; set; }
+    public static BigInteger MaxPowTargetSha256 = BigInteger.Parse("0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", System.Globalization.NumberStyles.AllowHexSpecifier);
 
-    public bool Validate<T>(T obj)
-    {
-        if (PowTarget == 0)
-        {
-            return true;
-        }
-        if (PowScheme.ToLower() == "sha256")
-        {
-            var buf = ToBytes(obj);
-            return ValidateSHA256Pow(buf, Nuance, PowTarget);
-        }
-        return false;
-    }
-
-#pragma warning disable SYSLIB0011
-
-    private byte[] ToBytes<T>(T obj)
-    {
-        using (var stream = new MemoryStream())
-        {
-            var formatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-            formatter.Serialize(stream, obj);
-            return stream.ToArray();
-        }
-    }
-
-    private bool ValidateSHA256Pow(byte[] buf, int nuance, long powTarget)
-    {
-        using (var sha256 = SHA256.Create())
-        {
-            byte[] hash = null;
-            for (int i = 0; i <= nuance; i++)
-            {
-                hash = sha256.ComputeHash(buf.Concat(BitConverter.GetBytes(i)).ToArray());
-            }
-            var hashNumber = BitConverter.ToInt64(hash.Reverse().ToArray());
-            return hashNumber <= powTarget;
-        }
-    }
-
-    public static long PowTargetFromComplexity(string powScheme, int complexity)
+    public static BigInteger PowTargetFromComplexity(string powScheme, int complexity)
     {
         if (complexity == 0)
         {
@@ -63,18 +22,43 @@ public class ProofOfWork
         }
         if (powScheme.ToLower() == "sha256")
         {
-            return long.MaxValue / complexity;
+            return MaxPowTargetSha256 / complexity;
         }
         throw new NotImplementedException();
     }
+
+    public string PowScheme { get; set; }
+    public BigInteger PowTarget { get; set; }
+    public int Nuance { get; set; }
+
+    public bool Validate(object obj)
+    {
+        if (PowTarget == 0)
+        {
+            return true;
+        }
+        if (PowScheme.ToLower() == "sha256")
+        {
+            var buf = Crypto.SerializeObject(obj);
+            return ValidateSHA256Pow(buf, Nuance, PowTarget);
+        }
+        return false;
+    }
+
+    public static bool ValidateSHA256Pow(byte[] buf, int nuance, BigInteger powTarget)
+    {
+        var sc = new BigInteger(Crypto.ComputeSha256(new List<byte[]>() { buf, BitConverter.GetBytes(nuance) }), isUnsigned: true, isBigEndian: false);
+        return  sc <= powTarget;
+    }
+
 }
 
 public class WorkRequest
 {
     public string PowScheme { get; set; }
-    public long PowTarget { get; set; }
+    public BigInteger PowTarget { get; set; }
 
-    public ProofOfWork ComputeProof<T>(T obj)
+    public ProofOfWork ComputeProof(object obj)
     {
         return new ProofOfWork
         {
@@ -84,7 +68,7 @@ public class WorkRequest
         };
     }
 
-    private int ComputePow<T>(T obj)
+    private int ComputePow(object obj)
     {
         if (PowTarget == 0)
         {
@@ -92,35 +76,12 @@ public class WorkRequest
         }
         if (PowScheme.ToLower() == "sha256")
         {
-            var buf = ToBytes(obj);
+            var buf = Crypto.SerializeObject(obj);
             return Enumerable.Range(0, int.MaxValue)
-                .FirstOrDefault(nuance => ValidateSHA256Pow(buf, nuance, PowTarget));
+                .FirstOrDefault(nuance => ProofOfWork.ValidateSHA256Pow(buf, nuance, PowTarget));
         }
-        return 0;
+        throw new NotImplementedException();
     }
 
-    private byte[] ToBytes<T>(T obj)
-    {
-        using (var stream = new MemoryStream())
-        {
-            var formatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-            formatter.Serialize(stream, obj);
-            return stream.ToArray();
-        }
-    }
-
-    private bool ValidateSHA256Pow(byte[] buf, int nuance, long powTarget)
-    {
-        using (var sha256 = SHA256.Create())
-        {
-            byte[] hash = null;
-            for (int i = 0; i <= nuance; i++)
-            {
-                hash = sha256.ComputeHash(buf.Concat(BitConverter.GetBytes(i)).ToArray());
-            }
-            var hashNumber = BitConverter.ToInt64(hash.Reverse().ToArray());
-            return hashNumber <= powTarget;
-        }
-    }
 }
 

@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NGigGossipApp", "NGigGossip
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoTest", "CryptoTest\CryptoTest.csproj", "{F95166CD-AD80-4A66-AEB5-BC0F8385DCAD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GigWorkerTest", "GigWorkerTest\GigWorkerTest.csproj", "{0D21E0CF-2DB3-462E-949D-58F3C175CCBE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NGigTaxiLib", "NGigTaxiLib\NGigTaxiLib.csproj", "{227E8C73-1016-4280-A643-576A4DF781C1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +31,14 @@ Global
 		{F95166CD-AD80-4A66-AEB5-BC0F8385DCAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F95166CD-AD80-4A66-AEB5-BC0F8385DCAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F95166CD-AD80-4A66-AEB5-BC0F8385DCAD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0D21E0CF-2DB3-462E-949D-58F3C175CCBE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D21E0CF-2DB3-462E-949D-58F3C175CCBE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D21E0CF-2DB3-462E-949D-58F3C175CCBE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D21E0CF-2DB3-462E-949D-58F3C175CCBE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{227E8C73-1016-4280-A643-576A4DF781C1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{227E8C73-1016-4280-A643-576A4DF781C1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{227E8C73-1016-4280-A643-576A4DF781C1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{227E8C73-1016-4280-A643-576A4DF781C1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

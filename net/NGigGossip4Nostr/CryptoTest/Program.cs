@@ -27,4 +27,18 @@ var signature = Crypto.SignObject(obj, myPrivKey);
 Console.WriteLine(JsonSerializer.Serialize(signature));
 var ok = Crypto.VerifyObject(obj, signature, myPubKey);
 Console.WriteLine(ok);
+
+
+var symKey = Crypto.GenerateSymmetricKey();
+
+var encrypted1 = Crypto.SymmetricEncrypt(symKey,obj);
+var decr1 = Crypto.SymmetricDecrypt(symKey,encrypted1);
+
+Console.WriteLine(JsonSerializer.Serialize(decr1));
+
+var wr = new WorkRequest() { PowScheme = "sha256", PowTarget = ProofOfWork.PowTargetFromComplexity("sha256", 1000) };
+var pow = wr.ComputeProof(obj);
+Console.WriteLine(pow.Nuance);
+Console.WriteLine(pow.Validate(obj));
+
 Console.ReadKey();
