@@ -1,15 +1,19 @@
 ﻿using System;
+using System.Diagnostics;
+
 namespace NGigGossip4Nostr;
 
 
 public class PaymentChannel
 {
+    private static readonly Dictionary<Guid, HodlInvoicePayer> HODL_PAYER_BY_ID = new Dictionary<Guid, HodlInvoicePayer>();
+    private static readonly Dictionary<Guid, Settler> HODL_SETTLER_BY_ID = new Dictionary<Guid, Settler>();
 
-
-    public HodlInvoice CreateHodlInvoice(int amount, byte[] paymentHash, Action<HodlInvoice> onAccepted,
-        DateTime validTill, Guid? invoiceId)
+    public HodlInvoice CreateHodlInvoice(string payerName, string settlerName, int amount, byte[] paymentHash,DateTime validTill, Guid invoiceId)
     {
-        return new HodlInvoice(paymentHash, amount, onAccepted, validTill, invoiceId);
+        HODL_PAYER_BY_ID[invoiceId] = HodlInvoicePayer.GetHodlInvoicePayerByName(payerName);
+        HODL_SETTLER_BY_ID[invoiceId] = Settler.GetSettlerByName(settlerName);
+        return new HodlInvoice(paymentHash, amount, validTill, invoiceId);
     }
 
     public Invoice CreateInvoice(int amount, byte[] preimage, DateTime validTill = default)
@@ -17,7 +21,7 @@ public class PaymentChannel
         return new Invoice(preimage, amount, validTill);
     }
 
-    public void PayHodlInvoice(HodlInvoice invoice, Action<HodlInvoice, byte[]> onSettled)
+    public void PayHodlInvoice(HodlInvoice invoice)
     {
         if (invoice.IsAccepted)
         {
@@ -29,9 +33,7 @@ public class PaymentChannel
             return;
         }
 
-        invoice.OnSettled = onSettled;
-        invoice.IsAccepted = true;
-        invoice.OnAccepted.Invoke(invoice);
+        invoice.IsAccepted = HODL_PAYER_BY_ID[invoice.Id].AcceptHodlInvoice(invoice);
     }
 
     public void SettleHodlInvoice(HodlInvoice invoice, byte[] preimage)
@@ -44,8 +46,7 @@ public class PaymentChannel
         if (invoice.IsAccepted && LND.ComputePaymentHash(preimage) == invoice.PaymentHash)
         {
             invoice.Preimage = preimage;
-            invoice.IsSettled = true;
-            invoice.OnSettled.Invoke(invoice, preimage);
+            invoice.IsSettled = HODL_SETTLER_BY_ID[invoice.Id].SettleHodlInvoice(invoice);
         }
     }
 }

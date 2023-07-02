@@ -1,11 +1,10 @@
 ﻿using System;
 namespace NGigGossip4Nostr;
 
-
+[Serializable]
 public class HodlInvoice
 {
-    public byte[] Preimage;
-
+    public byte[] Preimage { get; set; }
 
     public Guid Id { get; }
     public byte[] PaymentHash { get; }
@@ -13,21 +12,41 @@ public class HodlInvoice
     public DateTime ValidTill { get; }
     public bool IsAccepted { get; set; }
     public bool IsSettled { get; set; }
-    public Action<HodlInvoice> OnAccepted { get; }
-    public Action<HodlInvoice, byte[]> OnSettled { get; set; }
 
-    public HodlInvoice(byte[] paymentHash, int amount, Action<HodlInvoice> onAccepted,
+    public HodlInvoice(byte[] paymentHash, int amount,
         DateTime validTill, Guid? id = null)
     {
+        Preimage = null;
         Id = id ?? Guid.NewGuid();
         PaymentHash = paymentHash;
         Amount = amount;
         ValidTill = validTill;
         IsAccepted = false;
         IsSettled = false;
-        OnAccepted = onAccepted;
     }
 }
 
+
+public abstract class HodlInvoicePayer
+{
+    private static readonly Dictionary<string, HodlInvoicePayer> PAYER_BY_NAME = new Dictionary<string, HodlInvoicePayer>();
+
+    public abstract bool AcceptHodlInvoice(HodlInvoice invoice);
+
+    public string name;
+
+    public HodlInvoicePayer(string name)
+    {
+        this.name = name;
+        PAYER_BY_NAME[name] = this;
+    }
+
+    public static HodlInvoicePayer GetHodlInvoicePayerByName(string name)
+    {
+        if (PAYER_BY_NAME.ContainsKey(name))
+            return PAYER_BY_NAME[name];
+        throw new ArgumentException("Payer not found");
+    }
+}
 
 

@@ -10,9 +10,9 @@ using System.Threading.Channels;
 using System.Net.NetworkInformation;
 
 
-public class GigGossipNode
+public class GigGossipNode : HodlInvoicePayer
 {
-    protected string name;
+
     protected Certificate certificate;
     protected ECPrivKey _privateKey;
     protected PaymentChannel paymentChannel;
@@ -29,12 +29,16 @@ public class GigGossipNode
     protected Dictionary<Guid, int> _alreadyBroadcastedRequestPayloadIds;
     protected Dictionary<Guid, Dictionary<ECXOnlyPubKey, List<Tuple<ReplyPayload, HodlInvoice>>>> replyPayloads;
 
-    protected void Init(string name, Certificate certificate, ECPrivKey privateKey, PaymentChannel paymentChannel,
+    public GigGossipNode(string name) : base(name)
+    {
+
+    }
+
+    protected void Init(Certificate certificate, ECPrivKey privateKey, PaymentChannel paymentChannel,
                            int priceAmountForRouting, TimeSpan broadcastConditionsTimeout, string broadcastConditionsPowScheme,
                            int broadcastConditionsPowComplexity, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
                            Settler settler)
     {
-        this.name = name;
         this.certificate = certificate;
         this._privateKey = privateKey;
         this.paymentChannel = paymentChannel;
@@ -53,6 +57,12 @@ public class GigGossipNode
         this.replyPayloads = new();
     }
 
+
+    public override bool AcceptHodlInvoice(HodlInvoice invoice)
+    {
+        return false;
+        //        paymentChannel.PayHodlInvoice(nextNetworkInvoice);
+    }
 
     public void ConnectTo(GigGossipNode other)
     {
@@ -121,11 +131,6 @@ public class GigGossipNode
             this._broadcastPayloadsByAskId[askForBroadcastFrame.AskId] = broadcastPayload;
             this.NewMessage(peer.Value, askForBroadcastFrame);
         }
-    }
-
-    public void NewMessage(GigGossipNode node,object frame)
-    {
-
     }
 
     public void OnAskForBroadcastFrame(GigGossipNode peer, AskForBroadcastFrame askForBroadcastFrame)
@@ -209,8 +214,8 @@ public class GigGossipNode
             var replyPaymentHash = invoiceIdAndOnAcceptedTuple.Item2;
             var onAccepted = invoiceIdAndOnAcceptedTuple.Item3;
 
-            var replyInvoice = this.paymentChannel.CreateHodlInvoice(
-                fee, replyPaymentHash, onAccepted, DateTime.MaxValue, invoiceId);
+            var replyInvoice = this.paymentChannel.CreateHodlInvoice(null,null,
+                fee, replyPaymentHash, DateTime.MaxValue, invoiceId);
 
             var messageAndNetworkInvoiceTuple = this.settler.GenerateSettlementTrust(
                 message,
@@ -288,23 +293,12 @@ public class GigGossipNode
                 if (!newResponse)
                 {
                     var nextNetworkInvoice = responseFrame.NetworkInvoice;
-                    var onAccepted = (HodlInvoice i) =>
-                    {
-                        var onSettled = (HodlInvoice j, byte[] preiamge) =>
-                        {
-                            if (i.PaymentHash != j.PaymentHash)
-                            {
-                                Trace.TraceError("payment hash mismatch");
-                                return;
-                            }
-                            paymentChannel.SettleHodlInvoice(i, preiamge);
-                        };
-                        paymentChannel.PayHodlInvoice(nextNetworkInvoice, onSettled);
-                    };
                     networkInvoice = paymentChannel.CreateHodlInvoice(
+                        peer.name,
+                        settler.StName,
                         responseFrame.NetworkInvoice.Amount + this.priceAmountForRouting,
                         responseFrame.NetworkInvoice.PaymentHash,
-                        onAccepted, DateTime.MaxValue, Guid.NewGuid());
+                        DateTime.MaxValue, Guid.NewGuid());
                     // responseFrame = responseFrame.DeepCopy();
                     responseFrame.NetworkInvoice = networkInvoice;
                 }
@@ -340,37 +334,42 @@ public class GigGossipNode
 
         Trace.TraceInformation("paying and reading");
 
-        Action<HodlInvoice, byte[]> onSettled = (_invoice, preimage) =>
-        {
-            var message = Crypto.SymmetricDecrypt(preimage, replyPayload.EncryptedReplyMessage);
-            Trace.TraceInformation(message.ToString());
-        };
+//        Action<HodlInvoice, byte[]> onSettled = (_invoice, preimage) =>
+//        {
+//            var message = Crypto.SymmetricDecrypt(preimage, replyPayload.EncryptedReplyMessage);
+//            Trace.TraceInformation(message.ToString());
+//        };
 
-        paymentChannel.PayHodlInvoice(networkInvoice, onSettled);
+        paymentChannel.PayHodlInvoice(networkInvoice);
     }
 
-    //public override void OnMessage(Message m)
-    //{
-    //    if (m.data is AskForBroadcastFrame)
-    //    {
-    //        OnAskForBroadcastFrame((GigGossipNode)m.sender, (AskForBroadcastFrame)m.data);
-    //    }
-    //    else if (m.data is POWBroadcastConditionsFrame)
-    //    {
-    //        OnPOWBroadcastConditionsFrame((GigGossipNode)m.sender, (POWBroadcastConditionsFrame)m.data);
-    //    }
-    //    else if (m.data is POWBroadcastFrame)
-    //    {
-    //        OnPOWBroadcastFrame((GigGossipNode)m.sender, (POWBroadcastFrame)m.data);
-    //    }
-    //    else if (m.data is ReplyFrame)
-    //    {
-    //        OnResponseFrame((GigGossipNode)m.sender, (ReplyFrame)m.data);
-    //    }
-    //    else
-    //    {
-    //        Trace.TraceError("unknown request: ", m);
-    //    }
-    //}
+    public void NewMessage(GigGossipNode targetNode, object frame)
+    {
+        targetNode.OnMessage(this, frame);
+    }
+
+    public void OnMessage(GigGossipNode senderNode, object frame)
+    {
+        if (frame is AskForBroadcastFrame)
+        {
+            OnAskForBroadcastFrame(senderNode, (AskForBroadcastFrame)frame);
+        }
+        else if (frame is POWBroadcastConditionsFrame)
+        {
+            OnPOWBroadcastConditionsFrame(senderNode, (POWBroadcastConditionsFrame)frame);
+        }
+        else if (frame is POWBroadcastFrame)
+        {
+            OnPOWBroadcastFrame(senderNode, (POWBroadcastFrame)frame);
+        }
+        else if (frame is ReplyFrame)
+        {
+            OnResponseFrame(senderNode, (ReplyFrame)frame);
+        }
+        else
+        {
+            Trace.TraceError("unknown request: ", senderNode, frame);
+        }
+    }
 
 }

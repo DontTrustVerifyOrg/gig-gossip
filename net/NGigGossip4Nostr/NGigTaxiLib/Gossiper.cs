@@ -6,7 +6,7 @@ namespace NGigTaxiLib;
 
 public class Gossiper : GigGossipNode
 {
-    public Gossiper(string name, CertificationAuthority ca, int priceAmountForRouting, Settler settler)
+    public Gossiper(string name, CertificationAuthority ca, int priceAmountForRouting, Settler settler):base(name)
     {
         var privateKey = Crypto.GeneratECPrivKey();
         var paymentChannel = new PaymentChannel();
@@ -17,7 +17,6 @@ public class Gossiper : GigGossipNode
             DateTime.Now.AddDays(7), DateTime.Now.AddDays(-7));
 
         Init(
-            name,
             certificate,
             privateKey,
             paymentChannel,

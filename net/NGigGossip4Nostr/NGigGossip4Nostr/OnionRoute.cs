@@ -1,6 +1,7 @@
 ﻿using NBitcoin.Secp256k1;
 namespace NGigGossip4Nostr;
 
+[Serializable]
 public class OnionLayer
 {
     public string PeerName { get; set; }
@@ -10,7 +11,7 @@ public class OnionLayer
         PeerName = peerName;
     }
 }
-
+[Serializable]
 public class OnionRoute
 {
     private byte[] _onion;

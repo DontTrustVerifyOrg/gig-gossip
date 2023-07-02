@@ -9,7 +9,7 @@ using NNostr.Client;
 
 
 [Serializable]
-public class Certificate
+public class Certificate : SignableObject
 {
     public string CaName { get; set; }
     public ECXOnlyPubKey PublicKey { get; set; }
@@ -18,9 +18,8 @@ public class Certificate
     public object Value { get; set; }
     public DateTime NotValidAfter { get; set; }
     public DateTime NotValidBefore { get; set; }
-    public byte[] Signature { get; set; }
 
-    public bool Verify()
+    public virtual bool Verify()
     {
         if (NotValidAfter >= DateTime.Now && NotValidBefore <= DateTime.Now)
         {
@@ -29,8 +28,8 @@ public class Certificate
             {
                 if (!ca.IsRevoked(this))
                 {
-                    var obj = (CaName, PublicKey.ToHex(), Name, Value, NotValidAfter, NotValidBefore);
-                    return Crypto.VerifyObject(obj, Signature, ca.CaXOnlyPublicKey);
+                    if (Verify(ca.CaXOnlyPublicKey))
+                        return true;
                 }
             }
         }
@@ -43,22 +42,30 @@ public class CertificationAuthority
     private static readonly Dictionary<string, CertificationAuthority> CA_BY_NAME = new Dictionary<string, CertificationAuthority>();
 
     public string CaName { get; set; }
-    private ECPrivKey CaPrivateKey { get; set; }
+    private ECPrivKey _CaPrivateKey { get; set; }
     public ECXOnlyPubKey CaXOnlyPublicKey { get; set; }
 
-    public CertificationAuthority(string caName, ECPrivKey caPrivateKey, ECXOnlyPubKey caPublicKey)
+    public CertificationAuthority(string caName, ECPrivKey caPrivateKey)
     {
         CaName = caName;
-        CaPrivateKey = caPrivateKey;
-        CaXOnlyPublicKey = caPublicKey;
+        _CaPrivateKey = caPrivateKey;
+        CaXOnlyPublicKey = caPrivateKey.CreateXOnlyPubKey();
         CA_BY_NAME[caName] = this;
     }
 
     public Certificate IssueCertificate(ECXOnlyPubKey caxOnlypublicKey, string name, object value, DateTime notValidAfter, DateTime notValidBefore)
     {
-        var obj = (CaName, caxOnlypublicKey.ToHex(), name, value, notValidAfter, notValidBefore);
-        var signature = Crypto.SignObject(obj, CaPrivateKey);
-        return new Certificate { CaName = CaName, PublicKey = caxOnlypublicKey, Name = name, Value = value, NotValidAfter = notValidAfter, NotValidBefore = notValidBefore, Signature = signature };
+        var certificate = new Certificate
+        {
+            CaName = CaName,
+            PublicKey = caxOnlypublicKey,
+            Name = name,
+            Value = value,
+            NotValidAfter = notValidAfter,
+            NotValidBefore = notValidBefore
+        };
+        certificate.Sign(this._CaPrivateKey);
+        return certificate;
     }
 
     public bool IsRevoked(Certificate certificate)
@@ -69,10 +76,8 @@ public class CertificationAuthority
     public static CertificationAuthority GetCertificationAuthorityByName(string caName)
     {
         if (CA_BY_NAME.ContainsKey(caName))
-        {
             return CA_BY_NAME[caName];
-        }
-        return null;
+        throw new ArgumentException("CA not found");
     }
 }
 
@@ -84,7 +89,7 @@ public class Cert
     public static CertificationAuthority CreateCertificationAuthority(string caName)
     {
         var privKey = Crypto.GeneratECPrivKey();
-        var certificationAuthority = new CertificationAuthority(caName, privKey, privKey.CreateXOnlyPubKey());
+        var certificationAuthority = new CertificationAuthority(caName, privKey);
         return certificationAuthority;
     }
 

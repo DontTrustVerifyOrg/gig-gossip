@@ -1,9 +1,14 @@
 ﻿using System;
+using System.Xml.Linq;
 using NBitcoin.Secp256k1;
 namespace NGigGossip4Nostr;
 
-public class Settler
+public class Settler : HodlInvoicePayer
 {
+    private static readonly Dictionary<string, Settler> ST_BY_NAME = new Dictionary<string, Settler>();
+
+    public string StName { get; set; }
+
     private readonly Certificate settlerCertificate;
     private readonly ECPrivKey settlerPrivateKey;
     private readonly PaymentChannel paymentChannel;
@@ -16,6 +21,8 @@ public class Settler
         InvoiceById[invoice_id] = new Tuple<PaymentChannel, byte[]>(paymentChannel, preimage);
     }
 
+
+
     public static void OnSettementCommand(HodlInvoice invoice)
     {
         if (InvoiceById.ContainsKey(invoice.Id))
@@ -27,12 +34,20 @@ public class Settler
         }
     }
 
-    public Settler(Certificate settlerCertificate, ECPrivKey settlerPrivateKey, PaymentChannel paymentChannel, int priceAmountForSettlement)
+    public Settler(string name,Certificate settlerCertificate, ECPrivKey settlerPrivateKey, PaymentChannel paymentChannel, int priceAmountForSettlement):base(name)
     {
         this.settlerCertificate = settlerCertificate;
         this.settlerPrivateKey = settlerPrivateKey;
         this.paymentChannel = paymentChannel;
         this.priceAmountForSettlement = priceAmountForSettlement;
+        ST_BY_NAME[name] = this;
+    }
+
+    public static Settler GetSettlerByName(string caName)
+    {
+        if (ST_BY_NAME.ContainsKey(caName))
+            return ST_BY_NAME[caName];
+        throw new ArgumentException("ST not found");
     }
 
     public Tuple<Guid, byte[], Action<HodlInvoice>> GenerateReplyPaymentTrust()
@@ -45,21 +60,20 @@ public class Settler
         return new Tuple<Guid, byte[], Action<HodlInvoice>>(invoiceId, replyPaymentHash, OnSettementCommand);
     }
 
+    public bool SettleHodlInvoice(HodlInvoice invoice)
+    {
+        return false;
+    }
+
     public Tuple<SettlementPromise, HodlInvoice, byte[]> GenerateSettlementTrust(byte[] message, HodlInvoice replyInvoice, RequestPayload signedRequestPayload, Certificate replierCertificate)
     {
         byte[] networkPreimage = Crypto.GenerateSymmetricKey();
         byte[] networkPaymentHash = LND.ComputePaymentHash(networkPreimage);
         byte[] encryptedReplyMessage = Crypto.SymmetricEncrypt(networkPreimage, message);
 
-        void onAccepted(HodlInvoice i)
-        {
-            paymentChannel.SettleHodlInvoice(i, networkPreimage);
-        }
-
-        HodlInvoice networkInvoice = paymentChannel.CreateHodlInvoice(
+        HodlInvoice networkInvoice = paymentChannel.CreateHodlInvoice(null,null,
             priceAmountForSettlement,
             networkPaymentHash,
-            onAccepted,
             DateTime.MaxValue,
             Guid.NewGuid()
         );
@@ -85,5 +99,12 @@ public class Settler
         signedSettlementPromise.Sign(settlerPrivateKey);
 
         return new Tuple<SettlementPromise, HodlInvoice, byte[]>(signedSettlementPromise, networkInvoice, encryptedReplyPayload);
+    }
+
+    public override bool AcceptHodlInvoice(HodlInvoice invoice)
+    {
+        //            paymentChannel.SettleHodlInvoice(i, networkPreimage);
+
+        throw new NotImplementedException();
     }
 }

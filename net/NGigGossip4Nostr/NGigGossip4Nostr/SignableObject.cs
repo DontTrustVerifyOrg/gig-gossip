@@ -14,7 +14,7 @@ public class SignableObject
     public bool Verify(ECXOnlyPubKey publicKey)
     {
         var signature = Signature;
-        Signature = new byte[0];
+        Signature = null;
         var result = Crypto.VerifyObject(this, signature, publicKey);
         Signature = signature;
         return result;

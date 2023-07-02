@@ -2,7 +2,7 @@
 namespace NGigGossip4Nostr;
 
 
-
+[Serializable]
 public class BroadcastPayload
 {
     public required RequestPayload SignedRequestPayload { get; set; }
