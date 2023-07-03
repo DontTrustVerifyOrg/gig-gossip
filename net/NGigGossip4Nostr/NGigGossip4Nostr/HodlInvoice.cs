@@ -33,11 +33,11 @@ public abstract class HodlInvoicePayer
 
     public abstract bool AcceptHodlInvoice(HodlInvoice invoice);
 
-    public string name;
+    public string Name;
 
     public HodlInvoicePayer(string name)
     {
-        this.name = name;
+        this.Name = name;
         PAYER_BY_NAME[name] = this;
     }
 

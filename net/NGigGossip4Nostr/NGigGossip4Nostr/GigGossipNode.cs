@@ -66,10 +66,10 @@ public class GigGossipNode : HodlInvoicePayer
 
     public void ConnectTo(GigGossipNode other)
     {
-        if (other.name == this.name)
+        if (other.Name == this.Name)
             throw new Exception("Cannot connect node to itself");
-        this._knownHosts[other.name] = other;
-        other._knownHosts[this.name] = this;
+        this._knownHosts[other.Name] = other;
+        other._knownHosts[this.Name] = this;
     }
 
     public virtual bool AcceptTopic(AbstractTopic topic)
@@ -122,7 +122,7 @@ public class GigGossipNode : HodlInvoicePayer
             BroadcastPayload broadcastPayload = new BroadcastPayload()
             {
                 SignedRequestPayload = requestPayload,
-                BackwardOnion = (backwardOnion ?? new OnionRoute()).Grow(new OnionLayer(this.name),
+                BackwardOnion = (backwardOnion ?? new OnionRoute()).Grow(new OnionLayer(this.Name),
                 this._privateKey,
                 peer.Value.certificate.PublicKey),
                 Timestamp = null
@@ -212,12 +212,12 @@ public class GigGossipNode : HodlInvoicePayer
             var invoiceIdAndOnAcceptedTuple = this.settler.GenerateReplyPaymentTrust();
             var invoiceId = invoiceIdAndOnAcceptedTuple.Item1;
             var replyPaymentHash = invoiceIdAndOnAcceptedTuple.Item2;
-            var onAccepted = invoiceIdAndOnAcceptedTuple.Item3;
 
-            var replyInvoice = this.paymentChannel.CreateHodlInvoice(null,null,
+            var replyInvoice = this.paymentChannel.CreateHodlInvoice(peer.Name,settler.Name,
                 fee, replyPaymentHash, DateTime.MaxValue, invoiceId);
 
             var messageAndNetworkInvoiceTuple = this.settler.GenerateSettlementTrust(
+                this.Name,
                 message,
                 replyInvoice,
                 powBroadcastFrame.BroadcastPayload.SignedRequestPayload,
@@ -241,7 +241,7 @@ public class GigGossipNode : HodlInvoicePayer
         {
             this.Broadcast(
                 requestPayload: powBroadcastFrame.BroadcastPayload.SignedRequestPayload,
-                originatorPeerName: peer.name,
+                originatorPeerName: peer.Name,
                 backwardOnion: powBroadcastFrame.BroadcastPayload.BackwardOnion);
         }
     }
@@ -256,7 +256,7 @@ public class GigGossipNode : HodlInvoicePayer
                 return;
             }
 
-            ReplyPayload replyPayload = responseFrame.DecryptAndVerify(_privateKey, peer.certificate.PublicKey);
+            ReplyPayload replyPayload = responseFrame.DecryptAndVerify(_privateKey, responseFrame.SignedSettlementPromise.SettlerCertificate.PublicKey);
             if (replyPayload == null)
             {
                 Trace.TraceError("reply payload mismatch");
@@ -294,8 +294,8 @@ public class GigGossipNode : HodlInvoicePayer
                 {
                     var nextNetworkInvoice = responseFrame.NetworkInvoice;
                     networkInvoice = paymentChannel.CreateHodlInvoice(
-                        peer.name,
-                        settler.StName,
+                        peer.Name,
+                        settler.Name,
                         responseFrame.NetworkInvoice.Amount + this.priceAmountForRouting,
                         responseFrame.NetworkInvoice.PaymentHash,
                         DateTime.MaxValue, Guid.NewGuid());

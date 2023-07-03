@@ -1,5 +1,7 @@
 ﻿using System;
 namespace NGigGossip4Nostr;
+
+[Serializable]
 public class SettlementPromise : SignableObject
 {
     public Certificate SettlerCertificate { get; set; }
