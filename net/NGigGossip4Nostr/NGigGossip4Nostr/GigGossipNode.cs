@@ -9,13 +9,13 @@ using System.Buffers.Text;
 using System.Threading.Channels;
 using System.Net.NetworkInformation;
 using System.Text;
+using System.Threading;
 
-public class GigGossipNode : NamedEntity, IHodlInvoiceIssuer,IHodlInvoicePayer
+public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
 {
 
     protected Certificate certificate;
     protected ECPrivKey _privateKey;
-    protected PaymentChannel paymentChannel;
     protected int priceAmountForRouting;
     protected TimeSpan broadcastConditionsTimeout;
     protected string broadcastConditionsPowScheme;
@@ -36,14 +36,13 @@ public class GigGossipNode : NamedEntity, IHodlInvoiceIssuer,IHodlInvoicePayer
 
     }
 
-    protected void Init(Certificate certificate, ECPrivKey privateKey, PaymentChannel paymentChannel,
+    protected void Init(Certificate certificate, ECPrivKey privateKey, 
                            int priceAmountForRouting, TimeSpan broadcastConditionsTimeout, string broadcastConditionsPowScheme,
                            int broadcastConditionsPowComplexity, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
                            Settler settler)
     {
         this.certificate = certificate;
         this._privateKey = privateKey;
-        this.paymentChannel = paymentChannel;
         this.priceAmountForRouting = priceAmountForRouting;
         this.broadcastConditionsTimeout = broadcastConditionsTimeout;
         this.broadcastConditionsPowScheme = broadcastConditionsPowScheme;
@@ -59,19 +58,6 @@ public class GigGossipNode : NamedEntity, IHodlInvoiceIssuer,IHodlInvoicePayer
         this.replyPayloads = new();
         this.nextNetworkInvoiceToPay = new();
         this.replyPayloadsByHodlInvoiceId = new();
-    }
-
-    public void OnHodlInvoiceSettled(HodlInvoice invoice)
-    {
-        var message = (byte[]) Crypto.SymmetricDecrypt(invoice.Preimage, replyPayloadsByHodlInvoiceId[invoice.Id].EncryptedReplyMessage);
-        Trace.TraceInformation(Encoding.Default.GetString(message));
-    }
-
-    public bool OnHodlInvoiceAccepting(HodlInvoice invoice)
-    {
-        if (nextNetworkInvoiceToPay.ContainsKey(invoice.Id))
-            paymentChannel.PayHodlInvoice(nextNetworkInvoiceToPay[invoice.Id]);
-        return true;
     }
 
     public void ConnectTo(GigGossipNode other)
@@ -139,11 +125,11 @@ public class GigGossipNode : NamedEntity, IHodlInvoiceIssuer,IHodlInvoicePayer
             };
 
             this._broadcastPayloadsByAskId[askForBroadcastFrame.AskId] = broadcastPayload;
-            this.NewMessage(peer.Value, askForBroadcastFrame);
+            this.SendMessage(peer.Value.Name, askForBroadcastFrame);
         }
     }
 
-    public void OnAskForBroadcastFrame(GigGossipNode peer, AskForBroadcastFrame askForBroadcastFrame)
+    public void OnAskForBroadcastFrame(string peerName, AskForBroadcastFrame askForBroadcastFrame)
     {
         if (!CanIncrementBroadcast(askForBroadcastFrame.SignedRequestPayload.PayloadId))
         {
@@ -163,10 +149,10 @@ public class GigGossipNode : NamedEntity, IHodlInvoiceIssuer,IHodlInvoicePayer
         };
 
         _myPowBrCondByAskId[powBroadcastConditionsFrame.AskId] = powBroadcastConditionsFrame;
-        NewMessage(peer, powBroadcastConditionsFrame);
+        SendMessage(peerName, powBroadcastConditionsFrame);
     }
 
-    public void OnPOWBroadcastConditionsFrame(GigGossipNode peer, POWBroadcastConditionsFrame powBroadcastConditionsFrame)
+    public void OnPOWBroadcastConditionsFrame(string peerName, POWBroadcastConditionsFrame powBroadcastConditionsFrame)
     {
         if (DateTime.Now <= powBroadcastConditionsFrame.ValidTill)
         {
@@ -181,7 +167,7 @@ public class GigGossipNode : NamedEntity, IHodlInvoiceIssuer,IHodlInvoicePayer
                     BroadcastPayload = broadcastPayload,
                     ProofOfWork = pow
                 };
-                NewMessage(peer, powBroadcastFrame);
+                SendMessage(peerName, powBroadcastFrame);
             }
         }
     }
@@ -191,7 +177,7 @@ public class GigGossipNode : NamedEntity, IHodlInvoiceIssuer,IHodlInvoicePayer
         return new Tuple<byte[]?, int>(null, 0);
     }
 
-    public void OnPOWBroadcastFrame(GigGossipNode peer, POWBroadcastFrame powBroadcastFrame)
+    public void OnPOWBroadcastFrame(string peerName, POWBroadcastFrame powBroadcastFrame)
     {
         if (!_myPowBrCondByAskId.ContainsKey(powBroadcastFrame.AskId))
             return;
@@ -223,11 +209,11 @@ public class GigGossipNode : NamedEntity, IHodlInvoiceIssuer,IHodlInvoicePayer
             var invoiceId = invoiceIdAndOnAcceptedTuple.Item1;
             var replyPaymentHash = invoiceIdAndOnAcceptedTuple.Item2;
 
-            var replyInvoice = this.paymentChannel.CreateHodlInvoice(this.Name,peer.Name,settler.Name,
+            var replyInvoice = LND.CreateHodlInvoice(this.Name, peerName, settler.Name,
                 fee, replyPaymentHash, DateTime.MaxValue, invoiceId);
 
             var messageAndNetworkInvoiceTuple = this.settler.GenerateSettlementTrust(this.Name,
-                peer.Name,
+                peerName,
                 message,
                 replyInvoice,
                 powBroadcastFrame.BroadcastPayload.SignedRequestPayload,
@@ -245,18 +231,18 @@ public class GigGossipNode : NamedEntity, IHodlInvoiceIssuer,IHodlInvoicePayer
                 NetworkInvoice = networkInvoice
             };
 
-            this.OnResponseFrame(peer, responseFrame, newResponse: true);
+            this.OnResponseFrame(peerName, responseFrame, newResponse: true);
         }
         else
         {
             this.Broadcast(
                 requestPayload: powBroadcastFrame.BroadcastPayload.SignedRequestPayload,
-                originatorPeerName: peer.Name,
+                originatorPeerName: peerName,
                 backwardOnion: powBroadcastFrame.BroadcastPayload.BackwardOnion);
         }
     }
 
-    public void OnResponseFrame(GigGossipNode peer, ReplyFrame responseFrame, bool newResponse = false)
+    public void OnResponseFrame(string peerName, ReplyFrame responseFrame, bool newResponse = false)
     {
         if (responseFrame.ForwardOnion.IsEmpty())
         {
@@ -285,11 +271,11 @@ public class GigGossipNode : NamedEntity, IHodlInvoiceIssuer,IHodlInvoicePayer
 
             replyPayloads[payloadId][replierId].Add(new Tuple<ReplyPayload, HodlInvoice>(replyPayload, responseFrame.NetworkInvoice));
             replyPayloadsByHodlInvoiceId[responseFrame.NetworkInvoice.Id] = replyPayload;
-            Trace.TraceInformation("reply payload frame collected");
+            OnNewResponse();
         }
         else
         {
-            var topLayer = responseFrame.ForwardOnion.Peel(_privateKey, peer.certificate.PublicKey);
+            var topLayer = responseFrame.ForwardOnion.Peel(_privateKey, ((GigGossipNode)NamedEntity.GetByEntityName(peerName)).certificate.PublicKey);
             if (_knownHosts.ContainsKey(topLayer.PeerName))
             {
                 if (!responseFrame.SignedSettlementPromise.VerifyAll(responseFrame.EncryptedReplyPayload))
@@ -303,9 +289,9 @@ public class GigGossipNode : NamedEntity, IHodlInvoiceIssuer,IHodlInvoicePayer
                 if (!newResponse)
                 {
                     var nextNetworkInvoice = responseFrame.NetworkInvoice;
-                    var networkInvoice = paymentChannel.CreateHodlInvoice(
+                    var networkInvoice = LND.CreateHodlInvoice(
                         this.Name,
-                        peer.Name,
+                        peerName,
                         settler.Name,
                         responseFrame.NetworkInvoice.Amount + this.priceAmountForRouting,
                         responseFrame.NetworkInvoice.PaymentHash,
@@ -314,9 +300,14 @@ public class GigGossipNode : NamedEntity, IHodlInvoiceIssuer,IHodlInvoicePayer
                     responseFrame = responseFrame.DeepCopy();
                     responseFrame.NetworkInvoice = networkInvoice;
                 }
-                NewMessage(_knownHosts[topLayer.PeerName], responseFrame);
+                SendMessage(topLayer.PeerName, responseFrame);
             }
         }
+    }
+
+    public virtual void OnNewResponse()
+    {
+
     }
 
     public List<List<Tuple<ReplyPayload, HodlInvoice>>> GetResponses(Guid payloadId)
@@ -346,36 +337,49 @@ public class GigGossipNode : NamedEntity, IHodlInvoiceIssuer,IHodlInvoicePayer
 
         Trace.TraceInformation("paying and reading");
 
-        paymentChannel.PayHodlInvoice(networkInvoice);
+        LND.AcceptHodlInvoice(networkInvoice);
     }
 
-    public void NewMessage(GigGossipNode targetNode, object frame)
-    {
-        targetNode.OnMessage(this, frame);
-    }
-
-    public void OnMessage(GigGossipNode senderNode, object frame)
+    public override void OnMessage(string senderNodeName, object frame)
     {
         if (frame is AskForBroadcastFrame)
         {
-            OnAskForBroadcastFrame(senderNode, (AskForBroadcastFrame)frame);
+            OnAskForBroadcastFrame(senderNodeName, (AskForBroadcastFrame)frame);
         }
         else if (frame is POWBroadcastConditionsFrame)
         {
-            OnPOWBroadcastConditionsFrame(senderNode, (POWBroadcastConditionsFrame)frame);
+            OnPOWBroadcastConditionsFrame(senderNodeName, (POWBroadcastConditionsFrame)frame);
         }
         else if (frame is POWBroadcastFrame)
         {
-            OnPOWBroadcastFrame(senderNode, (POWBroadcastFrame)frame);
+            OnPOWBroadcastFrame(senderNodeName, (POWBroadcastFrame)frame);
         }
         else if (frame is ReplyFrame)
         {
-            OnResponseFrame(senderNode, (ReplyFrame)frame);
+            OnResponseFrame(senderNodeName, (ReplyFrame)frame);
         }
         else
         {
-            Trace.TraceError("unknown request: ", senderNode, frame);
+            Trace.TraceError("unknown request: ", senderNodeName, frame);
         }
     }
 
+    public bool AcceptingHodlInvoice(HodlInvoice invoice)
+    {
+        return true;
+    }
+
+    public void OnHodlInvoiceSettled(HodlInvoice invoice)
+    {
+        if (!replyPayloadsByHodlInvoiceId.ContainsKey(invoice.Id))
+            return;
+        var message = (byte[])Crypto.SymmetricDecrypt(invoice.Preimage, replyPayloadsByHodlInvoiceId[invoice.Id].EncryptedReplyMessage);
+        Trace.TraceInformation(Encoding.Default.GetString(message));
+    }
+
+    public void OnHodlInvoiceAccepted(HodlInvoice invoice)
+    {
+        if (nextNetworkInvoiceToPay.ContainsKey(invoice.Id))
+            LND.AcceptHodlInvoice(nextNetworkInvoiceToPay[invoice.Id]);
+    }
 }

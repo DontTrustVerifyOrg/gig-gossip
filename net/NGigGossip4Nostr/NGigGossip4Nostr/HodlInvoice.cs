@@ -36,38 +36,21 @@ public class HodlInvoice
     }
 }
 
-public abstract class NamedEntity
-{
-    private static readonly Dictionary<string, NamedEntity> ENTITY_BY_NAME = new Dictionary<string, NamedEntity>();
-
-    public string Name;
-    public NamedEntity(string name)
-    {
-        this.Name = name;
-        ENTITY_BY_NAME[name] = this;
-    }
-
-    public static NamedEntity GetByName(string name)
-    {
-        if (ENTITY_BY_NAME.ContainsKey(name))
-            return ENTITY_BY_NAME[name];
-        throw new ArgumentException("Entity not found");
-    }
-}
-
 
 public interface IHodlInvoicePayer 
 {
-    public bool OnHodlInvoiceAccepting(HodlInvoice invoice);
+    public bool AcceptingHodlInvoice(HodlInvoice invoice);
     public void OnHodlInvoiceSettled(HodlInvoice invoice);
 }
 
 public interface IHodlInvoiceIssuer
 {
+    public void OnHodlInvoiceAccepted(HodlInvoice invoice);
+    public void OnHodlInvoiceSettled(HodlInvoice invoice);
 }
 
 public interface IHodlInvoiceSettler
 {
-    public void OnHodlInvoicePayed(HodlInvoice invoice);
-    public void SettleHodlInvoice(HodlInvoice invoice);
+    public bool SettlingHodlInvoice(HodlInvoice invoice);
+    public void OnHodlInvoiceAccepted(HodlInvoice invoice);
 }

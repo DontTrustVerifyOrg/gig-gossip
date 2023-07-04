@@ -5,12 +5,12 @@ namespace NGigGossip4Nostr;
 public class OnionLayer
 {
     public string PeerName { get; set; }
-
     public OnionLayer(string peerName)
     {
         PeerName = peerName;
     }
 }
+
 [Serializable]
 public class OnionRoute
 {

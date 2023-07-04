@@ -9,7 +9,6 @@ public class Gossiper : GigGossipNode
     public Gossiper(string name, CertificationAuthority ca, int priceAmountForRouting, Settler settler):base(name)
     {
         var privateKey = Crypto.GeneratECPrivKey();
-        var paymentChannel = new PaymentChannel();
 
         var certificate = ca.IssueCertificate(
             privateKey.CreateXOnlyPubKey(),
@@ -19,7 +18,6 @@ public class Gossiper : GigGossipNode
         Init(
             certificate,
             privateKey,
-            paymentChannel,
             priceAmountForRouting,
             TimeSpan.FromDays(7),
             "sha256", 1,

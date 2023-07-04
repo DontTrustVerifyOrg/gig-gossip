@@ -36,12 +36,13 @@ public class Customer : Gossiper
         this.Broadcast(topic);
     }
 
-    public void Pay()
+    public override void OnNewResponse()
     {
         var responses = GetResponses(topicId);
         var responsesTuple = responses[0][0];
-        var    reply_payload = responsesTuple.Item1;
+        var reply_payload = responsesTuple.Item1;
         var network_invoice = responsesTuple.Item2;
         PayAndReadResponse(reply_payload, network_invoice);
     }
+
 }

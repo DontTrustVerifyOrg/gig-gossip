@@ -51,15 +51,23 @@ internal class Program
         var ca = Cert.CreateCertificationAuthority("CA");
         var settlerPrivKey = Crypto.GeneratECPrivKey();
         var setter_certificate = ca.IssueCertificate(settlerPrivKey.CreateXOnlyPubKey(), "is_ok", true, DateTime.Now.AddDays(7), DateTime.Now.AddDays(-7));
-        var settler = new Settler("ST",setter_certificate, settlerPrivKey, new PaymentChannel(), 12);
+        var settler = new Settler("ST",setter_certificate, settlerPrivKey, 12);
 
         var gigWorker = new GigWorker("GigWorker1", ca, 1, settler);
         var customer = new Customer("Customer1", ca, 1, settler);
 
         gigWorker.ConnectTo(customer);
 
+        gigWorker.Start();
+        customer.Start();
+
         customer.Go();
-        customer.Pay();
+
+        //gigWorker.Stop();
+        //customer.Stop();
+
+        gigWorker.Join();
+        customer.Join();
 
     }
 }

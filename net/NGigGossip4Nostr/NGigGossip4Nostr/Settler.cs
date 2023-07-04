@@ -8,17 +8,15 @@ public class Settler : NamedEntity, IHodlInvoiceIssuer, IHodlInvoiceSettler
 {
     public readonly Certificate SettlerCertificate;
     private readonly ECPrivKey settlerPrivateKey;
-    private readonly PaymentChannel paymentChannel;
     private readonly int priceAmountForSettlement;
 
-    public static Dictionary<Guid, Tuple<PaymentChannel, byte[]>> InvoiceById = new Dictionary<Guid, Tuple<PaymentChannel, byte[]>>();
+    public Dictionary<Guid, byte[]> InvoicePreimageById = new Dictionary<Guid, byte[]>();
 
 
-    public Settler(string name,Certificate settlerCertificate, ECPrivKey settlerPrivateKey, PaymentChannel paymentChannel, int priceAmountForSettlement):base(name)
+    public Settler(string name,Certificate settlerCertificate, ECPrivKey settlerPrivateKey,  int priceAmountForSettlement):base(name)
     {
         this.SettlerCertificate = settlerCertificate;
         this.settlerPrivateKey = settlerPrivateKey;
-        this.paymentChannel = paymentChannel;
         this.priceAmountForSettlement = priceAmountForSettlement;
     }
 
@@ -28,31 +26,10 @@ public class Settler : NamedEntity, IHodlInvoiceIssuer, IHodlInvoiceSettler
         byte[] replyPaymentHash = LND.ComputePaymentHash(replyPreimage);
 
         Guid invoiceId = Guid.NewGuid();
-        InvoiceById[invoiceId] = new Tuple<PaymentChannel, byte[]>(paymentChannel, replyPreimage);
+        InvoicePreimageById[invoiceId] = replyPreimage;
         return new Tuple<Guid, byte[]>(invoiceId, replyPaymentHash);
     }
 
-    public void SettleHodlInvoice(HodlInvoice invoice)
-    {
-        if (invoice.IsSettled)
-        {
-            return;
-        }
-
-        if (InvoiceById.ContainsKey(invoice.Id))
-        {
-            var tuple = InvoiceById[invoice.Id];
-            PaymentChannel paymentChannel = tuple.Item1;
-            byte[] preimage = tuple.Item2;
-            if (invoice.IsAccepted && LND.ComputePaymentHash(preimage).SequenceEqual(invoice.PaymentHash))
-            {
-                invoice.Preimage = preimage;
-                invoice.IsSettled = true;
-                paymentChannel.SettleHodlInvoiceComplete(invoice);
-            }
-        }
-
-    }
 
     public Tuple<SettlementPromise, HodlInvoice, byte[]> GenerateSettlementTrust(string issuerName, string payerName, byte[] message, HodlInvoice replyInvoice, RequestPayload signedRequestPayload, Certificate replierCertificate)
     {
@@ -60,14 +37,14 @@ public class Settler : NamedEntity, IHodlInvoiceIssuer, IHodlInvoiceSettler
         byte[] networkPaymentHash = LND.ComputePaymentHash(networkPreimage);
         byte[] encryptedReplyMessage = Crypto.SymmetricEncrypt(networkPreimage, message);
 
-        HodlInvoice networkInvoice = paymentChannel.CreateHodlInvoice(issuerName, payerName,this.Name,
+        HodlInvoice networkInvoice = LND.CreateHodlInvoice(issuerName, payerName,this.Name,
             priceAmountForSettlement,
             networkPaymentHash,
             DateTime.MaxValue,
             Guid.NewGuid()
         );
 
-        InvoiceById[networkInvoice.Id] = new Tuple<PaymentChannel, byte[]>(paymentChannel, networkPreimage);
+        InvoicePreimageById[networkInvoice.Id] = networkPreimage;
 
         ReplyPayload replyPayload = new ReplyPayload()
         {
@@ -92,21 +69,31 @@ public class Settler : NamedEntity, IHodlInvoiceIssuer, IHodlInvoiceSettler
         return new Tuple<SettlementPromise, HodlInvoice, byte[]>(signedSettlementPromise, networkInvoice, encryptedReplyPayload);
     }
 
-    public bool OnHodlInvoiceAccepting(HodlInvoice invoice)
+    public void OnHodlInvoiceAccepted(HodlInvoice invoice)
     {
-        //            paymentChannel.SettleHodlInvoice(i, networkPreimage);
-
-        throw new NotImplementedException();
-    }
-
-
-    public void OnHodlInvoicePayed(HodlInvoice invoice)
-    {
-        throw new NotImplementedException();
     }
 
     public void OnHodlInvoiceSettled(HodlInvoice invoice)
     {
-        throw new NotImplementedException();
+    }
+
+    public bool SettlingHodlInvoice(HodlInvoice invoice)
+    {
+        if (invoice.IsSettled)
+        {
+            return false;
+        }
+
+        if (InvoicePreimageById.ContainsKey(invoice.Id))
+        {
+            byte[] preimage = InvoicePreimageById[invoice.Id];
+            if (invoice.IsAccepted && LND.ComputePaymentHash(preimage).SequenceEqual(invoice.PaymentHash))
+            {
+                invoice.Preimage = preimage;
+                return true;
+            }
+        }
+        return false;
     }
 }
+
