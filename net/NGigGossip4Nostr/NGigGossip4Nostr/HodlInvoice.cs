@@ -24,29 +24,50 @@ public class HodlInvoice
         IsAccepted = false;
         IsSettled = false;
     }
+
+    public HodlInvoice DeepCopy()
+    {
+        return new HodlInvoice(this.PaymentHash.ToArray(), this.Amount, this.ValidTill, this.Id)
+        {
+            Preimage = (this.Preimage == null) ? null : this.Preimage.ToArray(),
+            IsAccepted = this.IsAccepted,
+            IsSettled = this.IsSettled,
+        };
+    }
 }
 
-
-public abstract class HodlInvoicePayer
+public abstract class NamedEntity
 {
-    private static readonly Dictionary<string, HodlInvoicePayer> PAYER_BY_NAME = new Dictionary<string, HodlInvoicePayer>();
-
-    public abstract bool AcceptHodlInvoice(HodlInvoice invoice);
+    private static readonly Dictionary<string, NamedEntity> ENTITY_BY_NAME = new Dictionary<string, NamedEntity>();
 
     public string Name;
-
-    public HodlInvoicePayer(string name)
+    public NamedEntity(string name)
     {
         this.Name = name;
-        PAYER_BY_NAME[name] = this;
+        ENTITY_BY_NAME[name] = this;
     }
 
-    public static HodlInvoicePayer GetHodlInvoicePayerByName(string name)
+    public static NamedEntity GetByName(string name)
     {
-        if (PAYER_BY_NAME.ContainsKey(name))
-            return PAYER_BY_NAME[name];
-        throw new ArgumentException("Payer not found");
+        if (ENTITY_BY_NAME.ContainsKey(name))
+            return ENTITY_BY_NAME[name];
+        throw new ArgumentException("Entity not found");
     }
 }
 
 
+public interface IHodlInvoicePayer 
+{
+    public bool OnHodlInvoiceAccepting(HodlInvoice invoice);
+    public void OnHodlInvoiceSettled(HodlInvoice invoice);
+}
+
+public interface IHodlInvoiceIssuer
+{
+}
+
+public interface IHodlInvoiceSettler
+{
+    public void OnHodlInvoicePayed(HodlInvoice invoice);
+    public void SettleHodlInvoice(HodlInvoice invoice);
+}

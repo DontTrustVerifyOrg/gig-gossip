@@ -25,4 +25,15 @@ public class ReplyFrame
 
         return replyPayload;
     }
+
+    public ReplyFrame DeepCopy()
+    {
+        return new ReplyFrame()
+        {
+            EncryptedReplyPayload = this.EncryptedReplyPayload.ToArray(),
+            SignedSettlementPromise = this.SignedSettlementPromise.DeepCopy(),
+            ForwardOnion = this.ForwardOnion.DeepCopy(),
+            NetworkInvoice = this.NetworkInvoice.DeepCopy()
+        };
+    }
 }

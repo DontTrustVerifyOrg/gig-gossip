@@ -40,5 +40,13 @@ public class OnionRoute
     {
         return _onion.Length == 0;
     }
+
+    public OnionRoute DeepCopy()
+    {
+        return new OnionRoute()
+        {
+            _onion = this._onion.ToArray()
+        };
+    }
 }
 

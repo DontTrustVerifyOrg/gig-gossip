@@ -5,6 +5,7 @@ using NGigGossip4Nostr;
 using NGigTaxiLib;
 using CommandLine;
 using NGeoHash;
+using NBitcoin.Protocol;
 
 namespace GigWorkerTest;
 
@@ -58,6 +59,7 @@ internal class Program
         gigWorker.ConnectTo(customer);
 
         customer.Go();
+        customer.Pay();
 
     }
 }

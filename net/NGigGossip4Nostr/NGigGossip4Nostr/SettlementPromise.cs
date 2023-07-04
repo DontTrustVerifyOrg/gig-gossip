@@ -28,4 +28,15 @@ public class SettlementPromise : SignableObject
 
         return true;
     }
+
+    public SettlementPromise DeepCopy()
+    {
+        return new SettlementPromise()
+        {
+            SettlerCertificate = this.SettlerCertificate,
+            NetworkPaymentHash = this.NetworkPaymentHash.ToArray(),
+            HashOfEncryptedReplyPayload = this.HashOfEncryptedReplyPayload.ToArray(),
+            ReplyPaymentAmount = this.ReplyPaymentAmount
+        };
+    }
 }

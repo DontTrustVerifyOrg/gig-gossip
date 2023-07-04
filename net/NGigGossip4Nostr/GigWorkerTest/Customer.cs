@@ -1,4 +1,5 @@
 ﻿using System;
+using NBitcoin.Protocol;
 using NGeoHash;
 using NGigGossip4Nostr;
 using NGigTaxiLib;
@@ -12,11 +13,13 @@ public class Customer : Gossiper
     {
     }
 
+    Guid topicId;
+
     public void Go()
     {
         var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);
         var toGh = GeoHash.Encode(latitude: 42.5, longitude: -5.6, numberOfChars: 7);
-        var topicId = Guid.NewGuid();
+        topicId = Guid.NewGuid();
         var topic = new RequestPayload()
         {
             PayloadId = topicId,
@@ -31,5 +34,14 @@ public class Customer : Gossiper
         };
         topic.Sign(this._privateKey);
         this.Broadcast(topic);
+    }
+
+    public void Pay()
+    {
+        var responses = GetResponses(topicId);
+        var responsesTuple = responses[0][0];
+        var    reply_payload = responsesTuple.Item1;
+        var network_invoice = responsesTuple.Item2;
+        PayAndReadResponse(reply_payload, network_invoice);
     }
 }
