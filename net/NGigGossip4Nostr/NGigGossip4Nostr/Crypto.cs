@@ -45,24 +45,48 @@ namespace NGigGossip4Nostr
         }
 
 
-        public static byte[] EncryptObject(object obj, ECPrivKey myPrivKey, ECXOnlyPubKey theirXPublicKey)
+        public static byte[] EncryptObject(object obj, ECXOnlyPubKey theirXPublicKey, ECPrivKey myPrivKey)
         {
+            byte[] attachpubKey = null;
+            if(myPrivKey==null)
+            {
+                myPrivKey = GeneratECPrivKey();
+                attachpubKey = myPrivKey.CreateXOnlyPubKey().ToBytes();
+            }
+
             if (!TryGetSharedPubkey(theirXPublicKey, myPrivKey, out var sharedKey))
                 throw new CryptographicException("Failed to get a shared key.");
 
             byte[] encryptionKey = sharedKey.ToBytes().AsSpan(1).ToArray();
 
-            return SymmetricEncrypt(encryptionKey, obj);
+            byte[] ret = SymmetricEncrypt(encryptionKey, obj);
+
+            if (attachpubKey != null)
+                ret = attachpubKey.Concat(ret).ToArray();
+            return ret;
         }
 
         public static object DecryptObject(byte[] encryptedData, ECPrivKey myPrivKey, ECXOnlyPubKey theirXPublicKey)
         {
+            byte[] encryptedX = encryptedData;
+            if (theirXPublicKey == null)
+            {
+                using (MemoryStream ms = new MemoryStream(encryptedData))
+                {
+                    byte[] pub_key_bytes = new byte[32];
+                    ms.Read(pub_key_bytes, 0, pub_key_bytes.Length);
+                    encryptedX = new byte[encryptedData.Length - pub_key_bytes.Length];
+                    ms.Read(encryptedX, 0, encryptedX.Length);
+                    theirXPublicKey = ECXOnlyPubKey.Create(pub_key_bytes);
+                }
+            }
+
             if (!TryGetSharedPubkey(theirXPublicKey, myPrivKey, out var sharedKey))
                 throw new CryptographicException("Failed to get a shared key.");
 
             byte[] decryptionKey = sharedKey.ToBytes().AsSpan(1).ToArray();
 
-            return SymmetricDecrypt(decryptionKey, encryptedData);
+            return SymmetricDecrypt(decryptionKey, encryptedX);
         }
 
         public static byte[] SignObject(object obj, ECPrivKey myPrivKey)

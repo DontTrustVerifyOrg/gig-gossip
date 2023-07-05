@@ -1,4 +1,6 @@
 ﻿using NBitcoin.Secp256k1;
+using NNostr.Client;
+
 namespace NGigGossip4Nostr;
 
 [Serializable]
@@ -21,18 +23,18 @@ public class OnionRoute
         _onion = new byte[0];
     }
 
-    public OnionLayer Peel(ECPrivKey privKey, ECXOnlyPubKey pubKey)
+    public OnionLayer Peel(ECPrivKey privKey)
     {
-        var layerData = (object[])Crypto.DecryptObject(_onion, privKey, pubKey);
+        var layerData = (object[])Crypto.DecryptObject(_onion, privKey, null) ;
         var layer = (OnionLayer)layerData[0];
         _onion = (byte[])layerData[1];
         return layer;
     }
 
-    public OnionRoute Grow(OnionLayer layer, ECPrivKey privKey, ECXOnlyPubKey pubKey)
+    public OnionRoute Grow(OnionLayer layer, ECXOnlyPubKey pubKey)
     {
         var newOnion = new OnionRoute();
-        newOnion._onion = Crypto.EncryptObject(new object[] { layer, _onion },privKey, pubKey);
+        newOnion._onion = Crypto.EncryptObject(new object[] { layer, _onion }, pubKey, null);
         return newOnion;
     }
 

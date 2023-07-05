@@ -15,17 +15,16 @@ public abstract class NostrNode : NamedEntity
         public object frame;
     }
 
-    private object locker = new object();
     private Queue<Message> message_queue = new();
     private Thread thread = null;
 
     public void SendMessage(string targetNodeName, object frame)
     {
         var targetNode = (NostrNode)NamedEntity.GetByEntityName(targetNodeName);
-        lock (targetNode.locker)
+        lock (targetNode.message_queue)
         {
             targetNode.message_queue.Enqueue(new Message() { senderNodeName = this.Name, frame = frame });
-            Monitor.PulseAll(targetNode.locker);
+            Monitor.PulseAll(targetNode.message_queue);
         }
     }
 
@@ -38,7 +37,7 @@ public abstract class NostrNode : NamedEntity
         {
             while (true)
             {
-                lock (locker)
+                lock (message_queue)
                 {
                     while (message_queue.Count > 0)
                     {
@@ -47,15 +46,15 @@ public abstract class NostrNode : NamedEntity
                             return;
                         try
                         {
-                            Monitor.Exit(locker);
+                            Monitor.Exit(message_queue);
                             OnMessage(message.senderNodeName, message.frame);
                         }
                         finally
                         {
-                            Monitor.Enter(locker);
+                            Monitor.Enter(message_queue);
                         }
                     }
-                    Monitor.Wait(locker);
+                    Monitor.Wait(message_queue);
                 }
             }
         }));
@@ -64,10 +63,10 @@ public abstract class NostrNode : NamedEntity
 
     public void Stop()
     {
-        lock (locker)
+        lock (message_queue)
         {
             message_queue.Enqueue(null);
-            Monitor.PulseAll(locker);
+            Monitor.PulseAll(message_queue);
         }
     }
     public void Join()

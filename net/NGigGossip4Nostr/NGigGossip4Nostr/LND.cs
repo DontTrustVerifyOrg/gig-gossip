@@ -20,7 +20,7 @@ public static class LND
             HODL_ISSUER_BY_ID[invoiceId] = (IHodlInvoiceIssuer)NamedEntity.GetByEntityName(issuerName);
             HODL_PAYER_BY_ID[invoiceId] = (IHodlInvoicePayer)NamedEntity.GetByEntityName(payerName);
             HODL_SETTLER_BY_ID[invoiceId] = (IHodlInvoiceSettler)NamedEntity.GetByEntityName(settlerName);
-            return new HodlInvoice(paymentHash, amount, validTill, invoiceId);
+            return new HodlInvoice(issuerName,payerName,settlerName,paymentHash, amount, validTill, invoiceId);
         }
     }
 
@@ -29,8 +29,11 @@ public static class LND
         return new Invoice(preimage, amount, validTill);
     }
 
-    public static void AcceptHodlInvoice(HodlInvoice invoice)
+    public static void AcceptHodlInvoice(string payerName,HodlInvoice invoice)
     {
+        if (invoice.PayerName != payerName)
+            throw new InvalidOperationException("payer missmatch");
+
         if (invoice.IsAccepted)
         {
             return;

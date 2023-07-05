@@ -36,7 +36,8 @@ public class SettlementPromise : SignableObject
             SettlerCertificate = this.SettlerCertificate,
             NetworkPaymentHash = this.NetworkPaymentHash.ToArray(),
             HashOfEncryptedReplyPayload = this.HashOfEncryptedReplyPayload.ToArray(),
-            ReplyPaymentAmount = this.ReplyPaymentAmount
+            ReplyPaymentAmount = this.ReplyPaymentAmount,
+            Signature = this.Signature.ToArray()
         };
     }
 }

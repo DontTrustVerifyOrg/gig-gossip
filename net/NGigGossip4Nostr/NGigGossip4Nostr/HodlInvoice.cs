@@ -13,9 +13,16 @@ public class HodlInvoice
     public bool IsAccepted { get; set; }
     public bool IsSettled { get; set; }
 
-    public HodlInvoice(byte[] paymentHash, int amount,
+    public string IssuerName { get; set; }
+    public string PayerName { get; set; }
+    public string SettlerName { get; set; }
+
+    public HodlInvoice(string issuerName, string payerName, string setterName, byte[] paymentHash, int amount,
         DateTime validTill, Guid? id = null)
     {
+        IssuerName = issuerName;
+        PayerName = payerName;
+        SettlerName = setterName;
         Preimage = null;
         Id = id ?? Guid.NewGuid();
         PaymentHash = paymentHash;
@@ -27,7 +34,7 @@ public class HodlInvoice
 
     public HodlInvoice DeepCopy()
     {
-        return new HodlInvoice(this.PaymentHash.ToArray(), this.Amount, this.ValidTill, this.Id)
+        return new HodlInvoice(this.IssuerName, this.PayerName, this.SettlerName, this.PaymentHash.ToArray(), this.Amount, this.ValidTill, this.Id)
         {
             Preimage = (this.Preimage == null) ? null : this.Preimage.ToArray(),
             IsAccepted = this.IsAccepted,
@@ -37,7 +44,7 @@ public class HodlInvoice
 }
 
 
-public interface IHodlInvoicePayer 
+public interface IHodlInvoicePayer
 {
     public bool AcceptingHodlInvoice(HodlInvoice invoice);
     public void OnHodlInvoiceSettled(HodlInvoice invoice);

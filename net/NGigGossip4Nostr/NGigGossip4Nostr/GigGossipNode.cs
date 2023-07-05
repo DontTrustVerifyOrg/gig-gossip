@@ -125,9 +125,7 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
             BroadcastPayload broadcastPayload = new BroadcastPayload()
             {
                 SignedRequestPayload = requestPayload,
-                BackwardOnion = (backwardOnion ?? new OnionRoute()).Grow(new OnionLayer(this.Name),
-                this._privateKey,
-                peer.Value.certificate.PublicKey),
+                BackwardOnion = (backwardOnion ?? new OnionRoute()).Grow(new OnionLayer(this.Name),peer.Value.certificate.PublicKey),
                 Timestamp = null
             };
 
@@ -255,7 +253,7 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
     {
         if (responseFrame.ForwardOnion.IsEmpty())
         {
-            if (responseFrame.SignedSettlementPromise.NetworkPaymentHash != responseFrame.NetworkInvoice.PaymentHash)
+            if (!responseFrame.SignedSettlementPromise.NetworkPaymentHash.SequenceEqual(responseFrame.NetworkInvoice.PaymentHash))
             {
                 Trace.TraceError("reply payload has different network_payment_hash than network_invoice");
                 return;
@@ -284,14 +282,14 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
         }
         else
         {
-            var topLayer = responseFrame.ForwardOnion.Peel(_privateKey, ((GigGossipNode)NamedEntity.GetByEntityName(peerName)).certificate.PublicKey);
+            var topLayer = responseFrame.ForwardOnion.Peel(_privateKey);
             if (_knownHosts.ContainsKey(topLayer.PeerName))
             {
                 if (!responseFrame.SignedSettlementPromise.VerifyAll(responseFrame.EncryptedReplyPayload))
                 {
                     return;
                 }
-                if (responseFrame.SignedSettlementPromise.NetworkPaymentHash != responseFrame.NetworkInvoice.PaymentHash)
+                if (!responseFrame.SignedSettlementPromise.NetworkPaymentHash.SequenceEqual(responseFrame.NetworkInvoice.PaymentHash))
                 {
                     return;
                 }
@@ -300,11 +298,12 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
                     var nextNetworkInvoice = responseFrame.NetworkInvoice;
                     var networkInvoice = LND.CreateHodlInvoice(
                         this.Name,
-                        peerName,
+                        topLayer.PeerName,
                         settler.Name,
                         responseFrame.NetworkInvoice.Amount + this.priceAmountForRouting,
                         responseFrame.NetworkInvoice.PaymentHash,
                         DateTime.MaxValue, Guid.NewGuid());
+                    settler.RegisterForSettlementInPaymentChain(responseFrame.NetworkInvoice.Id,networkInvoice.Id);
                     this.nextNetworkInvoiceToPay[networkInvoice.Id] = nextNetworkInvoice;
                     responseFrame = responseFrame.DeepCopy();
                     responseFrame.NetworkInvoice = networkInvoice;
@@ -343,7 +342,7 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
 
         Trace.TraceInformation("accepting the network payment");
 
-        LND.AcceptHodlInvoice(networkInvoice);
+        LND.AcceptHodlInvoice(this.Name,networkInvoice);
     }
 
     public override void OnMessage(string senderNodeName, object frame)
@@ -387,6 +386,6 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
     public void OnHodlInvoiceAccepted(HodlInvoice invoice)
     {
         if (nextNetworkInvoiceToPay.ContainsKey(invoice.Id))
-            LND.AcceptHodlInvoice(nextNetworkInvoiceToPay[invoice.Id]);
+            LND.AcceptHodlInvoice(this.Name, nextNetworkInvoiceToPay[invoice.Id]);
     }
 }

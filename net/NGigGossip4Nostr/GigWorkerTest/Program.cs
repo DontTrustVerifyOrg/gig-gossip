@@ -49,54 +49,9 @@ internal class Program
 
     static void RunOptions(Options opts)
     {
-        var ca = Cert.CreateCertificationAuthority("CA");
-        var settlerPrivKey = Crypto.GeneratECPrivKey();
-        var setter_certificate = ca.IssueCertificate(settlerPrivKey.CreateXOnlyPubKey(), "is_ok", true, DateTime.Now.AddDays(7), DateTime.Now.AddDays(-7));
-        var settler = new Settler("ST", setter_certificate, settlerPrivKey, 12);
-
-        var gigWorker = new GigWorker("GigWorker1", ca, 1, settler);
-        var customer = new Customer("Customer1", ca, 1, settler);
-
-        gigWorker.ConnectTo(customer);
-
-        customer.OnNewResponse += Customer_OnNewResponse;
-        customer.OnResponseReady += Customer_OnResponseReady;
-
-        gigWorker.Start();
-        customer.Start();
-
-        customer.Go();
-
-        //gigWorker.Stop();
-        //customer.Stop();
-
-        gigWorker.Join();
-        customer.Join();
-
-    }
-
-    private static void StopAll()
-    {
-        foreach(var entityName in NamedEntity.GetAllNames())
-        {
-            var entity = NamedEntity.GetByEntityName(entityName);
-            if(entity is NostrNode)
-            {
-                ((NostrNode)entity).Stop();
-            }
-        }
-    }
-
-    private static void Customer_OnNewResponse(object? sender, ResponseEventArgs e)
-    {
-        (sender as GigGossipNode).AcceptResponse(e.payload, e.network_invoice);
-    }
-
-    private static void Customer_OnResponseReady(object? sender, ResponseEventArgs e)
-    {
-        var message = (byte[])Crypto.SymmetricDecrypt(e.network_invoice.Preimage, e.payload.EncryptedReplyMessage);
-        Trace.TraceInformation(Encoding.Default.GetString(message));
-        StopAll();
+        MidTest test = new MidTest();
+        //BasicTest test = new BasicTest();
+        test.Run();
     }
 
 
