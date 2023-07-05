@@ -67,6 +67,7 @@ public abstract class NostrNode : NamedEntity
         lock (locker)
         {
             message_queue.Enqueue(null);
+            Monitor.PulseAll(locker);
         }
     }
     public void Join()

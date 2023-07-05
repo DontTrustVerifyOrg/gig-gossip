@@ -11,6 +11,13 @@ using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading;
 
+
+public class ResponseEventArgs : EventArgs
+{
+    public ReplyPayload payload { get; set; }
+    public HodlInvoice network_invoice { get; set; }
+}
+
 public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
 {
 
@@ -242,6 +249,8 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
         }
     }
 
+    public event EventHandler<ResponseEventArgs> OnNewResponse;
+
     public void OnResponseFrame(string peerName, ReplyFrame responseFrame, bool newResponse = false)
     {
         if (responseFrame.ForwardOnion.IsEmpty())
@@ -271,7 +280,7 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
 
             replyPayloads[payloadId][replierId].Add(new Tuple<ReplyPayload, HodlInvoice>(replyPayload, responseFrame.NetworkInvoice));
             replyPayloadsByHodlInvoiceId[responseFrame.NetworkInvoice.Id] = replyPayload;
-            OnNewResponse();
+            OnNewResponse.Invoke(this, new ResponseEventArgs() { network_invoice = responseFrame.NetworkInvoice, payload = replyPayload });
         }
         else
         {
@@ -305,10 +314,7 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
         }
     }
 
-    public virtual void OnNewResponse()
-    {
 
-    }
 
     public List<List<Tuple<ReplyPayload, HodlInvoice>>> GetResponses(Guid payloadId)
     {
@@ -320,7 +326,7 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
         return replyPayloads[payloadId].Values.ToList();
     }
 
-    public void PayAndReadResponse(ReplyPayload replyPayload, HodlInvoice networkInvoice)
+    public void AcceptResponse(ReplyPayload replyPayload, HodlInvoice networkInvoice)
     {
         var payloadId = replyPayload.SignedRequestPayload.PayloadId;
         if (!replyPayloads.ContainsKey(payloadId))
@@ -335,7 +341,7 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
             return;
         }
 
-        Trace.TraceInformation("paying and reading");
+        Trace.TraceInformation("accepting the network payment");
 
         LND.AcceptHodlInvoice(networkInvoice);
     }
@@ -369,12 +375,13 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
         return true;
     }
 
+    public event EventHandler<ResponseEventArgs> OnResponseReady;
+
     public void OnHodlInvoiceSettled(HodlInvoice invoice)
     {
         if (!replyPayloadsByHodlInvoiceId.ContainsKey(invoice.Id))
             return;
-        var message = (byte[])Crypto.SymmetricDecrypt(invoice.Preimage, replyPayloadsByHodlInvoiceId[invoice.Id].EncryptedReplyMessage);
-        Trace.TraceInformation(Encoding.Default.GetString(message));
+        OnResponseReady.Invoke(this, new ResponseEventArgs() { network_invoice = invoice, payload = replyPayloadsByHodlInvoiceId[invoice.Id] });
     }
 
     public void OnHodlInvoiceAccepted(HodlInvoice invoice)
