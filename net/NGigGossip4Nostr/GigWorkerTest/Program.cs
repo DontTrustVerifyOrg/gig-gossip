@@ -49,7 +49,8 @@ internal class Program
 
     static void RunOptions(Options opts)
     {
-        MidTest test = new MidTest();
+        ComplexTest test = new ComplexTest();
+        //MidTest test = new MidTest();
         //BasicTest test = new BasicTest();
         test.Run();
     }
