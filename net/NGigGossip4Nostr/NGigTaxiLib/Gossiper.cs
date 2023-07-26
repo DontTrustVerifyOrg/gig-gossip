@@ -6,21 +6,20 @@ namespace NGigTaxiLib;
 
 public class Gossiper : GigGossipNode
 {
-    public Gossiper(string name, CertificationAuthority ca, int priceAmountForRouting, Settler settler):base(name)
+    public Gossiper(CertificationAuthority ca, int priceAmountForRouting, Settler settler)
+        :base(Crypto.GeneratECPrivKey(), new[] { "ws://127.0.0.1:6969" })
     {
-        var privateKey = Crypto.GeneratECPrivKey();
 
         var certificate = ca.IssueCertificate(
-            privateKey.CreateXOnlyPubKey(),
+            this._privateKey.CreateXOnlyPubKey(),
             "is_ok", true,
             DateTime.Now.AddDays(7), DateTime.Now.AddDays(-7));
 
         Init(
             certificate,
-            privateKey,
             priceAmountForRouting,
             TimeSpan.FromDays(7),
-            "sha256", 1,
+            "sha256", 2,
             TimeSpan.FromDays(1), TimeSpan.FromSeconds(10),
             settler);
     }

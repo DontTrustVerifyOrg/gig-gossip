@@ -23,7 +23,7 @@ var otherPrivKey = Crypto.GeneratECPrivKey();
 var myPubKey = myPrivKey.CreateXOnlyPubKey();
 var otherPubKey = otherPrivKey.CreateXOnlyPubKey();
 
-var encrypted = Crypto.EncryptObject(obj, myPrivKey, otherPubKey);
+var encrypted = Crypto.EncryptObject(obj, otherPubKey, myPrivKey);
 var decr = Crypto.DecryptObject(encrypted, otherPrivKey, myPubKey);
 
 Console.WriteLine(JsonSerializer.Serialize(decr));

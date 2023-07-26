@@ -12,8 +12,8 @@ public class ComplexTest
     {
     }
 
-    int[] GRID_SHAPE = new int[] { 10, 10 };
-    int NUM_MESSAGES = 5;
+    static int[] GRID_SHAPE = new int[] { 3, 3 };
+    static int NUM_MESSAGES = 5;
 
     public void Run()
     {
@@ -33,7 +33,7 @@ public class ComplexTest
         foreach (var nod_idx in GRID_SHAPE_ITER.MultiCartesian())
         {
             var node_name = nod_name_f(nod_idx);
-            things[node_name] = new GridNode(node_name, ca, 1, settler);
+            things[node_name] = new GridNode(ca, 1, settler);
             things[node_name].OnNewResponse += GridNode_OnNewResponse;
             things[node_name].OnResponseReady += GridNode_OnResponseReady;
             things[node_name].OnBroadcastAccepted += ComplexTest_OnBroadcastAccepted;
@@ -88,24 +88,11 @@ public class ComplexTest
             customer.Go();
         }
 
-        foreach (var nod_idx in GRID_SHAPE_ITER.MultiCartesian())
+        while (true)
         {
-            var node_name = nod_name_f(nod_idx);
-            things[node_name].Join();
+            Thread.Sleep(1000);
         }
 
-    }
-
-    private static void StopAll()
-    {
-        foreach (var entityName in NamedEntity.GetAllNames())
-        {
-            var entity = NamedEntity.GetByEntityName(entityName);
-            if (entity is NostrNode)
-            {
-                ((NostrNode)entity).Stop();
-            }
-        }
     }
 
     private void GridNode_OnNewResponse(object? sender, ResponseEventArgs e)
@@ -113,20 +100,14 @@ public class ComplexTest
         (sender as GigGossipNode).AcceptResponse(e.payload, e.network_invoice);
     }
 
-    long responseCounter = 0;
-
     private void ComplexTest_OnBroadcastAccepted(object? sender, EventArgs e)
     {
-        var cnt = Interlocked.Increment(ref responseCounter);
     }
 
     private void GridNode_OnResponseReady(object? sender, ResponseEventArgs e)
     {
         var message = (byte[])Crypto.SymmetricDecrypt(e.network_invoice.Preimage, e.payload.EncryptedReplyMessage);
         Trace.TraceInformation(Encoding.Default.GetString(message));
-        var cnt = Interlocked.Decrement(ref responseCounter);
-        if(cnt==0)
-            StopAll();
     }
 }
 

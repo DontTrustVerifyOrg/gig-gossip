@@ -10,6 +10,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Numerics;
 
+[Serializable]
 public class ProofOfWork
 {
     public static BigInteger MaxPowTargetSha256 = BigInteger.Parse("0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", System.Globalization.NumberStyles.AllowHexSpecifier);
@@ -53,6 +54,7 @@ public class ProofOfWork
 
 }
 
+[Serializable]
 public class WorkRequest
 {
     public string PowScheme { get; set; }

@@ -56,6 +56,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\NGigGossip4Nostr\NGigGossip4Nostr.csproj" />
+	  <ProjectReference Include="..\NGigGossip4Nostr\NGigGossip4Nostr.csproj">
+	    <ReferenceSourceTarget>ProjectReference</ReferenceSourceTarget>
+	  </ProjectReference>
 	</ItemGroup>
 </Project>

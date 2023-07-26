@@ -19,8 +19,8 @@ public class BasicTest
         var setter_certificate = ca.IssueCertificate(settlerPrivKey.CreateXOnlyPubKey(), "is_ok", true, DateTime.Now.AddDays(7), DateTime.Now.AddDays(-7));
         var settler = new Settler("ST", setter_certificate, settlerPrivKey, 12);
 
-        var gigWorker = new GigWorker("GigWorker1", ca, 1, settler);
-        var customer = new Customer("Customer1", ca, 1, settler);
+        var gigWorker = new GigWorker(ca, 1, settler);
+        var customer = new Customer(ca, 1, settler);
 
         gigWorker.ConnectTo(customer);
 
@@ -32,22 +32,13 @@ public class BasicTest
 
         customer.Go();
 
-        gigWorker.Join();
-        customer.Join();
-
-    }
-
-    private static void StopAll()
-    {
-        foreach (var entityName in NamedEntity.GetAllNames())
+        while(true)
         {
-            var entity = NamedEntity.GetByEntityName(entityName);
-            if (entity is NostrNode)
-            {
-                ((NostrNode)entity).Stop();
-            }
+            Thread.Sleep(1000);
         }
+
     }
+
 
     private void Customer_OnNewResponse(object? sender, ResponseEventArgs e)
     {
@@ -58,7 +49,6 @@ public class BasicTest
     {
         var message = (byte[])Crypto.SymmetricDecrypt(e.network_invoice.Preimage, e.payload.EncryptedReplyMessage);
         Trace.TraceInformation(Encoding.Default.GetString(message));
-        StopAll();
     }
 }
 

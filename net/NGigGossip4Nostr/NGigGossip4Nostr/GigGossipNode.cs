@@ -10,6 +10,7 @@ using System.Threading.Channels;
 using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading;
+using NNostr.Client;
 
 
 public class ResponseEventArgs : EventArgs
@@ -22,7 +23,6 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
 {
 
     protected Certificate certificate;
-    protected ECPrivKey _privateKey;
     protected int priceAmountForRouting;
     protected TimeSpan broadcastConditionsTimeout;
     protected string broadcastConditionsPowScheme;
@@ -30,7 +30,7 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
     protected TimeSpan timestampTolerance;
     protected TimeSpan invoicePaymentTimeout;
     protected Settler settler;
-    protected Dictionary<string, GigGossipNode> _knownHosts;
+    protected HashSet<string> _knownHosts;
     protected Dictionary<Guid, BroadcastPayload> _broadcastPayloadsByAskId;
     protected Dictionary<Guid, POWBroadcastConditionsFrame> _myPowBrCondByAskId;
     protected Dictionary<Guid, int> _alreadyBroadcastedRequestPayloadIds;
@@ -38,18 +38,17 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
     protected Dictionary<Guid, HodlInvoice> nextNetworkInvoiceToPay;
     protected Dictionary<Guid, ReplyPayload> replyPayloadsByHodlInvoiceId;
 
-    public GigGossipNode(string name) : base(name)
+    public GigGossipNode( ECPrivKey privKey, string[] nostrRelays) : base(privKey.CreateXOnlyPubKey().ToHex(), privKey, nostrRelays)
     {
 
     }
 
-    protected void Init(Certificate certificate, ECPrivKey privateKey, 
+    protected void Init(Certificate certificate, 
                            int priceAmountForRouting, TimeSpan broadcastConditionsTimeout, string broadcastConditionsPowScheme,
                            int broadcastConditionsPowComplexity, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
                            Settler settler)
     {
         this.certificate = certificate;
-        this._privateKey = privateKey;
         this.priceAmountForRouting = priceAmountForRouting;
         this.broadcastConditionsTimeout = broadcastConditionsTimeout;
         this.broadcastConditionsPowScheme = broadcastConditionsPowScheme;
@@ -71,8 +70,8 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
     {
         if (other.Name == this.Name)
             throw new Exception("Cannot connect node to itself");
-        this._knownHosts[other.Name] = other;
-        other._knownHosts[this.Name] = this;
+        this._knownHosts.Add(other.Name);
+        other._knownHosts.Add(this.Name);
     }
 
     public virtual bool AcceptTopic(AbstractTopic topic)
@@ -111,9 +110,9 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
             return;
         }
 
-        foreach (KeyValuePair<string, GigGossipNode> peer in _knownHosts)
+        foreach (var peerName in _knownHosts)
         {
-            if (peer.Key == originatorPeerName)
+            if (peerName == originatorPeerName)
                 continue;
 
             AskForBroadcastFrame askForBroadcastFrame = new AskForBroadcastFrame()
@@ -125,12 +124,14 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
             BroadcastPayload broadcastPayload = new BroadcastPayload()
             {
                 SignedRequestPayload = requestPayload,
-                BackwardOnion = (backwardOnion ?? new OnionRoute()).Grow(new OnionLayer(this.Name),peer.Value.certificate.PublicKey),
+                BackwardOnion = (backwardOnion ?? new OnionRoute()).Grow(
+                    new OnionLayer(this.Name),
+                    Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(peerName))),
                 Timestamp = null
             };
 
             this._broadcastPayloadsByAskId[askForBroadcastFrame.AskId] = broadcastPayload;
-            this.SendMessage(peer.Value.Name, askForBroadcastFrame);
+            this.SendMessage(peerName, askForBroadcastFrame);
         }
     }
 
@@ -210,19 +211,19 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
 
         if (message != null)
         {
-            var invoiceIdAndOnAcceptedTuple = this.settler.GenerateReplyPaymentTrust();
+            var invoiceIdAndOnAcceptedTuple = (Tuple<Guid, byte[]>)Crypto.DecryptObject(this.settler.GenerateReplyPaymentTrust(this._publicKey), this._privateKey, settler.SettlerCertificate.PublicKey);
             var invoiceId = invoiceIdAndOnAcceptedTuple.Item1;
             var replyPaymentHash = invoiceIdAndOnAcceptedTuple.Item2;
 
             var replyInvoice = LND.CreateHodlInvoice(this.Name, peerName, settler.Name,
                 fee, replyPaymentHash, DateTime.MaxValue, invoiceId);
 
-            var messageAndNetworkInvoiceTuple = this.settler.GenerateSettlementTrust(this.Name,
+            var messageAndNetworkInvoiceTuple = (Tuple<SettlementPromise, HodlInvoice, byte[]>)Crypto.DecryptObject(this.settler.GenerateSettlementTrust(this._publicKey,
                 peerName,
                 message,
                 replyInvoice,
                 powBroadcastFrame.BroadcastPayload.SignedRequestPayload,
-                this.certificate);
+                this.certificate), this._privateKey, settler.SettlerCertificate.PublicKey);
 
             var signedSettlementPromise = messageAndNetworkInvoiceTuple.Item1;
             var networkInvoice = messageAndNetworkInvoiceTuple.Item2;
@@ -283,7 +284,7 @@ public class GigGossipNode : NostrNode, IHodlInvoiceIssuer, IHodlInvoicePayer
         else
         {
             var topLayer = responseFrame.ForwardOnion.Peel(_privateKey);
-            if (_knownHosts.ContainsKey(topLayer.PeerName))
+            if (_knownHosts.Contains(topLayer.PeerName))
             {
                 if (!responseFrame.SignedSettlementPromise.VerifyAll(responseFrame.EncryptedReplyPayload))
                 {

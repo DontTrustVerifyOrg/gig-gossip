@@ -1,6 +1,7 @@
 ﻿using System;
 namespace NGigGossip4Nostr;
 
+[Serializable]
 public class POWBroadcastConditionsFrame
 {
     public Guid AskId { get; set; }

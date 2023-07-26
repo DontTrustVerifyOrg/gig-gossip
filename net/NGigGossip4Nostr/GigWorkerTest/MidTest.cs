@@ -15,19 +15,19 @@ public class MidTest
     public void Run()
     {
 
-        int NUM_IN = 10;
+        int NUM_IN = 3;
 
         var ca = Cert.CreateCertificationAuthority("CA");
         var settlerPrivKey = Crypto.GeneratECPrivKey();
         var setter_certificate = ca.IssueCertificate(settlerPrivKey.CreateXOnlyPubKey(), "is_ok", true, DateTime.Now.AddDays(7), DateTime.Now.AddDays(-7));
         var settler = new Settler("ST", setter_certificate, settlerPrivKey, 12);
 
-        var gigWorker = new GigWorker("GigWorker1", ca, 1, settler);
+        var gigWorker = new GigWorker(ca, 1, settler);
 
         List<Gossiper> gossipers = new List<Gossiper>();
 
         for (int i = 0; i < NUM_IN; i++)
-            gossipers.Add(new Gossiper(string.Format("Gossiper{0}", i), ca, 2, settler));
+            gossipers.Add(new Gossiper( ca, 2, settler));
 
         gigWorker.ConnectTo(gossipers[0]);
 
@@ -35,7 +35,7 @@ public class MidTest
             for (int j = i + 1; j < NUM_IN; j++)
                 gossipers[i].ConnectTo(gossipers[j]);
 
-        var customer = new Customer("Customer1", ca, 1, settler);
+        var customer = new Customer(ca, 1, settler);
         customer.ConnectTo(gossipers[NUM_IN - 1]);
 
 
@@ -49,21 +49,11 @@ public class MidTest
 
         customer.Go();
 
-        gigWorker.Join();
-        customer.Join();
-
-    }
-
-    private static void StopAll()
-    {
-        foreach (var entityName in NamedEntity.GetAllNames())
+        while (true)
         {
-            var entity = NamedEntity.GetByEntityName(entityName);
-            if (entity is NostrNode)
-            {
-                ((NostrNode)entity).Stop();
-            }
+            Thread.Sleep(1000);
         }
+
     }
 
     private void Customer_OnNewResponse(object? sender, ResponseEventArgs e)
@@ -75,7 +65,6 @@ public class MidTest
     {
         var message = (byte[])Crypto.SymmetricDecrypt(e.network_invoice.Preimage, e.payload.EncryptedReplyMessage);
         Trace.TraceInformation(Encoding.Default.GetString(message));
-        StopAll();
     }
 }
 

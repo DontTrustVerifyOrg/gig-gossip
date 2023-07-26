@@ -4,6 +4,11 @@ using System.Xml.Linq;
 using NBitcoin.Secp256k1;
 namespace NGigGossip4Nostr;
 
+public class InvoiceSettlementStatus
+{
+
+}
+
 public class Settler : NamedEntity, IHodlInvoiceIssuer, IHodlInvoiceSettler
 {
     public readonly Certificate SettlerCertificate;
@@ -20,7 +25,7 @@ public class Settler : NamedEntity, IHodlInvoiceIssuer, IHodlInvoiceSettler
         this.priceAmountForSettlement = priceAmountForSettlement;
     }
 
-    public Tuple<Guid, byte[]> GenerateReplyPaymentTrust()
+    public byte[] GenerateReplyPaymentTrust(ECXOnlyPubKey pubKey)
     {
         byte[] replyPreimage = Crypto.GenerateSymmetricKey();
         byte[] replyPaymentHash = LND.ComputePaymentHash(replyPreimage);
@@ -28,7 +33,10 @@ public class Settler : NamedEntity, IHodlInvoiceIssuer, IHodlInvoiceSettler
         Guid invoiceId = Guid.NewGuid();
         lock (invoicePreimageById)
             invoicePreimageById[invoiceId] = replyPreimage;
-        return new Tuple<Guid, byte[]>(invoiceId, replyPaymentHash);
+
+        var trust = new Tuple<Guid, byte[]>(invoiceId, replyPaymentHash);
+
+        return Crypto.EncryptObject(trust, pubKey, this.settlerPrivateKey);
     }
 
     public void RegisterForSettlementInPaymentChain(Guid sourceInvoiceId,Guid nextInvoiceId)
@@ -37,13 +45,19 @@ public class Settler : NamedEntity, IHodlInvoiceIssuer, IHodlInvoiceSettler
             invoicePreimageById[nextInvoiceId] = invoicePreimageById[sourceInvoiceId];
     }
 
-    public Tuple<SettlementPromise, HodlInvoice, byte[]> GenerateSettlementTrust(string issuerName, string payerName, byte[] message, HodlInvoice replyInvoice, RequestPayload signedRequestPayload, Certificate replierCertificate)
+    public byte[] GenerateSettlementTrust(ECXOnlyPubKey pubkey, string payerName, byte[] message, HodlInvoice replyInvoice, RequestPayload signedRequestPayload, Certificate replierCertificate)
     {
+        if (!invoicePreimageById.ContainsKey(replyInvoice.Id))
+            return null;
+
+        if (!LND.ComputePaymentHash(invoicePreimageById[replyInvoice.Id]).SequenceEqual(replyInvoice.PaymentHash))
+            return null;
+
         byte[] networkPreimage = Crypto.GenerateSymmetricKey();
         byte[] networkPaymentHash = LND.ComputePaymentHash(networkPreimage);
         byte[] encryptedReplyMessage = Crypto.SymmetricEncrypt(networkPreimage, message);
 
-        HodlInvoice networkInvoice = LND.CreateHodlInvoice(issuerName, payerName, this.Name,
+        HodlInvoice networkInvoice = LND.CreateHodlInvoice(this.Name, payerName, this.Name,
             priceAmountForSettlement,
             networkPaymentHash,
             DateTime.MaxValue,
@@ -73,7 +87,8 @@ public class Settler : NamedEntity, IHodlInvoiceIssuer, IHodlInvoiceSettler
         };
         signedSettlementPromise.Sign(settlerPrivateKey);
 
-        return new Tuple<SettlementPromise, HodlInvoice, byte[]>(signedSettlementPromise, networkInvoice, encryptedReplyPayload);
+        var trust= new Tuple<SettlementPromise, HodlInvoice, byte[]>(signedSettlementPromise, networkInvoice, encryptedReplyPayload);
+        return Crypto.EncryptObject(trust, pubkey, settlerPrivateKey);
     }
 
     public void OnHodlInvoiceAccepted(HodlInvoice invoice)

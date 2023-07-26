@@ -24,11 +24,6 @@ public static class LND
         }
     }
 
-    public static Invoice CreateInvoice(int amount, byte[] preimage, DateTime validTill = default)
-    {
-        return new Invoice(preimage, amount, validTill);
-    }
-
     public static void AcceptHodlInvoice(string payerName,HodlInvoice invoice)
     {
         if (invoice.PayerName != payerName)

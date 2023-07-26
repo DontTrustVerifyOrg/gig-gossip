@@ -7,8 +7,8 @@ namespace GigWorkerTest;
 
 public class GigWorker : Gossiper
 {
-    public GigWorker(string name, CertificationAuthority ca, int priceAmountForRouting, Settler settler)
-         : base(name, ca, priceAmountForRouting, settler)
+    public GigWorker(CertificationAuthority ca, int priceAmountForRouting, Settler settler)
+         : base(ca, priceAmountForRouting, settler)
     {
     }
 

@@ -15,8 +15,8 @@ public enum GridNodeType
 public class GridNode : Customer
 {
     GridNodeType nodeType;
-    public GridNode(string name, CertificationAuthority ca, int priceAmountForRouting, Settler settler)
-         : base(name, ca, priceAmountForRouting, settler)
+    public GridNode(CertificationAuthority ca, int priceAmountForRouting, Settler settler)
+         : base( ca, priceAmountForRouting, settler)
     {
         nodeType = GridNodeType.Gossiper;
     }
