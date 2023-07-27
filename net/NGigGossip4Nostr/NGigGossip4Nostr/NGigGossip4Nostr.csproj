@@ -14,4 +14,7 @@
   <ItemGroup>
     <Compile Remove="Tester.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
+  </ItemGroup>
 </Project>

@@ -1,5 +1,7 @@
 ﻿
 using System;
+using System.Text.Json;
+using Grpc.Core;
 using LNDClient;
 
 var conf = new LND.NodesConfiguration();
@@ -26,32 +28,32 @@ conf.AddNodeConfiguration(
 
 
 for (int i = 1; i <= 3; i++)
-    Console.WriteLine("lnd{" + i.ToString() + "}: Pubkey: {" + LND.GetNodePubkey(conf, i) + "}");
+    Console.WriteLine("lnd{" + i.ToString() + "}: Pubkey: {" + LND.GetNodeInfo(conf, i) + "}");
 
 for (int i = 1; i <= 3; i++)
-    Console.WriteLine("lnd{" + i.ToString() + "}: Balance: {" + LND.GetWalletBalance(conf, i) + "}");
+    Console.WriteLine("lnd{" + i.ToString() + "}: Balance: {" + JsonSerializer.Serialize(LND.GetWalletBalance(conf, i)) + "}");
 
 var peersof2 = LND.ListPeers(conf, 2);
-if (!peersof2.ContainsKey(LND.GetNodePubkey(conf, 1)))
-{
-    LND.Connect(conf, 2, 1, LND.GetNodePubkey(conf, 1));
-}
-if (!peersof2.ContainsKey(LND.GetNodePubkey(conf, 3)))
-    LND.Connect(conf, 2, 3, LND.GetNodePubkey(conf, 3));
+var nd1 = LND.GetNodeInfo(conf, 1);
+var nd3 = LND.GetNodeInfo(conf, 3);
+
+if (peersof2.Peers.Where((p) => p.PubKey == nd1.IdentityPubkey).Count()==0)
+    LND.Connect(conf, 2, 1);
+
+if (peersof2.Peers.Where((p) => p.PubKey == nd3.IdentityPubkey).Count() == 0)
+    LND.Connect(conf, 2, 3);
 
 var channels2 = LND.ListChannels(conf, 2);
-if (!channels2.ContainsKey(LND.GetNodePubkey(conf, 1)))
+if (channels2.Channels.Where((c) => c.RemotePubkey == nd1.IdentityPubkey).Count() == 0)
 {
-    var tx = LND.OpenChannel(conf, 2, LND.GetNodePubkey(conf, 1), 100000);
-    Console.WriteLine(tx);
-    do
+    var oc2s = LND.OpenChannel(conf, 2, nd1.IdentityPubkey, 100000);
+    while (await oc2s.ResponseStream.MoveNext())
     {
-        var pending2 = LND.PendingChannels(conf, 2);
-        if (pending2["open"].ContainsKey(tx))
-            Thread.Sleep(1);
-        else
+        if (oc2s.ResponseStream.Current.ChanOpen != null)
             break;
-    } while (true);
+        else
+            Thread.Sleep(1);
+    };
 }
 
 
@@ -59,8 +61,8 @@ var preimage = LND.GenerateRandomPreimage();
 var hash = LND.ComputePaymentHash(preimage);
 var paymentReq = LND.AddHodlInvoice(conf, 1, 1000, "hello", hash);
 
-Console.WriteLine(paymentReq);
-Console.WriteLine(LND.DecodeInvoice(conf, 2, paymentReq));
+Console.WriteLine(paymentReq.PaymentRequest);
+Console.WriteLine(LND.DecodeInvoice(conf, 2, paymentReq.PaymentRequest));
 
 var waiter4inv = LND.SubscribeSingleInvoice(conf, 1, hash);
 
@@ -69,43 +71,29 @@ for (int i = 1; i <= 1; i++)
     Console.WriteLine("lnd{" + i.ToString() + "}: State: {" + LND.LookupInvoiceV2(conf, i, hash) + "}");
 }
 
-var waiter = LND.SendPaymentV2(conf, 2, paymentReq, 10);
+var waiter = LND.SendPaymentV2(conf, 2, paymentReq.PaymentRequest, 10);
 
+while (await waiter4inv.ResponseStream.MoveNext())
 {
-    Task<bool> task = null;
-    do
-    {
-        var st = await LND.AwaitForSubscribeSingleInvoiceReturn(waiter4inv, 0.1, task);
-        if (st.Item1 != null)
-            Console.WriteLine(st.Item1);
-        else
-            Console.WriteLine(".");
-        if (st.Item1 == "Accepted")
-            break;
-        task = st.Item2;
-    } while (true);
-}
+    if (waiter4inv.ResponseStream.Current.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)
+        break;
+    else
+        Thread.Sleep(1);
+};
 
 LND.SettleInvoice(conf, 1, preimage);
-while (LND.LookupInvoiceV2(conf, 1, hash) != "Settled")
-{
-    Thread.Sleep(1);
-}
 
+while (LND.LookupInvoiceV2(conf, 1, hash).State != Lnrpc.Invoice.Types.InvoiceState.Settled)
+    Thread.Sleep(1);
+
+
+while (await waiter.ResponseStream.MoveNext())
 {
-    Task<bool> task = null;
-    do
-    {
-        var st = await LND.AwaitForSendPaymentV2Return(waiter, 0.1, task);
-        if (st.Item1 != null)
-            Console.WriteLine(st.Item1);
-        else
-            Console.WriteLine(".");
-        if (st.Item1 == "Succeeded")
-            break;
-        task = st.Item2;
-    } while (true);
-}
+    if (waiter.ResponseStream.Current.Status == Lnrpc.Payment.Types.PaymentStatus.Succeeded)
+        break;
+    else
+        Thread.Sleep(1);
+};
 
 var paymentReq2 = LND.AddInvoice(conf, 1, 1000, "hello");
 Console.WriteLine(paymentReq2);
@@ -113,24 +101,10 @@ Console.WriteLine(LND.DecodeInvoice(conf, 2, paymentReq2));
 Console.WriteLine(LND.SendPayment(conf, 2, paymentReq2));
 
 var channels21 = LND.ListChannels(conf, 2);
-foreach (var chanx in channels21.Values)
-{
-    foreach (var tx in chanx.Keys)
-        LND.CloseChannel(conf, 2, tx);
-}
+foreach (var chanx in channels21.Channels)
+    LND.CloseChannel(conf, 2, chanx.ChannelPoint.Split(':')[0]);
 
-foreach (var chanx in channels21.Values)
-{
-    foreach (var tx in chanx.Keys)
-        do
-        {
-            var pending2 = LND.PendingChannels(conf, 2);
-            if (pending2["waitingclose"].ContainsKey(tx))
-                Thread.Sleep(1);
-            else
-                break;
-        } while (true);
-}
+
 
 for (int i = 1; i <= 3; i++)
     Console.WriteLine("lnd{" + i.ToString() + "}: Balance: {" + LND.GetWalletBalance(conf, i) + "}");

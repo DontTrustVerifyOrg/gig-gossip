@@ -1,5 +1,5 @@
 ﻿using NBitcoin.Secp256k1;
-using NNostr.Client;
+using CryptoToolkit;
 
 namespace NGigGossip4Nostr;
 

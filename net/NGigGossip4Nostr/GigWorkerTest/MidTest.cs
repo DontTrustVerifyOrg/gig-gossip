@@ -3,6 +3,7 @@ using NGigGossip4Nostr;
 using System.Diagnostics;
 using System.Text;
 using NGigTaxiLib;
+using CryptoToolkit;
 
 namespace GigWorkerTest;
 

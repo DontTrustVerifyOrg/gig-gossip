@@ -1,5 +1,6 @@
 ﻿using System;
 using NBitcoin.Secp256k1;
+using CryptoToolkit;
 namespace NGigGossip4Nostr;
 
 [Serializable]

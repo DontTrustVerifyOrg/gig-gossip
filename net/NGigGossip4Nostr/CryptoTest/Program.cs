@@ -1,11 +1,9 @@
 ﻿using System.Text;
 using System.Text.Json;
-using NGigGossip4Nostr;
-using NNostr.Client;
+using CryptoToolkit;
+using NBitcoin;
 using NBitcoin.Secp256k1;
-using NNostr.Client.Crypto;
-using NNostr.Client.Protocols;
-using NNostr.Client.JsonConverters;
+using NGigGossip4Nostr;
 
 Console.WriteLine("Hello, World!");
 
@@ -49,7 +47,7 @@ Console.WriteLine(pow.Validate(obj));
 var ser = Crypto.SerializeObject(myPubKey);
 var deser = (ECXOnlyPubKey) Crypto.DeserializeObject(ser);
 
-Console.WriteLine(myPubKey.ToHex());
-Console.WriteLine(deser.ToHex());
+Console.WriteLine(myPubKey.AsHex());
+Console.WriteLine(deser.AsHex());
 
 Console.ReadKey();

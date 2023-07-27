@@ -19,6 +19,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LNDTest", "LNDTest\LNDTest.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LNDClient", "LNDClient\LNDClient.csproj", "{C2B516A6-0373-4D4A-B6C1-1E92402AFB85}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GigLNDWalletAPI", "GigLNDWalletAPI\GigLNDWalletAPI.csproj", "{12A09756-571F-459B-91B0-70116D35C925}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LNDWalletTester", "LNDWalletTester\LNDWalletTester.csproj", "{A01D75E1-E1CA-4BFF-AFAA-C9B0D502FFDE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoToolkit", "CryptoToolkit\CryptoToolkit.csproj", "{49F8A97E-9B1A-4367-B149-0ACDEB7D2E01}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +63,18 @@ Global
 		{C2B516A6-0373-4D4A-B6C1-1E92402AFB85}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C2B516A6-0373-4D4A-B6C1-1E92402AFB85}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C2B516A6-0373-4D4A-B6C1-1E92402AFB85}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12A09756-571F-459B-91B0-70116D35C925}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12A09756-571F-459B-91B0-70116D35C925}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12A09756-571F-459B-91B0-70116D35C925}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12A09756-571F-459B-91B0-70116D35C925}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A01D75E1-E1CA-4BFF-AFAA-C9B0D502FFDE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A01D75E1-E1CA-4BFF-AFAA-C9B0D502FFDE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A01D75E1-E1CA-4BFF-AFAA-C9B0D502FFDE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A01D75E1-E1CA-4BFF-AFAA-C9B0D502FFDE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{49F8A97E-9B1A-4367-B149-0ACDEB7D2E01}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{49F8A97E-9B1A-4367-B149-0ACDEB7D2E01}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{49F8A97E-9B1A-4367-B149-0ACDEB7D2E01}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{49F8A97E-9B1A-4367-B149-0ACDEB7D2E01}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

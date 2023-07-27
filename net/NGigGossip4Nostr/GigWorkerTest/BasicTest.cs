@@ -2,7 +2,7 @@
 using NGigGossip4Nostr;
 using System.Diagnostics;
 using System.Text;
-
+using CryptoToolkit;
 namespace GigWorkerTest;
 
 public class BasicTest

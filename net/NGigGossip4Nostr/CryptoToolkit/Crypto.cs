@@ -1,24 +1,33 @@
-﻿using System;
+﻿
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using NBitcoin.Secp256k1;
 using NBitcoin;
-using NBitcoin.Protocol;
+using NBitcoin.Secp256k1;
 using System.Diagnostics.CodeAnalysis;
-using NNostr.Client.Crypto;
-using NBitcoin.Crypto;
 using System.Runtime.Serialization;
-using NNostr.Client;
 
-namespace NGigGossip4Nostr
+namespace CryptoToolkit
 {
+    public static class HexExtensions
+    {
+        public static string AsHex(this ECPrivKey key)
+        {
+            Span<byte> span = stackalloc byte[32];
+            key.WriteToSpan(span);
+            return span.AsHex();
+        }
+        public static string AsHex(this Span<byte> bytes)
+        {
+            return Convert.ToHexString(bytes).ToLowerInvariant();
+        }
+        public static string AsHex(this ECXOnlyPubKey key)
+        {
+            return key.ToBytes().AsSpan().AsHex();
+        }
+    }
 
     public static class Crypto
-	{
+    {
         public struct EncryptedData
         {
             public byte[] Data;
@@ -48,7 +57,7 @@ namespace NGigGossip4Nostr
         public static byte[] EncryptObject(object obj, ECXOnlyPubKey theirXPublicKey, ECPrivKey myPrivKey)
         {
             byte[] attachpubKey = null;
-            if(myPrivKey==null)
+            if (myPrivKey == null)
             {
                 myPrivKey = GeneratECPrivKey();
                 attachpubKey = myPrivKey.CreateXOnlyPubKey().ToBytes();
@@ -217,7 +226,7 @@ namespace NGigGossip4Nostr
             public void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
             {
                 var key = (ECXOnlyPubKey)obj;
-                info.AddValue("XOnlyPubKey", key.ToHex());
+                info.AddValue("XOnlyPubKey", key.AsHex());
             }
 
             public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector? selector)
@@ -261,7 +270,6 @@ namespace NGigGossip4Nostr
         }
 
     }
+
+
 }
-
-
-   

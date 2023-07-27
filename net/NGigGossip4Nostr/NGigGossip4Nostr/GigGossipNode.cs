@@ -11,6 +11,7 @@ using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading;
 using NNostr.Client;
+using CryptoToolkit;
 
 
 public class ResponseEventArgs : EventArgs

@@ -2,6 +2,8 @@
 using System.Linq;
 using System.Xml.Linq;
 using NBitcoin.Secp256k1;
+using CryptoToolkit;
+
 namespace NGigGossip4Nostr;
 
 public class InvoiceSettlementStatus

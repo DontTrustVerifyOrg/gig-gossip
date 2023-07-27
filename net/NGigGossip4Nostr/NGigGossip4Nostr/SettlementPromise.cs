@@ -1,4 +1,5 @@
 ﻿using System;
+using CryptoToolkit;
 namespace NGigGossip4Nostr;
 
 [Serializable]

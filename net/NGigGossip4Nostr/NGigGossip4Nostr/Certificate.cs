@@ -1,5 +1,5 @@
 ﻿using System;
-namespace NGigGossip4Nostr;
+using CryptoToolkit;
 
 using System;
 using System.Collections.Generic;
@@ -7,6 +7,7 @@ using System.Runtime.Serialization;
 using NBitcoin.Secp256k1;
 using NNostr.Client;
 
+namespace NGigGossip4Nostr;
 
 [Serializable]
 public class Certificate : SignableObject

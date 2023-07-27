@@ -4,9 +4,6 @@ using Lnrpc;
 using NBitcoin;
 using Routerrpc;
 
-using System.Text.Json;
-using static LNDClient.LND;
-
 namespace LNDClient;
 
 public static class LND
@@ -88,59 +85,75 @@ public static class LND
         return new Metadata() { new Metadata.Entry("macaroon", GetMacaroon(conf, idx)) };
     }
 
-    public static long GetWalletBalance(NodesConfiguration conf, int idx)
+    public static string NewAddress(NodesConfiguration conf, int idx, string account)
     {
-        var response = UserClient(conf, idx).WalletBalance(
-            new WalletBalanceRequest(),
+        var response = UserClient(conf, idx).NewAddress(
+            new NewAddressRequest() { Type= AddressType.NestedPubkeyHash, Account = account },
             Metadata(conf, idx));
-        return response.TotalBalance;
+        return response.Address;
+    }
+
+    //-1 means send all
+    public static string SendCoins(NodesConfiguration conf, int idx, string address, string memo, long satoshis = -1)
+    {
+        SendCoinsRequest req;
+        if (satoshis > -1)
+            req = new SendCoinsRequest() { Addr = address, Amount = satoshis, TargetConf = 6, Label = memo };
+        else
+            req = new SendCoinsRequest() { Addr = address, SendAll = true, TargetConf = 6, Label = memo };
+
+        var response = UserClient(conf, idx).SendCoins(req, Metadata(conf, idx));
+        return response.Txid;
+    }
+
+    public static WalletBalanceResponse GetWalletBalance(NodesConfiguration conf, int idx)
+    {
+        return UserClient(conf, idx).WalletBalance(
+            new WalletBalanceRequest() ,
+            Metadata(conf, idx));
     }
 
     public static string AddInvoice(NodesConfiguration conf, int idx, long satoshis, string memo)
     {
-        var invoiceResponse = UserClient(conf, idx).AddInvoice(
+        var response = UserClient(conf, idx).AddInvoice(
             new Invoice()
             {
                 Memo = memo,
-                Value = satoshis
+                Value = satoshis,
             },
             Metadata(conf, idx));
-        return invoiceResponse.PaymentRequest;
+        return response.PaymentRequest;
     }
 
-    public static string LookupInvoice(NodesConfiguration conf, int idx, byte[] hash)
+    public static Invoice LookupInvoice(NodesConfiguration conf, int idx, byte[] hash)
     {
-        var invoiceResponse = UserClient(conf, idx).LookupInvoice(
+        return UserClient(conf, idx).LookupInvoice(
             new PaymentHash()
             {
                 RHash = Google.Protobuf.ByteString.CopyFrom(hash)
             },
             Metadata(conf, idx));
-        return invoiceResponse.State.ToString();
     }
 
-    public static string DecodeInvoice(NodesConfiguration conf, int idx, string paymentRequest)
+    public static PayReq DecodeInvoice(NodesConfiguration conf, int idx, string paymentRequest)
     {
-        var invoiceResponse = UserClient(conf, idx).DecodePayReq(
+        return UserClient(conf, idx).DecodePayReq(
             new PayReqString()
             {
                 PayReq = paymentRequest
             },
             Metadata(conf, idx));
-        return JsonSerializer.Serialize(invoiceResponse);
     }
 
-    public static AsyncUnaryCall<SendResponse> SendPayment(NodesConfiguration conf, int idx, string paymentRequest)
+    public static SendResponse SendPayment(NodesConfiguration conf, int idx, string paymentRequest)
     {
-        var response = UserClient(conf, idx).SendPaymentSyncAsync(
+        return UserClient(conf, idx).SendPaymentSync(
             new SendRequest()
             {
                 PaymentRequest = paymentRequest,
             },
             Metadata(conf, idx));
-        return response;
     }
-
 
     public static AsyncServerStreamingCall<Payment> SendPaymentV2(NodesConfiguration conf, int idx, string paymentRequest, int timeout)
     {
@@ -151,127 +164,84 @@ public static class LND
                 TimeoutSeconds = timeout,
             },
             Metadata(conf, idx));
-
         return stream;
     }
 
-    public static async Task<Tuple<string?, Task<bool>?>> AwaitForSendPaymentV2Return(AsyncServerStreamingCall<Payment> stream, double timeout, Task<bool> task)
+    public static GetInfoResponse GetNodeInfo(NodesConfiguration conf, int idx)
     {
-        var delay = Task.Delay(TimeSpan.FromSeconds(timeout));
-        if (task == null)
-            task = stream.ResponseStream.MoveNext();
-        var winner = await Task.WhenAny(task, delay);
-        if (winner == delay)
-            return Tuple.Create<string?, Task<bool>?>(null, task);
-        var ret = task.Result ? stream.ResponseStream.Current.Status.ToString() : "eof";
-        return Tuple.Create<string?, Task<bool>?>(ret, null);
-    }
-
-    public static string GetNodePubkey(NodesConfiguration conf, int idx)
-    {
-        var response = UserClient(conf, idx).GetInfo(
+        return UserClient(conf, idx).GetInfo(
             new GetInfoRequest(),
             Metadata(conf, idx));
-        return response.IdentityPubkey;
     }
 
-    public static void Connect(NodesConfiguration conf, int idx, int idx2, string node2PubKey)
+    public static void Connect(NodesConfiguration conf, int idx, int idx2)
     {
-        var response = UserClient(conf, idx).ConnectPeer(
+        var nodeInfo = GetNodeInfo(conf, idx2);
+        UserClient(conf, idx).ConnectPeer(
             new ConnectPeerRequest()
             {
-                Addr = new LightningAddress() { Host = conf.ListenHost(idx2), Pubkey = node2PubKey }
+                Addr = new LightningAddress() { Host = conf.ListenHost(idx2), Pubkey = nodeInfo.IdentityPubkey }
             },
             Metadata(conf, idx));
     }
 
-    public static Dictionary<string, string> ListPeers(NodesConfiguration conf, int idx)
+    public static ListPeersResponse ListPeers(NodesConfiguration conf, int idx)
     {
-        var response = UserClient(conf, idx).ListPeers(
+        return UserClient(conf, idx).ListPeers(
             new ListPeersRequest(),
             Metadata(conf, idx));
-        return new Dictionary<string, string>(from peer in response.Peers select KeyValuePair.Create(peer.PubKey, peer.Address));
     }
 
-    public static string OpenChannel(NodesConfiguration conf, int idx, string nodePubKey, long fundingSatoshis)
+    public static AsyncServerStreamingCall<OpenStatusUpdate> OpenChannel(NodesConfiguration conf, int idx, string nodePubKey, long fundingSatoshis, string closeAddress = null)
     {
-        var response = UserClient(conf, idx).OpenChannelSync(
-            new OpenChannelRequest()
+        OpenChannelRequest ocr = null;
+        if (closeAddress == null)
+            ocr = new OpenChannelRequest()
             {
                 LocalFundingAmount = fundingSatoshis,
                 NodePubkeyString = nodePubKey
-            },
-            Metadata(conf, idx));
-        return BitConverter.ToString(response.FundingTxidBytes.ToByteArray().Reverse().ToArray()).Replace("-", "").ToLower();
+            };
+        else
+            ocr = new OpenChannelRequest()
+            {
+                LocalFundingAmount = fundingSatoshis,
+                NodePubkeyString = nodePubKey,
+                CloseAddress = closeAddress,
+            };
+        return UserClient(conf, idx).OpenChannel(ocr, Metadata(conf, idx));
     }
 
-    public static void CloseChannel(NodesConfiguration conf, int idx, string fundingTxidStr)
+    public static AsyncServerStreamingCall<CloseStatusUpdate> CloseChannel(NodesConfiguration conf, int idx, string fundingTxidStr)
     {
-        var response = UserClient(conf, idx).CloseChannel(
+        var stream = UserClient(conf, idx).CloseChannel(
             new CloseChannelRequest()
             {
                 ChannelPoint = new ChannelPoint() { FundingTxidStr = fundingTxidStr }
             },
             Metadata(conf, idx));
+        return stream;
     }
 
-    static Dictionary<string, Dictionary<string, long>> ChannelsToC(IEnumerable<Lnrpc.Channel> channels)
+    public static PendingChannelsResponse PendingChannels(NodesConfiguration conf, int idx)
     {
-        var ret = new Dictionary<string, Dictionary<string, long>>();
-        foreach (var channel in channels)
-        {
-            if (!ret.ContainsKey(channel.RemotePubkey))
-                ret[channel.RemotePubkey] = new Dictionary<string, long>();
-            ret[channel.RemotePubkey][channel.ChannelPoint.Split(':')[0]] = channel.LocalBalance;
-        }
-        return ret;
-    }
-
-    static Dictionary<string, Dictionary<string, long>> ChannelsToPO(IEnumerable<PendingChannelsResponse.Types.PendingChannel> channels)
-    {
-        var ret = new Dictionary<string, Dictionary<string, long>>();
-        foreach (var channel in channels)
-        {
-            var cp = channel.ChannelPoint.Split(':')[0];
-            if (!ret.ContainsKey(cp))
-                ret[cp] = new Dictionary<string, long>();
-            ret[cp][channel.RemoteNodePub] = channel.LocalBalance;
-        }
-        return ret;
-    }
-
-
-    public static Dictionary<string, Dictionary<string, Dictionary<string, long>>> PendingChannels(NodesConfiguration conf, int idx)
-    {
-        var response = UserClient(conf, idx).PendingChannels(
+        return UserClient(conf, idx).PendingChannels(
             new PendingChannelsRequest() { },
             Metadata(conf, idx));
-        var po = ChannelsToPO(from channel in response.PendingOpenChannels select channel.Channel);
-        var pc = ChannelsToPO(from channel in response.WaitingCloseChannels select channel.Channel);
-        var pfc = ChannelsToPO(from channel in response.PendingForceClosingChannels select channel.Channel);
-        var ret = new Dictionary<string, Dictionary<string, Dictionary<string, long>>>();
-        ret["open"] = po;
-        ret["waitingclose"] = pc;
-        ret["forceclosing"] = pfc;
-        return ret;
     }
 
-    public static Dictionary<string, Dictionary<string, long>> ListChannels(NodesConfiguration conf, int idx, bool activeOnly = true)
+    public static ListChannelsResponse ListChannels(NodesConfiguration conf, int idx, bool activeOnly = true)
     {
-        var response = UserClient(conf, idx).ListChannels(
+        return UserClient(conf, idx).ListChannels(
             new ListChannelsRequest()
             {
                 ActiveOnly = activeOnly
             },
             Metadata(conf, idx));
-        return ChannelsToC(response.Channels);
     }
 
-
-
-    public static string AddHodlInvoice(NodesConfiguration conf, int idx, long satoshis, string memo, byte[] hash, long expiry = 86400)
+    public static AddHoldInvoiceResp AddHodlInvoice(NodesConfiguration conf, int idx, long satoshis, string memo, byte[] hash, long expiry = 86400)
     {
-        var invoiceResponse = InvoicesClient(conf, idx).AddHoldInvoice(
+        return InvoicesClient(conf, idx).AddHoldInvoice(
             new AddHoldInvoiceRequest()
             {
                 Memo = memo,
@@ -280,12 +250,11 @@ public static class LND
                 Expiry = expiry
             },
             Metadata(conf, idx));
-        return invoiceResponse.PaymentRequest;
     }
 
     public static void CancelInvoice(NodesConfiguration conf, int idx, byte[] hash)
     {
-        var response = InvoicesClient(conf, idx).CancelInvoice(
+        InvoicesClient(conf, idx).CancelInvoice(
             new CancelInvoiceMsg()
             {
                 PaymentHash = Google.Protobuf.ByteString.CopyFrom(hash),
@@ -295,7 +264,7 @@ public static class LND
 
     public static void SettleInvoice(NodesConfiguration conf, int idx, byte[] preimage)
     {
-        var response = InvoicesClient(conf, idx).SettleInvoice(
+        InvoicesClient(conf, idx).SettleInvoice(
             new SettleInvoiceMsg()
             {
                 Preimage = Google.Protobuf.ByteString.CopyFrom(preimage)
@@ -316,16 +285,12 @@ public static class LND
         return RandomUtils.GetBytes(32);
     }
 
-    public static string LookupInvoiceV2(NodesConfiguration conf, int idx, byte[] hash)
+    public static Invoice LookupInvoiceV2(NodesConfiguration conf, int idx, byte[] hash)
     {
-        var lim = new LookupInvoiceMsg()
-        {
-            PaymentHash = Google.Protobuf.ByteString.CopyFrom(hash),
-        };
-        var invoiceResponse = InvoicesClient(conf, idx).LookupInvoiceV2(
-            lim,
+        return InvoicesClient(conf, idx).LookupInvoiceV2(new LookupInvoiceMsg(){
+                PaymentHash = Google.Protobuf.ByteString.CopyFrom(hash)
+            },
             Metadata(conf, idx));
-        return invoiceResponse.State.ToString();
     }
 
     public static AsyncServerStreamingCall<Invoice> SubscribeSingleInvoice(NodesConfiguration conf, int idx, byte[] hash)
@@ -339,16 +304,5 @@ public static class LND
         return stream;
     }
 
-    public static async Task<Tuple<string?, Task<bool>?>> AwaitForSubscribeSingleInvoiceReturn(AsyncServerStreamingCall<Invoice> stream, double timeout, Task<bool> task)
-    {
-        var delay = Task.Delay(TimeSpan.FromSeconds(timeout));
-        if (task == null)
-            task = stream.ResponseStream.MoveNext();
-        var winner = await Task.WhenAny(task, delay);
-        if (winner == delay)
-            return Tuple.Create<string?, Task<bool>?>(null, task);
-        var ret = task.Result ? stream.ResponseStream.Current.State.ToString() : "eof";
-        return Tuple.Create<string?, Task<bool>?>(ret, null);
-    }
 }
 
