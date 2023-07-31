@@ -137,10 +137,12 @@ public static class LND
         return new Metadata() { new Metadata.Entry("macaroon", GetMacaroon(conf, idx)) };
     }
 
-    public static string NewAddress(NodesConfiguration conf, int idx)
+    public static string NewAddress(NodesConfiguration conf, int idx, string account=null)
     {
-        var response = LightningClient(conf, idx).NewAddress(
-            new NewAddressRequest() { Type= AddressType.NestedPubkeyHash},
+        var nar = new NewAddressRequest() { Type = AddressType.NestedPubkeyHash };
+        if (account != null)
+            nar.Account = account;
+        var response = LightningClient(conf, idx).NewAddress(nar,
             Metadata(conf, idx));
         return response.Address;
     }
@@ -161,7 +163,7 @@ public static class LND
     public static WalletBalanceResponse GetWalletBalance(NodesConfiguration conf, int idx)
     {
         return LightningClient(conf, idx).WalletBalance(
-            new WalletBalanceRequest()  ,
+            new WalletBalanceRequest() { } ,
             Metadata(conf, idx));
     }
 
@@ -374,11 +376,13 @@ public static class LND
             );
     }
 
-    public static Walletrpc.ListUnspentResponse ListUnspent(NodesConfiguration conf, int idx, int minConfs)
+    public static Walletrpc.ListUnspentResponse ListUnspent(NodesConfiguration conf, int idx, int minConfs, string account = null)
     {
-        return WalletKit(conf, idx).ListUnspent(
-            new Walletrpc.ListUnspentRequest()
-            { MinConfs = minConfs },
+        var lur = new Walletrpc.ListUnspentRequest()
+        { MinConfs = minConfs };
+        if (account != null)
+            lur.Account = account;
+        return WalletKit(conf, idx).ListUnspent(lur,
             Metadata(conf, idx)
             );
     }

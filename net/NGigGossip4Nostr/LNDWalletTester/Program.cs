@@ -83,38 +83,37 @@ var wallet = new LNDWalletManager(lndWalletDBConnectionString, lndConf, lndIdx2,
 
 var privkey = Context.Instance.CreateECPrivKey(Convert.FromHexString("7f4c11a9742721d66e40e321ca50b682c27f7422190c14a187525e69e604836a"));
 var pubkey = privkey.CreateXOnlyPubKey();
-var myconf=wallet.Signup(litConf,1,pubkey,1000000);
+var mywallet=wallet.Signup(litConf,1,pubkey,1000000);
 
-var mynewaddr = LND.NewAddress(myconf,1);
+var mynewaddr = mywallet.NewAddress();
 Console.WriteLine(mynewaddr);
 
 do
 {
-    var lndResp = LND.GetWalletBalance(myconf, 1);
-    if ( lndResp.ConfirmedBalance > 0)
+    if (mywallet.GetBalance(6) > 0)
         break;
     Thread.Sleep(1000);
 } while (true);
 
-var ballance = LND.GetWalletBalance(myconf, 1).ConfirmedBalance;
+var ballance = mywallet.GetBalance(6);
 
 //channel oppening
-var chanpt = wallet.OpenChannel(pubkey, nd1.IdentityPubkey, 100000);
-while((from channel in wallet.ListChannels(pubkey, true) where channel.ChannelPoint==chanpt select channel).Count()==0)
+var chanpt = mywallet.OpenChannel(nd1.IdentityPubkey, 100000);
+while((from channel in mywallet.ListChannels(true) where channel.ChannelPoint==chanpt select channel).Count()==0)
 {
     Thread.Sleep(1000);
 }
 
 var preimage = LND.GenerateRandomPreimage();
 var hash = LND.ComputePaymentHash(preimage);
-var paymentReq = wallet.AddHodlInvoice(pubkey, 1000, "hello", hash);
+var paymentReq = mywallet.AddHodlInvoice(1000, "hello", hash);
 
 Console.WriteLine(paymentReq.PaymentRequest);
 Console.WriteLine(LND.DecodeInvoice(lndConf, lndIdx2, paymentReq.PaymentRequest));
 
 var invoiceStatusStream = LND.SubscribeSingleInvoice(lndConf, 1, hash);
 
-var paymentStatusStream = wallet.SendPayment(pubkey, paymentReq.PaymentRequest, 600);
+var paymentStatusStream = mywallet.SendPayment(paymentReq.PaymentRequest, 600);
 
 while (await invoiceStatusStream.ResponseStream.MoveNext())
 {
@@ -150,7 +149,7 @@ catch (RPCException exception)
 }
 var btcReturnAddress = btcWallet.GetNewAddress().ToString();
 
-var channelStatusStream = wallet.CloseChannel(pubkey, chanpt, btcReturnAddress);
+var channelStatusStream = mywallet.CloseChannel(chanpt, btcReturnAddress);
 
 while (await channelStatusStream.ResponseStream.MoveNext())
 {
