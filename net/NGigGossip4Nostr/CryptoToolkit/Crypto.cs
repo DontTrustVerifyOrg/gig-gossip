@@ -20,6 +20,10 @@ namespace CryptoToolkit
         {
             return Convert.ToHexString(bytes).ToLowerInvariant();
         }
+        public static string AsHex(this byte[] bytes)
+        {
+            return Convert.ToHexString(bytes).ToLowerInvariant();
+        }
         public static string AsHex(this ECXOnlyPubKey key)
         {
             return key.ToBytes().AsSpan().AsHex();

@@ -8,20 +8,67 @@ namespace LNDClient;
 
 public static class LND
 {
+    public interface IMacaroon
+    {
+        public string GetMacaroon();
+    }
+
+    public class MacaroonFile : IMacaroon
+    {
+        string macaroonPath;
+
+        public MacaroonFile(string macaroonPath)
+        {
+            this.macaroonPath = macaroonPath;
+        }
+
+        public string GetMacaroon()
+        {
+            byte[] macaroonBytes = File.ReadAllBytes(macaroonPath);
+            var macaroon = BitConverter.ToString(macaroonBytes).Replace("-", "");
+            // hex format stripped of "-" chars
+            return macaroon;
+        }
+    }
+
+    public class MacaroonString : IMacaroon
+    {
+        string macaroon;
+
+        public MacaroonString(string macaroon)
+        {
+            this.macaroon = macaroon;
+        }
+
+        public string GetMacaroon()
+        {
+            return macaroon;
+        }
+    }
+
     public class NodesConfiguration
     {
-        private List<string> macaroonPath = new();
+        private List<IMacaroon> macaroons = new();
         private List<string> tlsCertPath = new();
         private List<string> rpcHost = new();
         private List<string> nodeListenOn = new();
-        public int AddNodeConfiguration(string macaroonPath, string tlsCertPath, string rpcHost, string nodeListenOn)
+
+        public int AddNodeConfiguration(IMacaroon macaroon, string tlsCertPath, string rpcHost, string nodeListenOn)
         {
-            this.macaroonPath.Add(macaroonPath);
+            this.macaroons.Add(macaroon);
             this.tlsCertPath.Add(tlsCertPath);
             this.rpcHost.Add(rpcHost);
             this.nodeListenOn.Add(nodeListenOn);
-            return this.macaroonPath.Count;
+            return this.macaroons.Count;
         }
+
+        public NodesConfiguration ForMacaroon(IMacaroon macaroon,int idx)
+        {
+            var ret = new NodesConfiguration();
+            ret.AddNodeConfiguration(macaroon, TlsCert(idx), RpcHost(idx), ListenHost(idx));
+            return ret;
+        }
+
         public string ListenHost(int idx)
         {
             return nodeListenOn[idx - 1];
@@ -36,9 +83,9 @@ public static class LND
         {
             return tlsCertPath[idx - 1];
         }
-        public string MacaroonPath(int idx)
+        public IMacaroon Macaroon(int idx)
         {
-            return macaroonPath[idx - 1];
+            return macaroons[idx - 1];
         }
     }
 
@@ -57,12 +104,20 @@ public static class LND
         return client;
     }
 
-    static Lnrpc.Lightning.LightningClient UserClient(NodesConfiguration conf, int idx)
+    static Lnrpc.Lightning.LightningClient LightningClient(NodesConfiguration conf, int idx)
     {
         var channel = new Grpc.Core.Channel(conf.RpcHost(idx), GetSslCredentials(conf, idx));
         var client = new Lnrpc.Lightning.LightningClient(channel);
         return client;
     }
+
+    static Walletrpc.WalletKit.WalletKitClient WalletKit(NodesConfiguration conf, int idx)
+    {
+        var channel = new Grpc.Core.Channel(conf.RpcHost(idx), GetSslCredentials(conf, idx));
+        var client = new Walletrpc.WalletKit.WalletKitClient(channel);
+        return client;
+    }
+
 
     static SslCredentials GetSslCredentials(NodesConfiguration conf, int idx)
     {
@@ -74,10 +129,7 @@ public static class LND
 
     static string GetMacaroon(NodesConfiguration conf, int idx)
     {
-        byte[] macaroonBytes = File.ReadAllBytes(conf.MacaroonPath(idx));
-        var macaroon = BitConverter.ToString(macaroonBytes).Replace("-", "");
-        // hex format stripped of "-" chars
-        return macaroon;
+        return conf.Macaroon(idx).GetMacaroon();
     }
 
     static Metadata Metadata(NodesConfiguration conf, int idx)
@@ -85,10 +137,10 @@ public static class LND
         return new Metadata() { new Metadata.Entry("macaroon", GetMacaroon(conf, idx)) };
     }
 
-    public static string NewAddress(NodesConfiguration conf, int idx, string account)
+    public static string NewAddress(NodesConfiguration conf, int idx)
     {
-        var response = UserClient(conf, idx).NewAddress(
-            new NewAddressRequest() { Type= AddressType.NestedPubkeyHash, Account = account },
+        var response = LightningClient(conf, idx).NewAddress(
+            new NewAddressRequest() { Type= AddressType.NestedPubkeyHash},
             Metadata(conf, idx));
         return response.Address;
     }
@@ -96,26 +148,26 @@ public static class LND
     //-1 means send all
     public static string SendCoins(NodesConfiguration conf, int idx, string address, string memo, long satoshis = -1)
     {
-        SendCoinsRequest req;
+        var req = new SendCoinsRequest() { Addr = address, TargetConf = 6, Label = memo };
         if (satoshis > -1)
-            req = new SendCoinsRequest() { Addr = address, Amount = satoshis, TargetConf = 6, Label = memo };
+            req.Amount = satoshis;
         else
-            req = new SendCoinsRequest() { Addr = address, SendAll = true, TargetConf = 6, Label = memo };
+            req.SendAll = true;
 
-        var response = UserClient(conf, idx).SendCoins(req, Metadata(conf, idx));
+        var response = LightningClient(conf, idx).SendCoins(req, Metadata(conf, idx));
         return response.Txid;
     }
 
     public static WalletBalanceResponse GetWalletBalance(NodesConfiguration conf, int idx)
     {
-        return UserClient(conf, idx).WalletBalance(
-            new WalletBalanceRequest() ,
+        return LightningClient(conf, idx).WalletBalance(
+            new WalletBalanceRequest()  ,
             Metadata(conf, idx));
     }
 
     public static string AddInvoice(NodesConfiguration conf, int idx, long satoshis, string memo)
     {
-        var response = UserClient(conf, idx).AddInvoice(
+        var response = LightningClient(conf, idx).AddInvoice(
             new Invoice()
             {
                 Memo = memo,
@@ -127,7 +179,7 @@ public static class LND
 
     public static Invoice LookupInvoice(NodesConfiguration conf, int idx, byte[] hash)
     {
-        return UserClient(conf, idx).LookupInvoice(
+        return LightningClient(conf, idx).LookupInvoice(
             new PaymentHash()
             {
                 RHash = Google.Protobuf.ByteString.CopyFrom(hash)
@@ -137,7 +189,7 @@ public static class LND
 
     public static PayReq DecodeInvoice(NodesConfiguration conf, int idx, string paymentRequest)
     {
-        return UserClient(conf, idx).DecodePayReq(
+        return LightningClient(conf, idx).DecodePayReq(
             new PayReqString()
             {
                 PayReq = paymentRequest
@@ -147,7 +199,7 @@ public static class LND
 
     public static SendResponse SendPayment(NodesConfiguration conf, int idx, string paymentRequest)
     {
-        return UserClient(conf, idx).SendPaymentSync(
+        return LightningClient(conf, idx).SendPaymentSync(
             new SendRequest()
             {
                 PaymentRequest = paymentRequest,
@@ -155,83 +207,100 @@ public static class LND
             Metadata(conf, idx));
     }
 
-    public static AsyncServerStreamingCall<Payment> SendPaymentV2(NodesConfiguration conf, int idx, string paymentRequest, int timeout)
+    public static AsyncServerStreamingCall<Payment> SendPaymentV2(NodesConfiguration conf, int idx, string paymentRequest, int timeout, List<ulong> outgoingChannelIds = null)
     {
+        var spr = new SendPaymentRequest()
+        {
+            PaymentRequest = paymentRequest,
+            TimeoutSeconds = timeout,
+        };
+        if (outgoingChannelIds != null)
+            spr.OutgoingChanIds.Add(outgoingChannelIds);
+
         var stream = RouterClient(conf, idx).SendPaymentV2(
-            new SendPaymentRequest()
-            {
-                PaymentRequest = paymentRequest,
-                TimeoutSeconds = timeout,
-            },
+            spr,
             Metadata(conf, idx));
         return stream;
     }
 
     public static GetInfoResponse GetNodeInfo(NodesConfiguration conf, int idx)
     {
-        return UserClient(conf, idx).GetInfo(
+        return LightningClient(conf, idx).GetInfo(
             new GetInfoRequest(),
             Metadata(conf, idx));
     }
 
-    public static void Connect(NodesConfiguration conf, int idx, int idx2)
+    public static void Connect(NodesConfiguration conf, int idx,  string host, string nodepubkey)
     {
-        var nodeInfo = GetNodeInfo(conf, idx2);
-        UserClient(conf, idx).ConnectPeer(
+        LightningClient(conf, idx).ConnectPeer(
             new ConnectPeerRequest()
             {
-                Addr = new LightningAddress() { Host = conf.ListenHost(idx2), Pubkey = nodeInfo.IdentityPubkey }
+                Addr = new LightningAddress() { Host = host, Pubkey = nodepubkey }
             },
             Metadata(conf, idx));
     }
 
     public static ListPeersResponse ListPeers(NodesConfiguration conf, int idx)
     {
-        return UserClient(conf, idx).ListPeers(
+        return LightningClient(conf, idx).ListPeers(
             new ListPeersRequest(),
             Metadata(conf, idx));
     }
 
-    public static AsyncServerStreamingCall<OpenStatusUpdate> OpenChannel(NodesConfiguration conf, int idx, string nodePubKey, long fundingSatoshis, string closeAddress = null)
+    public static AsyncServerStreamingCall<OpenStatusUpdate> OpenChannel(NodesConfiguration conf, int idx, string nodePubKey, long fundingSatoshis, string closeAddress = null, string memo=null)
     {
-        OpenChannelRequest ocr = null;
-        if (closeAddress == null)
-            ocr = new OpenChannelRequest()
-            {
-                LocalFundingAmount = fundingSatoshis,
-                NodePubkeyString = nodePubKey
-            };
-        else
-            ocr = new OpenChannelRequest()
-            {
-                LocalFundingAmount = fundingSatoshis,
-                NodePubkeyString = nodePubKey,
-                CloseAddress = closeAddress,
-            };
-        return UserClient(conf, idx).OpenChannel(ocr, Metadata(conf, idx));
+        var ocr = new OpenChannelRequest()
+        {
+            LocalFundingAmount = fundingSatoshis,
+            NodePubkeyString = nodePubKey,
+        };
+        if (closeAddress != null)
+            ocr.CloseAddress = closeAddress;
+        if (memo != null)
+            ocr.Memo = memo;
+        return LightningClient(conf, idx).OpenChannel(ocr, Metadata(conf, idx));
     }
 
-    public static AsyncServerStreamingCall<CloseStatusUpdate> CloseChannel(NodesConfiguration conf, int idx, string fundingTxidStr)
+    public static ChannelPoint OpenChannelSync(NodesConfiguration conf, int idx, string nodePubKey, long fundingSatoshis, string closeAddress = null, string memo = null, bool privat=false)
     {
-        var stream = UserClient(conf, idx).CloseChannel(
-            new CloseChannelRequest()
-            {
-                ChannelPoint = new ChannelPoint() { FundingTxidStr = fundingTxidStr }
-            },
+        var ocr = new OpenChannelRequest()
+        {
+            LocalFundingAmount = fundingSatoshis,
+            NodePubkeyString = nodePubKey,
+            Private = privat
+        };
+        if (closeAddress != null)
+            ocr.CloseAddress = closeAddress;
+        if (memo != null)
+            ocr.Memo = memo;
+        return LightningClient(conf, idx).OpenChannelSync(ocr, Metadata(conf, idx));
+    }
+
+    public static AsyncServerStreamingCall<CloseStatusUpdate> CloseChannel(NodesConfiguration conf, int idx, string channelpoint, string closeAddress = null)
+    {
+        var cp = channelpoint.Split(':');
+        var ccr = new CloseChannelRequest()
+        {
+            ChannelPoint = new ChannelPoint() { FundingTxidStr = cp[0], OutputIndex = uint.Parse(cp[1]) }
+        };
+        if (closeAddress != null)
+            ccr.DeliveryAddress = closeAddress;
+        var stream = LightningClient(conf, idx).CloseChannel(
+            ccr,
             Metadata(conf, idx));
         return stream;
     }
 
     public static PendingChannelsResponse PendingChannels(NodesConfiguration conf, int idx)
     {
-        return UserClient(conf, idx).PendingChannels(
+        return LightningClient(conf, idx).PendingChannels(
             new PendingChannelsRequest() { },
             Metadata(conf, idx));
     }
 
     public static ListChannelsResponse ListChannels(NodesConfiguration conf, int idx, bool activeOnly = true)
     {
-        return UserClient(conf, idx).ListChannels(
+        return LightningClient(conf, idx).ListChannels(
             new ListChannelsRequest()
             {
                 ActiveOnly = activeOnly
@@ -239,16 +308,27 @@ public static class LND
             Metadata(conf, idx));
     }
 
-    public static AddHoldInvoiceResp AddHodlInvoice(NodesConfiguration conf, int idx, long satoshis, string memo, byte[] hash, long expiry = 86400)
+    public static AddHoldInvoiceResp AddHodlInvoice(NodesConfiguration conf, int idx, long satoshis, string memo, byte[] hash, long expiry = 86400,bool privat=false, string nodePubKey=null, List<ulong> chanids=null)
     {
-        return InvoicesClient(conf, idx).AddHoldInvoice(
-            new AddHoldInvoiceRequest()
+        var ahr = new AddHoldInvoiceRequest()
+        {
+            Memo = memo,
+            Value = satoshis,
+            Hash = Google.Protobuf.ByteString.CopyFrom(hash),             
+            Expiry = expiry,
+        };
+        if(privat)
+        {
+            ahr.Private = true;
+            foreach (var chanid in chanids)
             {
-                Memo = memo,
-                Value = satoshis,
-                Hash = Google.Protobuf.ByteString.CopyFrom(hash),
-                Expiry = expiry
-            },
+                var hh = new RouteHint();
+                hh.HopHints.Add(new HopHint() { ChanId = chanid , NodeId= nodePubKey });
+                ahr.RouteHints.Add(hh);
+            }
+        }
+        return InvoicesClient(conf, idx).AddHoldInvoice(
+            ahr,
             Metadata(conf, idx));
     }
 
@@ -285,10 +365,33 @@ public static class LND
         return RandomUtils.GetBytes(32);
     }
 
-    public static Invoice LookupInvoiceV2(NodesConfiguration conf, int idx, byte[] hash)
+    public static TransactionDetails GetTransactions(NodesConfiguration conf, int idx)
     {
-        return InvoicesClient(conf, idx).LookupInvoiceV2(new LookupInvoiceMsg(){
+        return LightningClient(conf, idx).GetTransactions(
+            new GetTransactionsRequest()
+            { },
+            Metadata(conf, idx)
+            );
+    }
+
+    public static Walletrpc.ListUnspentResponse ListUnspent(NodesConfiguration conf, int idx, int minConfs)
+    {
+        return WalletKit(conf, idx).ListUnspent(
+            new Walletrpc.ListUnspentRequest()
+            { MinConfs = minConfs },
+            Metadata(conf, idx)
+            );
+    }
+
+    public static Invoice LookupInvoiceV2(NodesConfiguration conf, int idx, byte[] hash, byte[] paymentAddr = null)
+    {
+        return InvoicesClient(conf, idx).LookupInvoiceV2(
+            hash != null ? new LookupInvoiceMsg()
+            {
                 PaymentHash = Google.Protobuf.ByteString.CopyFrom(hash)
+            } : new LookupInvoiceMsg()
+            {
+                PaymentAddr = Google.Protobuf.ByteString.CopyFrom(paymentAddr)
             },
             Metadata(conf, idx));
     }
@@ -298,7 +401,7 @@ public static class LND
         var stream = InvoicesClient(conf, idx).SubscribeSingleInvoice(
             new SubscribeSingleInvoiceRequest()
             {
-                RHash = Google.Protobuf.ByteString.CopyFrom(hash),
+                RHash = Google.Protobuf.ByteString.CopyFrom(hash)                 
             }, Metadata(conf, idx));
 
         return stream;

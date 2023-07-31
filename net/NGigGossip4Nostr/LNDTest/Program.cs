@@ -7,23 +7,24 @@ using LNDClient;
 var conf = new LND.NodesConfiguration();
 
 conf.AddNodeConfiguration(
-    @"/Users/pawel/work/locallnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon",
+    new LND.MacaroonFile(@"/Users/pawel/work/locallnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon"),
     @"/Users/pawel/work/locallnd/.lnd/tls.cert",
     @"localhost:10009",
     @"localhost:9735"
     );
 conf.AddNodeConfiguration(
-    @"/Users/pawel/work/locallnd/.lnd2/data/chain/bitcoin/regtest/admin.macaroon",
+    new LND.MacaroonFile(@"/Users/pawel/work/locallnd/.lnd2/data/chain/bitcoin/regtest/admin.macaroon"),
     @"/Users/pawel/work/locallnd/.lnd2/tls.cert",
     @"localhost:11009",
     @"localhost:9734"
     );
 conf.AddNodeConfiguration(
-    @"/Users/pawel/work/locallnd/.lnd3/data/chain/bitcoin/regtest/admin.macaroon",
+    new LND.MacaroonFile(@"/Users/pawel/work/locallnd/.lnd3/data/chain/bitcoin/regtest/admin.macaroon"),
     @"/Users/pawel/work/locallnd/.lnd3/tls.cert",
     @"localhost:11010",
     @"localhost:9736"
     );
+
 
 
 
@@ -38,10 +39,10 @@ var nd1 = LND.GetNodeInfo(conf, 1);
 var nd3 = LND.GetNodeInfo(conf, 3);
 
 if (peersof2.Peers.Where((p) => p.PubKey == nd1.IdentityPubkey).Count()==0)
-    LND.Connect(conf, 2, 1);
+    LND.Connect(conf, 2, conf.ListenHost(1), nd1.IdentityPubkey);
 
 if (peersof2.Peers.Where((p) => p.PubKey == nd3.IdentityPubkey).Count() == 0)
-    LND.Connect(conf, 2, 3);
+    LND.Connect(conf, 2, conf.ListenHost(3), nd3.IdentityPubkey);
 
 var channels2 = LND.ListChannels(conf, 2);
 if (channels2.Channels.Where((c) => c.RemotePubkey == nd1.IdentityPubkey).Count() == 0)
