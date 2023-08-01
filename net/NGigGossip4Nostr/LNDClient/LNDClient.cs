@@ -33,15 +33,16 @@ public static class LND
 
     public class MacaroonString : IMacaroon
     {
-        string macaroon;
+        byte[] macaroonBytes;
 
-        public MacaroonString(string macaroon)
+        public MacaroonString(byte[] macaroonBytes)
         {
-            this.macaroon = macaroon;
+            this.macaroonBytes = macaroonBytes;
         }
 
         public string GetMacaroon()
         {
+            var macaroon = BitConverter.ToString(macaroonBytes).Replace("-", "");
             return macaroon;
         }
     }
@@ -167,16 +168,15 @@ public static class LND
             Metadata(conf, idx));
     }
 
-    public static string AddInvoice(NodesConfiguration conf, int idx, long satoshis, string memo)
+    public static AddInvoiceResponse AddInvoice(NodesConfiguration conf, int idx, long satoshis, string memo)
     {
-        var response = LightningClient(conf, idx).AddInvoice(
+        return LightningClient(conf, idx).AddInvoice(
             new Invoice()
             {
                 Memo = memo,
                 Value = satoshis,
             },
             Metadata(conf, idx));
-        return response.PaymentRequest;
     }
 
     public static Invoice LookupInvoice(NodesConfiguration conf, int idx, byte[] hash)
