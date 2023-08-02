@@ -9,7 +9,7 @@ Console.WriteLine("Hello, World!");
 
 var hash = Crypto.ComputeSha256(new List<byte[]> { Encoding.ASCII.GetBytes("A"), Encoding.ASCII.GetBytes("B") });
 
-Console.WriteLine(Convert.ToHexString( hash));
+Console.WriteLine(hash.AsHex());
 
 
 var obj = new List<object>() { "ala", new List<object>{ "ma", "kota" } };

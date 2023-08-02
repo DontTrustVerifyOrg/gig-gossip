@@ -8,7 +8,6 @@ using System.Text.Json;
 using LNDClient;
 using NBitcoin.RPC;
 using Grpc.Core;
-using LITClient;
 
 // CONFIG
 
@@ -35,22 +34,6 @@ var lndIdx3=lndConf.AddNodeConfiguration(
 
 var allLndIdxes = new List<int> { lndIdx1, lndIdx2, lndIdx3 };
 
-var litConf = new LIT.NodesConfiguration();
-var litIdx1=litConf.AddNodeConfiguration(
-    @"/Users/pawel/work/locallnd/.lit/regtest/lit.macaroon",
-    @"/Users/pawel/work/locallnd/.lit/tls.cert",
-    @"localhost:8443"
-    );
-var litIdx2 = litConf.AddNodeConfiguration(
-    @"/Users/pawel/work/locallnd/.lit2/regtest/lit.macaroon",
-    @"/Users/pawel/work/locallnd/.lit2/tls.cert",
-    @"localhost:8444"
-    );
-var litIdx3 = litConf.AddNodeConfiguration(
-    @"/Users/pawel/work/locallnd/.lit3/regtest/lit.macaroon",
-    @"/Users/pawel/work/locallnd/.lit3/tls.cert",
-    @"localhost:8445"
-    );
 
 var lndWalletDBConnectionString1 = "Data Source=lndwallets1.db";
 var lndWalletDBConnectionString2 = "Data Source=lndwallets2.db";
@@ -81,59 +64,60 @@ if (peersof2.Peers.Where((p) => p.PubKey == nd3.IdentityPubkey).Count() == 0)
     LND.Connect(lndConf, lndIdx2, lndConf.ListenHost(3), nd3.IdentityPubkey);
 
 
-bool deleteDb = false;
+bool deleteDb = true;
 
-var globalWallet1 = new LNDWalletManager(lndWalletDBConnectionString1, lndConf, lndIdx1, litConf, litIdx1, LND.GetNodeInfo(lndConf, lndIdx1), deleteDb: deleteDb);
-var globalWallet2 = new LNDWalletManager(lndWalletDBConnectionString2, lndConf, lndIdx2, litConf, litIdx2, LND.GetNodeInfo(lndConf, lndIdx2), deleteDb : deleteDb);
+var globalWallet1 = new LNDWalletManager(lndWalletDBConnectionString1, lndConf, lndIdx1, LND.GetNodeInfo(lndConf, lndIdx1), deleteDb: deleteDb);
+var globalWallet2 = new LNDWalletManager(lndWalletDBConnectionString2, lndConf, lndIdx2, LND.GetNodeInfo(lndConf, lndIdx2), deleteDb : deleteDb);
 
 var privkeyUser1FromNode1 = Context.Instance.CreateECPrivKey(Convert.FromHexString("7f4c11a9742721d66e40e321ca50b682c27f7422190c84a187525e69e6038369"));
 var pubkeyUser1FromNode1 = privkeyUser1FromNode1.CreateXOnlyPubKey();
 var myWalletUser1FromNode1 = globalWallet1.GetAccount(pubkeyUser1FromNode1);
 if (myWalletUser1FromNode1 == null)
-    myWalletUser1FromNode1 = globalWallet1.CreateAccount(pubkeyUser1FromNode1, 1000000);
+    myWalletUser1FromNode1 = globalWallet1.CreateAccount(pubkeyUser1FromNode1);
 
 var privkeyUser1FromNode2 = Context.Instance.CreateECPrivKey(Convert.FromHexString("7f4c11a9742721366e40e321ca50b682c27f7422190c14a487525e69e6048326"));
 var pubkeyUser1FromNode2 = privkeyUser1FromNode2.CreateXOnlyPubKey();
 var myWalletUser1FromNode2= globalWallet2.GetAccount(pubkeyUser1FromNode2);
 if(myWalletUser1FromNode2==null)
-    myWalletUser1FromNode2=globalWallet2.CreateAccount(pubkeyUser1FromNode2, 1000000);
+    myWalletUser1FromNode2=globalWallet2.CreateAccount(pubkeyUser1FromNode2);
 
+ulong txfee = 100;
 
-var ballanceOfUser1FromNode2 = globalWallet2.GetAccountOnChainBalance(pubkeyUser1FromNode2.AsHex(),6);
+var ballanceOfUser1FromNode2 = myWalletUser1FromNode2.GetChannelFundingAmount(6);
 if (ballanceOfUser1FromNode2 == 0)
 {
-    var myNewAddrForUser1FromNode2 = globalWallet2.NewAddress(pubkeyUser1FromNode2.AsHex());
+    var myNewAddrForUser1FromNode2 = myWalletUser1FromNode2.NewAddress(txfee);
     Console.WriteLine(myNewAddrForUser1FromNode2);
     do
     {
-        if (globalWallet2.GetAccountOnChainBalance(pubkeyUser1FromNode2.AsHex(), 6)>0)
+        if (myWalletUser1FromNode2.GetChannelFundingAmount(6) > 0)
             break;
         Thread.Sleep(1000);
     } while (true);
 
-    ballanceOfUser1FromNode2 = globalWallet2.GetAccountOnChainBalance(pubkeyUser1FromNode2.AsHex(), 6);
+    ballanceOfUser1FromNode2 = myWalletUser1FromNode2.GetChannelFundingAmount(6);
 }
 
 //channel oppening
-var chanptFromNode2ToNode1 = globalWallet2.OpenChannel(nd1.IdentityPubkey, 100000);
+var chanptFromNode2ToNode1 = globalWallet2.OpenChannel(nd1.IdentityPubkey, ballanceOfUser1FromNode2);
 while((from channel in globalWallet2.ListChannels(true).Channels where channel.ChannelPoint==chanptFromNode2ToNode1 select channel).Count()==0)
 {
     Thread.Sleep(1000);
 }
 
-var paymentReq1 = myWalletUser1FromNode1.AddInvoice(1000, "hello");
+var paymentReq1 = myWalletUser1FromNode1.AddInvoice(1000, "hello", txfee);
 
 
 var preimage = LND.GenerateRandomPreimage();
 var hash = LND.ComputePaymentHash(preimage);
-var paymentReq = myWalletUser1FromNode1.AddHodlInvoice(1000, "hello", hash);
+var paymentReq = myWalletUser1FromNode1.AddHodlInvoice(1000, "hello", hash, txfee);
 
-Console.WriteLine(paymentReq.PaymentRequest);
+Console.WriteLine(paymentReq);
 Console.WriteLine(LND.DecodeInvoice(lndConf, lndIdx2, paymentReq.PaymentRequest));
 
 var invoiceStatusStream = LND.SubscribeSingleInvoice(lndConf, 1, hash);
 
-var paymentStatusStream = myWalletUser1FromNode2.SendPayment(paymentReq.PaymentRequest, 600);
+var paymentStatusStream = myWalletUser1FromNode2.SendPayment(paymentReq.PaymentRequest, 600, txfee);
 
 while (await invoiceStatusStream.ResponseStream.MoveNext())
 {
@@ -169,7 +153,7 @@ catch (RPCException exception)
 }
 var btcReturnAddress = btcWallet.GetNewAddress().ToString();
 
-var channelStatusStream = globalWallet2.CloseChannel(chanptFromNode2ToNode1, btcReturnAddress);
+var channelStatusStream = globalWallet2.CloseChannel(chanptFromNode2ToNode1);
 
 while (await channelStatusStream.ResponseStream.MoveNext())
 {

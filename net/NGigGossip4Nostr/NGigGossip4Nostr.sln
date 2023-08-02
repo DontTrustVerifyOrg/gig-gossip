@@ -27,7 +27,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoToolkit", "CryptoTool
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BTCTest", "BTCTest\BTCTest.csproj", "{B6AC8122-016B-4585-B374-6410078E5DA8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LITClient", "LITClient\LITClient.csproj", "{BA71A594-B0A6-43ED-8B83-45C141973CBA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LNDWallet", "LNDWallet\LNDWallet.csproj", "{7AC9E7A0-FBE1-4712-BBA0-AA20AE7AF56D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -83,10 +83,10 @@ Global
 		{B6AC8122-016B-4585-B374-6410078E5DA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B6AC8122-016B-4585-B374-6410078E5DA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B6AC8122-016B-4585-B374-6410078E5DA8}.Release|Any CPU.Build.0 = Release|Any CPU
-		{BA71A594-B0A6-43ED-8B83-45C141973CBA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{BA71A594-B0A6-43ED-8B83-45C141973CBA}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{BA71A594-B0A6-43ED-8B83-45C141973CBA}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{BA71A594-B0A6-43ED-8B83-45C141973CBA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7AC9E7A0-FBE1-4712-BBA0-AA20AE7AF56D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7AC9E7A0-FBE1-4712-BBA0-AA20AE7AF56D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7AC9E7A0-FBE1-4712-BBA0-AA20AE7AF56D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7AC9E7A0-FBE1-4712-BBA0-AA20AE7AF56D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

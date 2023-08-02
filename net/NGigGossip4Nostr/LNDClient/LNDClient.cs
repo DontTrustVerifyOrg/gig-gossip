@@ -3,6 +3,7 @@ using Invoicesrpc;
 using Lnrpc;
 using NBitcoin;
 using Routerrpc;
+using CryptoToolkit;
 
 namespace LNDClient;
 
@@ -24,10 +25,7 @@ public static class LND
 
         public string GetMacaroon()
         {
-            byte[] macaroonBytes = File.ReadAllBytes(macaroonPath);
-            var macaroon = BitConverter.ToString(macaroonBytes).Replace("-", "");
-            // hex format stripped of "-" chars
-            return macaroon;
+            return File.ReadAllBytes(macaroonPath).AsHex();
         }
     }
 
@@ -42,8 +40,7 @@ public static class LND
 
         public string GetMacaroon()
         {
-            var macaroon = BitConverter.ToString(macaroonBytes).Replace("-", "");
-            return macaroon;
+            return macaroonBytes.AsHex();
         }
     }
 
@@ -269,7 +266,7 @@ public static class LND
         {
             LocalFundingAmount = fundingSatoshis,
             NodePubkeyString = nodePubKey,
-            Private = privat
+            Private = privat , 
         };
         if (closeAddress != null)
             ocr.CloseAddress = closeAddress;
@@ -387,16 +384,28 @@ public static class LND
             );
     }
 
-    public static Invoice LookupInvoiceV2(NodesConfiguration conf, int idx, byte[] hash, byte[] paymentAddr = null)
+    public static Invoice LookupInvoiceV2(NodesConfiguration conf, int idx, byte[] hash)
     {
         return InvoicesClient(conf, idx).LookupInvoiceV2(
-            hash != null ? new LookupInvoiceMsg()
+            new LookupInvoiceMsg()
             {
                 PaymentHash = Google.Protobuf.ByteString.CopyFrom(hash)
-            } : new LookupInvoiceMsg()
-            {
-                PaymentAddr = Google.Protobuf.ByteString.CopyFrom(paymentAddr)
             },
+            Metadata(conf, idx));
+    }
+
+
+    public static ListInvoiceResponse ListInvoices(NodesConfiguration conf, int idx)
+    {
+        return LightningClient(conf, idx).ListInvoices(
+            new ListInvoiceRequest() { },
+            Metadata(conf, idx));
+    }
+
+    public static ListPaymentsResponse ListPayments(NodesConfiguration conf, int idx)
+    {
+        return LightningClient(conf, idx).ListPayments(
+            new ListPaymentsRequest() { },
             Metadata(conf, idx));
     }
 
@@ -405,11 +414,21 @@ public static class LND
         var stream = InvoicesClient(conf, idx).SubscribeSingleInvoice(
             new SubscribeSingleInvoiceRequest()
             {
-                RHash = Google.Protobuf.ByteString.CopyFrom(hash)                 
+                RHash = Google.Protobuf.ByteString.CopyFrom(hash)
+                 
             }, Metadata(conf, idx));
 
         return stream;
     }
 
+    public static AsyncServerStreamingCall<Invoice> SubscribeInvoices(NodesConfiguration conf, int idx)
+    {
+        var stream = LightningClient(conf, idx).SubscribeInvoices(
+            new InvoiceSubscription()
+            {
+            }, Metadata(conf, idx));
+
+        return stream;
+    }
 }
 

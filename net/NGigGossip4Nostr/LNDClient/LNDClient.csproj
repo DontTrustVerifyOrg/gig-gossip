@@ -22,4 +22,7 @@
 <Protobuf Include="GRPC\signer.proto" GrpcService="Client" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
+  </ItemGroup>
 </Project>

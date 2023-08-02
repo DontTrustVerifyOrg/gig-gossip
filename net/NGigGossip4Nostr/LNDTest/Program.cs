@@ -60,10 +60,15 @@ if (channels2.Channels.Where((c) => c.RemotePubkey == nd1.IdentityPubkey).Count(
 
 var preimage = LND.GenerateRandomPreimage();
 var hash = LND.ComputePaymentHash(preimage);
-var paymentReq = LND.AddHodlInvoice(conf, 1, 1000, "hello", hash);
-
-Console.WriteLine(paymentReq.PaymentRequest);
-Console.WriteLine(LND.DecodeInvoice(conf, 2, paymentReq.PaymentRequest));
+var paymentReq1 = LND.AddHodlInvoice(conf, 1, 1000, "hello", hash);
+var paymentReq2 = LND.AddHodlInvoice(conf, 1, 1000, "hello", hash);
+var paymentReq3 = LND.AddHodlInvoice(conf, 1, 1000, "hello", hash);
+Console.WriteLine(paymentReq1.PaymentRequest);
+Console.WriteLine(LND.DecodeInvoice(conf, 2, paymentReq1.PaymentRequest));
+Console.WriteLine(paymentReq2.PaymentRequest);
+Console.WriteLine(LND.DecodeInvoice(conf, 2, paymentReq2.PaymentRequest));
+Console.WriteLine(paymentReq3.PaymentRequest);
+Console.WriteLine(LND.DecodeInvoice(conf, 2, paymentReq3.PaymentRequest));
 
 var waiter4inv = LND.SubscribeSingleInvoice(conf, 1, hash);
 
@@ -72,7 +77,7 @@ for (int i = 1; i <= 1; i++)
     Console.WriteLine("lnd{" + i.ToString() + "}: State: {" + LND.LookupInvoiceV2(conf, i, hash) + "}");
 }
 
-var waiter = LND.SendPaymentV2(conf, 2, paymentReq.PaymentRequest, 10);
+var waiter = LND.SendPaymentV2(conf, 2, paymentReq1.PaymentRequest, 10);
 
 while (await waiter4inv.ResponseStream.MoveNext())
 {
@@ -96,10 +101,10 @@ while (await waiter.ResponseStream.MoveNext())
         Thread.Sleep(1);
 };
 
-var paymentReq2 = LND.AddInvoice(conf, 1, 1000, "hello");
+var paymentReqC = LND.AddInvoice(conf, 1, 1000, "hello");
 Console.WriteLine(paymentReq2);
-Console.WriteLine(LND.DecodeInvoice(conf, 2, paymentReq2));
-Console.WriteLine(LND.SendPayment(conf, 2, paymentReq2));
+Console.WriteLine(LND.DecodeInvoice(conf, 2, paymentReqC.PaymentRequest));
+Console.WriteLine(LND.SendPayment(conf, 2, paymentReqC.PaymentRequest));
 
 var channels21 = LND.ListChannels(conf, 2);
 foreach (var chanx in channels21.Channels)
