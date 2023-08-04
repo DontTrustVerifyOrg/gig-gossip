@@ -201,17 +201,17 @@ public static class LND
         return LightningClient(conf, idx).SendPaymentSync(
             new SendRequest()
             {
-                PaymentRequest = paymentRequest,
+                PaymentRequest = paymentRequest
             },
-            Metadata(conf, idx));
+            Metadata(conf, idx)); 
     }
 
-    public static AsyncServerStreamingCall<Payment> SendPaymentV2(NodesConfiguration conf, int idx, string paymentRequest, int timeout, List<ulong> outgoingChannelIds = null)
+    public static AsyncServerStreamingCall<Payment> SendPaymentV2(NodesConfiguration conf, int idx, string paymentRequest, int timeout,  List<ulong> outgoingChannelIds = null)
     {
         var spr = new SendPaymentRequest()
         {
             PaymentRequest = paymentRequest,
-            TimeoutSeconds = timeout,
+            TimeoutSeconds = timeout
         };
         if (outgoingChannelIds != null)
             spr.OutgoingChanIds.Add(outgoingChannelIds);
@@ -266,7 +266,7 @@ public static class LND
         {
             LocalFundingAmount = fundingSatoshis,
             NodePubkeyString = nodePubKey,
-            Private = privat , 
+            Private = privat ,
         };
         if (closeAddress != null)
             ocr.CloseAddress = closeAddress;
@@ -405,7 +405,7 @@ public static class LND
     public static ListPaymentsResponse ListPayments(NodesConfiguration conf, int idx)
     {
         return LightningClient(conf, idx).ListPayments(
-            new ListPaymentsRequest() { },
+            new ListPaymentsRequest() {  },
             Metadata(conf, idx));
     }
 
