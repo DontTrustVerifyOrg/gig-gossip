@@ -11,8 +11,27 @@ using Grpc.Core;
 using Lnrpc;
 using Invoicesrpc;
 using System.Collections.Generic;
+using Walletrpc;
+using System.Security.Principal;
+using System;
 
 namespace LNDWallet;
+
+public enum InvoiceState
+{
+    Open=0,
+    Settled=1,
+    Cancelled=2,
+    Accepted = 3,
+}
+
+public enum PaymentStatus
+{
+    Unknown = 0,
+    InFlight = 1,
+    Succeeded =2,
+    Failed =3,
+}
 
 public class User
 {
@@ -33,8 +52,13 @@ public class Invoice
     [Key]
     public string hash { get; set; }
     public string pubkey { get; set; }
+    public string paymentreq { get; set; }
+    public ulong satoshis { get; set; }
+    public InvoiceState state { get; set; }
     public ulong txfee { get; set; }
     public bool ishodl { get; set; }
+    public bool isselfmanaged { get; set; }
+    public byte[] preimage { get; set; }
 }
 
 public class Payment
@@ -42,18 +66,23 @@ public class Payment
     [Key]
     public string hash { get; set; }
     public string pubkey { get; set; }
+    public ulong satoshis { get; set; }
+    public PaymentStatus status { get; set; }
+    public ulong paymentfee { get; set; }
     public ulong txfee { get; set; }
+    public bool isselfmanaged { get; set; }
 }
 
-public class SelfTransaction
+public class Payout
 {
     [Key]
-    public string hash { get; set; }
-    public string issuer_pubkey { get; set; }
-    public string payer_pubkey { get; set; }
+    public Guid id { get; set; }
+    public string pubkey { get; set; }
+    public string address { get; set; }
+    public bool ispending { get; set; }
+    public ulong satoshis { get; set; }
     public ulong txfee { get; set; }
-    public bool issettled { get; set; }
-    public bool iscancelled { get; set; }
+    public string tx { get; set; }
 }
 
 public class WaletContext : DbContext
@@ -67,10 +96,9 @@ public class WaletContext : DbContext
 
     public DbSet<User> Users { get; set; }
     public DbSet<Address> FundingAddresses { get; set; }
-    public DbSet<Address> PayoutAddresses { get; set; }
+    public DbSet<Payout> Payouts { get; set; }
     public DbSet<Invoice> Invoices { get; set; }
     public DbSet<Payment> Payments { get; set; }
-    public DbSet<SelfTransaction> SelfTransactions { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -85,6 +113,8 @@ public class NotEnoughFundsInAccountException : Exception
 public class NotEnoughFundsOnChainException : Exception
 { }
 
+public class PayoutAlreadyCompletedException : Exception
+{ }
 
 public class LNDAccountManager
 {
@@ -105,53 +135,102 @@ public class LNDAccountManager
 
     public string NewAddress(ulong txfee)
     {
-        var newaddress = LND.NewAddress(conf, idx);
-        walletContext.FundingAddresses.Add(new Address() { address = newaddress, pubkey = account, txfee = txfee });
-        walletContext.SaveChanges();
-        return newaddress;
+        lock (walletContext)
+        {
+            var newaddress = LND.NewAddress(conf, idx);
+            walletContext.FundingAddresses.Add(new Address() { address = newaddress, pubkey = account, txfee = txfee });
+            walletContext.SaveChanges();
+            return newaddress;
+        }
     }
 
-
-    public string Payout(ulong satoshis, string btcAddress, ulong txfee)
+    public Guid RegisterPayout(ulong satoshis, string btcAddress, ulong txfee)
     {
-        if (LND.GetWalletBalance(conf, idx).ConfirmedBalance >= (long)satoshis)
-            throw new NotEnoughFundsOnChainException();
-
-        if ((long)(satoshis) > GetAccountBallance() - (long)txfee)
+        if ((GetAccountBallance() - (long)txfee)< (long)satoshis)
             throw new NotEnoughFundsInAccountException();
 
-        walletContext.PayoutAddresses.Add(new Address() { address = btcAddress, pubkey = account, txfee = txfee });
-        walletContext.SaveChanges();
-        return LND.SendCoins(conf, idx, btcAddress, "", (long)satoshis);
+        var myid = Guid.NewGuid();
+
+        lock (walletContext)
+        {
+            walletContext.Payouts.Add(new LNDWallet.Payout()
+            {
+                id = myid,
+                address = btcAddress,
+                pubkey = account,
+                txfee = txfee,
+                ispending = true,
+                satoshis = satoshis
+            });
+            walletContext.SaveChanges();
+        }
+        return myid;
     }
 
-    public long GetChannelFundingAmount(int minConf)
+    public long GetExecutedPayedInFundingAmount(int minConf)
     {
-        var myaddrs = new Dictionary<string, ulong>(
-            from a in walletContext.FundingAddresses
-            where a.pubkey == account
-            select new KeyValuePair<string, ulong>(a.address, a.txfee));
+        lock (walletContext)
+        {
+            var myaddrs = new Dictionary<string, ulong>(
+                from a in walletContext.FundingAddresses
+                where a.pubkey == account
+                select new KeyValuePair<string, ulong>(a.address, a.txfee));
 
-        var transactuinsResp = LND.GetTransactions(conf, idx);
-        long balance = 0;
-        foreach (var transation in transactuinsResp.Transactions)
-            if (transation.NumConfirmations >= minConf)
-                foreach (var outp in transation.OutputDetails)
-                    if (outp.IsOurAddress)
-                        if (myaddrs.ContainsKey(outp.Address))
-                        {
-                            balance += outp.Amount;
-                            balance -= (long)myaddrs[outp.Address];
-                        }
-        return balance;
+            var transactuinsResp = LND.GetTransactions(conf, idx);
+            long balance = 0;
+            foreach (var transation in transactuinsResp.Transactions)
+                if (transation.NumConfirmations >= minConf)
+                    foreach (var outp in transation.OutputDetails)
+                        if (outp.IsOurAddress)
+                            if (myaddrs.ContainsKey(outp.Address))
+                            {
+                                balance += outp.Amount;
+                                balance -= (long)myaddrs[outp.Address];
+                            }
+            return balance;
+        }
     }
 
-    public long GetAlreadyPayedOutAmount(int minConf)
+    public long GetPayedOutAmount()
     {
-        var myaddrs = new Dictionary<string, ulong>(
-            from a in walletContext.PayoutAddresses
-            where a.pubkey == account
-            select new KeyValuePair<string, ulong>(a.address, a.txfee));
+        lock (walletContext)
+        {
+            return (from a in walletContext.Payouts
+                    where a.pubkey == account
+                    select ((long)(a.satoshis + a.txfee))).Sum();
+        }
+    }
+
+    public List<LNDWallet.Payout> GetPendingPayouts()
+    {
+        lock (walletContext)
+        {
+            return (from a in walletContext.Payouts
+                    where a.pubkey == account && a.ispending
+                    select a).ToList();
+        }
+    }
+
+    public long GetPendingPayedOutAmount()
+    {
+        lock (walletContext)
+        {
+            return (from a in walletContext.Payouts
+                    where a.pubkey == account && a.ispending
+                    select ((long)(a.satoshis + a.txfee))).Sum();
+        }
+    }
+
+    public long GetExecutedPayedOutAmount(int minConf)
+    {
+        Dictionary<string, LNDWallet.Payout> mypayouts;
+        lock (walletContext)
+        {
+            mypayouts = new Dictionary<string, LNDWallet.Payout>(
+                from a in walletContext.Payouts
+                where a.pubkey == account
+                select new KeyValuePair<string, LNDWallet.Payout>(a.address, a));
+        }
 
         var transactuinsResp = LND.GetTransactions(conf, idx);
         long balance = 0;
@@ -159,10 +238,10 @@ public class LNDAccountManager
             if (transation.NumConfirmations >= minConf)
                 foreach (var outp in transation.OutputDetails)
                     if (!outp.IsOurAddress)
-                        if (myaddrs.ContainsKey(outp.Address))
+                        if (mypayouts.ContainsKey(outp.Address))
                         {
                             balance += outp.Amount;
-                            balance += (long)myaddrs[outp.Address];
+                            balance += (long)mypayouts[outp.Address].txfee;
                         }
         return balance;
     }
@@ -170,186 +249,174 @@ public class LNDAccountManager
     public Invoicesrpc.AddHoldInvoiceResp AddHodlInvoice(long satoshis, string memo, byte[] hash, ulong txfee, long expiry = 86400)
     {
         var inv = LND.AddHodlInvoice(conf, idx, satoshis, memo, hash, expiry);
-        walletContext.Invoices.Add(new Invoice() { hash = hash.AsHex(), pubkey = account, txfee = txfee , ishodl=true});
-        walletContext.SaveChanges();
+        lock (walletContext)
+        {
+            walletContext.Invoices.Add(new Invoice() {
+                hash = hash.AsHex(),
+                pubkey = account,
+                paymentreq = inv.PaymentRequest,
+                satoshis = (ulong)satoshis,
+                state = InvoiceState.Open,
+                txfee = txfee,
+                ishodl = true,
+                isselfmanaged = false,
+            }) ;
+            walletContext.SaveChanges();
+        }
         return inv;
     }
 
     public Lnrpc.AddInvoiceResponse AddInvoice(long satoshis, string memo, ulong txfee)
     {
         var inv = LND.AddInvoice(conf, idx, satoshis, memo);
-        walletContext.Invoices.Add(new Invoice() { hash = inv.RHash.ToArray().AsHex(), pubkey = account, txfee = txfee, ishodl=false });
-        walletContext.SaveChanges();
+        lock (walletContext)
+        {
+            walletContext.Invoices.Add(new Invoice()
+            {
+                hash = inv.RHash.ToArray().AsHex(),
+                pubkey = account,
+                paymentreq = inv.PaymentRequest,
+                satoshis = (ulong)satoshis,
+                state = InvoiceState.Open,
+                txfee = txfee,
+                ishodl = false,
+                isselfmanaged = false,
+            });
+            walletContext.SaveChanges();
+        }
         return inv;
     }
 
-    public class CallResult<T>
+    public PayReq DecodeInvoice(string paymentRequest)
     {
-        public T Value;
-        public AsyncServerStreamingCall<T> StreamingCall;
+        return LND.DecodeInvoice(conf, idx, paymentRequest);
+    }
 
-        public async Task<bool> WaitForCondition(Func<T, bool> condition, CancellationToken cancellationToken)
+    public void SendPayment(string paymentRequest, int timeout, ulong txfee, ulong feelimit)
+    {
+        var decinv = LND.DecodeInvoice(conf, idx, paymentRequest);
+        lock (walletContext)
         {
-            if (StreamingCall != null)
+            if ((long)decinv.NumSatoshis > GetAccountBallance() - (long)txfee)
+                throw new NotEnoughFundsInAccountException();
+
+            var selfInv = (from inv in walletContext.Invoices where inv.hash == decinv.PaymentHash select inv).FirstOrDefault();
+            if (selfInv != null) // selfpayment
             {
-                while(await StreamingCall.ResponseStream.MoveNext(cancellationToken))
+                selfInv.isselfmanaged = true;
+                selfInv.state = selfInv.ishodl ? InvoiceState.Accepted : InvoiceState.Settled;
+                walletContext.Invoices.Update(selfInv);
+                walletContext.Payments.Add(new Payment()
                 {
-                    if (condition(StreamingCall.ResponseStream.Current))
-                        return true;
-                    else
-                        Thread.Sleep(1);
-                }
-                return false;
+                    hash = decinv.PaymentHash,
+                    pubkey = account,
+                    satoshis = selfInv.satoshis,
+                    txfee = txfee,
+                    isselfmanaged = true,
+                    paymentfee = 0,
+                    status = selfInv.ishodl ? PaymentStatus.InFlight : PaymentStatus.Succeeded,
+                }) ;
+                walletContext.SaveChanges();
             }
             else
             {
-                return condition(Value);
+                LND.SendPaymentV2(conf, idx, paymentRequest, timeout, (long)feelimit);
+                walletContext.Payments.Add(new Payment()
+                {
+                    hash = decinv.PaymentHash,
+                    pubkey = account,
+                    satoshis = (ulong)decinv.NumSatoshis,
+                    txfee = txfee,
+                    isselfmanaged = false,
+                    paymentfee = feelimit,
+                    status = selfInv.ishodl ? PaymentStatus.InFlight : PaymentStatus.Succeeded,
+                });
+                walletContext.SaveChanges();
             }
         }
     }
 
-    public async Task WaitForInvoiceCondition(string paymentHash, Func<Lnrpc.Invoice, bool> condition)
-    {
-        while (!await LookupSubscribeSingleInvoice(paymentHash).WaitForCondition(condition, CancellationToken.None))
-            Thread.Sleep(1000);
-    }
-
-    public CallResult<Lnrpc.Payment> SendPayment(string paymentRequest, int timeout, ulong txfee)
-    {
-        var decinv = LND.DecodeInvoice(conf, idx, paymentRequest);
-        if ((long)decinv.NumSatoshis > GetAccountBallance() - (long)txfee)
-            throw new NotEnoughFundsInAccountException();
-
-        var selfInv = (from inv in walletContext.Invoices where inv.hash == decinv.PaymentHash select inv).FirstOrDefault();
-        if (selfInv != null) // selfpayment
-        {
-            walletContext.SelfTransactions.Add(new SelfTransaction() { hash = decinv.PaymentHash, issuer_pubkey = selfInv.pubkey, payer_pubkey = account, txfee = txfee, issettled = !selfInv.ishodl });
-            walletContext.SaveChanges();
-            return new CallResult<Lnrpc.Payment> {
-                Value = new Lnrpc.Payment() {
-                    Status = selfInv.ishodl ? Lnrpc.Payment.Types.PaymentStatus.InFlight : Lnrpc.Payment.Types.PaymentStatus.Succeeded,
-                    PaymentHash = decinv.PaymentHash,
-                    ValueSat = decinv.NumSatoshis,
-                } };
-        }
-        else
-        {
-            walletContext.Payments.Add(new Payment() { hash = decinv.PaymentHash, pubkey = account, txfee = txfee });
-            walletContext.SaveChanges();
-            return new CallResult<Lnrpc.Payment> {
-                StreamingCall = LND.SendPaymentV2(conf, idx, paymentRequest, timeout)
-            };
-        }
-    }
-
-    public CallResult<Lnrpc.Invoice> SettleInvoice(byte[] preimage)
+    public void SettleInvoice(byte[] preimage)
     {
         var hash = LND.ComputePaymentHash(preimage);
         var paymentHash = hash.AsHex();
-        var selftrans = (from st in walletContext.SelfTransactions where st.hash == paymentHash && !st.iscancelled select st).FirstOrDefault();
-        if (selftrans != null)
+        lock (walletContext)
         {
-            selftrans.issettled = true;
-            walletContext.Update(selftrans);
-            walletContext.SaveChanges();
-            var inv = LND.LookupInvoiceV2(conf, idx, hash);
-            inv.State = Lnrpc.Invoice.Types.InvoiceState.Settled;
-            return new CallResult<Lnrpc.Invoice>() { Value = inv };
-        }
-        else
-        {
-            LND.SettleInvoice(conf, idx, preimage);
-            return new CallResult<Lnrpc.Invoice>() { StreamingCall = LND.SubscribeSingleInvoice(conf, idx, hash) };
-        }
-    }
-
-    public CallResult<Lnrpc.Invoice> CancelInvoice(string paymentHash)
-    {
-        var hash = Convert.FromHexString(paymentHash);
-        var selftrans = (from st in walletContext.SelfTransactions where st.hash == paymentHash select st).FirstOrDefault();
-        if (selftrans != null)
-        {
-            selftrans.iscancelled = true;
-            walletContext.Update(selftrans);
-            walletContext.SaveChanges();
-            LND.CancelInvoice(conf, idx, Convert.FromHexString(paymentHash));
-            var inv = LND.LookupInvoiceV2(conf, idx, hash);
-            inv.State = Lnrpc.Invoice.Types.InvoiceState.Canceled;
-            return new CallResult<Lnrpc.Invoice>() { Value = inv };
-        }
-        else
-        {
-            LND.CancelInvoice(conf, idx, Convert.FromHexString(paymentHash));
-            return new CallResult<Lnrpc.Invoice>() { StreamingCall = LND.SubscribeSingleInvoice(conf, idx, hash) };
-        }
-    }
-
-    public CallResult<Lnrpc.Invoice> LookupSubscribeSingleInvoice(string paymentHash)
-    {
-        var hash = Convert.FromHexString(paymentHash);
-        var inv = LND.LookupInvoiceV2(conf, idx, hash);
-        if (inv.State == Lnrpc.Invoice.Types.InvoiceState.Open)
-        {
-            var selftrans = (from st in walletContext.SelfTransactions where st.hash == paymentHash select st).FirstOrDefault();
+            var selftrans = (from st in walletContext.Invoices where st.hash == paymentHash && st.isselfmanaged select st).FirstOrDefault();
             if (selftrans != null)
             {
-                if (selftrans.iscancelled)
-                    inv.State = Lnrpc.Invoice.Types.InvoiceState.Canceled;
-                else
-                    inv.State = selftrans.issettled ? Lnrpc.Invoice.Types.InvoiceState.Settled : Lnrpc.Invoice.Types.InvoiceState.Accepted;
+                selftrans.state = InvoiceState.Settled;
+                selftrans.preimage = preimage;
+                walletContext.Update(selftrans);
+                walletContext.SaveChanges();
             }
-            return new CallResult<Lnrpc.Invoice>() { Value = inv };
+            else
+            {
+                LND.SettleInvoice(conf, idx, preimage);
+            }
         }
-        else
+    }
+
+    public void CancelInvoice(string paymentHash)
+    {
+        var hash = Convert.FromHexString(paymentHash);
+        lock (walletContext)
         {
-            return new CallResult<Lnrpc.Invoice>() { StreamingCall = LND.SubscribeSingleInvoice(conf, idx, hash) };
+            var selftrans = (from st in walletContext.Invoices where st.hash == paymentHash && st.isselfmanaged select st).FirstOrDefault();
+            if (selftrans != null)
+            {
+                selftrans.state = InvoiceState.Cancelled;
+                walletContext.Update(selftrans);
+                walletContext.SaveChanges();
+            }
+            else
+            {
+                LND.CancelInvoice(conf, idx, Convert.FromHexString(paymentHash));
+            }
+        }
+    }
+
+    public PaymentStatus GetPaymentStatus(string paymentHash)
+    {
+        lock(walletContext)
+        {
+            var pm = (from pay in walletContext.Payments where pay.hash == paymentHash select pay).FirstOrDefault();
+            if (pm != null)
+                return pm.status;
+            else
+                throw new InvalidOperationException();
+        }
+    }
+
+    public InvoiceState GetInvoiceState(string paymentHash)
+    {
+        lock (walletContext)
+        {
+            var iv = (from inv in walletContext.Invoices where inv.hash == paymentHash select inv).FirstOrDefault();
+            if (iv != null)
+                return iv.state;
+            else
+                throw new InvalidOperationException();
         }
     }
 
     public long GetAccountBallance()
     {
-        var channelfunds = GetChannelFundingAmount(6);
-        var alreadypayedout = GetAlreadyPayedOutAmount(0);
+        lock (walletContext)
+        {
+            var channelfunds = GetExecutedPayedInFundingAmount(6);
+            var alreadypayedout = GetPayedOutAmount();
 
-        var myinvoiceHashes = new Dictionary<string, ulong>(
-            from inv in walletContext.Invoices
-            where inv.pubkey == account
-            select new KeyValuePair<string, ulong>(inv.hash, inv.txfee));
-        var mypaymentHashes = new Dictionary<string, ulong>(
-            from pay in walletContext.Payments
-            where pay.pubkey == account
-            select new KeyValuePair<string, ulong>(pay.hash, pay.txfee));
-        var myselfpaidInvoices = new Dictionary<string, ulong>(
-            from tx in walletContext.SelfTransactions
-            where tx.issuer_pubkey == account && tx.issettled
-            select new KeyValuePair<string, ulong>(tx.hash, tx.txfee));
-        var myselfpaimets = new Dictionary<string, ulong>(
-            from tx in walletContext.SelfTransactions
-            where tx.payer_pubkey == account && tx.issettled
-            select new KeyValuePair<string, ulong>(tx.hash, tx.txfee));
+            var earnedFromSettledInvoices = (from inv in walletContext.Invoices
+                                            where inv.pubkey == account && inv.state == InvoiceState.Settled
+                                            select (long)inv.satoshis-(long)inv.txfee).Sum();
 
+            var sendOrLocedPayments = (from pay in walletContext.Payments
+                                            where pay.pubkey == account
+                                            select (long)pay.satoshis + ((long)pay.paymentfee + (long)pay.txfee)).Sum();
 
-        var allInvoices = LND.ListInvoices(conf, idx).Invoices;
-
-        var paidinvoices = (from inv in allInvoices
-                            where myinvoiceHashes.ContainsKey(inv.RHash.ToArray().AsHex())
-                            && inv.State == Lnrpc.Invoice.Types.InvoiceState.Settled
-                            select inv.AmtPaidSat - (long)myinvoiceHashes[inv.RHash.ToArray().AsHex()]).Sum();
-
-        var paidselfinvoices = (from inv in allInvoices
-                                where myselfpaidInvoices.ContainsKey(inv.RHash.ToArray().AsHex())
-                                select inv.AmtPaidSat - (long)myselfpaidInvoices[inv.RHash.ToArray().AsHex()]).Sum();
-
-        var selfpayments = (from inv in allInvoices
-                            where myselfpaimets.ContainsKey(inv.RHash.ToArray().AsHex())
-                            select inv.AmtPaidSat + (long)myselfpaimets[inv.RHash.ToArray().AsHex()]).Sum();
-
-        var mypayments = (from pay in LND.ListPayments(conf, idx).Payments
-                          where mypaymentHashes.ContainsKey(pay.PaymentHash)
-                          && pay.Status == Lnrpc.Payment.Types.PaymentStatus.Succeeded
-                          select pay.FeeSat + pay.ValueSat + (long)mypaymentHashes[pay.PaymentHash]).Sum();
-
-        return channelfunds - alreadypayedout + paidinvoices - mypayments + paidselfinvoices - selfpayments;
+            return channelfunds - alreadypayedout + earnedFromSettledInvoices - sendOrLocedPayments;
+        }
     }
 
 }
@@ -372,22 +439,191 @@ public class LNDWalletManager
         this.info = nodeInfo;
     }
 
+    CancellationTokenSource subscribeInvoicesCancallationTokenSource ;
+    Thread subscribeInvoicesThread;
+
+    CancellationTokenSource trackPaymentsCancallationTokenSource;
+    Thread trackPaymentsThread;
+
+    public void Start()
+    {
+        lock(walletContext)
+        {
+            var allInvs = new Dictionary<string, Lnrpc.Invoice>(
+                (from inv in LND.ListInvoices(conf, idx).Invoices
+                 select KeyValuePair.Create(inv.RHash.ToArray().AsHex(), inv)));
+            foreach (var inv in walletContext.Invoices)
+            {
+                if (allInvs.ContainsKey(inv.hash))
+                {
+                    var myinv = allInvs[inv.hash];
+                    if (((int)inv.state) != ((int)myinv.State))
+                    {
+                        inv.state = (InvoiceState)myinv.State;
+                        walletContext.Invoices.Update(inv);
+                    }
+                }
+            }
+
+            var allPayments = new Dictionary<string, Lnrpc.Payment>(
+                (from pm in LND.ListPayments(conf, idx).Payments
+                 select KeyValuePair.Create(pm.PaymentHash, pm)));
+            foreach (var pm in walletContext.Payments)
+            {
+                if (allPayments.ContainsKey(pm.hash))
+                {
+                    var mypm = allPayments[pm.hash];
+                    if (((int)pm.status) != ((int)mypm.Status))
+                    {
+                        pm.status = (PaymentStatus)mypm.Status;
+                        walletContext.Payments.Update(pm);
+                    }
+                }
+            }
+
+            walletContext.SaveChanges();
+        }
+
+        subscribeInvoicesCancallationTokenSource = new CancellationTokenSource();
+        subscribeInvoicesThread = new Thread(async () =>
+        {
+            try
+            {
+                var stream = LND.SubscribeInvoices(conf, idx, cancellationToken:subscribeInvoicesCancallationTokenSource.Token);
+                while (await stream.ResponseStream.MoveNext(subscribeInvoicesCancallationTokenSource.Token))
+                {
+                    var inv = stream.ResponseStream.Current;
+                    lock (walletContext)
+                    {
+                        var walInv = (from inv2 in walletContext.Invoices where inv2.hash == inv.RHash.ToArray().AsHex() select inv2).FirstOrDefault();
+                        if (walInv != null)
+                        {
+                            if (((int)walInv.state) != ((int)inv.State))
+                            {
+                                walInv.state = (InvoiceState)inv.State;
+                                if (inv.State == Lnrpc.Invoice.Types.InvoiceState.Settled)
+                                    walInv.preimage = inv.RPreimage.ToArray();
+                                walletContext.Invoices.Update(walInv);
+                                walletContext.SaveChanges();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (RpcException e) when (e.Status.StatusCode == StatusCode.Cancelled)
+            {
+                Console.WriteLine("Streaming was cancelled from the client!");
+            }
+
+        });
+
+        trackPaymentsCancallationTokenSource = new CancellationTokenSource();
+        trackPaymentsThread = new Thread(async () =>
+        {
+            try
+            {
+                var stream = LND.TrackPayments(conf, idx, cancellationToken: trackPaymentsCancallationTokenSource.Token);
+                while (await stream.ResponseStream.MoveNext(trackPaymentsCancallationTokenSource.Token))
+                {
+                    var pm = stream.ResponseStream.Current;
+                    lock (walletContext)
+                    {
+                        var walPm = (from pm2 in walletContext.Payments where pm2.hash == pm.PaymentHash select pm2).FirstOrDefault();
+                        if (walPm != null)
+                        {
+                            if (((int)walPm.status) != ((int)pm.Status))
+                            {
+                                walPm.status = (PaymentStatus)pm.Status;
+                                if(pm.Status == Lnrpc.Payment.Types.PaymentStatus.Succeeded)
+                                    walPm.paymentfee = (ulong)pm.FeeSat;
+                                walletContext.Payments.Update(walPm);
+                                walletContext.SaveChanges();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (RpcException e) when (e.Status.StatusCode == StatusCode.Cancelled)
+            {
+                Console.WriteLine("Streaming was cancelled from the client!");
+            }
+
+        });
+
+    }
+
+    public void Stop()
+    {
+        subscribeInvoicesCancallationTokenSource.Cancel();
+        trackPaymentsCancallationTokenSource.Cancel();
+        subscribeInvoicesThread.Join();
+        trackPaymentsThread.Join();
+    }
+
     public LNDAccountManager CreateAccount(ECXOnlyPubKey pubkey)
     {
-        walletContext.Users.Add(new User() { pubkey = pubkey.AsHex() });
-        walletContext.SaveChanges();
-        return new LNDAccountManager(conf, idx, walletContext, info, account: pubkey.AsHex());
+        lock (walletContext)
+        {
+            walletContext.Users.Add(new User() { pubkey = pubkey.AsHex() });
+            walletContext.SaveChanges();
+            return new LNDAccountManager(conf, idx, walletContext, info, account: pubkey.AsHex());
+        }
     }
 
     public LNDAccountManager GetAccount(ECXOnlyPubKey pubkey)
     {
-        var u = (from user in walletContext.Users where user.pubkey == pubkey.AsHex() select user).FirstOrDefault();
-        if (u == null)
-            return null;
-        return new LNDAccountManager(conf, idx, walletContext, info, account: pubkey.AsHex());
+        lock (walletContext)
+        {
+            var u = (from user in walletContext.Users where user.pubkey == pubkey.AsHex() select user).FirstOrDefault();
+            if (u == null)
+                return null;
+            return new LNDAccountManager(conf, idx, walletContext, info, account: pubkey.AsHex());
+        }
     }
 
-    public string OpenChannel(string nodePubKey, long fundingSatoshis)
+    public string SendCoins(string address, long satoshis)
+    {
+        return LND.SendCoins(conf, idx, address, "", satoshis);
+    }
+
+    public List<LNDWallet.Payout> GetAllPendingPayouts()
+    {
+        lock (walletContext)
+        {
+            return (from a in walletContext.Payouts
+                    where a.ispending
+                    select a).ToList();
+        }
+    }
+
+    public void MarkPayoutAsCompleted(Guid id, string tx)
+    {
+        lock (walletContext)
+        {
+            var payout = (from po in walletContext.Payouts where po.id == id && po.ispending select po).FirstOrDefault();
+            if (payout != null)
+            {
+                payout.ispending = false;
+                payout.tx = tx;
+                walletContext.Update(payout);
+                walletContext.SaveChanges();
+            }
+            else
+                throw new PayoutAlreadyCompletedException();
+        }
+    }
+
+    public long GetChannelFundingBalance(int minconf)
+    {
+        return (from utxo in LND.ListUnspent(conf, idx,minconf).Utxos select utxo.AmountSat).Sum() ;
+    }
+
+    public AsyncServerStreamingCall<OpenStatusUpdate> OpenChannel(string nodePubKey, long fundingSatoshis)
+    {
+        return LND.OpenChannel(conf, idx, nodePubKey, fundingSatoshis);
+    }
+
+    public string OpenChannelSync(string nodePubKey, long fundingSatoshis)
     {
         var channelpoint = LND.OpenChannelSync(conf, idx, nodePubKey, fundingSatoshis);
         string channelTx;

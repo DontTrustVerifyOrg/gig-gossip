@@ -31,9 +31,6 @@ conf.AddNodeConfiguration(
 for (int i = 1; i <= 3; i++)
     Console.WriteLine("lnd{" + i.ToString() + "}: Pubkey: {" + LND.GetNodeInfo(conf, i) + "}");
 
-for (int i = 1; i <= 3; i++)
-    Console.WriteLine("lnd{" + i.ToString() + "}: Balance: {" + JsonSerializer.Serialize(LND.GetWalletBalance(conf, i)) + "}");
-
 var peersof2 = LND.ListPeers(conf, 2);
 var nd1 = LND.GetNodeInfo(conf, 1);
 var nd3 = LND.GetNodeInfo(conf, 3);
@@ -77,7 +74,7 @@ for (int i = 1; i <= 1; i++)
     Console.WriteLine("lnd{" + i.ToString() + "}: State: {" + LND.LookupInvoiceV2(conf, i, hash) + "}");
 }
 
-var waiter = LND.SendPaymentV2(conf, 2, paymentReq1.PaymentRequest, 10);
+var waiter = LND.SendPaymentV2(conf, 2, paymentReq1.PaymentRequest, 10,1000);
 
 while (await waiter4inv.ResponseStream.MoveNext())
 {
@@ -111,9 +108,6 @@ foreach (var chanx in channels21.Channels)
     LND.CloseChannel(conf, 2, chanx.ChannelPoint.Split(':')[0]);
 
 
-
-for (int i = 1; i <= 3; i++)
-    Console.WriteLine("lnd{" + i.ToString() + "}: Balance: {" + LND.GetWalletBalance(conf, i) + "}");
 
 Console.WriteLine("End!");
 
