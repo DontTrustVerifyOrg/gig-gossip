@@ -309,7 +309,7 @@ public static class LND
             Metadata(conf, idx), deadline, cancellationToken);
     }
 
-    public static AddHoldInvoiceResp AddHodlInvoice(NodesConfiguration conf, int idx, long satoshis, string memo, byte[] hash, long expiry = 86400, bool privat = false, string nodePubKey = null, List<ulong> chanids = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static AddHoldInvoiceResp AddHodlInvoice(NodesConfiguration conf, int idx, long satoshis, string memo, byte[] hash, long expiry = 86400, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var ahr = new AddHoldInvoiceRequest()
         {
@@ -318,16 +318,7 @@ public static class LND
             Hash = Google.Protobuf.ByteString.CopyFrom(hash),
             Expiry = expiry,
         };
-        if (privat)
-        {
-            ahr.Private = true;
-            foreach (var chanid in chanids)
-            {
-                var hh = new RouteHint();
-                hh.HopHints.Add(new HopHint() { ChanId = chanid, NodeId = nodePubKey });
-                ahr.RouteHints.Add(hh);
-            }
-        }
+
         return InvoicesClient(conf, idx).AddHoldInvoice(
             ahr,
             Metadata(conf, idx), deadline, cancellationToken);

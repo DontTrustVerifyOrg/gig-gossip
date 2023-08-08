@@ -32,6 +32,36 @@ namespace CryptoToolkit
 
     public static class Crypto
     {
+        [Serializable]
+        public struct TimedGuidToken
+        {
+            public DateTime DateTime { get; set; }
+            public Guid Guid { get; set; }
+            public byte[] Signature { get; set; }
+        }
+
+        public static string MakeSignedTimedToken(ECPrivKey ecpriv, DateTime dateTime, Guid guid)
+        {
+            var tt = new TimedGuidToken();
+            tt.DateTime = dateTime;
+            tt.Guid = guid;
+            tt.Signature = SignObject(tt,ecpriv);
+            return Convert.ToBase64String(SerializeObject(tt));
+        }
+
+        public static Guid? VerifySignedTimedToken(ECXOnlyPubKey ecpub, string TimedTokenBase64, double seconds)
+        {
+            var serialized = Convert.FromBase64String(TimedTokenBase64);
+            TimedGuidToken timedToken = (TimedGuidToken)DeserializeObject(serialized);
+            if ((DateTime.Now - timedToken.DateTime).TotalSeconds > seconds)
+                return null;
+            var signature = timedToken.Signature;
+            timedToken.Signature = null;
+            if (!VerifyObject(timedToken, signature, ecpub))
+                return null;
+            return timedToken.Guid;
+        }
+
         public struct EncryptedData
         {
             public byte[] Data;

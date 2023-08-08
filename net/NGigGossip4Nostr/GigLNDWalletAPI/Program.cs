@@ -33,36 +33,43 @@ var lndIdx2 = lndConf.AddNodeConfiguration(
 
 var lndWalletDBConnectionString2 = "Data Source=lndwallets2.db";
 
-bool deleteDb = false; // should we delete all dbs at start (e.g. schema change)
-ulong newAddressTxFee = 100;
-ulong addInvoiceTxFee = 100;
-ulong sendPaymentTxFee = 100;
-ulong feelimit = 1000;
+bool deleteDb = true; // should we delete all dbs at start (e.g. schema change)
+long newAddressTxFee = 100;
+long addInvoiceTxFee = 100;
+long sendPaymentTxFee = 100;
+long feelimit = 1000;
 
 LNDWalletManager walletManager = new LNDWalletManager(lndWalletDBConnectionString2, lndConf, 1, LND.GetNodeInfo(lndConf, lndIdx2), deleteDb);
+walletManager.Start();
 
+app.MapGet("/gettoken", (string pubkey) =>
+{
+    return walletManager.GetToken(pubkey);
+})
+.WithName("GetToken")
+.WithOpenApi();
 
-app.MapGet("/getbalance", (string pubkey, string signedTime) =>
+app.MapGet("/getbalance", (string pubkey, string authToken) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return walletManager.GetAccount(pubk).GetAccountBallance();
+    return walletManager.GetAccount(pubk).ValidateToken(authToken).GetAccountBallance();
 })
 .WithName("GetBalance")
 .WithOpenApi();
 
-app.MapGet("/newaddress", (string pubkey, string signedTime) =>
+app.MapGet("/newaddress", (string pubkey, string authToken) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return walletManager.GetAccount(pubk).NewAddress(newAddressTxFee);
+    return walletManager.GetAccount(pubk).ValidateToken(authToken).NewAddress(newAddressTxFee);
 })
 .WithName("NewAddress")
 .WithOpenApi();
 
 
-app.MapGet("/addinvoice", (string pubkey, string signedTime, long satoshis,string memo) =>
+app.MapGet("/addinvoice", (string pubkey, string authToken,  long satoshis,string memo) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    var acc = walletManager.GetAccount(pubk);
+    var acc = walletManager.GetAccount(pubk).ValidateToken(authToken);
     var ph= acc.AddInvoice(satoshis,memo, addInvoiceTxFee).PaymentRequest;
     var pa = acc.DecodeInvoice(ph);
     return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
@@ -70,11 +77,11 @@ app.MapGet("/addinvoice", (string pubkey, string signedTime, long satoshis,strin
 .WithName("AddInvoice")
 .WithOpenApi();
 
-app.MapGet("/addhodlinvoice", (string pubkey, string signedTime, long satoshis, string hash, string memo) =>
+app.MapGet("/addhodlinvoice", (string pubkey, string authToken, long satoshis, string hash, string memo) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
     var hashb = Convert.FromHexString(hash);
-    var acc = walletManager.GetAccount(pubk);
+    var acc = walletManager.GetAccount(pubk).ValidateToken(authToken);
     var ph= acc.AddHodlInvoice(satoshis, memo, hashb, addInvoiceTxFee).PaymentRequest;
     var pa = acc.DecodeInvoice(ph);
     return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
@@ -83,42 +90,42 @@ app.MapGet("/addhodlinvoice", (string pubkey, string signedTime, long satoshis, 
 .WithOpenApi();
 
 
-app.MapGet("/sendpayment", (string pubkey, string signedTime, string paymentrequest, int timeout) =>
+app.MapGet("/sendpayment", (string pubkey, string authToken, string paymentrequest, int timeout) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    walletManager.GetAccount(pubk).SendPayment(paymentrequest, timeout, sendPaymentTxFee, feelimit);
+    walletManager.GetAccount(pubk).ValidateToken(authToken).SendPayment(paymentrequest, timeout, sendPaymentTxFee, feelimit);
 })
 .WithName("SendPayment")
 .WithOpenApi();
 
-app.MapGet("/settleinvoice", (string pubkey, string preimage) =>
+app.MapGet("/settleinvoice", (string pubkey, string authToken, string preimage) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    walletManager.GetAccount(pubk).SettleInvoice(Convert.FromHexString(preimage));
+    walletManager.GetAccount(pubk).ValidateToken(authToken).SettleInvoice(Convert.FromHexString(preimage));
 })
 .WithName("SettleInvoice")
 .WithOpenApi();
 
-app.MapGet("/cancelinvoice", (string pubkey, string paymenthash) =>
+app.MapGet("/cancelinvoice", (string pubkey, string authToken, string paymenthash) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    walletManager.GetAccount(pubk).CancelInvoice(paymenthash);
+    walletManager.GetAccount(pubk).ValidateToken(authToken).CancelInvoice(paymenthash);
 })
 .WithName("CancelInvoice")
 .WithOpenApi();
 
-app.MapGet("/getinvoicestate", (string pubkey, string paymenthash) =>
+app.MapGet("/getinvoicestate", (string pubkey, string authToken, string paymenthash) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return walletManager.GetAccount(pubk).GetInvoiceState(paymenthash).ToString();
+    return walletManager.GetAccount(pubk).ValidateToken(authToken).GetInvoiceState(paymenthash).ToString();
 })
 .WithName("GetInvoiceState")
 .WithOpenApi();
 
-app.MapGet("/getpaymentstatus", (string pubkey, string paymenthash) =>
+app.MapGet("/getpaymentstatus", (string pubkey, string authToken, string paymenthash) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return walletManager.GetAccount(pubk).GetPaymentStatus(paymenthash).ToString();
+    return walletManager.GetAccount(pubk).ValidateToken(authToken).GetPaymentStatus(paymenthash).ToString();
 })
 .WithName("GetPaymentStatus")
 .WithOpenApi();
@@ -130,6 +137,6 @@ app.Run();
 
 public record InvoiceRet
 {
-    public string PaymentRequest;
-    public string PaymentHash;
+    public string PaymentRequest { get; set; }
+    public string PaymentHash { get; set; }
 }

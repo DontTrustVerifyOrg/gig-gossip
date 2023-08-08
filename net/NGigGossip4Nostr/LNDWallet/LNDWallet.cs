@@ -33,18 +33,12 @@ public enum PaymentStatus
     Failed =3,
 }
 
-public class User
-{
-    [Key]
-    public string pubkey { get; set; }
-}
-
 public class Address
 {
     [Key]
     public string address { get; set; }
     public string pubkey { get; set; }
-    public ulong txfee { get; set; }
+    public long txfee { get; set; }
 }
 
 public class Invoice
@@ -53,12 +47,12 @@ public class Invoice
     public string hash { get; set; }
     public string pubkey { get; set; }
     public string paymentreq { get; set; }
-    public ulong satoshis { get; set; }
+    public long satoshis { get; set; }
     public InvoiceState state { get; set; }
-    public ulong txfee { get; set; }
+    public long txfee { get; set; }
     public bool ishodl { get; set; }
     public bool isselfmanaged { get; set; }
-    public byte[] preimage { get; set; }
+    public byte[]? preimage { get; set; }
 }
 
 public class Payment
@@ -66,10 +60,10 @@ public class Payment
     [Key]
     public string hash { get; set; }
     public string pubkey { get; set; }
-    public ulong satoshis { get; set; }
+    public long satoshis { get; set; }
     public PaymentStatus status { get; set; }
-    public ulong paymentfee { get; set; }
-    public ulong txfee { get; set; }
+    public long paymentfee { get; set; }
+    public long txfee { get; set; }
     public bool isselfmanaged { get; set; }
 }
 
@@ -80,9 +74,16 @@ public class Payout
     public string pubkey { get; set; }
     public string address { get; set; }
     public bool ispending { get; set; }
-    public ulong satoshis { get; set; }
-    public ulong txfee { get; set; }
+    public long satoshis { get; set; }
+    public long txfee { get; set; }
     public string tx { get; set; }
+}
+
+public class Token
+{
+    [Key]
+    public Guid id { get; set; }
+    public string pubkey { get; set; }
 }
 
 public class WaletContext : DbContext
@@ -94,11 +95,11 @@ public class WaletContext : DbContext
         this.connectionString = connectionString;
     }
 
-    public DbSet<User> Users { get; set; }
     public DbSet<Address> FundingAddresses { get; set; }
     public DbSet<Payout> Payouts { get; set; }
     public DbSet<Invoice> Invoices { get; set; }
     public DbSet<Payment> Payments { get; set; }
+    public DbSet<Token> Tokens { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -116,6 +117,12 @@ public class NotEnoughFundsOnChainException : Exception
 public class PayoutAlreadyCompletedException : Exception
 { }
 
+public record AuthToken
+{
+    public Guid Id { get; set; }
+    public DateTime DateTime { get; set; }
+}
+
 public class LNDAccountManager
 {
     LND.NodesConfiguration conf;
@@ -123,17 +130,32 @@ public class LNDAccountManager
     WaletContext walletContext;
     GetInfoResponse info;
     string account;
+    ECXOnlyPubKey pubKey;
 
-    internal LNDAccountManager(LND.NodesConfiguration conf, int idx, WaletContext walletContext, GetInfoResponse info, string account)
+    internal LNDAccountManager(LND.NodesConfiguration conf, int idx, WaletContext walletContext, GetInfoResponse info, ECXOnlyPubKey pubKey)
     {
+        this.pubKey = pubKey;
         this.conf = conf;
         this.idx = idx;
-        this.account = account;
+        this.account = pubKey.AsHex();
         this.walletContext = walletContext;
         this.info = info;
     }
 
-    public string NewAddress(ulong txfee)
+    public LNDAccountManager ValidateToken(string authTokenBase64)
+    {
+        var guid = CryptoToolkit.Crypto.VerifySignedTimedToken(pubKey, authTokenBase64, 120.0);
+        if (guid == null)
+            throw new InvalidOperationException();
+
+        var tk = (from token in walletContext.Tokens where token.pubkey == account && token.id == guid select token).FirstOrDefault();
+        if (tk == null)
+            throw new InvalidOperationException();
+
+        return this;
+    }
+
+    public string NewAddress(long txfee)
     {
         lock (walletContext)
         {
@@ -144,7 +166,7 @@ public class LNDAccountManager
         }
     }
 
-    public Guid RegisterPayout(ulong satoshis, string btcAddress, ulong txfee)
+    public Guid RegisterPayout(long satoshis, string btcAddress, long txfee)
     {
         if ((GetAccountBallance() - (long)txfee)< (long)satoshis)
             throw new NotEnoughFundsInAccountException();
@@ -171,10 +193,10 @@ public class LNDAccountManager
     {
         lock (walletContext)
         {
-            var myaddrs = new Dictionary<string, ulong>(
+            var myaddrs = new Dictionary<string, long>(
                 from a in walletContext.FundingAddresses
                 where a.pubkey == account
-                select new KeyValuePair<string, ulong>(a.address, a.txfee));
+                select new KeyValuePair<string, long>(a.address, a.txfee));
 
             var transactuinsResp = LND.GetTransactions(conf, idx);
             long balance = 0;
@@ -246,7 +268,7 @@ public class LNDAccountManager
         return balance;
     }
 
-    public Invoicesrpc.AddHoldInvoiceResp AddHodlInvoice(long satoshis, string memo, byte[] hash, ulong txfee, long expiry = 86400)
+    public Invoicesrpc.AddHoldInvoiceResp AddHodlInvoice(long satoshis, string memo, byte[] hash, long txfee, long expiry = 86400)
     {
         var inv = LND.AddHodlInvoice(conf, idx, satoshis, memo, hash, expiry);
         lock (walletContext)
@@ -255,7 +277,7 @@ public class LNDAccountManager
                 hash = hash.AsHex(),
                 pubkey = account,
                 paymentreq = inv.PaymentRequest,
-                satoshis = (ulong)satoshis,
+                satoshis = (long)satoshis,
                 state = InvoiceState.Open,
                 txfee = txfee,
                 ishodl = true,
@@ -266,7 +288,7 @@ public class LNDAccountManager
         return inv;
     }
 
-    public Lnrpc.AddInvoiceResponse AddInvoice(long satoshis, string memo, ulong txfee)
+    public Lnrpc.AddInvoiceResponse AddInvoice(long satoshis, string memo, long txfee)
     {
         var inv = LND.AddInvoice(conf, idx, satoshis, memo);
         lock (walletContext)
@@ -276,7 +298,7 @@ public class LNDAccountManager
                 hash = inv.RHash.ToArray().AsHex(),
                 pubkey = account,
                 paymentreq = inv.PaymentRequest,
-                satoshis = (ulong)satoshis,
+                satoshis = (long)satoshis,
                 state = InvoiceState.Open,
                 txfee = txfee,
                 ishodl = false,
@@ -292,7 +314,7 @@ public class LNDAccountManager
         return LND.DecodeInvoice(conf, idx, paymentRequest);
     }
 
-    public void SendPayment(string paymentRequest, int timeout, ulong txfee, ulong feelimit)
+    public void SendPayment(string paymentRequest, int timeout, long txfee, long feelimit)
     {
         var decinv = LND.DecodeInvoice(conf, idx, paymentRequest);
         lock (walletContext)
@@ -325,7 +347,7 @@ public class LNDAccountManager
                 {
                     hash = decinv.PaymentHash,
                     pubkey = account,
-                    satoshis = (ulong)decinv.NumSatoshis,
+                    satoshis = (long)decinv.NumSatoshis,
                     txfee = txfee,
                     isselfmanaged = false,
                     paymentfee = feelimit,
@@ -535,7 +557,7 @@ public class LNDWalletManager
                             {
                                 walPm.status = (PaymentStatus)pm.Status;
                                 if(pm.Status == Lnrpc.Payment.Types.PaymentStatus.Succeeded)
-                                    walPm.paymentfee = (ulong)pm.FeeSat;
+                                    walPm.paymentfee = (long)pm.FeeSat;
                                 walletContext.Payments.Update(walPm);
                                 walletContext.SaveChanges();
                             }
@@ -550,6 +572,9 @@ public class LNDWalletManager
 
         });
 
+        subscribeInvoicesThread.Start();
+        trackPaymentsThread.Start();
+
     }
 
     public void Stop()
@@ -560,24 +585,26 @@ public class LNDWalletManager
         trackPaymentsThread.Join();
     }
 
-    public LNDAccountManager CreateAccount(ECXOnlyPubKey pubkey)
-    {
-        lock (walletContext)
-        {
-            walletContext.Users.Add(new User() { pubkey = pubkey.AsHex() });
-            walletContext.SaveChanges();
-            return new LNDAccountManager(conf, idx, walletContext, info, account: pubkey.AsHex());
-        }
-    }
-
     public LNDAccountManager GetAccount(ECXOnlyPubKey pubkey)
     {
         lock (walletContext)
         {
-            var u = (from user in walletContext.Users where user.pubkey == pubkey.AsHex() select user).FirstOrDefault();
-            if (u == null)
-                return null;
-            return new LNDAccountManager(conf, idx, walletContext, info, account: pubkey.AsHex());
+            return new LNDAccountManager(conf, idx, walletContext, info, pubkey);
+        }
+    }
+
+    public Guid GetToken(string pubkey)
+    {
+        lock(walletContext)
+        {
+            var t=(from token in walletContext.Tokens where pubkey == token.pubkey select token).FirstOrDefault();
+            if(t == null)
+            {
+                t = new Token() { id = Guid.NewGuid(), pubkey = pubkey };
+                walletContext.Tokens.Add(t);
+                walletContext.SaveChanges();
+            }
+            return t.id;
         }
     }
 

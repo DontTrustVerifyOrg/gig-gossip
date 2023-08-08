@@ -40,8 +40,8 @@ var allLndIdxes = new List<int> { lndIdx1, lndIdx2, lndIdx3 };
 
 // Wallet DBs for Nodes
 bool deleteDb = true; // should we delete all dbs at start (e.g. schema change)
-ulong txfee = 100;
-ulong maxPaymentFee = 1000;
+long txfee = 100;
+long maxPaymentFee = 1000;
 
 var lndWalletDBConnectionString1 = "Data Source=lndwallets1.db";
 var lndWalletDBConnectionString2 = "Data Source=lndwallets2.db";
@@ -109,20 +109,14 @@ wallet3.Start();
 var privkeyUser1FromNode1 = Context.Instance.CreateECPrivKey(Convert.FromHexString("7f4c11a9742721d66e40e321ca70b682c27f7422190c84a187525e69e6038369"));
 var pubkeyUser1FromNode1 = privkeyUser1FromNode1.CreateXOnlyPubKey();
 var myAccountUser1FromNode1 = wallet1.GetAccount(pubkeyUser1FromNode1);
-if (myAccountUser1FromNode1 == null)
-    myAccountUser1FromNode1 = wallet1.CreateAccount(pubkeyUser1FromNode1);
 
 var privkeyUser1FromNode2 = Context.Instance.CreateECPrivKey(Convert.FromHexString("7f4c11a9742421366e40e321ca50b682c27f7422190c14a487525e69e6048326"));
 var pubkeyUser1FromNode2 = privkeyUser1FromNode2.CreateXOnlyPubKey();
 var myAccountUser1FromNode2= wallet2.GetAccount(pubkeyUser1FromNode2);
-if(myAccountUser1FromNode2==null)
-    myAccountUser1FromNode2=wallet2.CreateAccount(pubkeyUser1FromNode2);
 
 var privkeyUser2FromNode2 = Context.Instance.CreateECPrivKey(Convert.FromHexString("7f4c11a9742421366e40e321ca50b682c27f7482190c14a487525e69e6048326"));
 var pubkeyUser2FromNode2 = privkeyUser2FromNode2.CreateXOnlyPubKey();
 var myAccountUser2FromNode2 = wallet2.GetAccount(pubkeyUser1FromNode2);
-if (myAccountUser2FromNode2 == null)
-    myAccountUser2FromNode2 = wallet2.CreateAccount(pubkeyUser1FromNode2);
 
 
 var ballanceOfUser1FromNode2 = myAccountUser1FromNode2.GetAccountBallance();

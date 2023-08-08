@@ -29,6 +29,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BTCTest", "BTCTest\BTCTest.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LNDWallet", "LNDWallet\LNDWallet.csproj", "{7AC9E7A0-FBE1-4712-BBA0-AA20AE7AF56D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GigLNDWalletTest", "GigLNDWalletTest\GigLNDWalletTest.csproj", "{0F11500A-8EDF-417D-B4F5-1CF63BE3E4C1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +89,10 @@ Global
 		{7AC9E7A0-FBE1-4712-BBA0-AA20AE7AF56D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7AC9E7A0-FBE1-4712-BBA0-AA20AE7AF56D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7AC9E7A0-FBE1-4712-BBA0-AA20AE7AF56D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0F11500A-8EDF-417D-B4F5-1CF63BE3E4C1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0F11500A-8EDF-417D-B4F5-1CF63BE3E4C1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0F11500A-8EDF-417D-B4F5-1CF63BE3E4C1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0F11500A-8EDF-417D-B4F5-1CF63BE3E4C1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
