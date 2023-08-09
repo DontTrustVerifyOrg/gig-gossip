@@ -1,5 +1,7 @@
 ﻿using System;
+using CryptoToolkit;
 namespace NGigGossip4Nostr;
+
 
 [Serializable]
 public class POWBroadcastFrame
@@ -8,9 +10,9 @@ public class POWBroadcastFrame
     public BroadcastPayload BroadcastPayload { get; set; }
     public ProofOfWork ProofOfWork { get; set; }
 
-    public bool Verify()
+    public bool Verify(ICertificationAuthorityAccessor caAccessor)
     {
-        if (!this.BroadcastPayload.SignedRequestPayload.SenderCertificate.Verify())
+        if (!this.BroadcastPayload.SignedRequestPayload.SenderCertificate.VerifyCertificate(caAccessor))
         {
             return false;
         }

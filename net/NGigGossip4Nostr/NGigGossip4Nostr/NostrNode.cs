@@ -6,17 +6,17 @@ using CryptoToolkit;
 
 namespace NGigGossip4Nostr;
 
-
-
-public abstract class NostrNode : NamedEntity
+public abstract class NostrNode
 {
     CompositeNostrClient nostrClient;
     protected ECPrivKey _privateKey;
     protected ECXOnlyPubKey _publicKey;
-    public NostrNode(string name, ECPrivKey privateKey, string[] nostrRelays) : base(name)
+    public string Name;
+    public NostrNode(ECPrivKey privateKey, string[] nostrRelays)
     {
         this._privateKey = privateKey;
         this._publicKey = privateKey.CreateXOnlyPubKey();
+        this.Name = this._publicKey.AsHex();
         nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
         nostrClient.EventsReceived += NostrClient_EventsReceived;
     }

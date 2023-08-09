@@ -9,18 +9,18 @@ public class ReplyFrame
     public byte[] EncryptedReplyPayload { get; set; }
     public SettlementPromise SignedSettlementPromise { get; set; }
     public OnionRoute ForwardOnion { get; set; }
-    public HodlInvoice NetworkInvoice { get; set; }
+    public string NetworkInvoice { get; set; }
 
-    public ReplyPayload DecryptAndVerify(ECPrivKey privKey, ECXOnlyPubKey pubKey)
+    public ReplyPayload DecryptAndVerify(ECPrivKey privKey, ECXOnlyPubKey pubKey, ICertificationAuthorityAccessor caAccessor)
     {
         ReplyPayload replyPayload = (ReplyPayload) Crypto.DecryptObject(this.EncryptedReplyPayload, privKey,pubKey);
 
-        if (!replyPayload.ReplierCertificate.Verify())
+        if (!replyPayload.ReplierCertificate.VerifyCertificate(caAccessor))
         {
             return null;
         }
 
-        if (!replyPayload.VerifyAll())
+        if (!replyPayload.VerifyAll(caAccessor))
         {
             return null;
         }
@@ -35,7 +35,7 @@ public class ReplyFrame
             EncryptedReplyPayload = this.EncryptedReplyPayload.ToArray(),
             SignedSettlementPromise = this.SignedSettlementPromise.DeepCopy(),
             ForwardOnion = this.ForwardOnion.DeepCopy(),
-            NetworkInvoice = this.NetworkInvoice.DeepCopy()
+            NetworkInvoice = new string(this.NetworkInvoice),
         };
     }
 }

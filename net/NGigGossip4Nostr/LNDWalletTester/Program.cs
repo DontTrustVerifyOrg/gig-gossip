@@ -167,8 +167,8 @@ Console.WriteLine(ballanceOfUser1FromNode2.ToString());
     Console.WriteLine("Balance of User1 on Node2" + myAccountUser1FromNode2.GetAccountBallance().ToString());
     Console.WriteLine("Balance of User2 on Node2" + myAccountUser2FromNode2.GetAccountBallance().ToString());
 
-    var preimage = LND.GenerateRandomPreimage();
-    var hash = LND.ComputePaymentHash(preimage);
+    var preimage = Crypto.GenerateRandomPreimage();
+    var hash = Crypto.ComputePaymentHash(preimage);
     var paymentReq = myAccountUser1FromNode1.AddHodlInvoice(1000, "hello", hash, txfee);
 
     Console.WriteLine(paymentReq);
@@ -191,8 +191,8 @@ Console.WriteLine(ballanceOfUser1FromNode2.ToString());
 
 // PAY 2->2
 {
-    var preimage = LND.GenerateRandomPreimage();
-    var hash = LND.ComputePaymentHash(preimage);
+    var preimage = Crypto.GenerateRandomPreimage();
+    var hash = Crypto.ComputePaymentHash(preimage);
     var paymentReq = myAccountUser2FromNode2.AddHodlInvoice(1000, "hello", hash, txfee);
 
     Console.WriteLine(paymentReq);

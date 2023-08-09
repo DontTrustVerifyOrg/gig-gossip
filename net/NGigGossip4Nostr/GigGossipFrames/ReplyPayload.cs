@@ -1,4 +1,7 @@
 ﻿using System;
+using CryptoToolkit;
+using NBitcoin.Secp256k1;
+
 namespace NGigGossip4Nostr;
 
 [Serializable]
@@ -7,16 +10,16 @@ public class ReplyPayload
     public Certificate ReplierCertificate { get; set; }
     public RequestPayload SignedRequestPayload { get; set; }
     public byte[] EncryptedReplyMessage { get; set; }
-    public HodlInvoice ReplyInvoice { get; set; }
+    public string ReplyInvoice { get; set; }
 
-    public bool VerifyAll()
+    public bool VerifyAll(ICertificationAuthorityAccessor caAccessor)
     {
-        if (!this.ReplierCertificate.Verify())
+        if (!this.ReplierCertificate.VerifyCertificate(caAccessor))
         {
             return false;
         }
 
-        if (!this.SignedRequestPayload.SenderCertificate.Verify())
+        if (!this.SignedRequestPayload.SenderCertificate.VerifyCertificate(caAccessor))
         {
             return false;
         }

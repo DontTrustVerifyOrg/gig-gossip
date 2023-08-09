@@ -7,7 +7,7 @@ namespace NGigTaxiLib;
 
 public class Gossiper : GigGossipNode
 {
-    public Gossiper(CertificationAuthority ca, int priceAmountForRouting, Settler settler)
+    public Gossiper(CertificationAuthority ca, int priceAmountForRouting, GigLNDWalletAPIClient.swaggerClient lndWalletClient, GigGossipSettlerAPIClient.swaggerClient settlerClient)
         :base(Crypto.GeneratECPrivKey(), new[] { "ws://127.0.0.1:6969" })
     {
 
@@ -22,7 +22,7 @@ public class Gossiper : GigGossipNode
             TimeSpan.FromDays(7),
             "sha256", 2,
             TimeSpan.FromDays(1), TimeSpan.FromSeconds(10),
-            settler);
+            lndWalletClient, settlerClient);
     }
 
     public override bool AcceptTopic(AbstractTopic topic)

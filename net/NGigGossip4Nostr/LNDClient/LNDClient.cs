@@ -344,18 +344,7 @@ public static class LND
             Metadata(conf, idx), deadline, cancellationToken);
     }
 
-    public static byte[] ComputePaymentHash(byte[] preimage)
-    {
-        Span<byte> buf = stackalloc byte[32];
-        var sha256 = System.Security.Cryptography.SHA256.Create();
-        sha256.TryComputeHash(preimage, buf, out _);
-        return buf.ToArray();
-    }
 
-    public static byte[] GenerateRandomPreimage()
-    {
-        return RandomUtils.GetBytes(32);
-    }
 
     public static TransactionDetails GetTransactions(NodesConfiguration conf, int idx, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {

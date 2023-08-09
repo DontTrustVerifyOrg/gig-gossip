@@ -360,7 +360,7 @@ public class LNDAccountManager
 
     public void SettleInvoice(byte[] preimage)
     {
-        var hash = LND.ComputePaymentHash(preimage);
+        var hash = CryptoToolkit.Crypto.ComputePaymentHash(preimage);
         var paymentHash = hash.AsHex();
         lock (walletContext)
         {

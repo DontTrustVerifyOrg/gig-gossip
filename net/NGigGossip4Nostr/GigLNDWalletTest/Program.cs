@@ -1,5 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using GigLNDWalletAPI;
+using GigLNDWalletAPIClient;
 using CryptoToolkit;
 using NBitcoin.Secp256k1;
 

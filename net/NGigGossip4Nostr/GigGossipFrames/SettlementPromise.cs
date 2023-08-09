@@ -8,11 +8,11 @@ public class SettlementPromise : SignableObject
     public Certificate SettlerCertificate { get; set; }
     public byte[] NetworkPaymentHash { get; set; }
     public byte[] HashOfEncryptedReplyPayload { get; set; }
-    public int ReplyPaymentAmount { get; set; }
+    public long ReplyPaymentAmount { get; set; }
 
-    public bool VerifyAll(byte[] encryptedSignedReplyPayload)
+    public bool VerifyAll(byte[] encryptedSignedReplyPayload, ICertificationAuthorityAccessor caAccessor)
     {
-        if (!this.SettlerCertificate.Verify())
+        if (!this.SettlerCertificate.VerifyCertificate(caAccessor))
         {
             return false;
         }

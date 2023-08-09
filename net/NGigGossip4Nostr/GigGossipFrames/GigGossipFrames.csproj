@@ -8,10 +8,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
-    <ProjectReference Include="..\LNDClient\LNDClient.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.10" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.10" />
+    <PackageReference Include="NBitcoin.Secp256k1" Version="3.1.1" />
   </ItemGroup>
 </Project>

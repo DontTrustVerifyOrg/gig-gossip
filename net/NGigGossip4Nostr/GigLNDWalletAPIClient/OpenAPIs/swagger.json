@@ -1,0 +1,676 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "GigLNDWalletAPI",
+    "version": "1.0"
+  },
+  "paths": {
+    "/gettoken": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "operationId": "GetToken",
+        "parameters": [
+          {
+            "name": "pubkey",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/getbalance": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "operationId": "GetBalance",
+        "parameters": [
+          {
+            "name": "pubkey",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authToken",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/newaddress": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "operationId": "NewAddress",
+        "parameters": [
+          {
+            "name": "pubkey",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authToken",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/addinvoice": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "operationId": "AddInvoice",
+        "parameters": [
+          {
+            "name": "pubkey",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authToken",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "satoshis",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "memo",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceRet"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/addhodlinvoice": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "operationId": "AddHodlInvoice",
+        "parameters": [
+          {
+            "name": "pubkey",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authToken",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "satoshis",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "hash",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "memo",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceRet"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/decodeinvoice": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "operationId": "DecodeInvoice",
+        "parameters": [
+          {
+            "name": "pubkey",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authToken",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "paymentRequest",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayReq"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sendpayment": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "operationId": "SendPayment",
+        "parameters": [
+          {
+            "name": "pubkey",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authToken",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "paymentrequest",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "timeout",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/settleinvoice": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "operationId": "SettleInvoice",
+        "parameters": [
+          {
+            "name": "pubkey",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authToken",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "preimage",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/cancelinvoice": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "operationId": "CancelInvoice",
+        "parameters": [
+          {
+            "name": "pubkey",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authToken",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "paymenthash",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/getinvoicestate": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "operationId": "GetInvoiceState",
+        "parameters": [
+          {
+            "name": "pubkey",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authToken",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "paymenthash",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/getpaymentstatus": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "operationId": "GetPaymentStatus",
+        "parameters": [
+          {
+            "name": "pubkey",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authToken",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "paymenthash",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Feature": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "isRequired": {
+            "type": "boolean"
+          },
+          "isKnown": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HopHint": {
+        "type": "object",
+        "properties": {
+          "nodeId": {
+            "type": "string",
+            "nullable": true
+          },
+          "chanId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "feeBaseMsat": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "feeProportionalMillionths": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cltvExpiryDelta": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InvoiceRet": {
+        "type": "object",
+        "properties": {
+          "paymentRequest": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentHash": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PayReq": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentHash": {
+            "type": "string",
+            "nullable": true
+          },
+          "numSatoshis": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "expiry": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "descriptionHash": {
+            "type": "string",
+            "nullable": true
+          },
+          "fallbackAddr": {
+            "type": "string",
+            "nullable": true
+          },
+          "cltvExpiry": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "routeHints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteHint"
+            },
+            "nullable": true,
+            "readOnly": true
+          },
+          "paymentAddr": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          },
+          "numMsat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "features": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Feature"
+            },
+            "nullable": true,
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RouteHint": {
+        "type": "object",
+        "properties": {
+          "hopHints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HopHint"
+            },
+            "nullable": true,
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

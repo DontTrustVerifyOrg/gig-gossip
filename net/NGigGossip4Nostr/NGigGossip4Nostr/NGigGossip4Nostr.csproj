@@ -16,5 +16,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
+    <ProjectReference Include="..\GigLNDWalletAPIClient\GigLNDWalletAPIClient.csproj" />
+    <ProjectReference Include="..\GigGossipFrames\GigGossipFrames.csproj" />
+    <ProjectReference Include="..\GigGossipSettlerAPIClient\GigGossipSettlerAPIClient.csproj" />
   </ItemGroup>
 </Project>

@@ -1,8 +1,11 @@
-﻿using System.Threading;
+﻿
+using System.Threading;
 using LNDClient;
 using LNDWallet;
 using Lnrpc;
+using Microsoft.OpenApi.Models;
 using NBitcoin.Secp256k1;
+using Newtonsoft.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,6 +44,8 @@ long feelimit = 1000;
 
 LNDWalletManager walletManager = new LNDWalletManager(lndWalletDBConnectionString2, lndConf, 1, LND.GetNodeInfo(lndConf, lndIdx2), deleteDb);
 walletManager.Start();
+LNDChannelManager channelManager = new LNDChannelManager(walletManager, new List<string>(), 0, 0);
+channelManager.Start();
 
 app.MapGet("/gettoken", (string pubkey) =>
 {
@@ -87,6 +92,15 @@ app.MapGet("/addhodlinvoice", (string pubkey, string authToken, long satoshis, s
     return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
 })
 .WithName("AddHodlInvoice")
+.WithOpenApi();
+
+app.MapGet("/decodeinvoice", (string pubkey, string authToken, string paymentRequest) =>
+{
+    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
+    var acc = walletManager.GetAccount(pubk).ValidateToken(authToken);
+    return acc.DecodeInvoice(paymentRequest);
+})
+.WithName("DecodeInvoice")
 .WithOpenApi();
 
 
