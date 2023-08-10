@@ -100,7 +100,7 @@ public abstract class NostrNode
                             var msg = await nostrEvent.DecryptNip04EventAsync(this._privateKey);
                             if (partNum == 1)
                             {
-                                var frame = Crypto.DeserializeObject(Convert.FromBase64String(msg));
+                                var frame = Crypto.DeserializeObject<object>(Convert.FromBase64String(msg));
                                 this.OnMessage(nostrEvent.PublicKey, frame);
                             }
                             else
@@ -114,7 +114,7 @@ public abstract class NostrNode
                                     if (_partial_messages[idx].Count == partNum)
                                     {
                                         var txt = string.Join("", _partial_messages[idx].Values);
-                                        frame = Crypto.DeserializeObject(Convert.FromBase64String(txt));
+                                        frame = Crypto.DeserializeObject<object>(Convert.FromBase64String(txt));
                                         _partial_messages.Remove(idx);
                                     }
                                 }

@@ -1,13 +1,42 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Xml.Linq;
 using CryptoToolkit;
 using GigLNDWalletAPIClient;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin;
 using NBitcoin.RPC;
 using NBitcoin.Secp256k1;
+using Newtonsoft.Json.Linq;
 using NGigGossip4Nostr;
 
 namespace GigGossipSettler;
+
+public class UserProperty
+{
+    [Key]
+    public Guid propid { get; set; }
+    public string pubkey { get; set; }
+    public string name { get; set; }
+    public byte[] value { get; set; }
+    public DateTime validtill { get; set; }
+    public bool isrevoked { get; set; }
+}
+
+public class CertificateProperty
+{
+    [Key]
+    public Guid certid { get; set; }
+    public Guid propid { get; set; }
+}
+
+[Keyless]
+public class UserCertificate
+{
+    public Guid certid { get; set; }
+    public string pubkey { get; set; }
+    public byte[] certificate { get; set; }
+    public bool isrevoked { get; set; }
+}
 
 public class Preimage
 {
@@ -60,6 +89,9 @@ public class SettlerContext : DbContext
     public DbSet<Token> Tokens { get; set; }
     public DbSet<Preimage> Preimages { get; set; }
     public DbSet<Gig> Gigs { get; set; }
+    public DbSet<UserProperty> UserProperties { get; set; }
+    public DbSet<CertificateProperty> CertificateProperties { get; set; }
+    public DbSet<UserCertificate> UserCertificates { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -76,7 +108,7 @@ public class Settler : CertificationAuthority
     protected Guid _walletToken;
     SettlerContext settlerContext;
 
-    public Settler(string caName, ECPrivKey settlerPrivateKey, int priceAmountForSettlement) : base(caName,settlerPrivateKey)
+    public Settler(Uri serviceUri, ECPrivKey settlerPrivateKey, int priceAmountForSettlement) : base(serviceUri, settlerPrivateKey)
     {
         this.priceAmountForSettlement = priceAmountForSettlement;
     }
@@ -84,7 +116,7 @@ public class Settler : CertificationAuthority
     public async Task Init(swaggerClient lndWalletClient, string connectionString, bool deleteDb = false)
     {
         this.lndWalletClient = lndWalletClient;
-        this._walletToken = await lndWalletClient.GetTokenAsync(this.CaName);
+        this._walletToken = await lndWalletClient.GetTokenAsync(this.CaXOnlyPublicKey.AsHex());
         this.settlerContext = new SettlerContext(connectionString);
         if (deleteDb)
             settlerContext.Database.EnsureDeleted();
@@ -124,6 +156,82 @@ public class Settler : CertificationAuthority
         return this;
     }
 
+
+    public void GiveUserProperty(string pubkey, string name, byte[] value, DateTime validTill)
+    {
+        lock (settlerContext)
+        {
+            var up = (from u in settlerContext.UserProperties where u.name == name && u.pubkey == pubkey select u).FirstOrDefault();
+            if (up == null)
+            {
+                settlerContext.UserProperties.Add(new UserProperty()
+                {
+                    propid = Guid.NewGuid(),
+                    isrevoked = false,
+                    name = name,
+                    pubkey = pubkey,
+                    validtill = validTill,
+                    value = value
+                });
+            }
+            else
+            {
+                up.value = value;
+                up.isrevoked = false;
+                up.validtill = validTill;
+                settlerContext.UserProperties.Update(up);
+            }
+            settlerContext.SaveChanges();
+        }
+    }
+
+    public void RevokeUserProperty(string pubkey, string name)
+    {
+        lock (settlerContext)
+        {
+            var up = (from u in settlerContext.UserProperties where u.name == name && u.pubkey == pubkey && u.isrevoked==false select u).FirstOrDefault();
+            if (up != null)
+            {
+                up.isrevoked = true;
+                settlerContext.UserProperties.Update(up);
+                var certids = (from cp in settlerContext.CertificateProperties where cp.propid == up.propid select cp.certid).ToArray();
+                var certs = (from c in settlerContext.UserCertificates where certids.Contains(c.certid) select c).ToArray();
+                foreach(var c in certs)
+                {
+                    c.isrevoked = true;
+                    settlerContext.UserCertificates.Update(c);
+                }
+                settlerContext.SaveChanges();
+            }
+        }
+    }
+
+    public Certificate IssueCertificate(string pubkey, string[] properties)
+    {
+        lock (settlerContext)
+        {
+            var props = (from u in settlerContext.UserProperties where u.pubkey == pubkey && !u.isrevoked && u.validtill >= DateTime.Now && properties.Contains(u.name) select u).ToArray();
+            var hasprops = new HashSet<string>(properties);
+            if (!hasprops.SetEquals((from p in props select p.name)))
+                throw new InvalidOperationException();
+            var minDate = (from p in props select p.validtill).Min();
+            var prp = new Dictionary<string, byte[]>((from p in props select KeyValuePair.Create<string, byte[]>(p.name, p.value)));
+            var cert = base.IssueCertificate(Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey)), prp, minDate, DateTime.Now);
+            var certProps = (from p in props select new CertificateProperty() { certid = cert.Id, propid = p.propid }).ToArray();
+            settlerContext.CertificateProperties.AddRange(certProps);
+            settlerContext.UserCertificates.Add(new UserCertificate() { pubkey = pubkey, certid = cert.Id, isrevoked = false, certificate = Crypto.SerializeObject(cert) });
+            settlerContext.SaveChanges();
+            return cert;
+        }
+    }
+
+    public bool IsCertificateRevoked(Guid certid)
+    {
+        lock (settlerContext)
+        {
+            return (from c in settlerContext.UserCertificates where c.certid == certid && c.isrevoked select c).FirstOrDefault() != null;
+        }
+    }
 
     public string GenerateReplyPaymentPreimage(string pubkey, Guid tid)
     {
@@ -181,7 +289,7 @@ public class Settler : CertificationAuthority
 
     public async Task<SettlementTrust> GenerateSettlementTrust(string replierpubkey, byte[] message, string replyInvoice, RequestPayload signedRequestPayload, Certificate replierCertificate)
     {
-        var decodedInv = await lndWalletClient.DecodeInvoiceAsync(this.CaName, walletToken(), replyInvoice);
+        var decodedInv = await lndWalletClient.DecodeInvoiceAsync(this.CaXOnlyPublicKey.AsHex(), walletToken(), replyInvoice);
         var invPaymentHash = decodedInv.PaymentHash;
         lock (settlerContext)
         {
@@ -193,7 +301,7 @@ public class Settler : CertificationAuthority
         byte[] encryptedReplyMessage = Crypto.SymmetricEncrypt(key, message);
 
         var networkInvoicePaymentHash = GenerateReplyPaymentPreimage(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.PayloadId);
-        var networkInvoice = await lndWalletClient.AddHodlInvoiceAsync(this.CaName, walletToken(), priceAmountForSettlement, networkInvoicePaymentHash, "");
+        var networkInvoice = await lndWalletClient.AddHodlInvoiceAsync(this.CaXOnlyPublicKey.AsHex(), walletToken(), priceAmountForSettlement, networkInvoicePaymentHash, "");
 
         lock (settlerContext)
         {
@@ -223,7 +331,7 @@ public class Settler : CertificationAuthority
 
         SettlementPromise signedSettlementPromise = new SettlementPromise()
         {
-            SettlerCaName = this.CaName,
+            ServiceUri = this.ServiceUri,
             HashOfEncryptedReplyPayload = hashOfEncryptedReplyPayload,
             ReplyPaymentAmount = decodedInv.NumSatoshis,
         };
@@ -271,8 +379,8 @@ public class Settler : CertificationAuthority
                 {
                     if (gig.status == GigStatus.Open)
                     {
-                        var network_state = await lndWalletClient.GetInvoiceStateAsync(this.CaName, walletToken(), gig.networkhash);
-                        var payment_state = await lndWalletClient.GetInvoiceStateAsync(this.CaName, walletToken(), gig.networkhash);
+                        var network_state = await lndWalletClient.GetInvoiceStateAsync(this.CaXOnlyPublicKey.AsHex(), walletToken(), gig.networkhash);
+                        var payment_state = await lndWalletClient.GetInvoiceStateAsync(this.CaXOnlyPublicKey.AsHex(), walletToken(), gig.networkhash);
                         if (network_state == "Accepted" && payment_state == "Accepted")
                         {
                             lock (settlerContext)

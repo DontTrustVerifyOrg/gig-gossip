@@ -25,7 +25,7 @@ public class OnionRoute
 
     public OnionLayer Peel(ECPrivKey privKey)
     {
-        var layerData = (object[])Crypto.DecryptObject(_onion, privKey, null) ;
+        var layerData = Crypto.DecryptObject<object[]>(_onion, privKey, null) ;
         var layer = (OnionLayer)layerData[0];
         _onion = (byte[])layerData[1];
         return layer;

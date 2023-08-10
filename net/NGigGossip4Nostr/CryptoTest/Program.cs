@@ -22,7 +22,7 @@ var myPubKey = myPrivKey.CreateXOnlyPubKey();
 var otherPubKey = otherPrivKey.CreateXOnlyPubKey();
 
 var encrypted = Crypto.EncryptObject(obj, otherPubKey, myPrivKey);
-var decr = Crypto.DecryptObject(encrypted, otherPrivKey, myPubKey);
+var decr = Crypto.DecryptObject< List<object>>(encrypted, otherPrivKey, myPubKey);
 
 Console.WriteLine(JsonSerializer.Serialize(decr));
 
@@ -35,7 +35,7 @@ Console.WriteLine(ok);
 var symKey = Crypto.GenerateSymmetricKey();
 
 var encrypted1 = Crypto.SymmetricEncrypt(symKey,obj);
-var decr1 = Crypto.SymmetricDecrypt(symKey,encrypted1);
+var decr1 = Crypto.SymmetricDecrypt<List<object>>(symKey,encrypted1);
 
 Console.WriteLine(JsonSerializer.Serialize(decr1));
 
@@ -43,11 +43,5 @@ var wr = new WorkRequest() { PowScheme = "sha256", PowTarget = ProofOfWork.PowTa
 var pow = wr.ComputeProof(obj);
 Console.WriteLine(pow.Nuance);
 Console.WriteLine(pow.Validate(obj));
-
-var ser = Crypto.SerializeObject(myPubKey);
-var deser = (ECXOnlyPubKey) Crypto.DeserializeObject(ser);
-
-Console.WriteLine(myPubKey.AsHex());
-Console.WriteLine(deser.AsHex());
 
 Console.ReadKey();

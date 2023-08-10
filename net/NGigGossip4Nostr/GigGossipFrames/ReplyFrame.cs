@@ -13,7 +13,7 @@ public class ReplyFrame
 
     public ReplyPayload DecryptAndVerify(ECPrivKey privKey, ECXOnlyPubKey pubKey, ICertificationAuthorityAccessor caAccessor)
     {
-        ReplyPayload replyPayload = (ReplyPayload) Crypto.DecryptObject(this.EncryptedReplyPayload, privKey,pubKey);
+        ReplyPayload replyPayload = Crypto.DecryptObject<ReplyPayload>(this.EncryptedReplyPayload, privKey,pubKey);
 
         if (!replyPayload.ReplierCertificate.Verify(caAccessor))
         {

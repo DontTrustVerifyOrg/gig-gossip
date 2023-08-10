@@ -14,6 +14,6 @@ public class GigWorker : Gossiper
 
     public override AcceptBroadcastResponse? AcceptBroadcast(RequestPayload signedTopic)
     {
-        return new AcceptBroadcastResponse(){ Message=Encoding.Default.GetBytes($"mynameis={this.Name}"), Fee= 4321, SettlerCaName =settler.Name);
+        return new AcceptBroadcastResponse(){ Message=Encoding.Default.GetBytes($"mynameis={this.Name}"), Fee= 4321, SettlerServiceUri =settler.Name);
     }
 }

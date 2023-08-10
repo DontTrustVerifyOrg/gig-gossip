@@ -4,11 +4,12 @@ using System.Security.Cryptography;
 using NBitcoin;
 using NBitcoin.Secp256k1;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.Serialization;
+using NBitcoin.JsonConverters;
+using System.IO;
+using System.IO.Compression;
+using System.Text.Json;
 
 namespace CryptoToolkit;
-
-
 
 public static class HexExtensions
 {
@@ -54,7 +55,7 @@ public static class Crypto
     public static Guid? VerifySignedTimedToken(ECXOnlyPubKey ecpub, string TimedTokenBase64, double seconds)
     {
         var serialized = Convert.FromBase64String(TimedTokenBase64);
-        TimedGuidToken timedToken = (TimedGuidToken)DeserializeObject(serialized);
+        TimedGuidToken timedToken = DeserializeObject<TimedGuidToken>(serialized);
         if ((DateTime.Now - timedToken.DateTime).TotalSeconds > seconds)
             return null;
         var signature = timedToken.Signature;
@@ -100,7 +101,7 @@ public static class Crypto
     }
 
 
-    public static byte[] EncryptObject(object obj, ECXOnlyPubKey theirXPublicKey, ECPrivKey myPrivKey)
+    public static byte[] EncryptObject(object obj, ECXOnlyPubKey theirXPublicKey, ECPrivKey? myPrivKey)
     {
         byte[] attachpubKey = null;
         if (myPrivKey == null)
@@ -121,7 +122,7 @@ public static class Crypto
         return ret;
     }
 
-    public static object DecryptObject(byte[] encryptedData, ECPrivKey myPrivKey, ECXOnlyPubKey theirXPublicKey)
+    public static T DecryptObject<T>(byte[] encryptedData, ECPrivKey myPrivKey, ECXOnlyPubKey? theirXPublicKey)
     {
         byte[] encryptedX = encryptedData;
         if (theirXPublicKey == null)
@@ -141,7 +142,7 @@ public static class Crypto
 
         byte[] decryptionKey = sharedKey.ToBytes().AsSpan(1).ToArray();
 
-        return SymmetricDecrypt(decryptionKey, encryptedX);
+        return SymmetricDecrypt<T>(decryptionKey, encryptedX);
     }
 
     public static byte[] SignObject(object obj, ECPrivKey myPrivKey)
@@ -214,7 +215,6 @@ public static class Crypto
         using (Aes aes = Aes.Create())
         {
             aes.GenerateKey();
-
             return aes.Key;
         }
     }
@@ -244,7 +244,7 @@ public static class Crypto
         }
     }
 
-    public static object SymmetricDecrypt(byte[] key, byte[] encryptedObj)
+    public static T SymmetricDecrypt<T>(byte[] key, byte[] encryptedObj)
     {
         using (Aes aes = Aes.Create())
         {
@@ -267,14 +267,13 @@ public static class Crypto
                     }
 
                     byte[] decryptedObj = decryptedMs.ToArray();
-                    object obj = DeserializeObject(decryptedObj);
-
-                    return obj;
+                    return DeserializeObject<T>(decryptedObj);
                 }
             }
         }
     }
 
+#if BINARYSERIALIZE
 #pragma warning disable SYSLIB0011
     public static byte[] SerializeObject(object obj)
     {
@@ -287,14 +286,35 @@ public static class Crypto
         }
     }
 
-    public static object DeserializeObject(byte[] data)
+    public static T DeserializeObject<T>(byte[] data)
     {
         using (MemoryStream ms = new MemoryStream(data))
         {
             BinaryFormatter formatter = new BinaryFormatter();
             object obj = formatter.Deserialize(ms);
-            return obj;
+            return (T)obj;
+        }
+    }
+#else
+    public static byte[] SerializeObject(object obj)
+    {
+        using (MemoryStream memoryStream = new MemoryStream())
+        {
+            using (GZipStream compressedStream = new GZipStream(memoryStream, CompressionMode.Compress, true))
+            {
+                compressedStream.Write(JsonSerializer.SerializeToUtf8Bytes(obj));
+            }
+            return memoryStream.ToArray();
         }
     }
 
+    public static T DeserializeObject<T>(byte[] data)
+    {
+        using (MemoryStream compressedStream = new MemoryStream(data))
+        {
+            using (GZipStream decompressedStream = new GZipStream(compressedStream, CompressionMode.Decompress, true))
+                return JsonSerializer.Deserialize<T>(decompressedStream);
+        }
+    }
+#endif
 }
