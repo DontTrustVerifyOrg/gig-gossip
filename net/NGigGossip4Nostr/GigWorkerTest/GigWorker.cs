@@ -12,8 +12,8 @@ public class GigWorker : Gossiper
     {
     }
 
-    public override Tuple<byte[]?, int> AcceptBroadcast(RequestPayload signedTopic)
+    public override AcceptBroadcastResponse? AcceptBroadcast(RequestPayload signedTopic)
     {
-        return new Tuple<byte[]?, int>(Encoding.Default.GetBytes($"mynameis={this.Name}"), 4321);
+        return new AcceptBroadcastResponse(){ Message=Encoding.Default.GetBytes($"mynameis={this.Name}"), Fee= 4321, SettlerCaName =settler.Name);
     }
 }

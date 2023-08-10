@@ -7,12 +7,12 @@ public class SignableObject
 {
     public byte[] Signature { get; set; }
 
-    public void Sign(ECPrivKey privateKey)
+    protected void Sign(ECPrivKey privateKey)
     {
         Signature = Crypto.SignObject(this, privateKey);
     }
 
-    public bool Verify(ECXOnlyPubKey publicKey)
+    protected bool Verify(ECXOnlyPubKey publicKey)
     {
         var signature = Signature;
         Signature = null;

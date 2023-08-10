@@ -12,12 +12,12 @@ public class POWBroadcastFrame
 
     public bool Verify(ICertificationAuthorityAccessor caAccessor)
     {
-        if (!this.BroadcastPayload.SignedRequestPayload.SenderCertificate.VerifyCertificate(caAccessor))
+        if (!this.BroadcastPayload.SignedRequestPayload.SenderCertificate.Verify(caAccessor))
         {
             return false;
         }
 
-        if (!this.BroadcastPayload.SignedRequestPayload.Verify(this.BroadcastPayload.SignedRequestPayload.SenderCertificate.PublicKey))
+        if (!this.BroadcastPayload.SignedRequestPayload.Verify(this.BroadcastPayload.SignedRequestPayload.SenderCertificate.GetECXOnlyPubKey()))
         {
             return false;
         }

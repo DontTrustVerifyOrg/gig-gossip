@@ -68,16 +68,9 @@ public class SettlerContext : DbContext
 
 }
 
-[Serializable]
-public class ReplyPaymentTrust : SignableObject
-{
-    public Guid Id { get; set; }
-    public byte[] PaymentHash { get; set; }
-}
 
 public class Settler : CertificationAuthority
 {
-    public readonly Certificate SettlerCertificate;
     private readonly int priceAmountForSettlement;
     protected swaggerClient lndWalletClient;
     protected Guid _walletToken;
@@ -131,33 +124,42 @@ public class Settler : CertificationAuthority
         return this;
     }
 
-    protected ReplyPaymentTrust GetnerateUnsignedReplyPaymentTrust(string pubkey, Guid tid)
+
+    public string GenerateReplyPaymentPreimage(string pubkey, Guid tid)
     {
-        byte[] replyPreimage = Crypto.GenerateRandomPreimage();
-        byte[] replyPaymentHash = Crypto.ComputePaymentHash(replyPreimage);
+        var preimage = Crypto.GenerateRandomPreimage();
+        var paymentHash = Crypto.ComputePaymentHash(preimage).AsHex();
 
         lock (settlerContext)
         {
-            settlerContext.Preimages.Add(new Preimage() { hash = replyPaymentHash.AsHex(), preimage = replyPreimage.AsHex(), tid = tid, pubkey = pubkey, revealed = false });
+            settlerContext.Preimages.Add(new Preimage() { hash = paymentHash, preimage = preimage.AsHex(), tid = tid, pubkey = pubkey, revealed = false });
             settlerContext.SaveChanges();
         }
-        var rpt = new ReplyPaymentTrust() { PaymentHash = replyPaymentHash, Id = tid };
-        return rpt;
+        return paymentHash;
     }
 
-
-    public ReplyPaymentTrust GenerateReplyPaymentTrust(string pubkey, Guid tid)
+    public string GenerateRelatedPreimage(string pubkey, string paymentHash)
     {
-        var rpt = GetnerateUnsignedReplyPaymentTrust(pubkey, tid);
-        rpt.Sign(this._CaPrivateKey);
-        return rpt;
+        var preimage = Crypto.GenerateRandomPreimage();
+        var newPaymentHash = Crypto.ComputePaymentHash(preimage).AsHex();
+
+        lock (settlerContext)
+        {
+            var pix = (from pi in settlerContext.Preimages where pi.hash == paymentHash select pi).FirstOrDefault();
+            if (pix != null)
+            {
+                settlerContext.Preimages.Add(new Preimage() { hash = newPaymentHash, preimage = preimage.AsHex(), tid = pix.tid, pubkey = pubkey, revealed = false });
+                settlerContext.SaveChanges();
+            }
+        }
+        return newPaymentHash;
     }
 
-    public string RevealPreimage(string pubkey, Guid tid, string paymentHash)
+    public string RevealPreimage(string pubkey, string paymentHash)
     {
         lock (settlerContext)
         {
-            var preimage = (from pi in settlerContext.Preimages where pi.pubkey == pubkey && pi.hash == paymentHash && pi.tid == tid && pi.revealed select pi).FirstOrDefault();
+            var preimage = (from pi in settlerContext.Preimages where pi.pubkey == pubkey && pi.hash == paymentHash && pi.revealed select pi).FirstOrDefault();
             if (preimage == null)
                 return "";
             else
@@ -190,13 +192,13 @@ public class Settler : CertificationAuthority
         byte[] key = Crypto.GenerateSymmetricKey();
         byte[] encryptedReplyMessage = Crypto.SymmetricEncrypt(key, message);
 
-        var rpt = GetnerateUnsignedReplyPaymentTrust(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.PayloadId);
-        var networkInvoice = await lndWalletClient.AddHodlInvoiceAsync(this.CaName, walletToken(), priceAmountForSettlement, rpt.PaymentHash.AsHex(), "");
+        var networkInvoicePaymentHash = GenerateReplyPaymentPreimage(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.PayloadId);
+        var networkInvoice = await lndWalletClient.AddHodlInvoiceAsync(this.CaName, walletToken(), priceAmountForSettlement, networkInvoicePaymentHash, "");
 
         lock (settlerContext)
         {
             settlerContext.Gigs.Add(new Gig() {
-                senderpubkey = signedRequestPayload.SenderCertificate.PublicKey.Value,
+                senderpubkey = signedRequestPayload.SenderCertificate.PublicKey,
                 replierpubkey = replierpubkey,
                 tid = signedRequestPayload.PayloadId,
                 symmetrickey = key.AsHex(),
@@ -216,12 +218,12 @@ public class Settler : CertificationAuthority
             ReplyInvoice = replyInvoice
         };
 
-        byte[] encryptedReplyPayload = Crypto.EncryptObject(replyPayload, signedRequestPayload.SenderCertificate.PublicKey, this._CaPrivateKey);
+        byte[] encryptedReplyPayload = Crypto.EncryptObject(replyPayload, signedRequestPayload.SenderCertificate.GetECXOnlyPubKey(), this._CaPrivateKey);
         byte[] hashOfEncryptedReplyPayload = Crypto.ComputeSha256(new List<byte[]> { encryptedReplyPayload });
 
         SettlementPromise signedSettlementPromise = new SettlementPromise()
         {
-            SettlerCertificate = SettlerCertificate,
+            SettlerCaName = this.CaName,
             HashOfEncryptedReplyPayload = hashOfEncryptedReplyPayload,
             ReplyPaymentAmount = decodedInv.NumSatoshis,
         };

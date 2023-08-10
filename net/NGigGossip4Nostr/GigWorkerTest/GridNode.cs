@@ -28,10 +28,10 @@ public class GridNode : Customer
 
     public event EventHandler OnBroadcastAccepted;
 
-    public override Tuple<byte[]?, int> AcceptBroadcast(RequestPayload signedTopic)
+    public override AcceptBroadcastResponse? AcceptBroadcast(RequestPayload signedTopic)
     {
         if (nodeType == GridNodeType.GigWorker)
-            return new Tuple<byte[]?, int>(Encoding.Default.GetBytes($"mynameis={this.Name}"), 4321);
+            return new AcceptBroadcastResponse(){ Message=Encoding.Default.GetBytes($"mynameis={this.Name}"), Fee=4321, SettlerCaName=...);
         else
         {
             var ret = base.AcceptBroadcast(signedTopic);

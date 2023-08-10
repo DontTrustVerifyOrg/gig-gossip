@@ -15,12 +15,12 @@ public class ReplyFrame
     {
         ReplyPayload replyPayload = (ReplyPayload) Crypto.DecryptObject(this.EncryptedReplyPayload, privKey,pubKey);
 
-        if (!replyPayload.ReplierCertificate.VerifyCertificate(caAccessor))
+        if (!replyPayload.ReplierCertificate.Verify(caAccessor))
         {
             return null;
         }
 
-        if (!replyPayload.VerifyAll(caAccessor))
+        if (!replyPayload.Verify(caAccessor))
         {
             return null;
         }

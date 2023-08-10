@@ -54,18 +54,26 @@ app.MapGet("/gettoken", (string pubkey) =>
 .WithName("GetToken")
 .WithOpenApi();
 
-app.MapGet("/generatereplypaymenttrust", (string pubkey, string authToken, Guid tid) =>
+app.MapGet("/generatereplypaymentpreimage", (string pubkey, string authToken, Guid tid) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return gigGossipSettler.ValidateToken(pubk,authToken).GenerateReplyPaymentTrust(pubkey,tid);
+    return gigGossipSettler.ValidateToken(pubk,authToken).GenerateReplyPaymentPreimage(pubkey,tid);
 })
-.WithName("GenerateReplyPaymentTrust")
+.WithName("GenerateReplyPaymentPreimage")
 .WithOpenApi();
 
-app.MapGet("/revealpreimage", (string pubkey, string authToken, Guid tid, string paymentHash) =>
+app.MapGet("/generaterelatedpreimage", (string pubkey, string authToken, string paymentHash) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return gigGossipSettler.ValidateToken(pubk, authToken).RevealPreimage(pubkey, tid, paymentHash);
+    return gigGossipSettler.ValidateToken(pubk, authToken).GenerateRelatedPreimage(pubkey, paymentHash);
+})
+.WithName("GenerateRelatedPreimage")
+.WithOpenApi();
+
+app.MapGet("/revealpreimage", (string pubkey, string authToken, string paymentHash) =>
+{
+    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
+    return gigGossipSettler.ValidateToken(pubk, authToken).RevealPreimage(pubkey, paymentHash);
 })
 .WithName("RevealPreimage")
 .WithOpenApi();

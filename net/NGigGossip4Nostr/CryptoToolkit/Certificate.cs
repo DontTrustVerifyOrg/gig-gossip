@@ -20,14 +20,19 @@ public interface ICertificationAuthorityAccessor
 public class Certificate : SignableObject
 {
     public string CaName { get; set; }
-    public SerializedECXOnlyPubKey PublicKey { get; set; }
+    public string PublicKey { get; set; }
 
     public string Name { get; set; }
     public object Value { get; set; }
     public DateTime NotValidAfter { get; set; }
     public DateTime NotValidBefore { get; set; }
 
-    public bool VerifyCertificate(ICertificationAuthorityAccessor caAccessor)
+    public ECXOnlyPubKey GetECXOnlyPubKey()
+    {
+        return ECXOnlyPubKey.Create(Convert.FromHexString(PublicKey));
+    }
+
+    public new bool Verify(ICertificationAuthorityAccessor caAccessor)
     {
         if (NotValidAfter >= DateTime.Now && NotValidBefore <= DateTime.Now)
         {
@@ -35,6 +40,11 @@ public class Certificate : SignableObject
                 return true;
         }
         return false;
+    }
+
+    public new void Sign(ECPrivKey privateKey)
+    {
+        base.Sign(privateKey);
     }
 }
 
@@ -56,7 +66,7 @@ public class CertificationAuthority
         var certificate = new Certificate
         {
             CaName = CaName,
-            PublicKey = caxOnlypublicKey,
+            PublicKey = caxOnlypublicKey.AsHex(),
             Name = name,
             Value = value,
             NotValidAfter = notValidAfter,

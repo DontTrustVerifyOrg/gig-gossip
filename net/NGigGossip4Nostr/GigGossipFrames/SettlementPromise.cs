@@ -1,40 +1,38 @@
 ﻿using System;
 using CryptoToolkit;
+using NBitcoin.Secp256k1;
+
 namespace NGigGossip4Nostr;
 
 [Serializable]
 public class SettlementPromise : SignableObject
 {
-    public Certificate SettlerCertificate { get; set; }
+    public string SettlerCaName { get; set; }
     public byte[] NetworkPaymentHash { get; set; }
     public byte[] HashOfEncryptedReplyPayload { get; set; }
     public long ReplyPaymentAmount { get; set; }
 
-    public bool VerifyAll(byte[] encryptedSignedReplyPayload, ICertificationAuthorityAccessor caAccessor)
+    public new bool Verify(byte[] encryptedSignedReplyPayload, ICertificationAuthorityAccessor caAccessor)
     {
-        if (!this.SettlerCertificate.VerifyCertificate(caAccessor))
-        {
+        if (!base.Verify(caAccessor.GetPubKey(SettlerCaName)))
             return false;
-        }
 
-        if (!this.Verify(this.SettlerCertificate.PublicKey))
-        {
+        if (!Crypto.ComputeSha256(encryptedSignedReplyPayload).SequenceEqual(this.HashOfEncryptedReplyPayload))
             return false;
-        }
-
-        if (!Crypto.ComputeSha256(new List<byte[]>() { encryptedSignedReplyPayload }).SequenceEqual(this.HashOfEncryptedReplyPayload))
-        {
-            return false;
-        }
 
         return true;
+    }
+
+    public new void Sign(ECPrivKey settlerPrivateKey)
+    {
+        base.Sign(settlerPrivateKey);
     }
 
     public SettlementPromise DeepCopy()
     {
         return new SettlementPromise()
         {
-            SettlerCertificate = this.SettlerCertificate,
+            SettlerCaName = this.SettlerCaName,
             NetworkPaymentHash = this.NetworkPaymentHash.ToArray(),
             HashOfEncryptedReplyPayload = this.HashOfEncryptedReplyPayload.ToArray(),
             ReplyPaymentAmount = this.ReplyPaymentAmount,

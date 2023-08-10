@@ -12,19 +12,19 @@ public class ReplyPayload
     public byte[] EncryptedReplyMessage { get; set; }
     public string ReplyInvoice { get; set; }
 
-    public bool VerifyAll(ICertificationAuthorityAccessor caAccessor)
+    public bool Verify(ICertificationAuthorityAccessor caAccessor)
     {
-        if (!this.ReplierCertificate.VerifyCertificate(caAccessor))
+        if (!this.ReplierCertificate.Verify(caAccessor))
         {
             return false;
         }
 
-        if (!this.SignedRequestPayload.SenderCertificate.VerifyCertificate(caAccessor))
+        if (!this.SignedRequestPayload.SenderCertificate.Verify(caAccessor))
         {
             return false;
         }
 
-        if (!this.SignedRequestPayload.Verify(this.SignedRequestPayload.SenderCertificate.PublicKey))
+        if (!this.SignedRequestPayload.Verify(this.SignedRequestPayload.SenderCertificate.GetECXOnlyPubKey()))
         {
             return false;
         }

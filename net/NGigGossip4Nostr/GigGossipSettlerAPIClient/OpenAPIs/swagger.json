@@ -57,12 +57,12 @@
         }
       }
     },
-    "/generatereplypaymenttrust": {
+    "/generatereplypaymentpreimage": {
       "get": {
         "tags": [
           "GigGossipSettlerAPI"
         ],
-        "operationId": "GenerateReplyPaymentTrust",
+        "operationId": "GenerateReplyPaymentPreimage",
         "parameters": [
           {
             "name": "pubkey",
@@ -96,9 +96,58 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReplyPaymentTrust"
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/generaterelatedpreimage": {
+      "get": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "operationId": "GenerateRelatedPreimage",
+        "parameters": [
+          {
+            "name": "pubkey",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authToken",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "paymentHash",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -124,15 +173,6 @@
           },
           {
             "name": "authToken",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "tid",
             "in": "query",
             "required": true,
             "style": "form",
@@ -345,28 +385,5 @@
       }
     }
   },
-  "components": {
-    "schemas": {
-      "ReplyPaymentTrust": {
-        "type": "object",
-        "properties": {
-          "signature": {
-            "type": "string",
-            "format": "byte",
-            "nullable": true
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "paymentHash": {
-            "type": "string",
-            "format": "byte",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      }
-    }
-  }
+  "components": { }
 }

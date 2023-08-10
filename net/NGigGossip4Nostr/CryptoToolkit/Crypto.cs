@@ -8,24 +8,7 @@ using System.Runtime.Serialization;
 
 namespace CryptoToolkit;
 
-[Serializable]
-public class SerializedECXOnlyPubKey
-{
-    public string Value { get; set; }
 
-    public SerializedECXOnlyPubKey(ECXOnlyPubKey pubkey)
-    {
-        Value = pubkey.AsHex();
-    }
-
-    public ECXOnlyPubKey Get()
-    {
-        return ECXOnlyPubKey.Create(Convert.FromHexString(Value));
-    }
-
-    public static implicit operator ECXOnlyPubKey(SerializedECXOnlyPubKey d) => d.Get();
-    public static implicit operator SerializedECXOnlyPubKey(ECXOnlyPubKey d) => new SerializedECXOnlyPubKey(d);
-}
 
 public static class HexExtensions
 {
@@ -83,10 +66,7 @@ public static class Crypto
 
     public static byte[] ComputePaymentHash(byte[] preimage)
     {
-        Span<byte> buf = stackalloc byte[32];
-        var sha256 = System.Security.Cryptography.SHA256.Create();
-        sha256.TryComputeHash(preimage, buf, out _);
-        return buf.ToArray();
+        return ComputeSha256(preimage);
     }
 
     public static byte[] GenerateRandomPreimage()
@@ -189,6 +169,14 @@ public static class Crypto
         sha256.TryComputeHash(serializedObj, buf, out _);
 
         return theirKey.SigVerifyBIP340(sign, buf);
+    }
+
+    public static byte[] ComputeSha256(byte[] bytes)
+    {
+        Span<byte> buf = stackalloc byte[32];
+        var sha256 = System.Security.Cryptography.SHA256.Create();
+        sha256.TryComputeHash(bytes, buf, out _);
+        return buf.ToArray();
     }
 
     public static byte[] ComputeSha256(List<byte[]> items)
