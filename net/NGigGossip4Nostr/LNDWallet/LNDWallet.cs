@@ -125,18 +125,16 @@ public record AuthToken
 
 public class LNDAccountManager
 {
-    LND.NodesConfiguration conf;
-    int idx;
+    LND.NodeSettings conf;
     WaletContext walletContext;
     GetInfoResponse info;
     string account;
     ECXOnlyPubKey pubKey;
 
-    internal LNDAccountManager(LND.NodesConfiguration conf, int idx, WaletContext walletContext, GetInfoResponse info, ECXOnlyPubKey pubKey)
+    internal LNDAccountManager(LND.NodeSettings conf, WaletContext walletContext, GetInfoResponse info, ECXOnlyPubKey pubKey)
     {
         this.pubKey = pubKey;
         this.conf = conf;
-        this.idx = idx;
         this.account = pubKey.AsHex();
         this.walletContext = walletContext;
         this.info = info;
@@ -159,7 +157,7 @@ public class LNDAccountManager
     {
         lock (walletContext)
         {
-            var newaddress = LND.NewAddress(conf, idx);
+            var newaddress = LND.NewAddress(conf);
             walletContext.FundingAddresses.Add(new Address() { address = newaddress, pubkey = account, txfee = txfee });
             walletContext.SaveChanges();
             return newaddress;
@@ -198,7 +196,7 @@ public class LNDAccountManager
                 where a.pubkey == account
                 select new KeyValuePair<string, long>(a.address, a.txfee));
 
-            var transactuinsResp = LND.GetTransactions(conf, idx);
+            var transactuinsResp = LND.GetTransactions(conf);
             long balance = 0;
             foreach (var transation in transactuinsResp.Transactions)
                 if (transation.NumConfirmations >= minConf)
@@ -254,7 +252,7 @@ public class LNDAccountManager
                 select new KeyValuePair<string, LNDWallet.Payout>(a.address, a));
         }
 
-        var transactuinsResp = LND.GetTransactions(conf, idx);
+        var transactuinsResp = LND.GetTransactions(conf);
         long balance = 0;
         foreach (var transation in transactuinsResp.Transactions)
             if (transation.NumConfirmations >= minConf)
@@ -270,7 +268,7 @@ public class LNDAccountManager
 
     public Invoicesrpc.AddHoldInvoiceResp AddHodlInvoice(long satoshis, string memo, byte[] hash, long txfee, long expiry = 86400)
     {
-        var inv = LND.AddHodlInvoice(conf, idx, satoshis, memo, hash, expiry);
+        var inv = LND.AddHodlInvoice(conf, satoshis, memo, hash, expiry);
         lock (walletContext)
         {
             walletContext.Invoices.Add(new Invoice() {
@@ -290,7 +288,7 @@ public class LNDAccountManager
 
     public Lnrpc.AddInvoiceResponse AddInvoice(long satoshis, string memo, long txfee)
     {
-        var inv = LND.AddInvoice(conf, idx, satoshis, memo);
+        var inv = LND.AddInvoice(conf, satoshis, memo);
         lock (walletContext)
         {
             walletContext.Invoices.Add(new Invoice()
@@ -311,12 +309,12 @@ public class LNDAccountManager
 
     public PayReq DecodeInvoice(string paymentRequest)
     {
-        return LND.DecodeInvoice(conf, idx, paymentRequest);
+        return LND.DecodeInvoice(conf, paymentRequest);
     }
 
     public void SendPayment(string paymentRequest, int timeout, long txfee, long feelimit)
     {
-        var decinv = LND.DecodeInvoice(conf, idx, paymentRequest);
+        var decinv = LND.DecodeInvoice(conf, paymentRequest);
         lock (walletContext)
         {
             if ((long)decinv.NumSatoshis > GetAccountBallance() - (long)txfee)
@@ -342,7 +340,7 @@ public class LNDAccountManager
             }
             else
             {
-                LND.SendPaymentV2(conf, idx, paymentRequest, timeout, (long)feelimit);
+                LND.SendPaymentV2(conf, paymentRequest, timeout, (long)feelimit);
                 walletContext.Payments.Add(new Payment()
                 {
                     hash = decinv.PaymentHash,
@@ -374,7 +372,7 @@ public class LNDAccountManager
             }
             else
             {
-                LND.SettleInvoice(conf, idx, preimage);
+                LND.SettleInvoice(conf, preimage);
             }
         }
     }
@@ -393,7 +391,7 @@ public class LNDAccountManager
             }
             else
             {
-                LND.CancelInvoice(conf, idx, Convert.FromHexString(paymentHash));
+                LND.CancelInvoice(conf, Convert.FromHexString(paymentHash));
             }
         }
     }
@@ -445,16 +443,14 @@ public class LNDAccountManager
 
 public class LNDWalletManager
 {
-    LND.NodesConfiguration conf;
-    int idx;
+    LND.NodeSettings conf;
     WaletContext walletContext;
     GetInfoResponse info;
 
-    public LNDWalletManager(string connectionString, LND.NodesConfiguration conf, int idx, GetInfoResponse nodeInfo, bool deleteDb = false)
+    public LNDWalletManager(string connectionString, LND.NodeSettings conf, GetInfoResponse nodeInfo, bool deleteDb = false)
     {
         this.walletContext = new WaletContext(connectionString);
         this.conf = conf;
-        this.idx = idx;
         if (deleteDb)
             walletContext.Database.EnsureDeleted();
         walletContext.Database.EnsureCreated();
@@ -472,7 +468,7 @@ public class LNDWalletManager
         lock(walletContext)
         {
             var allInvs = new Dictionary<string, Lnrpc.Invoice>(
-                (from inv in LND.ListInvoices(conf, idx).Invoices
+                (from inv in LND.ListInvoices(conf).Invoices
                  select KeyValuePair.Create(inv.RHash.ToArray().AsHex(), inv)));
             foreach (var inv in walletContext.Invoices)
             {
@@ -488,7 +484,7 @@ public class LNDWalletManager
             }
 
             var allPayments = new Dictionary<string, Lnrpc.Payment>(
-                (from pm in LND.ListPayments(conf, idx).Payments
+                (from pm in LND.ListPayments(conf).Payments
                  select KeyValuePair.Create(pm.PaymentHash, pm)));
             foreach (var pm in walletContext.Payments)
             {
@@ -511,7 +507,7 @@ public class LNDWalletManager
         {
             try
             {
-                var stream = LND.SubscribeInvoices(conf, idx, cancellationToken:subscribeInvoicesCancallationTokenSource.Token);
+                var stream = LND.SubscribeInvoices(conf, cancellationToken:subscribeInvoicesCancallationTokenSource.Token);
                 while (await stream.ResponseStream.MoveNext(subscribeInvoicesCancallationTokenSource.Token))
                 {
                     var inv = stream.ResponseStream.Current;
@@ -544,7 +540,7 @@ public class LNDWalletManager
         {
             try
             {
-                var stream = LND.TrackPayments(conf, idx, cancellationToken: trackPaymentsCancallationTokenSource.Token);
+                var stream = LND.TrackPayments(conf, cancellationToken: trackPaymentsCancallationTokenSource.Token);
                 while (await stream.ResponseStream.MoveNext(trackPaymentsCancallationTokenSource.Token))
                 {
                     var pm = stream.ResponseStream.Current;
@@ -589,7 +585,7 @@ public class LNDWalletManager
     {
         lock (walletContext)
         {
-            return new LNDAccountManager(conf, idx, walletContext, info, pubkey);
+            return new LNDAccountManager(conf, walletContext, info, pubkey);
         }
     }
 
@@ -610,7 +606,7 @@ public class LNDWalletManager
 
     public string SendCoins(string address, long satoshis)
     {
-        return LND.SendCoins(conf, idx, address, "", satoshis);
+        return LND.SendCoins(conf, address, "", satoshis);
     }
 
     public List<LNDWallet.Payout> GetAllPendingPayouts()
@@ -642,17 +638,17 @@ public class LNDWalletManager
 
     public long GetChannelFundingBalance(int minconf)
     {
-        return (from utxo in LND.ListUnspent(conf, idx,minconf).Utxos select utxo.AmountSat).Sum() ;
+        return (from utxo in LND.ListUnspent(conf,minconf).Utxos select utxo.AmountSat).Sum() ;
     }
 
     public AsyncServerStreamingCall<OpenStatusUpdate> OpenChannel(string nodePubKey, long fundingSatoshis)
     {
-        return LND.OpenChannel(conf, idx, nodePubKey, fundingSatoshis);
+        return LND.OpenChannel(conf, nodePubKey, fundingSatoshis);
     }
 
     public string OpenChannelSync(string nodePubKey, long fundingSatoshis)
     {
-        var channelpoint = LND.OpenChannelSync(conf, idx, nodePubKey, fundingSatoshis);
+        var channelpoint = LND.OpenChannelSync(conf, nodePubKey, fundingSatoshis);
         string channelTx;
         if (channelpoint.HasFundingTxidBytes)
             channelTx = channelpoint.FundingTxidBytes.ToByteArray().Reverse().ToArray().AsHex();
@@ -666,12 +662,12 @@ public class LNDWalletManager
 
     public ListChannelsResponse ListChannels(bool openOnly)
     {
-        return LND.ListChannels(conf, idx, openOnly);
+        return LND.ListChannels(conf, openOnly);
     }
 
     public AsyncServerStreamingCall<CloseStatusUpdate> CloseChannel(string chanpoint)
     {
-        return LND.CloseChannel(conf, idx, chanpoint);
+        return LND.CloseChannel(conf, chanpoint);
     }
 
 }

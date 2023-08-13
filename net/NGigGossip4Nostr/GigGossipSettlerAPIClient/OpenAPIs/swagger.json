@@ -25,6 +25,69 @@
         }
       }
     },
+    "/iscertificaterevoked": {
+      "get": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "operationId": "IsCertificateRevoked",
+        "parameters": [
+          {
+            "name": "certid",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gettoken": {
+      "get": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "operationId": "GetToken",
+        "parameters": [
+          {
+            "name": "pubkey",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/giveuserproperty": {
       "get": {
         "tags": [
@@ -174,88 +237,6 @@
                 "schema": {
                   "type": "string",
                   "format": "byte"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/iscertificaterevoked": {
-      "get": {
-        "tags": [
-          "GigGossipSettlerAPI"
-        ],
-        "operationId": "IsCertificateRevoked",
-        "parameters": [
-          {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "authToken",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "certid",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "string",
-                  "format": "byte"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/gettoken": {
-      "get": {
-        "tags": [
-          "GigGossipSettlerAPI"
-        ],
-        "operationId": "GetToken",
-        "parameters": [
-          {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "string",
-                  "format": "uuid"
                 }
               }
             }

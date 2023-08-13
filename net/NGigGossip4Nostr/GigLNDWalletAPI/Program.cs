@@ -1,4 +1,5 @@
 ﻿
+using System.Text.Json.Nodes;
 using System.Threading;
 using LNDClient;
 using LNDWallet;
@@ -25,27 +26,43 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var lndConf = new LND.NodesConfiguration();
+IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
+{
+    var basePath = Environment.GetEnvironmentVariable("GIGGOSSIP_BASEDIR");
+    if (basePath == null)
+        basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), defaultFolder);
+    foreach (var arg in args)
+        if (arg.StartsWith("--basedir"))
+            basePath = arg.Substring(arg.IndexOf('=') + 1).Trim().Replace("\"", "").Replace("\'", "");
 
-var lndIdx2 = lndConf.AddNodeConfiguration(
-    new LND.MacaroonFile(@"/Users/pawel/work/locallnd/.lnd2/data/chain/bitcoin/regtest/admin.macaroon"),
-    @"/Users/pawel/work/locallnd/.lnd2/tls.cert",
-    @"localhost:11009",
-    @"localhost:9734"
-    );
+    var builder = new ConfigurationBuilder();
+    builder.SetBasePath(basePath)
+           .AddIniFile(iniName)
+           .AddEnvironmentVariables()
+           .AddCommandLine(args);
 
-var lndWalletDBConnectionString2 = "Data Source=lndwallets2.db";
+    return builder.Build();
+}
 
-bool deleteDb = true; // should we delete all dbs at start (e.g. schema change)
-long newAddressTxFee = 100;
-long addInvoiceTxFee = 100;
-long sendPaymentTxFee = 100;
-long feelimit = 1000;
+var config = GetConfigurationRoot(".giggossip", "wallet.conf");
+var walletSettings = config.GetSection("wallet").Get<WalletSettings>();
+var lndConf = config.GetSection("lnd").Get<LndSettings>();
 
-LNDWalletManager walletManager = new LNDWalletManager(lndWalletDBConnectionString2, lndConf, 1, LND.GetNodeInfo(lndConf, lndIdx2), deleteDb);
+
+LNDWalletManager walletManager = new LNDWalletManager(
+    walletSettings.ConnectionString,
+    lndConf, 
+    LND.GetNodeInfo(lndConf),
+    deleteDb:false);
 walletManager.Start();
-LNDChannelManager channelManager = new LNDChannelManager(walletManager, new List<string>(), 0, 0);
+
+LNDChannelManager channelManager = new LNDChannelManager(
+    walletManager,
+    lndConf.GetFriendNodes(),
+    lndConf.MaxSatoshisPerChannel,
+    walletSettings.EstimatedTxFee);
 channelManager.Start();
+
 
 app.MapGet("/gettoken", (string pubkey) =>
 {
@@ -65,7 +82,7 @@ app.MapGet("/getbalance", (string pubkey, string authToken) =>
 app.MapGet("/newaddress", (string pubkey, string authToken) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return walletManager.GetAccount(pubk).ValidateToken(authToken).NewAddress(newAddressTxFee);
+    return walletManager.GetAccount(pubk).ValidateToken(authToken).NewAddress(walletSettings.NewAddressTxFee);
 })
 .WithName("NewAddress")
 .WithOpenApi();
@@ -75,7 +92,7 @@ app.MapGet("/addinvoice", (string pubkey, string authToken,  long satoshis,strin
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
     var acc = walletManager.GetAccount(pubk).ValidateToken(authToken);
-    var ph= acc.AddInvoice(satoshis,memo, addInvoiceTxFee).PaymentRequest;
+    var ph= acc.AddInvoice(satoshis,memo, walletSettings.AddInvoiceTxFee).PaymentRequest;
     var pa = acc.DecodeInvoice(ph);
     return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
 })
@@ -87,7 +104,7 @@ app.MapGet("/addhodlinvoice", (string pubkey, string authToken, long satoshis, s
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
     var hashb = Convert.FromHexString(hash);
     var acc = walletManager.GetAccount(pubk).ValidateToken(authToken);
-    var ph= acc.AddHodlInvoice(satoshis, memo, hashb, addInvoiceTxFee).PaymentRequest;
+    var ph= acc.AddHodlInvoice(satoshis, memo, hashb, walletSettings.AddInvoiceTxFee).PaymentRequest;
     var pa = acc.DecodeInvoice(ph);
     return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
 })
@@ -107,7 +124,7 @@ app.MapGet("/decodeinvoice", (string pubkey, string authToken, string paymentReq
 app.MapGet("/sendpayment", (string pubkey, string authToken, string paymentrequest, int timeout) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    walletManager.GetAccount(pubk).ValidateToken(authToken).SendPayment(paymentrequest, timeout, sendPaymentTxFee, feelimit);
+    walletManager.GetAccount(pubk).ValidateToken(authToken).SendPayment(paymentrequest, timeout, walletSettings.SendPaymentTxFee, walletSettings.FeeLimit);
 })
 .WithName("SendPayment")
 .WithOpenApi();
@@ -153,4 +170,25 @@ public record InvoiceRet
 {
     public string PaymentRequest { get; set; }
     public string PaymentHash { get; set; }
+}
+
+public class WalletSettings
+{
+    public string ConnectionString { get; set; }
+    public long NewAddressTxFee { get; set; }
+    public long AddInvoiceTxFee { get; set; }
+    public long SendPaymentTxFee { get; set; }
+    public long FeeLimit { get; set; }
+    public long EstimatedTxFee { get; set; }
+}
+
+public class LndSettings : LND.NodeSettings
+{
+    public string FriendNodes { get; set; }
+    public long MaxSatoshisPerChannel { get; set; }
+
+    public List<string> GetFriendNodes()
+    {
+        return (from s in JsonArray.Parse(FriendNodes).AsArray() select s.GetValue<string>()).ToList();
+    }
 }

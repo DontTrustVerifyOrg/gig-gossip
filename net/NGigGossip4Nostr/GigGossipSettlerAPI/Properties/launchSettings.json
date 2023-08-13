@@ -21,6 +21,7 @@
     },
     "https": {
       "commandName": "Project",
+      "commandLineArgs": "--basedir=\"/Users/pawel/work/locallnd/.giggossip/\"",
       "launchBrowser": true,
       "launchUrl": "swagger",
       "applicationUrl": "https://localhost:7189;http://localhost:5198",

@@ -103,12 +103,12 @@ public class SettlerContext : DbContext
 
 public class Settler : CertificationAuthority
 {
-    private readonly int priceAmountForSettlement;
+    private long priceAmountForSettlement;
     protected swaggerClient lndWalletClient;
     protected Guid _walletToken;
     SettlerContext settlerContext;
 
-    public Settler(Uri serviceUri, ECPrivKey settlerPrivateKey, int priceAmountForSettlement) : base(serviceUri, settlerPrivateKey)
+    public Settler(Uri serviceUri, ECPrivKey settlerPrivateKey, long priceAmountForSettlement) : base(serviceUri, settlerPrivateKey)
     {
         this.priceAmountForSettlement = priceAmountForSettlement;
     }

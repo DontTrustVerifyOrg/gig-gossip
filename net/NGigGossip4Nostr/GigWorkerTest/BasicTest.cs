@@ -5,6 +5,8 @@ using System.Text;
 using CryptoToolkit;
 namespace GigWorkerTest;
 
+//Crypto.GeneratECPrivKey(), new[] { "ws://127.0.0.1:6969" }
+
 public class BasicTest
 {
     public BasicTest()

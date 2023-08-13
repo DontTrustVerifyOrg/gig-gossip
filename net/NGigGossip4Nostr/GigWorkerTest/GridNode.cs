@@ -31,7 +31,11 @@ public class GridNode : Customer
     public override AcceptBroadcastResponse? AcceptBroadcast(RequestPayload signedTopic)
     {
         if (nodeType == GridNodeType.GigWorker)
-            return new AcceptBroadcastResponse(){ Message=Encoding.Default.GetBytes($"mynameis={this.Name}"), Fee=4321, SettlerServiceUri=...);
+            return new AcceptBroadcastResponse(){
+                Message=Encoding.Default.GetBytes($"mynameis={this.PublicKey}"),
+                Fee=4321,
+                SettlerServiceUri=...,
+                MyCertificate = ...);
         else
         {
             var ret = base.AcceptBroadcast(signedTopic);

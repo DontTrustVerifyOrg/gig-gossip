@@ -71,7 +71,7 @@ public class ComplexTest
             int startIdx = rnd.Next(0, thingsList.Length);
             int endIdx = rnd.Next(0, thingsList.Length);
 
-            Console.WriteLine($"{thingsList[startIdx].Name} ->>> {thingsList[endIdx].Name}");
+            Console.WriteLine($"{thingsList[startIdx].PublicKey} ->>> {thingsList[endIdx].PublicKey}");
 
             thingsList[startIdx].SetGridNodeType(GridNodeType.Customer);
             customers.Add(thingsList[startIdx]);

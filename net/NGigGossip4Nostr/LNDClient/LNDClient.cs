@@ -9,144 +9,75 @@ namespace LNDClient;
 
 public static class LND
 {
-    public interface IMacaroon
+
+    public class NodeSettings
     {
-        public string GetMacaroon();
-    }
-
-    public class MacaroonFile : IMacaroon
-    {
-        string macaroonPath;
-
-        public MacaroonFile(string macaroonPath)
-        {
-            this.macaroonPath = macaroonPath;
-        }
-
-        public string GetMacaroon()
-        {
-            return File.ReadAllBytes(macaroonPath).AsHex();
-        }
-    }
-
-    public class MacaroonString : IMacaroon
-    {
-        byte[] macaroonBytes;
-
-        public MacaroonString(byte[] macaroonBytes)
-        {
-            this.macaroonBytes = macaroonBytes;
-        }
-
-        public string GetMacaroon()
-        {
-            return macaroonBytes.AsHex();
-        }
-    }
-
-    public class NodesConfiguration
-    {
-        private List<IMacaroon> macaroons = new();
-        private List<string> tlsCertPath = new();
-        private List<string> rpcHost = new();
-        private List<string> nodeListenOn = new();
-
-        public int AddNodeConfiguration(IMacaroon macaroon, string tlsCertPath, string rpcHost, string nodeListenOn)
-        {
-            this.macaroons.Add(macaroon);
-            this.tlsCertPath.Add(tlsCertPath);
-            this.rpcHost.Add(rpcHost);
-            this.nodeListenOn.Add(nodeListenOn);
-            return this.macaroons.Count;
-        }
-
-        public NodesConfiguration ForMacaroon(IMacaroon macaroon, int idx)
-        {
-            var ret = new NodesConfiguration();
-            ret.AddNodeConfiguration(macaroon, TlsCert(idx), RpcHost(idx), ListenHost(idx));
-            return ret;
-        }
-
-        public string ListenHost(int idx)
-        {
-            return nodeListenOn[idx - 1];
-        }
-
-        public string RpcHost(int idx)
-        {
-            return rpcHost[idx - 1];
-        }
-
-        public string TlsCert(int idx)
-        {
-            return tlsCertPath[idx - 1];
-        }
-        public IMacaroon Macaroon(int idx)
-        {
-            return macaroons[idx - 1];
-        }
+        public string MacaroonFile { get; set; }
+        public string TlsCertFile { get; set; }
+        public string RpcHost { get; set; }
+        public string ListenHost { get; set; }
     }
 
 
-    static Invoicesrpc.Invoices.InvoicesClient InvoicesClient(NodesConfiguration conf, int idx)
+    static Invoicesrpc.Invoices.InvoicesClient InvoicesClient(NodeSettings conf)
     {
-        var channel = new Grpc.Core.Channel(conf.RpcHost(idx), GetSslCredentials(conf, idx));
+        var channel = new Grpc.Core.Channel(conf.RpcHost, GetSslCredentials(conf));
         var client = new Invoicesrpc.Invoices.InvoicesClient(channel);
         return client;
     }
 
-    static Routerrpc.Router.RouterClient RouterClient(NodesConfiguration conf, int idx)
+    static Routerrpc.Router.RouterClient RouterClient(NodeSettings conf)
     {
-        var channel = new Grpc.Core.Channel(conf.RpcHost(idx), GetSslCredentials(conf, idx));
+        var channel = new Grpc.Core.Channel(conf.RpcHost, GetSslCredentials(conf));
         var client = new Routerrpc.Router.RouterClient(channel);
         return client;
     }
 
-    static Lnrpc.Lightning.LightningClient LightningClient(NodesConfiguration conf, int idx)
+    static Lnrpc.Lightning.LightningClient LightningClient(NodeSettings conf)
     {
-        var channel = new Grpc.Core.Channel(conf.RpcHost(idx), GetSslCredentials(conf, idx));
+        var channel = new Grpc.Core.Channel(conf.RpcHost, GetSslCredentials(conf));
         var client = new Lnrpc.Lightning.LightningClient(channel);
         return client;
     }
 
-    static Walletrpc.WalletKit.WalletKitClient WalletKit(NodesConfiguration conf, int idx)
+    static Walletrpc.WalletKit.WalletKitClient WalletKit(NodeSettings conf)
     {
-        var channel = new Grpc.Core.Channel(conf.RpcHost(idx), GetSslCredentials(conf, idx));
+        var channel = new Grpc.Core.Channel(conf.RpcHost, GetSslCredentials(conf));
         var client = new Walletrpc.WalletKit.WalletKitClient(channel);
         return client;
     }
 
 
-    static SslCredentials GetSslCredentials(NodesConfiguration conf, int idx)
+    static SslCredentials GetSslCredentials(NodeSettings conf)
     {
         Environment.SetEnvironmentVariable("GRPC_SSL_CIPHER_SUITES", "HIGH+ECDSA");
-        var cert = System.IO.File.ReadAllText(conf.TlsCert(idx));
+        var cert = System.IO.File.ReadAllText(conf.TlsCertFile);
         var sslCreds = new SslCredentials(cert);
         return sslCreds;
     }
 
-    static string GetMacaroon(NodesConfiguration conf, int idx)
+    static string GetMacaroon(NodeSettings conf)
     {
-        return conf.Macaroon(idx).GetMacaroon();
+        return File.ReadAllBytes(conf.MacaroonFile).AsHex();
     }
 
-    static Metadata Metadata(NodesConfiguration conf, int idx)
+    static Metadata Metadata(NodeSettings conf)
     {
-        return new Metadata() { new Metadata.Entry("macaroon", GetMacaroon(conf, idx)) };
+        return new Metadata() { new Metadata.Entry("macaroon", GetMacaroon(conf)) };
     }
 
-    public static string NewAddress(NodesConfiguration conf, int idx, string account = null)
+    public static string NewAddress(NodeSettings conf, string account = null)
     {
         var nar = new NewAddressRequest() { Type = AddressType.NestedPubkeyHash };
         if (account != null)
             nar.Account = account;
-        var response = LightningClient(conf, idx).NewAddress(nar,
-            Metadata(conf, idx));
+        var response = LightningClient(conf).NewAddress(nar,
+            Metadata(conf));
         return response.Address;
     }
 
     //-1 means send all
-    public static string SendCoins(NodesConfiguration conf, int idx, string address, string memo, long satoshis = -1, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static string SendCoins(NodeSettings conf, string address, string memo, long satoshis = -1, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var req = new SendCoinsRequest() { Addr = address, TargetConf = 6, Label = memo };
         if (satoshis > -1)
@@ -154,53 +85,53 @@ public static class LND
         else
             req.SendAll = true;
 
-        var response = LightningClient(conf, idx).SendCoins(req, Metadata(conf, idx), deadline, cancellationToken);
+        var response = LightningClient(conf).SendCoins(req, Metadata(conf), deadline, cancellationToken);
         return response.Txid;
     }
 
 
-    public static AddInvoiceResponse AddInvoice(NodesConfiguration conf, int idx, long satoshis, string memo, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static AddInvoiceResponse AddInvoice(NodeSettings conf, long satoshis, string memo, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        return LightningClient(conf, idx).AddInvoice(
+        return LightningClient(conf).AddInvoice(
             new Invoice()
             {
                 Memo = memo,
                 Value = satoshis,
             },
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static Invoice LookupInvoice(NodesConfiguration conf, int idx, byte[] hash, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static Invoice LookupInvoice(NodeSettings conf, byte[] hash, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        return LightningClient(conf, idx).LookupInvoice(
+        return LightningClient(conf).LookupInvoice(
             new PaymentHash()
             {
                 RHash = Google.Protobuf.ByteString.CopyFrom(hash)
             },
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static PayReq DecodeInvoice(NodesConfiguration conf, int idx, string paymentRequest, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static PayReq DecodeInvoice(NodeSettings conf, string paymentRequest, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        return LightningClient(conf, idx).DecodePayReq(
+        return LightningClient(conf).DecodePayReq(
             new PayReqString()
             {
                 PayReq = paymentRequest
             },
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static SendResponse SendPayment(NodesConfiguration conf, int idx, string paymentRequest, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static SendResponse SendPayment(NodeSettings conf, string paymentRequest, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        return LightningClient(conf, idx).SendPaymentSync(
+        return LightningClient(conf).SendPaymentSync(
             new SendRequest()
             {
                 PaymentRequest = paymentRequest
             },
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static AsyncServerStreamingCall<Payment> SendPaymentV2(NodesConfiguration conf, int idx, string paymentRequest, int timeout, long feelimit, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static AsyncServerStreamingCall<Payment> SendPaymentV2(NodeSettings conf, string paymentRequest, int timeout, long feelimit, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var spr = new SendPaymentRequest()
         {
@@ -209,38 +140,38 @@ public static class LND
             FeeLimitSat = feelimit,
         };
 
-        var stream = RouterClient(conf, idx).SendPaymentV2(
+        var stream = RouterClient(conf).SendPaymentV2(
             spr,
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
         return stream;
     }
 
 
-    public static GetInfoResponse GetNodeInfo(NodesConfiguration conf, int idx, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static GetInfoResponse GetNodeInfo(NodeSettings conf, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        return LightningClient(conf, idx).GetInfo(
+        return LightningClient(conf).GetInfo(
             new GetInfoRequest(),
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static void Connect(NodesConfiguration conf, int idx, string host, string nodepubkey, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static void Connect(NodeSettings conf, string host, string nodepubkey, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        LightningClient(conf, idx).ConnectPeer(
+        LightningClient(conf).ConnectPeer(
             new ConnectPeerRequest()
             {
                 Addr = new LightningAddress() { Host = host, Pubkey = nodepubkey }
             },
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static ListPeersResponse ListPeers(NodesConfiguration conf, int idx, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static ListPeersResponse ListPeers(NodeSettings conf, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        return LightningClient(conf, idx).ListPeers(
+        return LightningClient(conf).ListPeers(
             new ListPeersRequest(),
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static AsyncServerStreamingCall<OpenStatusUpdate> OpenChannel(NodesConfiguration conf, int idx, string nodePubKey, long fundingSatoshis, string closeAddress = null, string memo = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static AsyncServerStreamingCall<OpenStatusUpdate> OpenChannel(NodeSettings conf, string nodePubKey, long fundingSatoshis, string closeAddress = null, string memo = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var ocr = new OpenChannelRequest()
         {
@@ -251,11 +182,11 @@ public static class LND
             ocr.CloseAddress = closeAddress;
         if (memo != null)
             ocr.Memo = memo;
-        return LightningClient(conf, idx).OpenChannel(ocr, Metadata(conf, idx), deadline, cancellationToken);
+        return LightningClient(conf).OpenChannel(ocr, Metadata(conf), deadline, cancellationToken);
     }
 
 
-    public static ChannelPoint OpenChannelSync(NodesConfiguration conf, int idx, string nodePubKey, long fundingSatoshis, string closeAddress = null, string memo = null, bool privat = false, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static ChannelPoint OpenChannelSync(NodeSettings conf, string nodePubKey, long fundingSatoshis, string closeAddress = null, string memo = null, bool privat = false, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var ocr = new OpenChannelRequest()
         {
@@ -274,10 +205,10 @@ public static class LND
             ocr.CloseAddress = closeAddress;
         if (memo != null)
             ocr.Memo = memo;
-        return LightningClient(conf, idx).OpenChannelSync(ocr, Metadata(conf, idx), deadline, cancellationToken);
+        return LightningClient(conf).OpenChannelSync(ocr, Metadata(conf), deadline, cancellationToken);
     }
 
-    public static AsyncServerStreamingCall<CloseStatusUpdate> CloseChannel(NodesConfiguration conf, int idx, string channelpoint, string closeAddress = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static AsyncServerStreamingCall<CloseStatusUpdate> CloseChannel(NodeSettings conf, string channelpoint, string closeAddress = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var cp = channelpoint.Split(':');
         var ccr = new CloseChannelRequest()
@@ -286,30 +217,30 @@ public static class LND
         };
         if (closeAddress != null)
             ccr.DeliveryAddress = closeAddress;
-        var stream = LightningClient(conf, idx).CloseChannel(
+        var stream = LightningClient(conf).CloseChannel(
             ccr,
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
         return stream;
     }
 
-    public static PendingChannelsResponse PendingChannels(NodesConfiguration conf, int idx, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static PendingChannelsResponse PendingChannels(NodeSettings conf, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        return LightningClient(conf, idx).PendingChannels(
+        return LightningClient(conf).PendingChannels(
             new PendingChannelsRequest() { },
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static ListChannelsResponse ListChannels(NodesConfiguration conf, int idx, bool activeOnly = true, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static ListChannelsResponse ListChannels(NodeSettings conf, bool activeOnly = true, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        return LightningClient(conf, idx).ListChannels(
+        return LightningClient(conf).ListChannels(
             new ListChannelsRequest()
             {
                 ActiveOnly = activeOnly
             },
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static AddHoldInvoiceResp AddHodlInvoice(NodesConfiguration conf, int idx, long satoshis, string memo, byte[] hash, long expiry = 86400, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static AddHoldInvoiceResp AddHodlInvoice(NodeSettings conf, long satoshis, string memo, byte[] hash, long expiry = 86400, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var ahr = new AddHoldInvoiceRequest()
         {
@@ -319,100 +250,100 @@ public static class LND
             Expiry = expiry,
         };
 
-        return InvoicesClient(conf, idx).AddHoldInvoice(
+        return InvoicesClient(conf).AddHoldInvoice(
             ahr,
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static void CancelInvoice(NodesConfiguration conf, int idx, byte[] hash, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static void CancelInvoice(NodeSettings conf, byte[] hash, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        InvoicesClient(conf, idx).CancelInvoice(
+        InvoicesClient(conf).CancelInvoice(
             new CancelInvoiceMsg()
             {
                 PaymentHash = Google.Protobuf.ByteString.CopyFrom(hash),
             },
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static void SettleInvoice(NodesConfiguration conf, int idx, byte[] preimage, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static void SettleInvoice(NodeSettings conf, byte[] preimage, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        InvoicesClient(conf, idx).SettleInvoice(
+        InvoicesClient(conf).SettleInvoice(
             new SettleInvoiceMsg()
             {
                 Preimage = Google.Protobuf.ByteString.CopyFrom(preimage)
             },
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
 
 
-    public static TransactionDetails GetTransactions(NodesConfiguration conf, int idx, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static TransactionDetails GetTransactions(NodeSettings conf, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        return LightningClient(conf, idx).GetTransactions(
+        return LightningClient(conf).GetTransactions(
             new GetTransactionsRequest()
             { },
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static Walletrpc.ListUnspentResponse ListUnspent(NodesConfiguration conf, int idx, int minConfs, string account = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static Walletrpc.ListUnspentResponse ListUnspent(NodeSettings conf, int minConfs, string account = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var lur = new Walletrpc.ListUnspentRequest()
         { MinConfs = minConfs };
         if (account != null)
             lur.Account = account;
-        return WalletKit(conf, idx).ListUnspent(lur,
-            Metadata(conf, idx), deadline, cancellationToken);
+        return WalletKit(conf).ListUnspent(lur,
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static Invoice LookupInvoiceV2(NodesConfiguration conf, int idx, byte[] hash, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static Invoice LookupInvoiceV2(NodeSettings conf, byte[] hash, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        return InvoicesClient(conf, idx).LookupInvoiceV2(
+        return InvoicesClient(conf).LookupInvoiceV2(
             new LookupInvoiceMsg()
             {
                 PaymentHash = Google.Protobuf.ByteString.CopyFrom(hash)
             },
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static ListInvoiceResponse ListInvoices(NodesConfiguration conf, int idx, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static ListInvoiceResponse ListInvoices(NodeSettings conf, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        return LightningClient(conf, idx).ListInvoices(
+        return LightningClient(conf).ListInvoices(
             new ListInvoiceRequest() { },
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static ListPaymentsResponse ListPayments(NodesConfiguration conf, int idx, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static ListPaymentsResponse ListPayments(NodeSettings conf, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        return LightningClient(conf, idx).ListPayments(
+        return LightningClient(conf).ListPayments(
             new ListPaymentsRequest() { },
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static AsyncServerStreamingCall<Payment> TrackPayments(NodesConfiguration conf, int idx, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static AsyncServerStreamingCall<Payment> TrackPayments(NodeSettings conf, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        return RouterClient(conf, idx).TrackPayments(
+        return RouterClient(conf).TrackPayments(
             new TrackPaymentsRequest() { },
-            Metadata(conf, idx), deadline, cancellationToken);
+            Metadata(conf), deadline, cancellationToken);
     }
 
-    public static AsyncServerStreamingCall<Invoice> SubscribeSingleInvoice(NodesConfiguration conf, int idx, byte[] hash, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static AsyncServerStreamingCall<Invoice> SubscribeSingleInvoice(NodeSettings conf, byte[] hash, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        var stream = InvoicesClient(conf, idx).SubscribeSingleInvoice(
+        var stream = InvoicesClient(conf).SubscribeSingleInvoice(
             new SubscribeSingleInvoiceRequest()
             {
                 RHash = Google.Protobuf.ByteString.CopyFrom(hash)
 
-            }, Metadata(conf, idx), deadline, cancellationToken);
+            }, Metadata(conf), deadline, cancellationToken);
 
         return stream;
     }
 
-    public static AsyncServerStreamingCall<Invoice> SubscribeInvoices(NodesConfiguration conf, int idx, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static AsyncServerStreamingCall<Invoice> SubscribeInvoices(NodeSettings conf, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        var stream = LightningClient(conf, idx).SubscribeInvoices(
+        var stream = LightningClient(conf).SubscribeInvoices(
             new InvoiceSubscription()
             {
-            }, Metadata(conf, idx), deadline, cancellationToken);
+            }, Metadata(conf), deadline, cancellationToken);
 
         return stream;
     }

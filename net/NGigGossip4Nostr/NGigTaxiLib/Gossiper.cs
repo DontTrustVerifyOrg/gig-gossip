@@ -2,27 +2,23 @@
 using NGigGossip4Nostr;
 using System.Text;
 using CryptoToolkit;
+using NBitcoin.Secp256k1;
+
 namespace NGigTaxiLib;
 
 
 public class Gossiper : GigGossipNode
 {
-    public Gossiper(CertificationAuthority ca, int priceAmountForRouting, GigLNDWalletAPIClient.swaggerClient lndWalletClient, GigGossipSettlerAPIClient.swaggerClient settlerClient)
-        :base(Crypto.GeneratECPrivKey(), new[] { "ws://127.0.0.1:6969" })
+    public Gossiper(ECPrivKey privKey, string[] nostrRelays, CertificationAuthority ca, int priceAmountForRouting,
+        GigLNDWalletAPIClient.swaggerClient lndWalletClient, ISettlerSelector settlerSelector)
+        : base(privKey, nostrRelays)
     {
-
-        var certificate = ca.IssueCertificate(
-            this._privateKey.CreateXOnlyPubKey(),
-            "is_ok", true,
-            DateTime.Now.AddDays(7), DateTime.Now.AddDays(-7));
-
         Init(
-            certificate,
             priceAmountForRouting,
             TimeSpan.FromDays(7),
             "sha256", 2,
             TimeSpan.FromDays(1), TimeSpan.FromSeconds(10),
-            lndWalletClient, settlerClient);
+            lndWalletClient, settlerSelector);
     }
 
     public override bool AcceptTopic(AbstractTopic topic)

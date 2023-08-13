@@ -6,10 +6,10 @@ namespace NGigGossip4Nostr;
 [Serializable]
 public class OnionLayer
 {
-    public string PeerName { get; set; }
+    public string PublicKey { get; set; }
     public OnionLayer(string peerName)
     {
-        PeerName = peerName;
+        PublicKey = peerName;
     }
 }
 

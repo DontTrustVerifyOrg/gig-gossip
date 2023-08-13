@@ -39,6 +39,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GigGossipFrames", "GigGossi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GigGossipSettlerAPIClient", "GigGossipSettlerAPIClient\GigGossipSettlerAPIClient.csproj", "{2DD23402-CBF8-4DAF-BA82-C9341200A7F2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GigLNDWalletApiClientCLI", "GigLNDWalletApiClientCLI\GigLNDWalletApiClientCLI.csproj", "{0349EEF4-CF0F-4436-A473-1E3175B6C89A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -117,6 +119,10 @@ Global
 		{2DD23402-CBF8-4DAF-BA82-C9341200A7F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2DD23402-CBF8-4DAF-BA82-C9341200A7F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2DD23402-CBF8-4DAF-BA82-C9341200A7F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0349EEF4-CF0F-4436-A473-1E3175B6C89A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0349EEF4-CF0F-4436-A473-1E3175B6C89A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0349EEF4-CF0F-4436-A473-1E3175B6C89A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0349EEF4-CF0F-4436-A473-1E3175B6C89A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

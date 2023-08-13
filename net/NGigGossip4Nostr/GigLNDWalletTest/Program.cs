@@ -2,13 +2,36 @@
 using GigLNDWalletAPIClient;
 using CryptoToolkit;
 using NBitcoin.Secp256k1;
+using Microsoft.Extensions.Configuration;
+
+IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
+{
+    var basePath = Environment.GetEnvironmentVariable("GIGGOSSIP_BASEDIR");
+    if (basePath == null)
+        basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), defaultFolder);
+    foreach (var arg in args)
+        if (arg.StartsWith("--basedir"))
+            basePath = arg.Substring(arg.IndexOf('=') + 1).Trim().Replace("\"", "").Replace("\'", "");
+
+    var builder = new ConfigurationBuilder();
+    builder.SetBasePath(basePath)
+           .AddIniFile(iniName)
+           .AddEnvironmentVariables()
+           .AddCommandLine(args);
+
+    return builder.Build();
+}
+
+var config = GetConfigurationRoot(".giggossip", "wallettest.conf");
+
+var userSettings = config.GetSection("user").Get<UserSettings>();
 
 using (var httpClient = new HttpClient())
 {
-    var baseUrl = "https://localhost:7101/";
+    var baseUrl = userSettings.GigWalletOpenApi;
     var client = new swaggerClient(baseUrl, httpClient);
 
-    var ecpriv = Context.Instance.CreateECPrivKey(Convert.FromHexString("7f4c11a9742421366e40e321ca50b682c27f7422190c14a487525e69e6048326"));
+    var ecpriv = Context.Instance.CreateECPrivKey(Convert.FromHexString(userSettings.UserPrivateKey));
 
     string pubkey = ecpriv.CreateXOnlyPubKey().AsHex();
 
@@ -22,4 +45,8 @@ using (var httpClient = new HttpClient())
 
 }
 
-Console.WriteLine("Hello, World!");
+public class UserSettings
+{
+    public string GigWalletOpenApi { get; set; }
+    public string UserPrivateKey { get; set; }
+}

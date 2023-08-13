@@ -25,18 +25,35 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-Uri serviceUri = new Uri("https://localhost");
-string walletApi = "https://localhost:7101/";
-int priceAmountForSettlement = 0;
-var deleteDb = true;
-var connectionString = "Data Source=settler.db";
-var caPrivateKey = Context.Instance.CreateECPrivKey(Convert.FromHexString("7f4c11a9742721d66e40e321ca70b682c27f7422190c84a187525e69e6038369"));
+IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
+{
+    var basePath = Environment.GetEnvironmentVariable("GIGGOSSIP_BASEDIR");
+    if (basePath == null)
+        basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), defaultFolder);
+    foreach (var arg in args)
+        if (arg.StartsWith("--basedir"))
+            basePath = arg.Substring(arg.IndexOf('=') + 1).Trim().Replace("\"", "").Replace("\'", "");
+
+    var builder = new ConfigurationBuilder();
+    builder.SetBasePath(basePath)
+           .AddIniFile(iniName)
+           .AddEnvironmentVariables()
+           .AddCommandLine(args);
+
+    return builder.Build();
+}
+
+var config = GetConfigurationRoot(".giggossip", "settler.conf");
+var settlerSettings = config.GetSection("settler").Get<SettlerSettings>();
+
+
+var caPrivateKey = Context.Instance.CreateECPrivKey(Convert.FromHexString(settlerSettings.SettlerPrivateKey));
 
 var httpClient = new HttpClient();
-var lndWalletClient = new swaggerClient(walletApi, httpClient);
+var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.AbsolutePath, httpClient);
 
-var gigGossipSettler = new Settler(serviceUri, caPrivateKey, priceAmountForSettlement);
-await gigGossipSettler.Init(lndWalletClient, connectionString, deleteDb);
+var gigGossipSettler = new Settler(settlerSettings.ServiceUri, caPrivateKey, settlerSettings.PriceAmountForSettlement);
+await gigGossipSettler.Init(lndWalletClient, settlerSettings.ConnectionString, false);
 await gigGossipSettler.Start();
 
 app.MapGet("/getcapublickey", () =>
@@ -44,6 +61,20 @@ app.MapGet("/getcapublickey", () =>
     return gigGossipSettler.CaXOnlyPublicKey.AsHex();
 })
 .WithName("GetCaPublicKey")
+.WithOpenApi();
+
+app.MapGet("/iscertificaterevoked", (Guid certid) =>
+{
+    return gigGossipSettler.IsCertificateRevoked(certid);
+})
+.WithName("IsCertificateRevoked")
+.WithOpenApi();
+
+app.MapGet("/gettoken", (string pubkey) =>
+{
+    return gigGossipSettler.GetToken(pubkey);
+})
+.WithName("GetToken")
 .WithOpenApi();
 
 app.MapGet("/giveuserproperty", (string pubkey, string authToken, string name, byte[] value, DateTime validTill) =>
@@ -70,20 +101,7 @@ app.MapGet("/issuecertificate", (string pubkey, string authToken, string[] prope
 .WithName("IssueCertificate")
 .WithOpenApi();
 
-app.MapGet("/iscertificaterevoked", (string pubkey, string authToken, Guid certid) =>
-{
-    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return Crypto.SerializeObject(gigGossipSettler.ValidateToken(pubk, authToken).IsCertificateRevoked(certid));
-})
-.WithName("IsCertificateRevoked")
-.WithOpenApi();
 
-app.MapGet("/gettoken", (string pubkey) =>
-{
-    return gigGossipSettler.GetToken(pubkey);
-})
-.WithName("GetToken")
-.WithOpenApi();
 
 app.MapGet("/generatereplypaymentpreimage", (string pubkey, string authToken, Guid tid) =>
 {
@@ -140,3 +158,11 @@ app.MapGet("/managedispute", (string pubkey, string authToken, Guid tid, bool op
 
 app.Run();
 
+public class SettlerSettings
+{
+    public Uri ServiceUri { get; set; }
+    public Uri GigWalletOpenApi { get; set; }
+    public long PriceAmountForSettlement { get; set; }
+    public string ConnectionString { get; set; }
+    public string SettlerPrivateKey { get; set; }
+}
