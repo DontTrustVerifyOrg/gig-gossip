@@ -119,7 +119,7 @@ public class LndNodesSettings
         var sections = (from s in JsonArray.Parse(NodeSections).AsArray() select s.GetValue<string>()).ToList();
         foreach (var sec in sections)
         {
-            var sti = config.GetSection("sec").Get<LndSettings>();
+            var sti = config.GetSection(sec).Get<LndSettings>();
             lndConf.Add(sti);
         }
         return lndConf;

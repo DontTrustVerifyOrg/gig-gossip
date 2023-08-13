@@ -7,61 +7,54 @@ using System.Text.Json;
 using LNDClient;
 using NBitcoin.RPC;
 using Grpc.Core;
+using Microsoft.Extensions.Configuration;
+using static LNDClient.LND;
+using System.Text.Json.Nodes;
 
 // CONFIG
 
-var lndConf = new LND.NodesConfiguration();
+IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
+{
+    var basePath = Environment.GetEnvironmentVariable("GIGGOSSIP_BASEDIR");
+    if (basePath == null)
+        basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), defaultFolder);
+    foreach (var arg in args)
+        if (arg.StartsWith("--basedir"))
+            basePath = arg.Substring(arg.IndexOf('=') + 1).Trim().Replace("\"", "").Replace("\'", "");
 
-// Configuration of LND node 1
-var lndIdx1=lndConf.AddNodeConfiguration(
-    new LND.MacaroonFile(@"/Users/pawel/work/locallnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon"),
-    @"/Users/pawel/work/locallnd/.lnd/tls.cert",
-    @"localhost:10009",
-    @"localhost:9735"
-    );
+    var builder = new ConfigurationBuilder();
+    builder.SetBasePath(basePath)
+           .AddIniFile(iniName)
+           .AddEnvironmentVariables()
+           .AddCommandLine(args);
 
-// Configuration of LND node 2
-var lndIdx2 =lndConf.AddNodeConfiguration(
-    new LND.MacaroonFile(@"/Users/pawel/work/locallnd/.lnd2/data/chain/bitcoin/regtest/admin.macaroon"),
-    @"/Users/pawel/work/locallnd/.lnd2/tls.cert",
-    @"localhost:11009",
-    @"localhost:9734"
-    );
+    return builder.Build();
+}
 
-// Configuration of LND node 3
-var lndIdx3 =lndConf.AddNodeConfiguration(
-    new LND.MacaroonFile(@"/Users/pawel/work/locallnd/.lnd3/data/chain/bitcoin/regtest/admin.macaroon"),
-    @"/Users/pawel/work/locallnd/.lnd3/tls.cert",
-    @"localhost:11010",
-    @"localhost:9736"
-    );
+var config = GetConfigurationRoot(".giggossip", "lndwallettest.conf");
+var appSettings = config.GetSection("application").Get<ApplicationSettings>();
+var btcSetting = config.GetSection("Bitcoion").Get<BitcoinSettings>();
 
-var allLndIdxes = new List<int> { lndIdx1, lndIdx2, lndIdx3 };
+var confs = appSettings.GetNodesConfiguration(config);
+
 
 // Wallet DBs for Nodes
 bool deleteDb = true; // should we delete all dbs at start (e.g. schema change)
-long txfee = 100;
-long maxPaymentFee = 1000;
+long txfee = appSettings.TxFee;
+long maxPaymentFee = appSettings.MaxPaymentFee;
 
-var lndWalletDBConnectionString1 = "Data Source=lndwallets1.db";
-var lndWalletDBConnectionString2 = "Data Source=lndwallets2.db";
-var lndWalletDBConnectionString3 = "Data Source=lndwallets3.db";
-
-// Bitcoin Network access client
-var bitcoinNetwork = NBitcoin.Network.RegTest;
-var bitcoinClient = new RPCClient("lnd:lightning", "127.0.0.1:18332", bitcoinNetwork);
-var bitcoinWalletName = "testwallet";
+var bitcoinClient = btcSetting.NewRPCClient();
 
 // load bitcoin node wallet
 RPCClient btcWallet = null;
 try
 {
-    btcWallet = bitcoinClient.LoadWallet(bitcoinWalletName); ;
+    btcWallet = bitcoinClient.LoadWallet(btcSetting.WalletName); ;
 }
 catch (RPCException exception)
 {
     if (exception.RPCCode == RPCErrorCode.RPC_WALLET_ALREADY_LOADED)
-        btcWallet = bitcoinClient.SetWalletContext(bitcoinWalletName);
+        btcWallet = bitcoinClient.SetWalletContext(btcSetting.WalletName);
 }
 
 
@@ -73,9 +66,9 @@ btcWallet.Generate(10); // generate some blocks
 Lnrpc.GetInfoResponse nd1, nd2, nd3;
 while(true)
 {
-    nd1 = LND.GetNodeInfo(lndConf, lndIdx1);
-    nd2 = LND.GetNodeInfo(lndConf, lndIdx2);
-    nd3 = LND.GetNodeInfo(lndConf, lndIdx3);
+    nd1 = LND.GetNodeInfo(confs[0]);
+    nd2 = LND.GetNodeInfo(confs[1]);
+    nd3 = LND.GetNodeInfo(confs[2]);
     if (nd1.SyncedToChain && nd2.SyncedToChain && nd3.SyncedToChain)
         break;
     else
@@ -83,38 +76,38 @@ while(true)
 }
 
 // Write node infos
-foreach (int i in allLndIdxes)
-    Console.WriteLine("lnd{" + i.ToString() + "}: Pubkey: {" + LND.GetNodeInfo(lndConf, i) + "}");
+foreach (var conf in confs)
+    Console.WriteLine("Pubkey: {" + LND.GetNodeInfo(conf) + "}");
 
 //who are peeros of lnd node2
-var peersof2 = LND.ListPeers(lndConf, lndIdx2);
+var peersof2 = LND.ListPeers(confs[1]);
 
 //connect peer 2 to peer 1 if not connected
 if (peersof2.Peers.Where((p) => p.PubKey == nd1.IdentityPubkey).Count() == 0)
-    LND.Connect(lndConf, lndIdx2, lndConf.ListenHost(1), nd1.IdentityPubkey);
+    LND.Connect(confs[2], confs[1].ListenHost, nd1.IdentityPubkey);
 
 //connect peer 2 to peer 3 if not connected
 if (peersof2.Peers.Where((p) => p.PubKey == nd3.IdentityPubkey).Count() == 0)
-    LND.Connect(lndConf, lndIdx2, lndConf.ListenHost(3), nd3.IdentityPubkey);
+    LND.Connect(confs[2], confs[2].ListenHost, nd3.IdentityPubkey);
 
 //create wallets for all 3 lnd nodes
-var wallet1 = new LNDWalletManager(lndWalletDBConnectionString1, lndConf, lndIdx1, nd1, deleteDb: deleteDb);
+var wallet1 = new LNDWalletManager(confs[0].ConnectionString, confs[0], nd1, deleteDb: deleteDb);
 wallet1.Start();
-var wallet2 = new LNDWalletManager(lndWalletDBConnectionString2, lndConf, lndIdx2, nd2, deleteDb: deleteDb);
+var wallet2 = new LNDWalletManager(confs[1].ConnectionString, confs[1], nd2, deleteDb: deleteDb);
 wallet2.Start();
-var wallet3 = new LNDWalletManager(lndWalletDBConnectionString3, lndConf, lndIdx3, nd3, deleteDb: deleteDb);
+var wallet3 = new LNDWalletManager(confs[2].ConnectionString, confs[2], nd3, deleteDb: deleteDb);
 wallet3.Start();
 
 //setup user accounts
-var privkeyUser1FromNode1 = Context.Instance.CreateECPrivKey(Convert.FromHexString("7f4c11a9742721d66e40e321ca70b682c27f7422190c84a187525e69e6038369"));
+var privkeyUser1FromNode1 = Context.Instance.CreateECPrivKey(Convert.FromHexString(confs[0].PrivateKey));
 var pubkeyUser1FromNode1 = privkeyUser1FromNode1.CreateXOnlyPubKey();
 var myAccountUser1FromNode1 = wallet1.GetAccount(pubkeyUser1FromNode1);
 
-var privkeyUser1FromNode2 = Context.Instance.CreateECPrivKey(Convert.FromHexString("7f4c11a9742421366e40e321ca50b682c27f7422190c14a487525e69e6048326"));
+var privkeyUser1FromNode2 = Context.Instance.CreateECPrivKey(Convert.FromHexString(confs[1].PrivateKey));
 var pubkeyUser1FromNode2 = privkeyUser1FromNode2.CreateXOnlyPubKey();
 var myAccountUser1FromNode2= wallet2.GetAccount(pubkeyUser1FromNode2);
 
-var privkeyUser2FromNode2 = Context.Instance.CreateECPrivKey(Convert.FromHexString("7f4c11a9742421366e40e321ca50b682c27f7482190c14a487525e69e6048326"));
+var privkeyUser2FromNode2 = Context.Instance.CreateECPrivKey(Convert.FromHexString(confs[2].PrivateKey));
 var pubkeyUser2FromNode2 = privkeyUser2FromNode2.CreateXOnlyPubKey();
 var myAccountUser2FromNode2 = wallet2.GetAccount(pubkeyUser1FromNode2);
 
@@ -125,7 +118,7 @@ if (ballanceOfUser1FromNode2 == 0)
     var myNewAddrForUser1FromNode2 = myAccountUser1FromNode2.NewAddress(txfee);
     Console.WriteLine(myNewAddrForUser1FromNode2);
 
-    btcWallet.SendToAddress(NBitcoin.BitcoinAddress.Create(myNewAddrForUser1FromNode2, bitcoinNetwork), new NBitcoin.Money(10000000ul));
+    btcWallet.SendToAddress(NBitcoin.BitcoinAddress.Create(myNewAddrForUser1FromNode2, btcSetting.GetNetwork()), new NBitcoin.Money(10000000ul));
 
     btcWallet.Generate(10); // generate some blocks
 
@@ -145,7 +138,7 @@ Console.WriteLine(ballanceOfUser1FromNode2.ToString());
 
 while (true)
 {
-    nd2 = LND.GetNodeInfo(lndConf, lndIdx2);
+    nd2 = LND.GetNodeInfo(confs[1]);
     if (nd2.SyncedToChain)
         break;
     else
@@ -172,7 +165,7 @@ Console.WriteLine(ballanceOfUser1FromNode2.ToString());
     var paymentReq = myAccountUser1FromNode1.AddHodlInvoice(1000, "hello", hash, txfee);
 
     Console.WriteLine(paymentReq);
-    Console.WriteLine(LND.DecodeInvoice(lndConf, lndIdx2, paymentReq.PaymentRequest));
+    Console.WriteLine(LND.DecodeInvoice(confs[1], paymentReq.PaymentRequest));
 
     myAccountUser1FromNode2.SendPayment(paymentReq.PaymentRequest, 600, txfee, maxPaymentFee);
 
@@ -196,7 +189,7 @@ Console.WriteLine(ballanceOfUser1FromNode2.ToString());
     var paymentReq = myAccountUser2FromNode2.AddHodlInvoice(1000, "hello", hash, txfee);
 
     Console.WriteLine(paymentReq);
-    Console.WriteLine(LND.DecodeInvoice(lndConf, lndIdx2, paymentReq.PaymentRequest));
+    Console.WriteLine(LND.DecodeInvoice(confs[1], paymentReq.PaymentRequest));
 
     myAccountUser1FromNode2.SendPayment(paymentReq.PaymentRequest, 600, txfee, maxPaymentFee);
 
@@ -232,3 +225,60 @@ while (await channelStatusStream.ResponseStream.MoveNext())
 wallet1.Stop();
 wallet2.Stop();
 wallet3.Stop();
+
+
+public class ApplicationSettings
+{
+    public string NodeSections { get; set; }
+    public long TxFee { get; set; }
+    public long MaxPaymentFee { get; set; }
+    public List<LndSettings> GetNodesConfiguration(IConfigurationRoot config)
+    {
+        var lndConf = new List<LndSettings>();
+        var sections = (from s in JsonArray.Parse(NodeSections).AsArray() select s.GetValue<string>()).ToList();
+        foreach (var sec in sections)
+        {
+            var sti = config.GetSection(sec).Get<LndSettings>();
+            lndConf.Add(sti);
+        }
+        return lndConf;
+    }
+}
+
+public class LndSettings : NodeSettings
+{
+    public string FriendNodes { get; set; }
+    public long MaxSatoshisPerChannel { get; set; }
+    public string ConnectionString { get; set; }
+    public string PrivateKey { get; set; }
+
+    public List<string> GetFriendNodes()
+    {
+        return (from s in JsonArray.Parse(FriendNodes).AsArray() select s.GetValue<string>()).ToList();
+    }
+}
+
+public class BitcoinSettings
+{
+    public string AuthenticationString { get; set; }
+    public string HostOrUri { get; set; }
+    public string Network { get; set; }
+    public string WalletName { get; set; }
+
+    public NBitcoin.Network GetNetwork()
+    {
+        if (Network.ToLower() == "main")
+            return NBitcoin.Network.Main;
+        if (Network.ToLower() == "testnet")
+            return NBitcoin.Network.TestNet;
+        if (Network.ToLower() == "regtest")
+            return NBitcoin.Network.RegTest;
+        throw new InvalidOperationException();
+    }
+
+    public RPCClient NewRPCClient()
+    {
+        return new RPCClient(AuthenticationString, HostOrUri, GetNetwork());
+    }
+
+}
