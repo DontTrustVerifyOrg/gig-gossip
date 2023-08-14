@@ -50,9 +50,9 @@ var settlerSettings = config.GetSection("settler").Get<SettlerSettings>();
 var caPrivateKey = Context.Instance.CreateECPrivKey(Convert.FromHexString(settlerSettings.SettlerPrivateKey));
 
 var httpClient = new HttpClient();
-var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.AbsolutePath, httpClient);
+var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.AbsoluteUri, httpClient);
 
-var gigGossipSettler = new Settler(settlerSettings.ServiceUri, caPrivateKey, settlerSettings.PriceAmountForSettlement);
+var gigGossipSettler = new Settler(settlerSettings.ServiceUri, caPrivateKey, settlerSettings.PriceAmountForSettlement, TimeSpan.FromSeconds(settlerSettings.InvoicePaymentTimeoutSec));
 await gigGossipSettler.Init(lndWalletClient, settlerSettings.ConnectionString, false);
 await gigGossipSettler.Start();
 
@@ -156,7 +156,7 @@ app.MapGet("/managedispute", (string pubkey, string authToken, Guid tid, bool op
 .WithName("ManageDispute")
 .WithOpenApi();
 
-app.Run();
+app.Run(settlerSettings.ServiceUri.AbsoluteUri);
 
 public class SettlerSettings
 {
@@ -165,4 +165,5 @@ public class SettlerSettings
     public long PriceAmountForSettlement { get; set; }
     public string ConnectionString { get; set; }
     public string SettlerPrivateKey { get; set; }
+    public long InvoicePaymentTimeoutSec { get; set; }
 }

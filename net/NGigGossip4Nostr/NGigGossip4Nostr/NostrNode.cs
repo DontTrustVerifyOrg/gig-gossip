@@ -3,6 +3,7 @@ using System.Diagnostics;
 using NBitcoin.Secp256k1;
 using NNostr.Client;
 using CryptoToolkit;
+using System.Threading;
 
 namespace NGigGossip4Nostr;
 
@@ -88,7 +89,8 @@ public abstract class NostrNode
 
     private string _subsriptionId;
 
-    public void Start()
+
+    public virtual void Start()
     {
         nostrClient.ConnectAndWaitUntilConnected().Wait();
         this._subsriptionId = "nostr_giggossip_subscription"; //Guid.NewGuid().ToString();

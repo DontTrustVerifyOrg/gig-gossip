@@ -51,9 +51,9 @@ var lndConf = config.GetSection("lnd").Get<LndSettings>();
 
 LNDWalletManager walletManager = new LNDWalletManager(
     walletSettings.ConnectionString,
-    lndConf, 
+    lndConf,
     LND.GetNodeInfo(lndConf),
-    deleteDb:false);
+    deleteDb: false);
 walletManager.Start();
 
 LNDChannelManager channelManager = new LNDChannelManager(
@@ -88,23 +88,23 @@ app.MapGet("/newaddress", (string pubkey, string authToken) =>
 .WithOpenApi();
 
 
-app.MapGet("/addinvoice", (string pubkey, string authToken,  long satoshis,string memo) =>
+app.MapGet("/addinvoice", (string pubkey, string authToken, long satoshis, string memo, long expiry) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
     var acc = walletManager.GetAccount(pubk).ValidateToken(authToken);
-    var ph= acc.AddInvoice(satoshis,memo, walletSettings.AddInvoiceTxFee).PaymentRequest;
+    var ph = acc.AddInvoice(satoshis, memo, walletSettings.AddInvoiceTxFee, expiry).PaymentRequest;
     var pa = acc.DecodeInvoice(ph);
     return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
 })
 .WithName("AddInvoice")
 .WithOpenApi();
 
-app.MapGet("/addhodlinvoice", (string pubkey, string authToken, long satoshis, string hash, string memo) =>
+app.MapGet("/addhodlinvoice", (string pubkey, string authToken, long satoshis, string hash, string memo, long expiry) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
     var hashb = Convert.FromHexString(hash);
     var acc = walletManager.GetAccount(pubk).ValidateToken(authToken);
-    var ph= acc.AddHodlInvoice(satoshis, memo, hashb, walletSettings.AddInvoiceTxFee).PaymentRequest;
+    var ph = acc.AddHodlInvoice(satoshis, memo, hashb, walletSettings.AddInvoiceTxFee, expiry).PaymentRequest;
     var pa = acc.DecodeInvoice(ph);
     return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
 })
@@ -162,7 +162,7 @@ app.MapGet("/getpaymentstatus", (string pubkey, string authToken, string payment
 .WithOpenApi();
 
 
-app.Run();
+app.Run(walletSettings.ServiceUri.AbsoluteUri);
 
 
 
@@ -174,6 +174,7 @@ public record InvoiceRet
 
 public class WalletSettings
 {
+    public Uri ServiceUri { get; set; }
     public string ConnectionString { get; set; }
     public long NewAddressTxFee { get; set; }
     public long AddInvoiceTxFee { get; set; }

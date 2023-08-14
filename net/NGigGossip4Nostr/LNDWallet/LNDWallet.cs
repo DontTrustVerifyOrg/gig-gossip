@@ -266,7 +266,7 @@ public class LNDAccountManager
         return balance;
     }
 
-    public Invoicesrpc.AddHoldInvoiceResp AddHodlInvoice(long satoshis, string memo, byte[] hash, long txfee, long expiry = 86400)
+    public Invoicesrpc.AddHoldInvoiceResp AddHodlInvoice(long satoshis, string memo, byte[] hash, long txfee, long expiry)
     {
         var inv = LND.AddHodlInvoice(conf, satoshis, memo, hash, expiry);
         lock (walletContext)
@@ -286,9 +286,9 @@ public class LNDAccountManager
         return inv;
     }
 
-    public Lnrpc.AddInvoiceResponse AddInvoice(long satoshis, string memo, long txfee)
+    public Lnrpc.AddInvoiceResponse AddInvoice(long satoshis, string memo, long txfee, long expiry)
     {
-        var inv = LND.AddInvoice(conf, satoshis, memo);
+        var inv = LND.AddInvoice(conf, satoshis, memo, expiry);
         lock (walletContext)
         {
             walletContext.Invoices.Add(new Invoice()

@@ -103,14 +103,16 @@ public class SettlerContext : DbContext
 
 public class Settler : CertificationAuthority
 {
+    private TimeSpan invoicePaymentTimeout;
     private long priceAmountForSettlement;
     protected swaggerClient lndWalletClient;
     protected Guid _walletToken;
     SettlerContext settlerContext;
 
-    public Settler(Uri serviceUri, ECPrivKey settlerPrivateKey, long priceAmountForSettlement) : base(serviceUri, settlerPrivateKey)
+    public Settler(Uri serviceUri, ECPrivKey settlerPrivateKey, long priceAmountForSettlement, TimeSpan invoicePaymentTimeout) : base(serviceUri, settlerPrivateKey)
     {
         this.priceAmountForSettlement = priceAmountForSettlement;
+        this.invoicePaymentTimeout = invoicePaymentTimeout;
     }
 
     public async Task Init(swaggerClient lndWalletClient, string connectionString, bool deleteDb = false)
@@ -301,7 +303,8 @@ public class Settler : CertificationAuthority
         byte[] encryptedReplyMessage = Crypto.SymmetricEncrypt(key, message);
 
         var networkInvoicePaymentHash = GenerateReplyPaymentPreimage(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.PayloadId);
-        var networkInvoice = await lndWalletClient.AddHodlInvoiceAsync(this.CaXOnlyPublicKey.AsHex(), walletToken(), priceAmountForSettlement, networkInvoicePaymentHash, "");
+        var networkInvoice = await lndWalletClient.AddHodlInvoiceAsync(
+            this.CaXOnlyPublicKey.AsHex(), walletToken(), priceAmountForSettlement, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds);
 
         lock (settlerContext)
         {

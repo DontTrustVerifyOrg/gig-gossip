@@ -9,16 +9,9 @@ namespace NGigTaxiLib;
 
 public class Gossiper : GigGossipNode
 {
-    public Gossiper(ECPrivKey privKey, string[] nostrRelays, CertificationAuthority ca, int priceAmountForRouting,
-        GigLNDWalletAPIClient.swaggerClient lndWalletClient, ISettlerSelector settlerSelector)
+    public Gossiper(ECPrivKey privKey, string[] nostrRelays)
         : base(privKey, nostrRelays)
     {
-        Init(
-            priceAmountForRouting,
-            TimeSpan.FromDays(7),
-            "sha256", 2,
-            TimeSpan.FromDays(1), TimeSpan.FromSeconds(10),
-            lndWalletClient, settlerSelector);
     }
 
     public override bool AcceptTopic(AbstractTopic topic)

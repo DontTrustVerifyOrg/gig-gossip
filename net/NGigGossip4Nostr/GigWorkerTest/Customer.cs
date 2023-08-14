@@ -1,5 +1,7 @@
 ﻿using System;
+using CryptoToolkit;
 using NBitcoin.Protocol;
+using NBitcoin.Secp256k1;
 using NGeoHash;
 using NGigGossip4Nostr;
 using NGigTaxiLib;
@@ -8,12 +10,24 @@ namespace GigWorkerTest;
 
 public class Customer : Gossiper
 {
-    public Customer(CertificationAuthority ca, int priceAmountForRouting, Settler settler)
-         : base(ca, priceAmountForRouting, settler)
+    Uri mySettler;
+    Certificate mycert;
+
+    public Customer(ECPrivKey privKey, string[] nostrRelays)
+         : base(privKey, nostrRelays)
     {
     }
 
-    Guid topicId;
+    public async void GenerateMyCert(Uri mySettler)
+    {
+        this.mySettler = mySettler;
+        var cert = await this.settlerClientSelector.GetSettlerClient(mySettler).IssueCertificateAsync(
+            this.PublicKey, await this.settlerToken(mySettler), new List<string> { "ride" });
+        mycert = Crypto.DeserializeObject<Certificate>(cert);
+    }
+
+
+    public Guid topicId;
 
     public void Go()
     {
@@ -30,7 +44,7 @@ public class Customer : Gossiper
                 PickupAfter = DateTime.Now,
                 DropoffBefore = DateTime.Now.AddMinutes(20)
             },
-            SenderCertificate=this.certificate
+            SenderCertificate=this.mycert
         };
         topic.Sign(this._privateKey);
         this.Broadcast(topic);

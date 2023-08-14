@@ -3,28 +3,86 @@ using NGigGossip4Nostr;
 using System.Diagnostics;
 using System.Text;
 using CryptoToolkit;
-namespace GigWorkerTest;
+using System.Text.Json.Nodes;
+using Microsoft.Extensions.Configuration;
+using NBitcoin.Secp256k1;
 
-//Crypto.GeneratECPrivKey(), new[] { "ws://127.0.0.1:6969" }
+namespace GigWorkerTest;
 
 public class BasicTest
 {
-    public BasicTest()
+    string[] args;
+
+    IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
     {
+        var basePath = Environment.GetEnvironmentVariable("GIGGOSSIP_BASEDIR");
+        if (basePath == null)
+            basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), defaultFolder);
+        foreach (var arg in args)
+            if (arg.StartsWith("--basedir"))
+                basePath = arg.Substring(arg.IndexOf('=') + 1).Trim().Replace("\"", "").Replace("\'", "");
+
+        var builder = new ConfigurationBuilder();
+        builder.SetBasePath(basePath)
+               .AddIniFile(iniName)
+               .AddEnvironmentVariables()
+               .AddCommandLine(args);
+
+        return builder.Build();
     }
+    NodeSettings gigWorkerSettings, customerSettings;
+
+    public BasicTest(string[] args)
+    {
+        this.args = args;
+        var config = GetConfigurationRoot(".giggossip", "basictest.conf");
+        gigWorkerSettings = config.GetSection("gigworker").Get<NodeSettings>();
+        customerSettings = config.GetSection("customer").Get<NodeSettings>();
+    }
+
+
+    HttpClient httpClient = new HttpClient();
+    SimpleSettlerSelector settlerSelector = new SimpleSettlerSelector();
+    Customer customer;
 
     public void Run()
     {
+        var gigWorker = new GigWorker(
+            Context.Instance.CreateECPrivKey(Convert.FromHexString(gigWorkerSettings.PrivateKey)),
+            gigWorkerSettings.GetNostrRelays()
+            );
 
-        var ca = Cert.CreateCertificationAuthority("CA");
-        var settlerPrivKey = Crypto.GeneratECPrivKey();
-        var setter_certificate = ca.IssueCertificate(settlerPrivKey.CreateXOnlyPubKey(), "is_ok", true, DateTime.Now.AddDays(7), DateTime.Now.AddDays(-7));
-        var settler = new Settler("ST", setter_certificate, settlerPrivKey, 12);
+        gigWorker.Init(
+            gigWorkerSettings.PriceAmountForRouting,
+            TimeSpan.FromMilliseconds(gigWorkerSettings.BroadcastConditionsTimeoutMs),
+            gigWorkerSettings.BroadcastConditionsPowScheme,
+            gigWorkerSettings.BroadcastConditionsPowComplexity,
+            TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
+            TimeSpan.FromSeconds(gigWorkerSettings.InvoicePaymentTimeoutSec),
+            gigWorkerSettings.GetLndWalletClient(httpClient),
+            settlerSelector);
 
-        var gigWorker = new GigWorker(ca, 1, settler);
-        var customer = new Customer(ca, 1, settler);
+        gigWorker.GenerateMyCert(gigWorkerSettings.SettlerOpenApi);
 
-        gigWorker.ConnectTo(customer);
+        customer = new Customer(
+            Context.Instance.CreateECPrivKey(Convert.FromHexString(customerSettings.PrivateKey)),
+            customerSettings.GetNostrRelays()
+            );
+
+        customer.Init(
+            customerSettings.PriceAmountForRouting,
+            TimeSpan.FromMilliseconds(customerSettings.BroadcastConditionsTimeoutMs),
+            customerSettings.BroadcastConditionsPowScheme,
+            customerSettings.BroadcastConditionsPowComplexity,
+            TimeSpan.FromMilliseconds(customerSettings.TimestampToleranceMs),
+            TimeSpan.FromSeconds(customerSettings.InvoicePaymentTimeoutSec),
+            customerSettings.GetLndWalletClient(httpClient),
+            settlerSelector);
+
+        customer.GenerateMyCert(customerSettings.SettlerOpenApi);
+
+        gigWorker.AddContact(new NostrContact() { PublicKey = customer.PublicKey, Petname = "Customer" });
+        customer.AddContact(new NostrContact() { PublicKey = gigWorker.PublicKey, Petname = "GigWorker" });
 
         customer.OnNewResponse += Customer_OnNewResponse;
         customer.OnResponseReady += Customer_OnResponseReady;
@@ -47,10 +105,38 @@ public class BasicTest
         (sender as GigGossipNode).AcceptResponse(e.payload, e.network_invoice);
     }
 
-    private void Customer_OnResponseReady(object? sender, ResponseEventArgs e)
+    private async void Customer_OnResponseReady(object? sender, ResponseEventArgs e)
     {
-        var message = (byte[])Crypto.SymmetricDecrypt(e.network_invoice.Preimage, e.payload.EncryptedReplyMessage);
-        Trace.TraceInformation(Encoding.Default.GetString(message));
+
+       // var settler =  settlerSelector.GetSettlerClient(customerSettings.SettlerOpenApi);
+       // var token = settlerSelector.GetTokenAsync(customer.PublicKey);
+       // var key = settler.RevealSymmetricKeyAsync(customer.PublicKey, token, customer.topicId);
+
+       // var message = Crypto.SymmetricDecrypt<byte[]>(e.payload..network_invoice.Preimage, e.payload.EncryptedReplyMessage);
+       // Trace.TraceInformation(Encoding.Default.GetString(message));
     }
 }
 
+public class NodeSettings
+{
+    public Uri GigWalletOpenApi { get; set; }
+    public string NostrRelays { get; set; }
+    public string PrivateKey { get; set; }
+    public Uri SettlerOpenApi { get; set; }
+    public long PriceAmountForRouting { get; set; }
+    public long BroadcastConditionsTimeoutMs { get; set; }
+    public string BroadcastConditionsPowScheme { get; set; }
+    public int BroadcastConditionsPowComplexity { get; set; }
+    public long TimestampToleranceMs { get; set; }
+    public long InvoicePaymentTimeoutSec { get; set; }
+
+    public string[] GetNostrRelays()
+    {
+        return (from s in JsonArray.Parse(NostrRelays).AsArray() select s.GetValue<string>()).ToArray();
+    }
+
+    public GigLNDWalletAPIClient.swaggerClient GetLndWalletClient(HttpClient httpClient)
+    {
+        return new GigLNDWalletAPIClient.swaggerClient(GigWalletOpenApi.AbsoluteUri, httpClient);
+    }
+}

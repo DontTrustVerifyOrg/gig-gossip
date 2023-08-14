@@ -28,7 +28,7 @@ namespace NGigGossip4Nostr
         public GigGossipSettlerAPIClient.swaggerClient GetSettlerClient(Uri serviceUri)
         {
             if (!swaggerClients.ContainsKey(serviceUri))
-                swaggerClients[serviceUri] = new GigGossipSettlerAPIClient.swaggerClient(serviceUri.AbsolutePath, httpClient);
+                swaggerClients[serviceUri] = new GigGossipSettlerAPIClient.swaggerClient(serviceUri.AbsoluteUri, httpClient);
             return swaggerClients[serviceUri];
         }
 

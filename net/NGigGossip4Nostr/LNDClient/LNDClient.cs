@@ -90,13 +90,14 @@ public static class LND
     }
 
 
-    public static AddInvoiceResponse AddInvoice(NodeSettings conf, long satoshis, string memo, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static AddInvoiceResponse AddInvoice(NodeSettings conf, long satoshis, string memo, long expiry = 86400, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         return LightningClient(conf).AddInvoice(
             new Invoice()
             {
                 Memo = memo,
                 Value = satoshis,
+                Expiry = expiry,
             },
             Metadata(conf), deadline, cancellationToken);
     }
