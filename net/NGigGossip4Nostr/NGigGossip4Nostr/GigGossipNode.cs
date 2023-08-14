@@ -57,7 +57,7 @@ public class GigGossipNode : NostrNode
     {
     }
 
-    public async void Init(long priceAmountForRouting, TimeSpan broadcastConditionsTimeout, string broadcastConditionsPowScheme,
+    public async Task Init(long priceAmountForRouting, TimeSpan broadcastConditionsTimeout, string broadcastConditionsPowScheme,
                            int broadcastConditionsPowComplexity, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
                            GigLNDWalletAPIClient.swaggerClient lndWalletClient, ISettlerSelector settlerClientSelector)
     {
@@ -244,8 +244,8 @@ public class GigGossipNode : NostrNode
             var replyInvoice = (await lndWalletClient.AddHodlInvoiceAsync(this.PublicKey, walletToken() , acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds)).PaymentRequest;
             var signedRequestPayloadSerialized = Crypto.SerializeObject(powBroadcastFrame.BroadcastPayload.SignedRequestPayload);
             var replierCertificateSerialized = Crypto.SerializeObject(acceptBroadcastResponse.MyCertificate);
-            var settr = await settlerClient.GenerateSettlementTrustAsync(this.PublicKey, await settlerToken(acceptBroadcastResponse.SettlerServiceUri), acceptBroadcastResponse.Message, replyInvoice, signedRequestPayloadSerialized, replierCertificateSerialized);
-            var settlementTrust = Crypto.DeserializeObject< SettlementTrust>(settr);
+            var settr = await settlerClient.GenerateSettlementTrustAsync(this.PublicKey, await settlerToken(acceptBroadcastResponse.SettlerServiceUri), Convert.ToBase64String(acceptBroadcastResponse.Message), replyInvoice, Convert.ToBase64String(signedRequestPayloadSerialized), Convert.ToBase64String(replierCertificateSerialized));
+            var settlementTrust = Crypto.DeserializeObject< SettlementTrust>(Convert.FromBase64String(settr));
             var signedSettlementPromise = settlementTrust.SettlementPromise;
             var networkInvoice = settlementTrust.NetworkInvoice;
             var encryptedReplyPayload = settlementTrust.EncryptedReplyPayload;

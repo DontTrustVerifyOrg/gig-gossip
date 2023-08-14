@@ -45,14 +45,14 @@ public class BasicTest
     SimpleSettlerSelector settlerSelector = new SimpleSettlerSelector();
     Customer customer;
 
-    public void Run()
+    public async Task Run()
     {
         var gigWorker = new GigWorker(
             Context.Instance.CreateECPrivKey(Convert.FromHexString(gigWorkerSettings.PrivateKey)),
             gigWorkerSettings.GetNostrRelays()
             );
 
-        gigWorker.Init(
+        await gigWorker.Init(
             gigWorkerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(gigWorkerSettings.BroadcastConditionsTimeoutMs),
             gigWorkerSettings.BroadcastConditionsPowScheme,
@@ -62,14 +62,14 @@ public class BasicTest
             gigWorkerSettings.GetLndWalletClient(httpClient),
             settlerSelector);
 
-        gigWorker.GenerateMyCert(gigWorkerSettings.SettlerOpenApi);
+        await gigWorker.GenerateMyCert(gigWorkerSettings.SettlerOpenApi);
 
         customer = new Customer(
             Context.Instance.CreateECPrivKey(Convert.FromHexString(customerSettings.PrivateKey)),
             customerSettings.GetNostrRelays()
             );
 
-        customer.Init(
+        await customer.Init(
             customerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(customerSettings.BroadcastConditionsTimeoutMs),
             customerSettings.BroadcastConditionsPowScheme,
@@ -79,7 +79,7 @@ public class BasicTest
             customerSettings.GetLndWalletClient(httpClient),
             settlerSelector);
 
-        customer.GenerateMyCert(customerSettings.SettlerOpenApi);
+        await customer.GenerateMyCert(customerSettings.SettlerOpenApi);
 
         gigWorker.AddContact(new NostrContact() { PublicKey = customer.PublicKey, Petname = "Customer" });
         customer.AddContact(new NostrContact() { PublicKey = gigWorker.PublicKey, Petname = "GigWorker" });

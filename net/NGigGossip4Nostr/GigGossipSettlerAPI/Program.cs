@@ -77,10 +77,10 @@ app.MapGet("/gettoken", (string pubkey) =>
 .WithName("GetToken")
 .WithOpenApi();
 
-app.MapGet("/giveuserproperty", (string pubkey, string authToken, string name, byte[] value, DateTime validTill) =>
+app.MapGet("/giveuserproperty", (string pubkey, string authToken, string name, string value, DateTime validTill) =>
 {
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    gigGossipSettler.ValidateToken(pubk, authToken).GiveUserProperty(pubkey, name, value, validTill);
+    gigGossipSettler.ValidateToken(pubk, authToken).GiveUserProperty(pubkey, name, Convert.FromBase64String(value), validTill);
 })
 .WithName("GiveUserProperty")
 .WithOpenApi();
@@ -128,14 +128,14 @@ app.MapGet("/revealpreimage", (string pubkey, string authToken, string paymentHa
 .WithOpenApi();
 
 
-app.MapGet("/generatesettlementtrust", async (string pubkey, string authToken, byte[] message, string replyinvoice, byte[] signedRequestPayloadSerialized, byte[] replierCertificateSerialized) =>
+app.MapGet("/generatesettlementtrust", async (string pubkey, string authToken, string message, string replyinvoice, string signedRequestPayloadSerialized, string replierCertificateSerialized) =>
 {
-    var signedRequestPayload = Crypto.DeserializeObject< RequestPayload>(signedRequestPayloadSerialized);
-    var replierCertificate = Crypto.DeserializeObject< Certificate>(replierCertificateSerialized);
+    var signedRequestPayload = Crypto.DeserializeObject< RequestPayload>(Convert.FromBase64String(signedRequestPayloadSerialized));
+    var replierCertificate = Crypto.DeserializeObject< Certificate>(Convert.FromBase64String(replierCertificateSerialized));
 
     var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    var st = await gigGossipSettler.ValidateToken(pubk, authToken).GenerateSettlementTrust(pubkey, message, replyinvoice, signedRequestPayload, replierCertificate);
-    return Crypto.SerializeObject(st);
+    var st = await gigGossipSettler.ValidateToken(pubk, authToken).GenerateSettlementTrust(pubkey, Convert.FromBase64String(message), replyinvoice, signedRequestPayload, replierCertificate);
+    return Convert.ToBase64String(Crypto.SerializeObject(st));
 })
 .WithName("GenerateSettlementTrust")
 .WithOpenApi();

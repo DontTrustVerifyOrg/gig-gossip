@@ -14,7 +14,7 @@ internal class Program
 
     static void Main(string[] args)
     {
-        new BasicTest(args).Run();
+        new BasicTest(args).Run().Wait();
     }
 
 }
