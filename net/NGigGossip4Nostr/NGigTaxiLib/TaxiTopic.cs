@@ -7,7 +7,7 @@ using System.Xml.Linq;
 namespace NGigTaxiLib;
 
 [Serializable]
-public class TaxiTopic : AbstractTopic
+public class TaxiTopic
 {
     public string FromGeohash { get; set; }
     public string ToGeohash { get; set; }

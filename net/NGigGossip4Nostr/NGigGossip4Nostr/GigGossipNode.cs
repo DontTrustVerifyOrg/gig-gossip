@@ -104,7 +104,7 @@ public class GigGossipNode : NostrNode
     }
 
 
-    public virtual bool AcceptTopic(AbstractTopic topic)
+    public virtual bool AcceptTopic(byte[] topic)
     {
         return false;
     }

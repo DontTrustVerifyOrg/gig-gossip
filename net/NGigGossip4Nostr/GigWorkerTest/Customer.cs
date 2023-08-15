@@ -45,13 +45,13 @@ public class Customer : Gossiper
         var topic = new RequestPayload()
         {
             PayloadId = topicId,
-            Topic = new TaxiTopic()
+            Topic = Crypto.SerializeObject(new TaxiTopic()
             {
                 FromGeohash = fromGh,
                 ToGeohash = toGh,
                 PickupAfter = DateTime.Now,
                 DropoffBefore = DateTime.Now.AddMinutes(20)
-            },
+            }),
             SenderCertificate=this.mycert
         };
         topic.Sign(this._privateKey);

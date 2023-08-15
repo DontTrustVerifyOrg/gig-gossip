@@ -14,12 +14,11 @@ public class Gossiper : GigGossipNode
     {
     }
 
-    public override bool AcceptTopic(AbstractTopic topic)
+    public override bool AcceptTopic(byte[] topic)
     {
-        if (topic is TaxiTopic)
+        var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(topic);
+        if (taxiTopic != null)
         {
-            var taxiTopic = (TaxiTopic)topic;
-
             return taxiTopic.FromGeohash.Length >= 7 &&
                    taxiTopic.ToGeohash.Length >= 7 &&
                    taxiTopic.DropoffBefore >= DateTime.Now;

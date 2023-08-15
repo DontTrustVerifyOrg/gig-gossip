@@ -46,13 +46,14 @@ public abstract class NostrNode
         List<NostrEventTag> tags;
         lock (_contactList)
         {
+            _contactList[newContact.PublicKey] = newContact;
             tags = (from c in _contactList.Values select new NostrEventTag() { TagIdentifier = "p", Data = { c.PublicKey, c.Relay, c.Petname } }).ToList();
         }
         var newEvent = new NostrEvent()
         {
             Kind = 3,
             Content = "",
-            Tags = tags,
+            Tags = tags, 
         };
         await newEvent.ComputeIdAndSignAsync(this._privateKey, handlenip4: false);
         await nostrClient.PublishEvent(newEvent, CancellationToken.None);
@@ -72,10 +73,11 @@ public abstract class NostrNode
                 Kind = 4,
                 Content = part,
                 Tags = {
-                    new NostrEventTag(){ TagIdentifier = "p", Data = { targetPublicKey } },
-                    new NostrEventTag(){ TagIdentifier ="x",  Data = {evid} },
-                    new NostrEventTag(){ TagIdentifier="i",   Data= {idx.ToString() } },
-                    new NostrEventTag(){ TagIdentifier="n",   Data= {numOfParts.ToString()} }
+                    new NostrEventTag(){ TagIdentifier ="p", Data = { targetPublicKey } },
+                    new NostrEventTag(){ TagIdentifier ="x", Data = { evid } },
+                    new NostrEventTag(){ TagIdentifier ="t", Data = {  frame.GetType().Name } },
+                    new NostrEventTag(){ TagIdentifier ="i", Data = { idx.ToString() } },
+                    new NostrEventTag(){ TagIdentifier ="n", Data = { numOfParts.ToString() } }
                 }
             };
 
@@ -87,17 +89,25 @@ public abstract class NostrNode
 
     public abstract void OnMessage(string senderPublicKey, object frame);
 
-    private string _subsriptionId;
-
-
-    public virtual void Start()
+    public virtual async Task Start()
     {
         nostrClient.ConnectAndWaitUntilConnected().Wait();
-        this._subsriptionId = "nostr_giggossip_subscription"; //Guid.NewGuid().ToString();
-        nostrClient.CreateSubscription(this._subsriptionId, new[]{
+
+        var q = nostrClient.SubscribeForEvents(new[]{
             new NostrSubscriptionFilter()
             {
-                Kinds = new []{3,4},
+                Kinds = new []{3},
+                Authors = new []{ _publicKey.ToHex() },
+            }
+        }, true, CancellationToken.None);
+        foreach (var x in await (from qc in q select qc).ToArrayAsync())
+            ProcessContactList(x);
+
+
+        nostrClient.CreateSubscription("nostr_giggossip_subscription", new[]{
+            new NostrSubscriptionFilter()
+            {
+                Kinds = new []{4},
                 ReferencedPublicKeys = new []{ _publicKey.ToHex() }
             }
         }).Wait();
@@ -108,17 +118,13 @@ public abstract class NostrNode
 
     private void NostrClient_EventsReceived(object? sender, (string subscriptionId, NostrEvent[] events) args)
     {
-        if (args.subscriptionId == this._subsriptionId)
+        if (args.subscriptionId == "nostr_giggossip_subscription")
         {
             foreach (var nostrEvent in args.events)
             {
                 if (nostrEvent.Kind == 4)
                 {
                     ProcessNewMessage(nostrEvent);
-                }
-                else if (nostrEvent.Kind == 3)
-                {
-                    ProcessContactList(nostrEvent);
                 }
             }
         }
@@ -132,7 +138,7 @@ public abstract class NostrNode
             if (tag.Data.Count > 0)
                 tagDic[tag.TagIdentifier] = tag.Data;
         }
-        if (tagDic.ContainsKey("p"))
+        if (tagDic.ContainsKey("p") && tagDic.ContainsKey("t"))
             if (tagDic["p"][0] == _publicKey.ToHex())
             {
                 int parti = int.Parse(tagDic["i"][0]);
@@ -141,7 +147,9 @@ public abstract class NostrNode
                 var msg = await nostrEvent.DecryptNip04EventAsync(this._privateKey);
                 if (partNum == 1)
                 {
-                    var frame = Crypto.DeserializeObject<object>(Convert.FromBase64String(msg));
+                    var type = tagDic["t"][0];
+                    var t = System.Reflection.Assembly.Load("GigGossipFrames").GetType("NGigGossip4Nostr." + type);
+                    var frame = Crypto.DeserializeObject(Convert.FromBase64String(msg),t);
                     this.OnMessage(nostrEvent.PublicKey, frame);
                 }
                 else
@@ -155,7 +163,9 @@ public abstract class NostrNode
                         if (_partial_messages[idx].Count == partNum)
                         {
                             var txt = string.Join("", _partial_messages[idx].Values);
-                            frame = Crypto.DeserializeObject<object>(Convert.FromBase64String(txt));
+                            var type = tagDic["t"][0];
+                            var t = System.Reflection.Assembly.Load("GigGossipFrames").GetType("NGigGossip4Nostr." + type);
+                            frame = Crypto.DeserializeObject(Convert.FromBase64String(txt), t);
                             _partial_messages.Remove(idx);
                         }
                     }

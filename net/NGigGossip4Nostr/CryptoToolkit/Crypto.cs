@@ -302,9 +302,18 @@ public static class Crypto
         {
             using (GZipStream compressedStream = new GZipStream(memoryStream, CompressionMode.Compress, true))
             {
-                compressedStream.Write(JsonSerializer.SerializeToUtf8Bytes(obj));
+                compressedStream.Write(JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType()));
             }
             return memoryStream.ToArray();
+        }
+    }
+
+    public static object DeserializeObject(byte[] data, Type returnType)
+    {
+        using (MemoryStream compressedStream = new MemoryStream(data))
+        {
+            using (GZipStream decompressedStream = new GZipStream(compressedStream, CompressionMode.Decompress, true))
+                return JsonSerializer.Deserialize(decompressedStream, returnType);
         }
     }
 

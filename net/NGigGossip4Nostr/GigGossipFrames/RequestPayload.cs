@@ -8,7 +8,7 @@ namespace NGigGossip4Nostr;
 public class RequestPayload : SignableObject
 {
     public Guid PayloadId { get; set; }
-    public AbstractTopic Topic { get; set; }
+    public byte[] Topic { get; set; }
     public Certificate SenderCertificate { get; set; }
 
     public new void Sign(ECPrivKey privateKey)
