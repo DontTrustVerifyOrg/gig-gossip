@@ -81,8 +81,8 @@ public class BasicTest
 
         await customer.GenerateMyCert(customerSettings.SettlerOpenApi);
 
-        await gigWorker.Start();
-        await customer.Start();
+         gigWorker.Start();
+         customer.Start();
 
         gigWorker.AddContact(new NostrContact() { PublicKey = customer.PublicKey, Petname = "Customer", Relay = "" });
         customer.AddContact(new NostrContact() { PublicKey = gigWorker.PublicKey, Petname = "GigWorker", Relay = "" });

@@ -52,13 +52,13 @@ public class CertificationAuthority
         CaXOnlyPublicKey = caPrivateKey.CreateXOnlyPubKey();
     }
 
-    public Certificate IssueCertificate(ECXOnlyPubKey caxOnlypublicKey, Dictionary<string, byte[]> properties, DateTime notValidAfter, DateTime notValidBefore)
+    public Certificate IssueCertificate(ECXOnlyPubKey ecxOnlypublicKey, Dictionary<string, byte[]> properties, DateTime notValidAfter, DateTime notValidBefore)
     {
         var certificate = new Certificate
         {
             Id = Guid.NewGuid(),
             ServiceUri = ServiceUri,
-            PublicKey = caxOnlypublicKey.AsHex(),
+            PublicKey = ecxOnlypublicKey.AsHex(),
             Properties = properties,
             NotValidAfter = notValidAfter,
             NotValidBefore = notValidBefore

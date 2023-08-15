@@ -42,8 +42,8 @@ public class UserCertificate
 public class Preimage
 {
     [Key]
-    public Guid tid { get; set; }
     public string hash { get; set; }
+    public Guid tid { get; set; }
     public string pubkey { get; set; }
     public string preimage { get; set; }
     public bool revealed { get; set; }
@@ -308,6 +308,7 @@ public class Settler : CertificationAuthority
             ServiceUri = this.ServiceUri,
             HashOfEncryptedReplyPayload = hashOfEncryptedReplyPayload,
             ReplyPaymentAmount = decodedInv.NumSatoshis,
+            NetworkPaymentHash = Convert.FromHexString(networkInvoicePaymentHash),
         };
         signedSettlementPromise.Sign(_CaPrivateKey);
 

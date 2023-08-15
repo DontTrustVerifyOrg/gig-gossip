@@ -155,7 +155,7 @@ public class GigGossipNode : NostrNode
             {
                 SignedRequestPayload = requestPayload,
                 BackwardOnion = (backwardOnion ?? new OnionRoute()).Grow(
-                    new OnionLayer(this.PublicKey),
+                    this.PublicKey,
                     Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(peerPublicKey))),
                 Timestamp = null
             };
@@ -240,7 +240,7 @@ public class GigGossipNode : NostrNode
         if (acceptBroadcastResponse != null)
         {
             var settlerClient = this.settlerClientSelector.GetSettlerClient(acceptBroadcastResponse.SettlerServiceUri);
-            var replyPaymentHash = await settlerClient.GenerateReplyPaymentPreimageAsync(this.PublicKey, await settlerToken(acceptBroadcastResponse.SettlerServiceUri), powBroadcastFrame.AskId.ToString());
+            var replyPaymentHash = await settlerClient.GenerateReplyPaymentPreimageAsync(this.PublicKey, await settlerToken(acceptBroadcastResponse.SettlerServiceUri), powBroadcastFrame.BroadcastPayload.SignedRequestPayload.PayloadId.ToString());
             var replyInvoice = (await lndWalletClient.AddHodlInvoiceAsync(this.PublicKey, walletToken() , acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds)).PaymentRequest;
             var signedRequestPayloadSerialized = Crypto.SerializeObject(powBroadcastFrame.BroadcastPayload.SignedRequestPayload);
             var replierCertificateSerialized = Crypto.SerializeObject(acceptBroadcastResponse.MyCertificate);
@@ -305,8 +305,8 @@ public class GigGossipNode : NostrNode
         }
         else
         {
-            var topLayer = responseFrame.ForwardOnion.Peel(_privateKey);
-            if (this.GetContacts().Contains(topLayer.PublicKey))
+            var topLayerPulicKey = responseFrame.ForwardOnion.Peel(_privateKey);
+            if (this.GetContacts().Contains(topLayerPulicKey))
             {
                 if (!responseFrame.SignedSettlementPromise.Verify(responseFrame.EncryptedReplyPayload, this.settlerClientSelector))
                 {
@@ -330,7 +330,7 @@ public class GigGossipNode : NostrNode
                     responseFrame = responseFrame.DeepCopy();
                     responseFrame.NetworkInvoice = networkInvoice.PaymentRequest;
                 }
-                SendMessage(topLayer.PublicKey, responseFrame);
+                SendMessage(topLayerPulicKey, responseFrame);
             }
         }
     }

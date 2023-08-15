@@ -7,47 +7,38 @@ namespace NGigGossip4Nostr;
 public class OnionLayer
 {
     public string PublicKey { get; set; }
-    public OnionLayer(string peerName)
-    {
-        PublicKey = peerName;
-    }
+    public byte[] Core { get; set; }
 }
 
 [Serializable]
 public class OnionRoute
 {
-    private byte[] _onion;
+    public byte[] Onion { get; set; } = new byte[0];
 
-    public OnionRoute()
+    public string Peel(ECPrivKey privKey)
     {
-        _onion = new byte[0];
+        var layerData = Crypto.DecryptObject<OnionLayer>(Onion, privKey, null) ;
+        Onion = layerData.Core;
+        return layerData.PublicKey;
     }
 
-    public OnionLayer Peel(ECPrivKey privKey)
-    {
-        var layerData = Crypto.DecryptObject<object[]>(_onion, privKey, null) ;
-        var layer = (OnionLayer)layerData[0];
-        _onion = (byte[])layerData[1];
-        return layer;
-    }
-
-    public OnionRoute Grow(OnionLayer layer, ECXOnlyPubKey pubKey)
+    public OnionRoute Grow(string otherPublicKey, ECXOnlyPubKey pubKey)
     {
         var newOnion = new OnionRoute();
-        newOnion._onion = Crypto.EncryptObject(new object[] { layer, _onion }, pubKey, null);
+        newOnion.Onion = Crypto.EncryptObject(new OnionLayer() { PublicKey = otherPublicKey, Core = Onion }, pubKey, null);
         return newOnion;
     }
 
     public bool IsEmpty()
     {
-        return _onion.Length == 0;
+        return Onion.Length == 0;
     }
 
     public OnionRoute DeepCopy()
     {
         return new OnionRoute()
         {
-            _onion = this._onion.ToArray()
+            Onion = this.Onion.ToArray()
         };
     }
 }

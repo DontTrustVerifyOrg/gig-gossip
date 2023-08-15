@@ -27,7 +27,6 @@ public abstract class NostrNode
         this._publicKey = privateKey.CreateXOnlyPubKey();
         this.PublicKey = this._publicKey.AsHex();
         nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
-        nostrClient.EventsReceived += NostrClient_EventsReceived;
         this._contactList = new();
     }
 
@@ -56,7 +55,7 @@ public abstract class NostrNode
             Tags = tags, 
         };
         await newEvent.ComputeIdAndSignAsync(this._privateKey, handlenip4: false);
-        await nostrClient.PublishEvent(newEvent, CancellationToken.None);
+        await nostrClient.SendEventsAndWaitUntilReceived(new[] { newEvent }, CancellationToken.None);
     }
 
     public async void SendMessage(string targetPublicKey, object frame)
@@ -65,6 +64,7 @@ public abstract class NostrNode
         var evid = Guid.NewGuid().ToString();
 
         int numOfParts = 1 + message.Length / CHUNK_SIZE;
+        List<NostrEvent> events = new();
         for (int idx = 0; idx < numOfParts; idx++)
         {
             var part = ((idx + 1) * CHUNK_SIZE < message.Length) ? message.Substring(idx * CHUNK_SIZE, CHUNK_SIZE) : message.Substring(idx * CHUNK_SIZE);
@@ -83,52 +83,45 @@ public abstract class NostrNode
 
             await newEvent.EncryptNip04EventAsync(this._privateKey);
             await newEvent.ComputeIdAndSignAsync(this._privateKey, handlenip4: false);
-            await nostrClient.PublishEvent(newEvent, CancellationToken.None);
+            events.Add(newEvent);
         }
+        await nostrClient.SendEventsAndWaitUntilReceived(events.ToArray(), CancellationToken.None);
     }
 
     public abstract void OnMessage(string senderPublicKey, object frame);
 
-    public virtual async Task Start()
+    Thread mainThread;
+
+    public virtual void Start()
     {
         nostrClient.ConnectAndWaitUntilConnected().Wait();
+        mainThread = new Thread(async () =>
+        {
 
-        var q = nostrClient.SubscribeForEvents(new[]{
-            new NostrSubscriptionFilter()
-            {
-                Kinds = new []{3},
-                Authors = new []{ _publicKey.ToHex() },
-            }
-        }, true, CancellationToken.None);
-        foreach (var x in await (from qc in q select qc).ToArrayAsync())
-            ProcessContactList(x);
+            var q = nostrClient.SubscribeForEvents(new[]{
+                new NostrSubscriptionFilter()
+                {
+                    Kinds = new []{3},
+                    Authors = new []{ _publicKey.ToHex() },
+                },
+                new NostrSubscriptionFilter()
+                {
+                    Kinds = new []{4},
+                    ReferencedPublicKeys = new []{ _publicKey.ToHex() }
+                }
+            }, false, CancellationToken.None);
 
+            await foreach (var nostrEvent in q)
+                if (nostrEvent.Kind == 3)
+                    ProcessContactList(nostrEvent);
+                else
+                    ProcessNewMessage(nostrEvent);
 
-        nostrClient.CreateSubscription("nostr_giggossip_subscription", new[]{
-            new NostrSubscriptionFilter()
-            {
-                Kinds = new []{4},
-                ReferencedPublicKeys = new []{ _publicKey.ToHex() }
-            }
-        }).Wait();
+        });
+        mainThread.Start();
     }
 
     private Dictionary<string, SortedDictionary<int, string>> _partial_messages = new();
-
-
-    private void NostrClient_EventsReceived(object? sender, (string subscriptionId, NostrEvent[] events) args)
-    {
-        if (args.subscriptionId == "nostr_giggossip_subscription")
-        {
-            foreach (var nostrEvent in args.events)
-            {
-                if (nostrEvent.Kind == 4)
-                {
-                    ProcessNewMessage(nostrEvent);
-                }
-            }
-        }
-    }
 
     private async void ProcessNewMessage(NostrEvent nostrEvent)
     {
