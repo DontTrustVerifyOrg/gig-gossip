@@ -96,7 +96,7 @@
         "operationId": "GiveUserProperty",
         "parameters": [
           {
-            "name": "pubkey",
+            "name": "authToken",
             "in": "query",
             "required": true,
             "style": "form",
@@ -105,7 +105,7 @@
             }
           },
           {
-            "name": "authToken",
+            "name": "pubkey",
             "in": "query",
             "required": true,
             "style": "form",
@@ -156,7 +156,7 @@
         "operationId": "RevokeUserProperty",
         "parameters": [
           {
-            "name": "pubkey",
+            "name": "authToken",
             "in": "query",
             "required": true,
             "style": "form",
@@ -165,7 +165,7 @@
             }
           },
           {
-            "name": "authToken",
+            "name": "pubkey",
             "in": "query",
             "required": true,
             "style": "form",
@@ -198,7 +198,7 @@
         "operationId": "IssueCertificate",
         "parameters": [
           {
-            "name": "pubkey",
+            "name": "authToken",
             "in": "query",
             "required": true,
             "style": "form",
@@ -207,7 +207,7 @@
             }
           },
           {
-            "name": "authToken",
+            "name": "pubkey",
             "in": "query",
             "required": true,
             "style": "form",
@@ -251,7 +251,7 @@
         "operationId": "GetCertificate",
         "parameters": [
           {
-            "name": "pubkey",
+            "name": "authToken",
             "in": "query",
             "required": true,
             "style": "form",
@@ -260,7 +260,7 @@
             }
           },
           {
-            "name": "authToken",
+            "name": "pubkey",
             "in": "query",
             "required": true,
             "style": "form",
@@ -301,7 +301,7 @@
         "operationId": "ListCertificates",
         "parameters": [
           {
-            "name": "pubkey",
+            "name": "authToken",
             "in": "query",
             "required": true,
             "style": "form",
@@ -310,7 +310,7 @@
             }
           },
           {
-            "name": "authToken",
+            "name": "pubkey",
             "in": "query",
             "required": true,
             "style": "form",
@@ -344,15 +344,6 @@
         ],
         "operationId": "GenerateReplyPaymentPreimage",
         "parameters": [
-          {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "authToken",
             "in": "query",
@@ -394,15 +385,6 @@
         "operationId": "GenerateRelatedPreimage",
         "parameters": [
           {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "authToken",
             "in": "query",
             "required": true,
@@ -443,15 +425,6 @@
         "operationId": "RevealPreimage",
         "parameters": [
           {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "authToken",
             "in": "query",
             "required": true,
@@ -491,15 +464,6 @@
         ],
         "operationId": "GenerateSettlementTrust",
         "parameters": [
-          {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "authToken",
             "in": "query",
@@ -568,15 +532,6 @@
         "operationId": "RevealSymmetricKey",
         "parameters": [
           {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "authToken",
             "in": "query",
             "required": true,
@@ -616,15 +571,6 @@
         ],
         "operationId": "ManageDispute",
         "parameters": [
-          {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "authToken",
             "in": "query",

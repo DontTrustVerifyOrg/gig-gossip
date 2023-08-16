@@ -38,6 +38,7 @@ public static class Crypto
     [Serializable]
     public struct TimedGuidToken
     {
+        public string PublicKey { get; set; }
         public DateTime DateTime { get; set; }
         public Guid Guid { get; set; }
         public byte[] Signature { get; set; }
@@ -46,23 +47,25 @@ public static class Crypto
     public static string MakeSignedTimedToken(ECPrivKey ecpriv, DateTime dateTime, Guid guid)
     {
         var tt = new TimedGuidToken();
+        tt.PublicKey = ecpriv.CreateXOnlyPubKey().AsHex();
         tt.DateTime = dateTime;
         tt.Guid = guid;
         tt.Signature = SignObject(tt,ecpriv);
         return Convert.ToBase64String(SerializeObject(tt));
     }
 
-    public static Guid? VerifySignedTimedToken(ECXOnlyPubKey ecpub, string TimedTokenBase64, double seconds)
+    public static TimedGuidToken? VerifySignedTimedToken(string TimedTokenBase64, double seconds)
     {
         var serialized = Convert.FromBase64String(TimedTokenBase64);
         TimedGuidToken timedToken = DeserializeObject<TimedGuidToken>(serialized);
+        var ecpub = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(timedToken.PublicKey));
         if ((DateTime.Now - timedToken.DateTime).TotalSeconds > seconds)
             return null;
         var signature = timedToken.Signature;
         timedToken.Signature = null;
         if (!VerifyObject(timedToken, signature, ecpub))
             return null;
-        return timedToken.Guid;
+        return timedToken;
     }
 
     public static byte[] ComputePaymentHash(byte[] preimage)

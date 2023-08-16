@@ -53,7 +53,7 @@ namespace NGigGossip4Nostr
 						{
 							var serviceUri = kv.Key.Item1;
 							var phash = kv.Key.Item2;
-							var preimage = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(this.gigGossipNode.PublicKey, await this.gigGossipNode.SettlerToken(serviceUri), phash);
+							var preimage = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.SettlerToken(serviceUri), phash);
 							if (preimage != null)
 							{
 								lock (monitoredPreimages)
@@ -75,7 +75,7 @@ namespace NGigGossip4Nostr
 						{
 							var serviceUri = kv.Key.Item1;
 							var tid = kv.Key.Item2;
-							var key = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(this.gigGossipNode.PublicKey, await this.gigGossipNode.SettlerToken(serviceUri), tid.ToString());
+							var key = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.SettlerToken(serviceUri), tid.ToString());
 							if (key != null)
 							{
 								lock (monitoredKeys)

@@ -45,15 +45,6 @@
         "operationId": "GetBalance",
         "parameters": [
           {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "authToken",
             "in": "query",
             "required": true,
@@ -86,15 +77,6 @@
         "operationId": "NewAddress",
         "parameters": [
           {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "authToken",
             "in": "query",
             "required": true,
@@ -125,15 +107,6 @@
         ],
         "operationId": "AddInvoice",
         "parameters": [
-          {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "authToken",
             "in": "query",
@@ -194,15 +167,6 @@
         ],
         "operationId": "AddHodlInvoice",
         "parameters": [
-          {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "authToken",
             "in": "query",
@@ -273,15 +237,6 @@
         "operationId": "DecodeInvoice",
         "parameters": [
           {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "authToken",
             "in": "query",
             "required": true,
@@ -321,15 +276,6 @@
         ],
         "operationId": "SendPayment",
         "parameters": [
-          {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "authToken",
             "in": "query",
@@ -374,15 +320,6 @@
         "operationId": "SettleInvoice",
         "parameters": [
           {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "authToken",
             "in": "query",
             "required": true,
@@ -416,15 +353,6 @@
         "operationId": "CancelInvoice",
         "parameters": [
           {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "authToken",
             "in": "query",
             "required": true,
@@ -457,15 +385,6 @@
         ],
         "operationId": "GetInvoiceState",
         "parameters": [
-          {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "authToken",
             "in": "query",
@@ -506,15 +425,6 @@
         ],
         "operationId": "GetPaymentStatus",
         "parameters": [
-          {
-            "name": "pubkey",
-            "in": "query",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "authToken",
             "in": "query",

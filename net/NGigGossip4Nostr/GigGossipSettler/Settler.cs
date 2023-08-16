@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using System.Runtime.ConstrainedExecution;
 using System.Xml.Linq;
 using CryptoToolkit;
@@ -146,17 +147,17 @@ public class Settler : CertificationAuthority
         return t.id;
     }
 
-    public Settler ValidateToken(ECXOnlyPubKey pubkey, string authTokenBase64)
+    public string ValidateToken(string authTokenBase64)
     {
-        var guid = CryptoToolkit.Crypto.VerifySignedTimedToken(pubkey, authTokenBase64, 120.0);
-        if (guid == null)
+        var timedToken = CryptoToolkit.Crypto.VerifySignedTimedToken(authTokenBase64, 120.0);
+        if (timedToken == null)
             throw new InvalidOperationException();
 
-        var tk = (from token in settlerContext.Value.Tokens where token.pubkey == pubkey.AsHex() && token.id == guid select token).FirstOrDefault();
+        var tk = (from token in settlerContext.Value.Tokens where token.pubkey == timedToken.Value.PublicKey && token.id == timedToken.Value.Guid select token).FirstOrDefault();
         if (tk == null)
             throw new InvalidOperationException();
 
-        return this;
+        return tk.pubkey;
     }
 
 
@@ -281,7 +282,7 @@ public class Settler : CertificationAuthority
 
     public async Task<SettlementTrust> GenerateSettlementTrust(string replierpubkey, byte[] message, string replyInvoice, RequestPayload signedRequestPayload, Certificate replierCertificate)
     {
-        var decodedInv = await lndWalletClient.DecodeInvoiceAsync(this.CaXOnlyPublicKey.AsHex(), walletToken(), replyInvoice);
+        var decodedInv = await lndWalletClient.DecodeInvoiceAsync(walletToken(), replyInvoice);
         var invPaymentHash = decodedInv.PaymentHash;
         if ((from pi in settlerContext.Value.Preimages where pi.tid == signedRequestPayload.PayloadId && pi.hash == invPaymentHash select pi).FirstOrDefault() == null)
             throw new InvalidOperationException();
@@ -291,7 +292,7 @@ public class Settler : CertificationAuthority
 
         var networkInvoicePaymentHash = GenerateReplyPaymentPreimage(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.PayloadId);
         var networkInvoice = await lndWalletClient.AddHodlInvoiceAsync(
-            this.CaXOnlyPublicKey.AsHex(), walletToken(), priceAmountForSettlement, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds);
+             walletToken(), priceAmountForSettlement, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds);
 
         settlerContext.Value.Gigs.Add(new Gig()
         {
@@ -361,8 +362,8 @@ public class Settler : CertificationAuthority
                 {
                     if (gig.status == GigStatus.Open)
                     {
-                        var network_state = await lndWalletClient.GetInvoiceStateAsync(this.CaXOnlyPublicKey.AsHex(), walletToken(), gig.networkhash);
-                        var payment_state = await lndWalletClient.GetInvoiceStateAsync(this.CaXOnlyPublicKey.AsHex(), walletToken(), gig.networkhash);
+                        var network_state = await lndWalletClient.GetInvoiceStateAsync(walletToken(), gig.networkhash);
+                        var payment_state = await lndWalletClient.GetInvoiceStateAsync(walletToken(), gig.networkhash);
                         if (network_state == "Accepted" && payment_state == "Accepted")
                         {
                             gig.status = GigStatus.Accepted;

@@ -142,19 +142,6 @@ public class LNDAccountManager
         this.info = info;
     }
 
-    public LNDAccountManager ValidateToken(string authTokenBase64)
-    {
-        var guid = CryptoToolkit.Crypto.VerifySignedTimedToken(pubKey, authTokenBase64, 120.0);
-        if (guid == null)
-            throw new InvalidOperationException();
-
-        var tk = (from token in walletContext.Value.Tokens where token.pubkey == account && token.id == guid select token).FirstOrDefault();
-        if (tk == null)
-            throw new InvalidOperationException();
-
-        return this;
-    }
-
     public string NewAddress(long txfee)
     {
             var newaddress = LND.NewAddress(conf);
@@ -529,6 +516,19 @@ public class LNDWalletManager
         trackPaymentsCancallationTokenSource.Cancel();
         subscribeInvoicesThread.Join();
         trackPaymentsThread.Join();
+    }
+
+    public LNDAccountManager ValidateTokenGetAccount(string authTokenBase64)
+    {
+        var timedToken = CryptoToolkit.Crypto.VerifySignedTimedToken(authTokenBase64, 120.0);
+        if (timedToken == null)
+            throw new InvalidOperationException();
+
+        var tk = (from token in walletContext.Value.Tokens where token.pubkey == timedToken.Value.PublicKey && token.id == timedToken.Value.Guid select token).FirstOrDefault();
+        if (tk == null)
+            throw new InvalidOperationException();
+
+        return GetAccount(Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(tk.pubkey)));
     }
 
     public LNDAccountManager GetAccount(ECXOnlyPubKey pubkey)

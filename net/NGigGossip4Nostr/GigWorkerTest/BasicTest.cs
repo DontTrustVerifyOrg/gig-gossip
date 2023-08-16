@@ -150,14 +150,14 @@ public class BasicTest
             );
 
         await settlerClient.GiveUserPropertyAsync(
-                gigWorker.PublicKey, token,
+                token, gigWorker.PublicKey,
                 "drive", val,
                 (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
              );
 
         var gigWorkerCert = Crypto.DeserializeObject<Certificate>(
             await settlerClient.IssueCertificateAsync(
-                gigWorker.PublicKey, token, new List<string> { "drive" }));
+                 token, gigWorker.PublicKey, new List<string> { "drive" }));
 
         var customer = new GigGossipNode(
             Context.Instance.CreateECPrivKey(Convert.FromHexString(customerSettings.PrivateKey)),
@@ -165,14 +165,14 @@ public class BasicTest
             );
 
         await settlerClient.GiveUserPropertyAsync(
-            customer.PublicKey, token,
+            token, customer.PublicKey,
             "ride", val,
             (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
          );
 
         var customerCert = Crypto.DeserializeObject<Certificate>(
             await settlerClient.IssueCertificateAsync(
-                customer.PublicKey, token, new List<string> { "ride" }));
+                token, customer.PublicKey, new List<string> { "ride" }));
 
 
         await gigWorker.Init(

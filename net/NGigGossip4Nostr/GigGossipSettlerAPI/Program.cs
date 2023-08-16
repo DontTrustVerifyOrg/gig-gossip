@@ -77,95 +77,94 @@ app.MapGet("/gettoken", (string pubkey) =>
 .WithName("GetToken")
 .WithOpenApi();
 
-app.MapGet("/giveuserproperty", (string pubkey, string authToken, string name, string value, DateTime validTill) =>
+app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, string value, DateTime validTill) =>
 {
-    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    gigGossipSettler.ValidateToken(pubk, authToken).GiveUserProperty(pubkey, name, Convert.FromBase64String(value), validTill);
+    gigGossipSettler.ValidateToken(authToken);
+    gigGossipSettler.GiveUserProperty(pubkey, name, Convert.FromBase64String(value), validTill);
 })
 .WithName("GiveUserProperty")
 .WithOpenApi();
 
-app.MapGet("/revokeuserproperty", (string pubkey, string authToken, string name) =>
+app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name) =>
 {
-    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    gigGossipSettler.ValidateToken(pubk, authToken).RevokeUserProperty(pubkey, name);
+    gigGossipSettler.ValidateToken(authToken);
+    gigGossipSettler.RevokeUserProperty(pubkey, name);
 })
 .WithName("RevokeUserProperty")
 .WithOpenApi();
 
-app.MapGet("/issuecertificate", (string pubkey, string authToken, string[] properties) =>
+app.MapGet("/issuecertificate", (string authToken, string pubkey, string[] properties) =>
 {
-    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return Crypto.SerializeObject(gigGossipSettler.ValidateToken(pubk, authToken).IssueCertificate(pubkey, properties));
+    gigGossipSettler.ValidateToken(authToken);
+    return Crypto.SerializeObject(gigGossipSettler.IssueCertificate(pubkey, properties));
 })
 .WithName("IssueCertificate")
 .WithOpenApi();
 
-app.MapGet("/getcertificate", (string pubkey, string authToken, Guid certid) =>
+app.MapGet("/getcertificate", (string authToken, string pubkey, Guid certid) =>
 {
-    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return Crypto.SerializeObject(gigGossipSettler.ValidateToken(pubk, authToken).GetCertificate(pubkey, certid));
+    gigGossipSettler.ValidateToken(authToken);
+    return Crypto.SerializeObject(gigGossipSettler.GetCertificate(pubkey, certid));
 })
 .WithName("GetCertificate")
 .WithOpenApi();
 
-app.MapGet("/listcertificates", (string pubkey, string authToken) =>
+app.MapGet("/listcertificates", (string authToken, string pubkey) =>
 {
-    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return gigGossipSettler.ValidateToken(pubk, authToken).ListCertificates(pubkey);
+    gigGossipSettler.ValidateToken(authToken);
+    return gigGossipSettler.ListCertificates(pubkey);
 })
 .WithName("ListCertificates")
 .WithOpenApi();
 
-app.MapGet("/generatereplypaymentpreimage", (string pubkey, string authToken, Guid tid) =>
+app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid tid) =>
 {
-    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return gigGossipSettler.ValidateToken(pubk,authToken).GenerateReplyPaymentPreimage(pubkey,tid);
+    var pubkey = gigGossipSettler.ValidateToken(authToken);
+    return gigGossipSettler.GenerateReplyPaymentPreimage(pubkey,tid);
 })
 .WithName("GenerateReplyPaymentPreimage")
 .WithOpenApi();
 
-app.MapGet("/generaterelatedpreimage", (string pubkey, string authToken, string paymentHash) =>
+app.MapGet("/generaterelatedpreimage", (string authToken, string paymentHash) =>
 {
-    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return gigGossipSettler.ValidateToken(pubk, authToken).GenerateRelatedPreimage(pubkey, paymentHash);
+    var pubkey = gigGossipSettler.ValidateToken(authToken);
+    return gigGossipSettler.GenerateRelatedPreimage(pubkey, paymentHash);
 })
 .WithName("GenerateRelatedPreimage")
 .WithOpenApi();
 
-app.MapGet("/revealpreimage", (string pubkey, string authToken, string paymentHash) =>
+app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
 {
-    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return gigGossipSettler.ValidateToken(pubk, authToken).RevealPreimage(pubkey, paymentHash);
+    var pubkey = gigGossipSettler.ValidateToken(authToken);
+    return gigGossipSettler.RevealPreimage(pubkey, paymentHash);
 })
 .WithName("RevealPreimage")
 .WithOpenApi();
 
 
-app.MapGet("/generatesettlementtrust", async (string pubkey, string authToken, string message, string replyinvoice, string signedRequestPayloadSerialized, string replierCertificateSerialized) =>
+app.MapGet("/generatesettlementtrust", async (string authToken, string message, string replyinvoice, string signedRequestPayloadSerialized, string replierCertificateSerialized) =>
 {
+    var pubkey = gigGossipSettler.ValidateToken(authToken);
     var signedRequestPayload = Crypto.DeserializeObject< RequestPayload>(Convert.FromBase64String(signedRequestPayloadSerialized));
     var replierCertificate = Crypto.DeserializeObject< Certificate>(Convert.FromBase64String(replierCertificateSerialized));
-
-    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    var st = await gigGossipSettler.ValidateToken(pubk, authToken).GenerateSettlementTrust(pubkey, Convert.FromBase64String(message), replyinvoice, signedRequestPayload, replierCertificate);
+    var st = await gigGossipSettler.GenerateSettlementTrust(pubkey, Convert.FromBase64String(message), replyinvoice, signedRequestPayload, replierCertificate);
     return Convert.ToBase64String(Crypto.SerializeObject(st));
 })
 .WithName("GenerateSettlementTrust")
 .WithOpenApi();
 
-app.MapGet("/revealsymmetrickey", (string pubkey, string authToken, Guid tid) =>
+app.MapGet("/revealsymmetrickey", (string authToken, Guid tid) =>
 {
-    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    return gigGossipSettler.ValidateToken(pubk, authToken).RevealSymmetricKey(pubkey, tid);
+    var pubkey = gigGossipSettler.ValidateToken(authToken);
+    return gigGossipSettler.RevealSymmetricKey(pubkey, tid);
 })
 .WithName("RevealSymmetricKey")
 .WithOpenApi();
 
-app.MapGet("/managedispute", (string pubkey, string authToken, Guid tid, bool open) =>
+app.MapGet("/managedispute", (string authToken, Guid tid, bool open) =>
 {
-    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
-    gigGossipSettler.ValidateToken(pubk, authToken).ManageDispute(tid, open);
+    gigGossipSettler.ValidateToken(authToken);
+    gigGossipSettler.ManageDispute(tid, open);
 })
 .WithName("ManageDispute")
 .WithOpenApi();
