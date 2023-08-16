@@ -9,7 +9,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NGigGossip4Nostr\NGigGossip4Nostr.csproj" />
-    <ProjectReference Include="..\NGigTaxiLib\NGigTaxiLib.csproj" />
     <ProjectReference Include="..\GigGossipSettlerAPIClient\GigGossipSettlerAPIClient.csproj" />
     <ProjectReference Include="..\GigLNDWalletAPIClient\GigLNDWalletAPIClient.csproj" />
   </ItemGroup>

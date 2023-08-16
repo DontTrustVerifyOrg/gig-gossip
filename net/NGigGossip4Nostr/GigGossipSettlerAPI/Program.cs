@@ -101,7 +101,21 @@ app.MapGet("/issuecertificate", (string pubkey, string authToken, string[] prope
 .WithName("IssueCertificate")
 .WithOpenApi();
 
+app.MapGet("/getcertificate", (string pubkey, string authToken, Guid certid) =>
+{
+    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
+    return Crypto.SerializeObject(gigGossipSettler.ValidateToken(pubk, authToken).GetCertificate(pubkey, certid));
+})
+.WithName("GetCertificate")
+.WithOpenApi();
 
+app.MapGet("/listcertificates", (string pubkey, string authToken) =>
+{
+    var pubk = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey));
+    return gigGossipSettler.ValidateToken(pubk, authToken).ListCertificates(pubkey);
+})
+.WithName("ListCertificates")
+.WithOpenApi();
 
 app.MapGet("/generatereplypaymentpreimage", (string pubkey, string authToken, Guid tid) =>
 {

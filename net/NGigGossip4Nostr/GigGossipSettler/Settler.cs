@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Runtime.ConstrainedExecution;
 using System.Xml.Linq;
 using CryptoToolkit;
 using GigLNDWalletAPIClient;
@@ -216,6 +217,19 @@ public class Settler : CertificationAuthority
         settlerContext.Value.UserCertificates.Add(new UserCertificate() { pubkey = pubkey, certid = cert.Id, isrevoked = false, certificate = Crypto.SerializeObject(cert) });
         settlerContext.Value.SaveChanges();
         return cert;
+    }
+
+    public Guid[] ListCertificates(string pubkey)
+    {
+        return (from cert in settlerContext.Value.UserCertificates where cert.pubkey == pubkey && !cert.isrevoked select cert.certid).ToArray();
+    }
+
+    public Certificate GetCertificate(string pubkey, Guid certid)
+    {
+        var crt = (from c in settlerContext.Value.UserCertificates where c.pubkey == pubkey && c.certid == certid && !c.isrevoked select c.certificate).FirstOrDefault();
+        if (crt == null)
+            throw new InvalidOperationException();
+        return Crypto.DeserializeObject<Certificate>(crt);
     }
 
     public bool IsCertificateRevoked(Guid certid)

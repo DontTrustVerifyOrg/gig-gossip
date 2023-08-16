@@ -92,7 +92,7 @@ public abstract class NostrNode
 
     Thread mainThread;
 
-    public virtual void Start()
+    protected void Start()
     {
         nostrClient.ConnectAndWaitUntilConnected().Wait();
         mainThread = new Thread(async () =>
