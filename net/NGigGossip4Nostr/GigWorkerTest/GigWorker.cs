@@ -21,16 +21,16 @@ public class GigWorker : Gossiper
     public async Task GenerateMyCert(Uri mySettler)
     {
         this.mySettler = mySettler;
-        var token = await this.settlerToken(mySettler);
+        var token = await this.SettlerToken(mySettler);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
-        await this.settlerClientSelector.GetSettlerClient(mySettler).GiveUserPropertyAsync(
+        await this.SettlerSelector.GetSettlerClient(mySettler).GiveUserPropertyAsync(
             this.PublicKey, token,
             "drive", val,
             (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
              );
 
-        var cert = await this.settlerClientSelector.GetSettlerClient(mySettler).IssueCertificateAsync(
-            this.PublicKey, await this.settlerToken(mySettler), new List<string> { "drive" });
+        var cert = await this.SettlerSelector.GetSettlerClient(mySettler).IssueCertificateAsync(
+            this.PublicKey, await this.SettlerToken(mySettler), new List<string> { "drive" });
         mycert = Crypto.DeserializeObject<Certificate>(cert);
     }
 

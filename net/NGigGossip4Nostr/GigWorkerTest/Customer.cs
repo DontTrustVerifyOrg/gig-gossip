@@ -22,15 +22,15 @@ public class Customer : Gossiper
     public async Task GenerateMyCert(Uri mySettler)
     {
         this.mySettler = mySettler;
-        var token = await this.settlerToken(mySettler);
-        await this.settlerClientSelector.GetSettlerClient(mySettler).GiveUserPropertyAsync(
+        var token = await this.SettlerToken(mySettler);
+        await this.SettlerSelector.GetSettlerClient(mySettler).GiveUserPropertyAsync(
             this.PublicKey, token,
             "ride", Convert.ToBase64String(Encoding.Default.GetBytes("ok")),
             (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
              );
 
-        var cert = await this.settlerClientSelector.GetSettlerClient(mySettler).IssueCertificateAsync(
-            this.PublicKey, await this.settlerToken(mySettler), new List<string> { "ride" });
+        var cert = await this.SettlerSelector.GetSettlerClient(mySettler).IssueCertificateAsync(
+            this.PublicKey, await this.SettlerToken(mySettler), new List<string> { "ride" });
         mycert = Crypto.DeserializeObject<Certificate>(cert);
     }
 

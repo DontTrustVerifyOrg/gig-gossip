@@ -101,20 +101,18 @@ public class BasicTest
     }
 
 
-    private void Customer_OnNewResponse(object? sender, ResponseEventArgs e)
+    private void Customer_OnNewResponse(object? sender, NewResponseEventArgs e)
     {
-        (sender as GigGossipNode).AcceptResponse(e.payload, e.network_invoice);
+        (sender as GigGossipNode).AcceptResponse(e.Payload, e.NetworkInvoice);
     }
+    // var settler =  settlerSelector.GetSettlerClient(customerSettings.SettlerOpenApi);
+    // var token = settlerSelector.GetTokenAsync(customer.PublicKey);
+    // var key = settler.RevealSymmetricKeyAsync(customer.PublicKey, token, customer.topicId);
 
-    private async void Customer_OnResponseReady(object? sender, ResponseEventArgs e)
+    private async void Customer_OnResponseReady(object? sender, ResponseReadyEventArgs e)
     {
-
-       // var settler =  settlerSelector.GetSettlerClient(customerSettings.SettlerOpenApi);
-       // var token = settlerSelector.GetTokenAsync(customer.PublicKey);
-       // var key = settler.RevealSymmetricKeyAsync(customer.PublicKey, token, customer.topicId);
-
-       // var message = Crypto.SymmetricDecrypt<byte[]>(e.payload..network_invoice.Preimage, e.payload.EncryptedReplyMessage);
-       // Trace.TraceInformation(Encoding.Default.GetString(message));
+       var message = Crypto.SymmetricDecrypt<byte[]>(Convert.FromHexString(e.SymmetricKey), e.Payload.EncryptedReplyMessage);
+       Trace.TraceInformation(Encoding.Default.GetString(message));
     }
 }
 
