@@ -91,11 +91,11 @@ if (peersof2.Peers.Where((p) => p.PubKey == nd3.IdentityPubkey).Count() == 0)
     LND.Connect(confs[2], confs[2].ListenHost, nd3.IdentityPubkey);
 
 //create wallets for all 3 lnd nodes
-var wallet1 = new LNDWalletManager(confs[0].ConnectionString, confs[0], nd1, deleteDb: deleteDb);
+var wallet1 = new LNDWalletManager(confs[0].ConnectionString, confs[0],  deleteDb: deleteDb);
 wallet1.Start();
-var wallet2 = new LNDWalletManager(confs[1].ConnectionString, confs[1], nd2, deleteDb: deleteDb);
+var wallet2 = new LNDWalletManager(confs[1].ConnectionString, confs[1],  deleteDb: deleteDb);
 wallet2.Start();
-var wallet3 = new LNDWalletManager(confs[2].ConnectionString, confs[2], nd3, deleteDb: deleteDb);
+var wallet3 = new LNDWalletManager(confs[2].ConnectionString, confs[2], deleteDb: deleteDb);
 wallet3.Start();
 
 //setup user accounts
@@ -247,15 +247,9 @@ public class ApplicationSettings
 
 public class LndSettings : NodeSettings
 {
-    public string FriendNodes { get; set; }
     public long MaxSatoshisPerChannel { get; set; }
     public string ConnectionString { get; set; }
     public string PrivateKey { get; set; }
-
-    public List<string> GetFriendNodes()
-    {
-        return (from s in JsonArray.Parse(FriendNodes).AsArray() select s.GetValue<string>()).ToList();
-    }
 }
 
 public class BitcoinSettings

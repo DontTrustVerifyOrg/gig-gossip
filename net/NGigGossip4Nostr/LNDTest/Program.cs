@@ -128,11 +128,5 @@ public class LndNodesSettings
 
 public class LndSettings: NodeSettings
 {
-    public string FriendNodes { get; set; }
     public long MaxSatoshisPerChannel { get; set; }
-
-    public List<string> GetFriendNodes()
-    {
-        return (from s in JsonArray.Parse(FriendNodes).AsArray() select s.GetValue<string>()).ToList();
-    }
 }

@@ -7,6 +7,7 @@ using Lnrpc;
 using Microsoft.OpenApi.Models;
 using NBitcoin.Secp256k1;
 using Newtonsoft.Json;
+using static NBitcoin.Scripting.PubKeyProvider;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,11 +49,20 @@ var config = GetConfigurationRoot(".giggossip", "wallet.conf");
 var walletSettings = config.GetSection("wallet").Get<WalletSettings>();
 var lndConf = config.GetSection("lnd").Get<LndSettings>();
 
+while (true)
+{
+    var nd1 = LND.GetNodeInfo(lndConf);
+    if (nd1.SyncedToChain)
+        break;
+
+    Console.WriteLine("Node not synced to chain");
+    Thread.Sleep(1000);
+}
+
 
 LNDWalletManager walletManager = new LNDWalletManager(
     walletSettings.ConnectionString,
     lndConf,
-    LND.GetNodeInfo(lndConf),
     deleteDb: false);
 walletManager.Start();
 

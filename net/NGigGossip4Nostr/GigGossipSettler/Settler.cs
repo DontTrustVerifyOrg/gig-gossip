@@ -356,14 +356,14 @@ public class Settler : CertificationAuthority
         {
             while (Interlocked.Read(ref _invoiceTrackerThreadStop) == 0)
             {
-                List<Gig> gigs = (from g in settlerContext.Value.Gigs where (g.status == GigStatus.Open || g.status == GigStatus.Accepted) && DateTime.Now > g.disputedeadline select g).ToList();
+                List<Gig> gigs = (from g in settlerContext.Value.Gigs where (g.status == GigStatus.Open || g.status == GigStatus.Accepted) select g).ToList();
 
                 foreach (var gig in gigs)
                 {
                     if (gig.status == GigStatus.Open)
                     {
                         var network_state = await lndWalletClient.GetInvoiceStateAsync(walletToken(), gig.networkhash);
-                        var payment_state = await lndWalletClient.GetInvoiceStateAsync(walletToken(), gig.networkhash);
+                        var payment_state = await lndWalletClient.GetInvoiceStateAsync(walletToken(), gig.paymenthash);
                         if (network_state == "Accepted" && payment_state == "Accepted")
                         {
                             gig.status = GigStatus.Accepted;
@@ -380,7 +380,7 @@ public class Settler : CertificationAuthority
                     }
                     else if (gig.status == GigStatus.Accepted)
                     {
-                        if (DateTime.Now > gig.disputedeadline) // shuld be alwas true due to where in linq
+                        if (DateTime.Now > gig.disputedeadline) 
                         {
                             var preims = (from pi in settlerContext.Value.Preimages where pi.tid == gig.tid select pi).ToList();
                             foreach (var pi in preims)
@@ -389,6 +389,10 @@ public class Settler : CertificationAuthority
                             gig.status = GigStatus.Completed;
                             settlerContext.Value.Update(gig);
                             settlerContext.Value.SaveChanges();
+                            var settletPi = (from pi in preims where pi.pubkey == this.CaXOnlyPublicKey.AsHex() select pi).FirstOrDefault();
+                            if (settletPi == null)
+                                throw new InvalidOperationException();
+                            await lndWalletClient.SettleInvoiceAsync(walletToken(), settletPi.preimage); // settle settlers network invoice
                         }
                     }
                 }

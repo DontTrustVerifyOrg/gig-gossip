@@ -127,25 +127,19 @@ public class LNDAccountManager
 {
     LND.NodeSettings conf;
     ThreadLocal<WaletContext> walletContext;
-    GetInfoResponse info;
-    string account;
-    ECXOnlyPubKey pubKey;
-    string connectionString;
+    string publicKey;
 
-    internal LNDAccountManager(LND.NodeSettings conf, string connectionString, GetInfoResponse info, ECXOnlyPubKey pubKey)
+    internal LNDAccountManager(LND.NodeSettings conf, string connectionString, ECXOnlyPubKey pubKey)
     {
-        this.connectionString = connectionString;
-        this.pubKey = pubKey;
         this.conf = conf;
-        this.account = pubKey.AsHex();
+        this.publicKey = pubKey.AsHex();
         this.walletContext = new ThreadLocal<WaletContext>(() => new WaletContext(connectionString));
-        this.info = info;
     }
 
     public string NewAddress(long txfee)
     {
             var newaddress = LND.NewAddress(conf);
-            walletContext.Value.FundingAddresses.Add(new Address() { address = newaddress, pubkey = account, txfee = txfee });
+            walletContext.Value.FundingAddresses.Add(new Address() { address = newaddress, pubkey = publicKey, txfee = txfee });
             walletContext.Value.SaveChanges();
             return newaddress;
     }
@@ -161,7 +155,7 @@ public class LNDAccountManager
             {
                 id = myid,
                 address = btcAddress,
-                pubkey = account,
+                pubkey = publicKey,
                 txfee = txfee,
                 ispending = true,
                 satoshis = satoshis
@@ -174,7 +168,7 @@ public class LNDAccountManager
     {
             var myaddrs = new Dictionary<string, long>(
                 from a in walletContext.Value.FundingAddresses
-                where a.pubkey == account
+                where a.pubkey == publicKey
                 select new KeyValuePair<string, long>(a.address, a.txfee));
 
             var transactuinsResp = LND.GetTransactions(conf);
@@ -194,21 +188,21 @@ public class LNDAccountManager
     public long GetPayedOutAmount()
     {
             return (from a in walletContext.Value.Payouts
-                    where a.pubkey == account
+                    where a.pubkey == publicKey
                     select ((long)(a.satoshis + a.txfee))).Sum();
     }
 
     public List<LNDWallet.Payout> GetPendingPayouts()
     {
             return (from a in walletContext.Value.Payouts
-                    where a.pubkey == account && a.ispending
+                    where a.pubkey == publicKey && a.ispending
                     select a).ToList();
     }
 
     public long GetPendingPayedOutAmount()
     {
             return (from a in walletContext.Value.Payouts
-                    where a.pubkey == account && a.ispending
+                    where a.pubkey == publicKey && a.ispending
                     select ((long)(a.satoshis + a.txfee))).Sum();
     }
 
@@ -217,7 +211,7 @@ public class LNDAccountManager
         Dictionary<string, LNDWallet.Payout> mypayouts;
             mypayouts = new Dictionary<string, LNDWallet.Payout>(
                 from a in walletContext.Value.Payouts
-                where a.pubkey == account
+                where a.pubkey == publicKey
                 select new KeyValuePair<string, LNDWallet.Payout>(a.address, a));
 
         var transactuinsResp = LND.GetTransactions(conf);
@@ -239,7 +233,7 @@ public class LNDAccountManager
         var inv = LND.AddHodlInvoice(conf, satoshis, memo, hash, expiry);
             walletContext.Value.Invoices.Add(new Invoice() {
                 hash = hash.AsHex(),
-                pubkey = account,
+                pubkey = publicKey,
                 paymentreq = inv.PaymentRequest,
                 satoshis = (long)satoshis,
                 state = InvoiceState.Open,
@@ -257,7 +251,7 @@ public class LNDAccountManager
             walletContext.Value.Invoices.Add(new Invoice()
             {
                 hash = inv.RHash.ToArray().AsHex(),
-                pubkey = account,
+                pubkey = publicKey,
                 paymentreq = inv.PaymentRequest,
                 satoshis = (long)satoshis,
                 state = InvoiceState.Open,
@@ -289,7 +283,7 @@ public class LNDAccountManager
                 walletContext.Value.Payments.Add(new Payment()
                 {
                     hash = decinv.PaymentHash,
-                    pubkey = account,
+                    pubkey = publicKey,
                     satoshis = selfInv.satoshis,
                     txfee = txfee,
                     isselfmanaged = true,
@@ -304,7 +298,7 @@ public class LNDAccountManager
                 walletContext.Value.Payments.Add(new Payment()
                 {
                     hash = decinv.PaymentHash,
-                    pubkey = account,
+                    pubkey = publicKey,
                     satoshis = (long)decinv.NumSatoshis,
                     txfee = txfee,
                     isselfmanaged = false,
@@ -373,11 +367,11 @@ public class LNDAccountManager
             var alreadypayedout = GetPayedOutAmount();
 
             var earnedFromSettledInvoices = (from inv in walletContext.Value.Invoices
-                                            where inv.pubkey == account && inv.state == InvoiceState.Settled
+                                            where inv.pubkey == publicKey && inv.state == InvoiceState.Settled
                                             select (long)inv.satoshis-(long)inv.txfee).Sum();
 
             var sendOrLocedPayments = (from pay in walletContext.Value.Payments
-                                            where pay.pubkey == account
+                                            where pay.pubkey == publicKey
                                             select (long)pay.satoshis + ((long)pay.paymentfee + (long)pay.txfee)).Sum();
 
             return channelfunds - alreadypayedout + earnedFromSettledInvoices - sendOrLocedPayments;
@@ -389,10 +383,9 @@ public class LNDWalletManager
 {
     LND.NodeSettings conf;
     ThreadLocal<WaletContext> walletContext;
-    GetInfoResponse info;
     string connectionString;
 
-    public LNDWalletManager(string connectionString, LND.NodeSettings conf, GetInfoResponse nodeInfo, bool deleteDb = false)
+    public LNDWalletManager(string connectionString, LND.NodeSettings conf, bool deleteDb = false)
     {
         this.connectionString = connectionString;
         this.walletContext = new ThreadLocal<WaletContext>(() => new WaletContext(connectionString));
@@ -400,7 +393,6 @@ public class LNDWalletManager
         if (deleteDb)
             walletContext.Value.Database.EnsureDeleted();
         walletContext.Value.Database.EnsureCreated();
-        this.info = nodeInfo;
     }
 
     CancellationTokenSource subscribeInvoicesCancallationTokenSource;
@@ -408,6 +400,17 @@ public class LNDWalletManager
 
     CancellationTokenSource trackPaymentsCancallationTokenSource;
     Thread trackPaymentsThread;
+
+    public ListPeersResponse ListPeers()
+    {
+        return LND.ListPeers(conf);
+    }
+
+    public void Connect(string friend)
+    {
+        var pr = friend.Split('@');
+        LND.Connect(conf, pr[1], pr[0]);
+    }
 
     public void Start()
     {
@@ -533,7 +536,7 @@ public class LNDWalletManager
 
     public LNDAccountManager GetAccount(ECXOnlyPubKey pubkey)
     {
-        return new LNDAccountManager(conf, this.connectionString, info, pubkey);
+        return new LNDAccountManager(conf, this.connectionString,pubkey);
     }
 
     public Guid GetToken(string pubkey)

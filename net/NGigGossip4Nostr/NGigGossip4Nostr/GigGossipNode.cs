@@ -270,6 +270,16 @@ public class GigGossipNode : NostrNode
         var settlerClient = this.SettlerSelector.GetSettlerClient(acceptBroadcastResponse.SettlerServiceUri);
         var replyPaymentHash = await settlerClient.GenerateReplyPaymentPreimageAsync(await SettlerToken(acceptBroadcastResponse.SettlerServiceUri), powBroadcastFrame.BroadcastPayload.SignedRequestPayload.PayloadId.ToString());
         var replyInvoice = (await LNDWalletClient.AddHodlInvoiceAsync(WalletToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds)).PaymentRequest;
+        this.settlerMonitor.MonitorPreimage(
+            acceptBroadcastResponse.SettlerServiceUri,
+            replyPaymentHash,
+            (preimage) =>
+            {
+                LNDWalletClient.SettleInvoiceAsync(
+                    WalletToken(),
+                    preimage
+                    ).Wait();
+            });
         var signedRequestPayloadSerialized = Crypto.SerializeObject(powBroadcastFrame.BroadcastPayload.SignedRequestPayload);
         var replierCertificateSerialized = Crypto.SerializeObject(acceptBroadcastResponse.MyCertificate);
         var settr = await settlerClient.GenerateSettlementTrustAsync(await SettlerToken(acceptBroadcastResponse.SettlerServiceUri), Convert.ToBase64String(acceptBroadcastResponse.Message), replyInvoice, Convert.ToBase64String(signedRequestPayloadSerialized), Convert.ToBase64String(replierCertificateSerialized));
@@ -401,7 +411,8 @@ public class GigGossipNode : NostrNode
 
         Trace.TraceInformation("accepting the network payment");
 
-        await LNDWalletClient.SendPaymentAsync(WalletToken(), networkInvoice, 10000);
+        await LNDWalletClient.SendPaymentAsync(WalletToken(), networkInvoice, (int)this.invoicePaymentTimeout.TotalSeconds);
+        await LNDWalletClient.SendPaymentAsync(WalletToken(), replyPayload.ReplyInvoice, (int)this.invoicePaymentTimeout.TotalSeconds);
     }
 
     public override async void OnMessage(string senderPublicKey, object frame)

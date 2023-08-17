@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using CryptoToolkit;
+using NBitcoin;
 using NBitcoin.Secp256k1;
 using static System.Collections.Specialized.BitVector32;
 
@@ -54,8 +55,8 @@ namespace NGigGossip4Nostr
 							var serviceUri = kv.Key.Item1;
 							var phash = kv.Key.Item2;
 							var preimage = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.SettlerToken(serviceUri), phash);
-							if (preimage != null)
-							{
+                            if (!string.IsNullOrWhiteSpace(preimage))
+                            {
 								lock (monitoredPreimages)
 									monitoredPreimages[kv.Key] = preimage;
 								Action<string> act = null;
@@ -76,7 +77,7 @@ namespace NGigGossip4Nostr
 							var serviceUri = kv.Key.Item1;
 							var tid = kv.Key.Item2;
 							var key = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.SettlerToken(serviceUri), tid.ToString());
-							if (key != null)
+							if (!string.IsNullOrWhiteSpace(key))
 							{
 								lock (monitoredKeys)
 									monitoredKeys[kv.Key] = key;

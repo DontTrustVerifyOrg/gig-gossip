@@ -32,13 +32,27 @@ public class LNDChannelManager
 
 	void Main()
 	{
-		while (true)
+        var peersof2 = new HashSet<string>(from p in walletManager.ListPeers().Peers select p.PubKey+"@"+p.Address.Replace("127.0.0.1","localhost"));
+
+        foreach (var friend in nearbyNodes)
+		{
+			try
+			{
+				if(!peersof2.Contains(friend.Replace("127.0.0.1", "localhost")))
+					walletManager.Connect(friend.Replace("127.0.0.1", "localhost"));
+			}
+			catch(Exception ex)
+			{
+
+			}
+		}	
+        while (true)
 		{
 			if (stop)
 				return;
 
-			foreach (var nodePubKey in nearbyNodes)
-				GoForOpeningNewChannelsForNode(nodePubKey, maxSatoshisPerChannel, estimatedTxFee);
+			foreach (var friend in nearbyNodes)
+				GoForOpeningNewChannelsForNode(friend.Split("@")[0], maxSatoshisPerChannel, estimatedTxFee);
 			GoForExecutingPayouts(estimatedTxFee);
 
 			Thread.Sleep(1000);
