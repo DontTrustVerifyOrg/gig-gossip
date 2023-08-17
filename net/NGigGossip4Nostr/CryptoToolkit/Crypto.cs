@@ -11,6 +11,9 @@ using System.Text.Json;
 
 namespace CryptoToolkit;
 
+/// <summary>
+/// This static class contains extension methods for working with hexadecimal values.
+/// </summary>
 public static class HexExtensions
 {
     public static string AsHex(this ECPrivKey key)
@@ -33,8 +36,14 @@ public static class HexExtensions
     }
 }
 
+/// <summary>
+/// The Crypto class provides utilities for cryptographic operations such as signing objects, verifying signatures, encryption and decryption.
+/// </summary>
 public static class Crypto
 {
+    /// <summary>
+    /// A struct to represent a timed GUID token with its signature. Used in API calls.
+    /// </summary>
     [Serializable]
     public struct TimedGuidToken
     {
@@ -44,6 +53,9 @@ public static class Crypto
         public byte[] Signature { get; set; }
     }
 
+    /// <summary>
+    /// Creates a signed timed token using a provided private key, date time and guid.
+    /// </summary>
     public static string MakeSignedTimedToken(ECPrivKey ecpriv, DateTime dateTime, Guid guid)
     {
         var tt = new TimedGuidToken();
@@ -54,6 +66,9 @@ public static class Crypto
         return Convert.ToBase64String(SerializeObject(tt));
     }
 
+    /// <summary>
+    /// Verifies the validity of a signed timed token. Returns the timed token if it is valid within a given period of seconds. Returns null otherwise.
+    /// </summary>
     public static TimedGuidToken? VerifySignedTimedToken(string TimedTokenBase64, double seconds)
     {
         var serialized = Convert.FromBase64String(TimedTokenBase64);
@@ -68,28 +83,43 @@ public static class Crypto
         return timedToken;
     }
 
+    /// <summary>
+    /// Computes a SHA256 hash of an array of bytes representing a preimage for a payment. Used in Lightning Network HODL invoices for manual settlement.
+    /// </summary>
     public static byte[] ComputePaymentHash(byte[] preimage)
     {
         return ComputeSha256(preimage);
     }
 
+    /// <summary>
+    /// Generates a random preimage for Lightning Network HODL invoice.
+    /// </summary>
     public static byte[] GenerateRandomPreimage()
     {
         return RandomUtils.GetBytes(32);
     }
 
+    /// <summary>
+    /// Structure that encapsulates data and initial vector (IV) used for symmetric encryption.
+    /// </summary>
     public struct EncryptedData
     {
         public byte[] Data;
         public byte[] IV;
     }
 
+    /// <summary>
+    /// Generates a random ECDSA private key.
+    /// </summary>
     public static ECPrivKey GeneratECPrivKey()
     {
         return ECPrivKey.Create(RandomUtils.GetBytes(32));
     }
 
-    //from https://github.com/Kukks/NNostr/blob/master/NNostr.Client/Protocols/NIP04.cs
+    /// <summary>
+    /// Attempts to obtain a shared public key.
+    /// copied from https://github.com/Kukks/NNostr/blob/master/NNostr.Client/Protocols/NIP04.cs
+    /// </summary>
     private static bool TryGetSharedPubkey(this ECXOnlyPubKey ecxOnlyPubKey, ECPrivKey key,
         [NotNullWhen(true)] out ECPubKey? sharedPublicKey)
     {
@@ -103,7 +133,9 @@ public static class Crypto
         return success;
     }
 
-
+    /// <summary>
+    /// Encrypts an object using an ECDSA XOnly public key and a possible ECDSA private key by first computing shared key, and later performing AES Symmetric encryption using shared key.
+    /// </summary>
     public static byte[] EncryptObject(object obj, ECXOnlyPubKey theirXPublicKey, ECPrivKey? myPrivKey)
     {
         byte[] attachpubKey = null;
@@ -125,6 +157,9 @@ public static class Crypto
         return ret;
     }
 
+    /// <summary>
+    /// Decrypts an object using an ECDSA XOnly public key and a possible ECDSA private key by first computing shared key, and later performing AES Symmetric decryption using shared key.
+    /// </summary>
     public static T DecryptObject<T>(byte[] encryptedData, ECPrivKey myPrivKey, ECXOnlyPubKey? theirXPublicKey)
     {
         byte[] encryptedX = encryptedData;
@@ -148,6 +183,9 @@ public static class Crypto
         return SymmetricDecrypt<T>(decryptionKey, encryptedX);
     }
 
+    /// <summary>
+    /// Generates Schnorr signature of the SHA256 of serialized object.
+    /// </summary>
     public static byte[] SignObject(object obj, ECPrivKey myPrivKey)
     {
         byte[] serializedObj = SerializeObject(obj);
@@ -160,6 +198,9 @@ public static class Crypto
         return buf.ToArray();
     }
 
+    /// <summary>
+    /// Verifies Schnorr signature of the SHA256 of serialized object. Returns true if the signature is valid.
+    /// </summary>
     public static bool VerifyObject(object obj, byte[] signature, ECXOnlyPubKey theirKey)
     {
         SecpSchnorrSignature sign;
@@ -175,6 +216,9 @@ public static class Crypto
         return theirKey.SigVerifyBIP340(sign, buf);
     }
 
+    /// <summary>
+    /// Calculates SHA256 hash for a given byte array.
+    /// </summary>
     public static byte[] ComputeSha256(byte[] bytes)
     {
         Span<byte> buf = stackalloc byte[32];
@@ -183,6 +227,9 @@ public static class Crypto
         return buf.ToArray();
     }
 
+    /// <summary>
+    /// Calculates SHA256 hash for a list of byte arrays.
+    /// </summary>
     public static byte[] ComputeSha256(List<byte[]> items)
     {
         using (var sha256 = System.Security.Cryptography.SHA256.Create())
@@ -198,6 +245,9 @@ public static class Crypto
         }
     }
 
+    /// <summary>
+    /// Computes a SHA512 hash for a list of byte arrays.
+    /// </summary>
     public static byte[] ComputeSha512(List<byte[]> items)
     {
         using (var sha512 = System.Security.Cryptography.SHA512.Create())
@@ -213,6 +263,9 @@ public static class Crypto
         }
     }
 
+    /// <summary>
+    /// Generate a symmetric key for AES encryption.
+    /// </summary>
     public static byte[] GenerateSymmetricKey()
     {
         using (Aes aes = Aes.Create())
@@ -222,6 +275,9 @@ public static class Crypto
         }
     }
 
+    /// <summary>
+    /// Performs AES symmetric encryption on an object using a symmetric key.
+    /// </summary>
     public static byte[] SymmetricEncrypt(byte[] key, object obj)
     {
         byte[] serializedObj = SerializeObject(obj);
@@ -247,6 +303,9 @@ public static class Crypto
         }
     }
 
+    /// <summary>
+    /// Performs AES symmetric decryption on an encrypted object using a symmetric key.
+    /// </summary>
     public static T SymmetricDecrypt<T>(byte[] key, byte[] encryptedObj)
     {
         using (Aes aes = Aes.Create())
@@ -278,6 +337,10 @@ public static class Crypto
 
 #if BINARYSERIALIZE
 #pragma warning disable SYSLIB0011
+
+    /// <summary>
+    /// Serializes an object into a byte array using BinaryFormatter
+    /// </summary>
     public static byte[] SerializeObject(object obj)
     {
 
@@ -289,6 +352,9 @@ public static class Crypto
         }
     }
 
+    /// <summary>
+    /// Deserializes a byte array into an object of type T using BinaryFormatter
+    /// </summary>
     public static T DeserializeObject<T>(byte[] data)
     {
         using (MemoryStream ms = new MemoryStream(data))
@@ -299,6 +365,10 @@ public static class Crypto
         }
     }
 #else
+
+    /// <summary>
+    /// Serializes an object into a byte array using GZipped Json serialization
+    /// </summary>
     public static byte[] SerializeObject(object obj)
     {
         using (MemoryStream memoryStream = new MemoryStream())
@@ -311,6 +381,9 @@ public static class Crypto
         }
     }
 
+    /// <summary>
+    /// Deserializes a byte array into an object of returnType using GZipped Json serialization
+    /// </summary>
     public static object DeserializeObject(byte[] data, Type returnType)
     {
         using (MemoryStream compressedStream = new MemoryStream(data))
@@ -320,6 +393,9 @@ public static class Crypto
         }
     }
 
+    /// <summary>
+    /// Deserializes a byte array into an object of type T using GZipped Json serialization
+    /// </summary>
     public static T DeserializeObject<T>(byte[] data)
     {
         using (MemoryStream compressedStream = new MemoryStream(data))
