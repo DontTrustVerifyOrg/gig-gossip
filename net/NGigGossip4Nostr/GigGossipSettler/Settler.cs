@@ -14,6 +14,22 @@ using NGigGossip4Nostr;
 
 namespace GigGossipSettler;
 
+public class InvalidTokenException : Exception
+{
+}
+
+public class NotSufficientSubjectPropertiesException : Exception
+{
+}
+
+public class UnknownCertificateException : Exception
+{
+}
+
+public class UnknownPreimageException : Exception
+{
+}
+
 public class UserProperty
 {
     [Key]
@@ -147,15 +163,16 @@ public class Settler : CertificationAuthority
         return t.id;
     }
 
+
     public string ValidateToken(string authTokenBase64)
     {
         var timedToken = CryptoToolkit.Crypto.VerifySignedTimedToken(authTokenBase64, 120.0);
         if (timedToken == null)
-            throw new InvalidOperationException();
+            throw new InvalidTokenException();
 
         var tk = (from token in settlerContext.Value.Tokens where token.pubkey == timedToken.Value.PublicKey && token.id == timedToken.Value.Guid select token).FirstOrDefault();
         if (tk == null)
-            throw new InvalidOperationException();
+            throw new InvalidTokenException();
 
         return tk.pubkey;
     }
@@ -204,12 +221,13 @@ public class Settler : CertificationAuthority
         }
     }
 
+
     public Certificate IssueCertificate(string pubkey, string[] properties)
     {
         var props = (from u in settlerContext.Value.UserProperties where u.pubkey == pubkey && !u.isrevoked && u.validtill >= DateTime.Now && properties.Contains(u.name) select u).ToArray();
         var hasprops = new HashSet<string>(properties);
         if (!hasprops.SetEquals((from p in props select p.name)))
-            throw new InvalidOperationException();
+            throw new NotSufficientSubjectPropertiesException();
         var minDate = (from p in props select p.validtill).Min();
         var prp = new Dictionary<string, byte[]>((from p in props select KeyValuePair.Create<string, byte[]>(p.name, p.value)));
         var cert = base.IssueCertificate(Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(pubkey)), prp, minDate, DateTime.Now);
@@ -225,11 +243,13 @@ public class Settler : CertificationAuthority
         return (from cert in settlerContext.Value.UserCertificates where cert.pubkey == pubkey && !cert.isrevoked select cert.certid).ToArray();
     }
 
+
+
     public Certificate GetCertificate(string pubkey, Guid certid)
     {
         var crt = (from c in settlerContext.Value.UserCertificates where c.pubkey == pubkey && c.certid == certid && !c.isrevoked select c.certificate).FirstOrDefault();
         if (crt == null)
-            throw new InvalidOperationException();
+            throw new UnknownCertificateException();
         return Crypto.DeserializeObject<Certificate>(crt);
     }
 
@@ -280,12 +300,14 @@ public class Settler : CertificationAuthority
             return symkey.symmetrickey;
     }
 
+
+
     public async Task<SettlementTrust> GenerateSettlementTrust(string replierpubkey, byte[] message, string replyInvoice, RequestPayload signedRequestPayload, Certificate replierCertificate)
     {
         var decodedInv = await lndWalletClient.DecodeInvoiceAsync(walletToken(), replyInvoice);
         var invPaymentHash = decodedInv.PaymentHash;
         if ((from pi in settlerContext.Value.Preimages where pi.tid == signedRequestPayload.PayloadId && pi.hash == invPaymentHash select pi).FirstOrDefault() == null)
-            throw new InvalidOperationException();
+            throw new UnknownPreimageException();
 
         byte[] key = Crypto.GenerateSymmetricKey();
         byte[] encryptedReplyMessage = Crypto.SymmetricEncrypt(key, message);
@@ -391,7 +413,7 @@ public class Settler : CertificationAuthority
                             settlerContext.Value.SaveChanges();
                             var settletPi = (from pi in preims where pi.pubkey == this.CaXOnlyPublicKey.AsHex() select pi).FirstOrDefault();
                             if (settletPi == null)
-                                throw new InvalidOperationException();
+                                throw new UnknownPreimageException();
                             await lndWalletClient.SettleInvoiceAsync(walletToken(), settletPi.preimage); // settle settlers network invoice
                         }
                     }
