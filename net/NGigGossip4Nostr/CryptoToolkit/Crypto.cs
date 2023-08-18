@@ -34,6 +34,18 @@ public static class HexExtensions
     {
         return key.ToBytes().AsSpan().AsHex();
     }
+    public static ECPrivKey AsECPrivKey(this string key)
+    {
+        return Context.Instance.CreateECPrivKey(Convert.FromHexString(key));
+    }
+    public static ECXOnlyPubKey AsECXOnlyPubKey(this string key)
+    {
+        return Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(key));
+    }
+    public static byte[] AsBytes(this string data)
+    {
+        return Convert.FromHexString(data);
+    }
 }
 
 /// <summary>

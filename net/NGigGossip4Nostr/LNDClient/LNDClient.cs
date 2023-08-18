@@ -177,7 +177,7 @@ public static class LND
         var ocr = new OpenChannelRequest()
         {
             LocalFundingAmount = fundingSatoshis,
-            NodePubkey = Google.Protobuf.ByteString.CopyFrom(Convert.FromHexString(nodePubKey)),
+            NodePubkey = Google.Protobuf.ByteString.CopyFrom(nodePubKey.AsBytes()),
         };
         if (closeAddress != null)
             ocr.CloseAddress = closeAddress;

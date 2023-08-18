@@ -22,7 +22,7 @@ namespace NGigGossip4Nostr
         public ECXOnlyPubKey GetPubKey(Uri serviceUri)
         {
             var task = Task.Run(async () => await GetSettlerClient(serviceUri).GetCaPublicKeyAsync());
-            return Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(task.Result));
+            return task.Result.AsECXOnlyPubKey();
         }
 
         public GigGossipSettlerAPIClient.swaggerClient GetSettlerClient(Uri serviceUri)

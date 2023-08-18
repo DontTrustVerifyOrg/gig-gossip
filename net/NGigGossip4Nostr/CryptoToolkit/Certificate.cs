@@ -59,15 +59,6 @@ public class Certificate : SignableObject
    public DateTime NotValidBefore { get; set; }
 
    /// <summary>
-   /// Method to get the ECXOnlyPubKey of the Subject
-   /// </summary>
-   /// <returns> Returns ECXOnlyPubKey.</returns>
-   public ECXOnlyPubKey GetECXOnlyPubKey()
-   {
-      return ECXOnlyPubKey.Create(Convert.FromHexString(PublicKey));
-   }
-
-   /// <summary>
    /// Verifies the certificate with the Certification Authority public key.
    /// </summary>
    /// <param name="caAccessor">An instance of an object that implements ICertificationAuthorityAccessor</param>

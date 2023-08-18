@@ -33,101 +33,11 @@ public enum PaymentStatus
     Failed =3,
 }
 
-public class Address
-{
-    [Key]
-    public string address { get; set; }
-    public string pubkey { get; set; }
-    public long txfee { get; set; }
-}
-
-public class Invoice
-{
-    [Key]
-    public string hash { get; set; }
-    public string pubkey { get; set; }
-    public string paymentreq { get; set; }
-    public long satoshis { get; set; }
-    public InvoiceState state { get; set; }
-    public long txfee { get; set; }
-    public bool ishodl { get; set; }
-    public bool isselfmanaged { get; set; }
-    public byte[]? preimage { get; set; }
-}
-
-public class Payment
-{
-    [Key]
-    public string hash { get; set; }
-    public string pubkey { get; set; }
-    public long satoshis { get; set; }
-    public PaymentStatus status { get; set; }
-    public long paymentfee { get; set; }
-    public long txfee { get; set; }
-    public bool isselfmanaged { get; set; }
-}
-
-public class Payout
-{
-    [Key]
-    public Guid id { get; set; }
-    public string pubkey { get; set; }
-    public string address { get; set; }
-    public bool ispending { get; set; }
-    public long satoshis { get; set; }
-    public long txfee { get; set; }
-    public string tx { get; set; }
-}
-
-public class Token
-{
-    [Key]
-    public Guid id { get; set; }
-    public string pubkey { get; set; }
-}
-
-public class WaletContext : DbContext
-{
-    string connectionString;
-
-    public WaletContext(string connectionString)
-    {
-        this.connectionString = connectionString;
-    }
-
-    public DbSet<Address> FundingAddresses { get; set; }
-    public DbSet<Payout> Payouts { get; set; }
-    public DbSet<Invoice> Invoices { get; set; }
-    public DbSet<Payment> Payments { get; set; }
-    public DbSet<Token> Tokens { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        optionsBuilder.UseSqlite(connectionString);
-    }
-
-}
-
-public class NotEnoughFundsInAccountException : Exception
-{ }
-
-public class NotEnoughFundsOnChainException : Exception
-{ }
-
-public class PayoutAlreadyCompletedException : Exception
-{ }
-
-public record AuthToken
-{
-    public Guid Id { get; set; }
-    public DateTime DateTime { get; set; }
-}
-
 public class LNDAccountManager
 {
-    LND.NodeSettings conf;
-    ThreadLocal<WaletContext> walletContext;
-    string publicKey;
+    private LND.NodeSettings conf;
+    private ThreadLocal<WaletContext> walletContext;
+    private string publicKey;
 
     internal LNDAccountManager(LND.NodeSettings conf, string connectionString, ECXOnlyPubKey pubKey)
     {
@@ -147,7 +57,7 @@ public class LNDAccountManager
     public Guid RegisterPayout(long satoshis, string btcAddress, long txfee)
     {
         if ((GetAccountBallance() - (long)txfee)< (long)satoshis)
-            throw new NotEnoughFundsInAccountException();
+            throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds);
 
         var myid = Guid.NewGuid();
 
@@ -272,7 +182,7 @@ public class LNDAccountManager
     {
         var decinv = LND.DecodeInvoice(conf, paymentRequest);
             if ((long)decinv.NumSatoshis > GetAccountBallance() - (long)txfee)
-                throw new NotEnoughFundsInAccountException();
+                throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds);
 
             var selfInv = (from inv in walletContext.Value.Invoices where inv.hash == decinv.PaymentHash select inv).FirstOrDefault();
             if (selfInv != null) // selfpayment
@@ -329,7 +239,7 @@ public class LNDAccountManager
 
     public void CancelInvoice(string paymentHash)
     {
-        var hash = Convert.FromHexString(paymentHash);
+        var hash = paymentHash.AsBytes();
             var selftrans = (from st in walletContext.Value.Invoices where st.hash == paymentHash && st.isselfmanaged select st).FirstOrDefault();
             if (selftrans != null)
             {
@@ -339,7 +249,7 @@ public class LNDAccountManager
             }
             else
             {
-                LND.CancelInvoice(conf, Convert.FromHexString(paymentHash));
+                LND.CancelInvoice(conf, paymentHash.AsBytes());
             }
     }
 
@@ -349,7 +259,7 @@ public class LNDAccountManager
             if (pm != null)
                 return pm.status;
             else
-                throw new InvalidOperationException();
+                throw new LNDWalletException(LNDWalletErrorCode.UnknownPayment);
     }
 
     public InvoiceState GetInvoiceState(string paymentHash)
@@ -358,7 +268,7 @@ public class LNDAccountManager
             if (iv != null)
                 return iv.state;
             else
-                throw new InvalidOperationException();
+            throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
     }
 
     public long GetAccountBallance()
@@ -381,9 +291,13 @@ public class LNDAccountManager
 
 public class LNDWalletManager
 {
-    LND.NodeSettings conf;
-    ThreadLocal<WaletContext> walletContext;
-    string connectionString;
+    private LND.NodeSettings conf;
+    private ThreadLocal<WaletContext> walletContext;
+    private string connectionString;
+    private CancellationTokenSource subscribeInvoicesCancallationTokenSource;
+    private Thread subscribeInvoicesThread;
+    private CancellationTokenSource trackPaymentsCancallationTokenSource;
+    private Thread trackPaymentsThread;
 
     public LNDWalletManager(string connectionString, LND.NodeSettings conf, bool deleteDb = false)
     {
@@ -394,12 +308,6 @@ public class LNDWalletManager
             walletContext.Value.Database.EnsureDeleted();
         walletContext.Value.Database.EnsureCreated();
     }
-
-    CancellationTokenSource subscribeInvoicesCancallationTokenSource;
-    Thread subscribeInvoicesThread;
-
-    CancellationTokenSource trackPaymentsCancallationTokenSource;
-    Thread trackPaymentsThread;
 
     public ListPeersResponse ListPeers()
     {
@@ -521,25 +429,25 @@ public class LNDWalletManager
         trackPaymentsThread.Join();
     }
 
-    public LNDAccountManager ValidateTokenGetAccount(string authTokenBase64)
+    public LNDAccountManager ValidateAuthTokenAndGetAccount(string authTokenBase64)
     {
         var timedToken = CryptoToolkit.Crypto.VerifySignedTimedToken(authTokenBase64, 120.0);
         if (timedToken == null)
-            throw new InvalidOperationException();
+            throw new LNDWalletException(LNDWalletErrorCode.InvalidToken);
 
         var tk = (from token in walletContext.Value.Tokens where token.pubkey == timedToken.Value.PublicKey && token.id == timedToken.Value.Guid select token).FirstOrDefault();
         if (tk == null)
-            throw new InvalidOperationException();
+            throw new LNDWalletException(LNDWalletErrorCode.InvalidToken);
 
-        return GetAccount(Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(tk.pubkey)));
+        return GetAccount(tk.pubkey.AsECXOnlyPubKey());
     }
 
     public LNDAccountManager GetAccount(ECXOnlyPubKey pubkey)
     {
-        return new LNDAccountManager(conf, this.connectionString,pubkey);
+        return new LNDAccountManager(conf, this.connectionString, pubkey);
     }
 
-    public Guid GetToken(string pubkey)
+    public Guid GetTokenGuid(string pubkey)
     {
         var t = (from token in walletContext.Value.Tokens where pubkey == token.pubkey select token).FirstOrDefault();
         if (t == null)
@@ -574,7 +482,7 @@ public class LNDWalletManager
             walletContext.Value.SaveChanges();
         }
         else
-            throw new PayoutAlreadyCompletedException();
+            throw new LNDWalletException(LNDWalletErrorCode.PayoutAlreadyCompleted);
     }
 
     public long GetChannelFundingBalance(int minconf)

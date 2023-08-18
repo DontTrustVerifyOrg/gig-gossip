@@ -73,7 +73,7 @@ public class BasicTest
         bitcoinWalletClient.Generate(10); // generate some blocks
 
 
-        var settlerPrivKey = Context.Instance.CreateECPrivKey(Convert.FromHexString(settlerAdminSettings.PrivateKey));
+        var settlerPrivKey = settlerAdminSettings.PrivateKey.AsECPrivKey();
         var settlerPubKey = settlerPrivKey.CreateXOnlyPubKey();
         var settlerClient = settlerSelector.GetSettlerClient(settlerAdminSettings.SettlerOpenApi);
         var gtok = await settlerClient.GetTokenAsync(settlerPubKey.AsHex());
@@ -81,8 +81,9 @@ public class BasicTest
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
         var gigWorker = new GigGossipNode(
-            Context.Instance.CreateECPrivKey(Convert.FromHexString(gigWorkerSettings.PrivateKey)),
-            gigWorkerSettings.GetNostrRelays()
+            gigWorkerSettings.PrivateKey.AsECPrivKey(),
+            gigWorkerSettings.GetNostrRelays(),
+            gigWorkerSettings.ChunkSize
             );
 
         await settlerClient.GiveUserPropertyAsync(
@@ -96,8 +97,9 @@ public class BasicTest
                  token, gigWorker.PublicKey, new List<string> { "drive" }));
 
         var customer = new GigGossipNode(
-            Context.Instance.CreateECPrivKey(Convert.FromHexString(customerSettings.PrivateKey)),
-            customerSettings.GetNostrRelays()
+            customerSettings.PrivateKey.AsECPrivKey(),
+            customerSettings.GetNostrRelays(),
+            customerSettings.ChunkSize
             );
 
         await settlerClient.GiveUserPropertyAsync(
@@ -134,11 +136,11 @@ public class BasicTest
 
         //await customer.LoadCertificates(customerSettings.SettlerOpenApi);
 
-        var ballanceOfCustomer=await customer.LNDWalletClient.GetBalanceAsync(customer.WalletToken());
+        var ballanceOfCustomer=await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken());
 
         if (ballanceOfCustomer == 0)
         {
-            var newBitcoinAddressOfCustomer = await customer.LNDWalletClient.NewAddressAsync(customer.WalletToken());
+            var newBitcoinAddressOfCustomer = await customer.LNDWalletClient.NewAddressAsync(customer.MakeWalletAuthToken());
             Console.WriteLine(newBitcoinAddressOfCustomer);
 
             bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, bitcoinSettings.GetNetwork()), new NBitcoin.Money(10000000ul));
@@ -147,12 +149,12 @@ public class BasicTest
 
             do
             {
-                if (await customer.LNDWalletClient.GetBalanceAsync(customer.WalletToken()) > 0)
+                if (await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()) > 0)
                     break;
                 Thread.Sleep(1000);
             } while (true);
 
-            ballanceOfCustomer = await customer.LNDWalletClient.GetBalanceAsync(customer.WalletToken());
+            ballanceOfCustomer = await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken());
         }
 
 
@@ -267,7 +269,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)
     {
         var message = Crypto.SymmetricDecrypt<byte[]>(
-            Convert.FromHexString(key),
+            key.AsBytes(),
             replyPayload.EncryptedReplyMessage);
         Trace.TraceInformation(Encoding.Default.GetString(message));
     }
@@ -291,6 +293,7 @@ public class NodeSettings
     public int BroadcastConditionsPowComplexity { get; set; }
     public long TimestampToleranceMs { get; set; }
     public long InvoicePaymentTimeoutSec { get; set; }
+    public int ChunkSize { get; set; }
 
     public string[] GetNostrRelays()
     {
@@ -319,7 +322,7 @@ public class BitcoinSettings
             return NBitcoin.Network.TestNet;
         if (Network.ToLower() == "regtest")
             return NBitcoin.Network.RegTest;
-        throw new InvalidOperationException();
+        throw new NotImplementedException();
     }
 
     public RPCClient NewRPCClient()

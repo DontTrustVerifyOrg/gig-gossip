@@ -31,7 +31,7 @@ using (var httpClient = new HttpClient())
     var baseUrl = userSettings.GigWalletOpenApi;
     var client = new swaggerClient(baseUrl, httpClient);
 
-    var ecpriv = Context.Instance.CreateECPrivKey(Convert.FromHexString(userSettings.UserPrivateKey));
+    var ecpriv = userSettings.UserPrivateKey.AsECPrivKey();
 
     string pubkey = ecpriv.CreateXOnlyPubKey().AsHex();
 

@@ -99,15 +99,15 @@ var wallet3 = new LNDWalletManager(confs[2].ConnectionString, confs[2], deleteDb
 wallet3.Start();
 
 //setup user accounts
-var privkeyUser1FromNode1 = Context.Instance.CreateECPrivKey(Convert.FromHexString(confs[0].PrivateKey));
+var privkeyUser1FromNode1 = confs[0].PrivateKey.AsECPrivKey();
 var pubkeyUser1FromNode1 = privkeyUser1FromNode1.CreateXOnlyPubKey();
 var myAccountUser1FromNode1 = wallet1.GetAccount(pubkeyUser1FromNode1);
 
-var privkeyUser1FromNode2 = Context.Instance.CreateECPrivKey(Convert.FromHexString(confs[1].PrivateKey));
+var privkeyUser1FromNode2 = confs[1].PrivateKey.AsECPrivKey();
 var pubkeyUser1FromNode2 = privkeyUser1FromNode2.CreateXOnlyPubKey();
 var myAccountUser1FromNode2= wallet2.GetAccount(pubkeyUser1FromNode2);
 
-var privkeyUser2FromNode2 = Context.Instance.CreateECPrivKey(Convert.FromHexString(confs[2].PrivateKey));
+var privkeyUser2FromNode2 = confs[2].PrivateKey.AsECPrivKey();
 var pubkeyUser2FromNode2 = privkeyUser2FromNode2.CreateXOnlyPubKey();
 var myAccountUser2FromNode2 = wallet2.GetAccount(pubkeyUser1FromNode2);
 

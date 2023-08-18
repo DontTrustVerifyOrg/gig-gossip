@@ -1,6 +1,7 @@
 ﻿
 using System.Text.Json.Nodes;
 using System.Threading;
+using CryptoToolkit;
 using LNDClient;
 using LNDWallet;
 using Lnrpc;
@@ -76,21 +77,21 @@ channelManager.Start();
 
 app.MapGet("/gettoken", (string pubkey) =>
 {
-    return walletManager.GetToken(pubkey);
+    return walletManager.GetTokenGuid(pubkey);
 })
 .WithName("GetToken")
 .WithOpenApi();
 
 app.MapGet("/getbalance", (string authToken) =>
 {
-    return walletManager.ValidateTokenGetAccount(authToken).GetAccountBallance();
+    return walletManager.ValidateAuthTokenAndGetAccount(authToken).GetAccountBallance();
 })
 .WithName("GetBalance")
 .WithOpenApi();
 
 app.MapGet("/newaddress", (string authToken) =>
 {
-    return walletManager.ValidateTokenGetAccount(authToken).NewAddress(walletSettings.NewAddressTxFee);
+    return walletManager.ValidateAuthTokenAndGetAccount(authToken).NewAddress(walletSettings.NewAddressTxFee);
 })
 .WithName("NewAddress")
 .WithOpenApi();
@@ -98,7 +99,7 @@ app.MapGet("/newaddress", (string authToken) =>
 
 app.MapGet("/addinvoice", (string authToken, long satoshis, string memo, long expiry) =>
 {
-    var acc = walletManager.ValidateTokenGetAccount(authToken);
+    var acc = walletManager.ValidateAuthTokenAndGetAccount(authToken);
     var ph = acc.AddInvoice(satoshis, memo, walletSettings.AddInvoiceTxFee, expiry).PaymentRequest;
     var pa = acc.DecodeInvoice(ph);
     return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
@@ -108,8 +109,8 @@ app.MapGet("/addinvoice", (string authToken, long satoshis, string memo, long ex
 
 app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, string memo, long expiry) =>
 {
-    var hashb = Convert.FromHexString(hash);
-    var acc = walletManager.ValidateTokenGetAccount(authToken);
+    var hashb = hash.AsBytes();
+    var acc = walletManager.ValidateAuthTokenAndGetAccount(authToken);
     var ph = acc.AddHodlInvoice(satoshis, memo, hashb, walletSettings.AddInvoiceTxFee, expiry).PaymentRequest;
     var pa = acc.DecodeInvoice(ph);
     return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
@@ -119,7 +120,7 @@ app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, str
 
 app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
 {
-    return walletManager.ValidateTokenGetAccount(authToken).DecodeInvoice(paymentRequest);
+    return walletManager.ValidateAuthTokenAndGetAccount(authToken).DecodeInvoice(paymentRequest);
 })
 .WithName("DecodeInvoice")
 .WithOpenApi();
@@ -127,35 +128,35 @@ app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
 
 app.MapGet("/sendpayment", (string authToken, string paymentrequest, int timeout) =>
 {
-    walletManager.ValidateTokenGetAccount(authToken).SendPayment(paymentrequest, timeout, walletSettings.SendPaymentTxFee, walletSettings.FeeLimit);
+    walletManager.ValidateAuthTokenAndGetAccount(authToken).SendPayment(paymentrequest, timeout, walletSettings.SendPaymentTxFee, walletSettings.FeeLimit);
 })
 .WithName("SendPayment")
 .WithOpenApi();
 
 app.MapGet("/settleinvoice", (string authToken, string preimage) =>
 {
-    walletManager.ValidateTokenGetAccount(authToken).SettleInvoice(Convert.FromHexString(preimage));
+    walletManager.ValidateAuthTokenAndGetAccount(authToken).SettleInvoice(preimage.AsBytes());
 })
 .WithName("SettleInvoice")
 .WithOpenApi();
 
 app.MapGet("/cancelinvoice", (string authToken, string paymenthash) =>
 {
-    walletManager.ValidateTokenGetAccount(authToken).CancelInvoice(paymenthash);
+    walletManager.ValidateAuthTokenAndGetAccount(authToken).CancelInvoice(paymenthash);
 })
 .WithName("CancelInvoice")
 .WithOpenApi();
 
 app.MapGet("/getinvoicestate", (string authToken, string paymenthash) =>
 {
-    return walletManager.ValidateTokenGetAccount(authToken).GetInvoiceState(paymenthash).ToString();
+    return walletManager.ValidateAuthTokenAndGetAccount(authToken).GetInvoiceState(paymenthash).ToString();
 })
 .WithName("GetInvoiceState")
 .WithOpenApi();
 
 app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
 {
-    return walletManager.ValidateTokenGetAccount(authToken).GetPaymentStatus(paymenthash).ToString();
+    return walletManager.ValidateAuthTokenAndGetAccount(authToken).GetPaymentStatus(paymenthash).ToString();
 })
 .WithName("GetPaymentStatus")
 .WithOpenApi();

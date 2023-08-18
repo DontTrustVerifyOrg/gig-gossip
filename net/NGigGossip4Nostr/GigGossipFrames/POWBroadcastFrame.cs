@@ -37,7 +37,7 @@ public class POWBroadcastFrame
             return false;
         }
 
-        if (!this.BroadcastPayload.SignedRequestPayload.Verify(this.BroadcastPayload.SignedRequestPayload.SenderCertificate.GetECXOnlyPubKey()))
+        if (!this.BroadcastPayload.SignedRequestPayload.Verify(this.BroadcastPayload.SignedRequestPayload.SenderCertificate.PublicKey.AsECXOnlyPubKey()))
         {
             return false;
         }

@@ -53,7 +53,7 @@ public class ReplyPayload
             return false;
         }
 
-        if (!this.SignedRequestPayload.Verify(this.SignedRequestPayload.SenderCertificate.GetECXOnlyPubKey()))
+        if (!this.SignedRequestPayload.Verify(this.SignedRequestPayload.SenderCertificate.PublicKey.AsECXOnlyPubKey()))
         {
             return false;
         }

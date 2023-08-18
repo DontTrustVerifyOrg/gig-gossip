@@ -47,7 +47,7 @@ var config = GetConfigurationRoot(".giggossip", "settler.conf");
 var settlerSettings = config.GetSection("settler").Get<SettlerSettings>();
 
 
-var caPrivateKey = Context.Instance.CreateECPrivKey(Convert.FromHexString(settlerSettings.SettlerPrivateKey));
+var caPrivateKey = settlerSettings.SettlerPrivateKey.AsECPrivKey();
 
 var httpClient = new HttpClient();
 var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.AbsoluteUri, httpClient);
@@ -72,14 +72,14 @@ app.MapGet("/iscertificaterevoked", (Guid certid) =>
 
 app.MapGet("/gettoken", (string pubkey) =>
 {
-    return gigGossipSettler.GetToken(pubkey);
+    return gigGossipSettler.GetTokenGuid(pubkey);
 })
 .WithName("GetToken")
 .WithOpenApi();
 
 app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, string value, DateTime validTill) =>
 {
-    gigGossipSettler.ValidateToken(authToken);
+    gigGossipSettler.ValidateAuthToken(authToken);
     gigGossipSettler.GiveUserProperty(pubkey, name, Convert.FromBase64String(value), validTill);
 })
 .WithName("GiveUserProperty")
@@ -87,7 +87,7 @@ app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, s
 
 app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name) =>
 {
-    gigGossipSettler.ValidateToken(authToken);
+    gigGossipSettler.ValidateAuthToken(authToken);
     gigGossipSettler.RevokeUserProperty(pubkey, name);
 })
 .WithName("RevokeUserProperty")
@@ -95,7 +95,7 @@ app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name)
 
 app.MapGet("/issuecertificate", (string authToken, string pubkey, string[] properties) =>
 {
-    gigGossipSettler.ValidateToken(authToken);
+    gigGossipSettler.ValidateAuthToken(authToken);
     return Crypto.SerializeObject(gigGossipSettler.IssueCertificate(pubkey, properties));
 })
 .WithName("IssueCertificate")
@@ -103,7 +103,7 @@ app.MapGet("/issuecertificate", (string authToken, string pubkey, string[] prope
 
 app.MapGet("/getcertificate", (string authToken, string pubkey, Guid certid) =>
 {
-    gigGossipSettler.ValidateToken(authToken);
+    gigGossipSettler.ValidateAuthToken(authToken);
     return Crypto.SerializeObject(gigGossipSettler.GetCertificate(pubkey, certid));
 })
 .WithName("GetCertificate")
@@ -111,7 +111,7 @@ app.MapGet("/getcertificate", (string authToken, string pubkey, Guid certid) =>
 
 app.MapGet("/listcertificates", (string authToken, string pubkey) =>
 {
-    gigGossipSettler.ValidateToken(authToken);
+    gigGossipSettler.ValidateAuthToken(authToken);
     return gigGossipSettler.ListCertificates(pubkey);
 })
 .WithName("ListCertificates")
@@ -119,7 +119,7 @@ app.MapGet("/listcertificates", (string authToken, string pubkey) =>
 
 app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid tid) =>
 {
-    var pubkey = gigGossipSettler.ValidateToken(authToken);
+    var pubkey = gigGossipSettler.ValidateAuthToken(authToken);
     return gigGossipSettler.GenerateReplyPaymentPreimage(pubkey,tid);
 })
 .WithName("GenerateReplyPaymentPreimage")
@@ -127,7 +127,7 @@ app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid tid) =>
 
 app.MapGet("/generaterelatedpreimage", (string authToken, string paymentHash) =>
 {
-    var pubkey = gigGossipSettler.ValidateToken(authToken);
+    var pubkey = gigGossipSettler.ValidateAuthToken(authToken);
     return gigGossipSettler.GenerateRelatedPreimage(pubkey, paymentHash);
 })
 .WithName("GenerateRelatedPreimage")
@@ -135,7 +135,7 @@ app.MapGet("/generaterelatedpreimage", (string authToken, string paymentHash) =>
 
 app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
 {
-    var pubkey = gigGossipSettler.ValidateToken(authToken);
+    var pubkey = gigGossipSettler.ValidateAuthToken(authToken);
     return gigGossipSettler.RevealPreimage(pubkey, paymentHash);
 })
 .WithName("RevealPreimage")
@@ -144,7 +144,7 @@ app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
 
 app.MapGet("/generatesettlementtrust", async (string authToken, string message, string replyinvoice, string signedRequestPayloadSerialized, string replierCertificateSerialized) =>
 {
-    var pubkey = gigGossipSettler.ValidateToken(authToken);
+    var pubkey = gigGossipSettler.ValidateAuthToken(authToken);
     var signedRequestPayload = Crypto.DeserializeObject< RequestPayload>(Convert.FromBase64String(signedRequestPayloadSerialized));
     var replierCertificate = Crypto.DeserializeObject< Certificate>(Convert.FromBase64String(replierCertificateSerialized));
     var st = await gigGossipSettler.GenerateSettlementTrust(pubkey, Convert.FromBase64String(message), replyinvoice, signedRequestPayload, replierCertificate);
@@ -155,7 +155,7 @@ app.MapGet("/generatesettlementtrust", async (string authToken, string message, 
 
 app.MapGet("/revealsymmetrickey", (string authToken, Guid tid) =>
 {
-    var pubkey = gigGossipSettler.ValidateToken(authToken);
+    var pubkey = gigGossipSettler.ValidateAuthToken(authToken);
     return gigGossipSettler.RevealSymmetricKey(pubkey, tid);
 })
 .WithName("RevealSymmetricKey")
@@ -163,7 +163,7 @@ app.MapGet("/revealsymmetrickey", (string authToken, Guid tid) =>
 
 app.MapGet("/managedispute", (string authToken, Guid tid, bool open) =>
 {
-    gigGossipSettler.ValidateToken(authToken);
+    gigGossipSettler.ValidateAuthToken(authToken);
     gigGossipSettler.ManageDispute(tid, open);
 })
 .WithName("ManageDispute")

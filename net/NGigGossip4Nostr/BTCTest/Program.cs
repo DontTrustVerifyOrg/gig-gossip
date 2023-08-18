@@ -62,7 +62,7 @@ public class BitcoinSettings
             return NBitcoin.Network.TestNet;
         if (Network.ToLower() == "regtest")
             return NBitcoin.Network.RegTest;
-        throw new InvalidOperationException();
+        throw new NotImplementedException();
     }
 
     public RPCClient NewRPCClient()

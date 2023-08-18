@@ -17,17 +17,20 @@ public class NostrContact
 public abstract class NostrNode
 {
     CompositeNostrClient nostrClient;
-    protected ECPrivKey _privateKey;
-    protected ECXOnlyPubKey _publicKey;
+    protected ECPrivKey privateKey;
+    protected ECXOnlyPubKey publicKey;
     public string PublicKey;
     private Dictionary<string, NostrContact> _contactList;
-    public NostrNode(ECPrivKey privateKey, string[] nostrRelays)
+    private int chunkSize;
+
+    public NostrNode(ECPrivKey privateKey, string[] nostrRelays,int chunkSize)
     {
-        this._privateKey = privateKey;
-        this._publicKey = privateKey.CreateXOnlyPubKey();
-        this.PublicKey = this._publicKey.AsHex();
+        this.privateKey = privateKey;
+        this.publicKey = privateKey.CreateXOnlyPubKey();
+        this.PublicKey = this.publicKey.AsHex();
         nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
         this._contactList = new();
+        this.chunkSize = chunkSize;
     }
 
     class Message
@@ -36,12 +39,10 @@ public abstract class NostrNode
         public object Frame;
     }
 
-    const int CHUNK_SIZE = 2048;
-
     public async void AddContact(NostrContact newContact)
     {
         if (newContact.PublicKey == this.PublicKey)
-            throw new Exception("Cannot connect node to itself");
+            throw new GigGossipException(GigGossipNodeErrorCode.SelfConnection);
         List<NostrEventTag> tags;
         lock (_contactList)
         {
@@ -54,7 +55,7 @@ public abstract class NostrNode
             Content = "",
             Tags = tags, 
         };
-        await newEvent.ComputeIdAndSignAsync(this._privateKey, handlenip4: false);
+        await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
         await nostrClient.SendEventsAndWaitUntilReceived(new[] { newEvent }, CancellationToken.None);
     }
 
@@ -63,11 +64,11 @@ public abstract class NostrNode
         var message = Convert.ToBase64String(Crypto.SerializeObject(frame));
         var evid = Guid.NewGuid().ToString();
 
-        int numOfParts = 1 + message.Length / CHUNK_SIZE;
+        int numOfParts = 1 + message.Length / chunkSize;
         List<NostrEvent> events = new();
         for (int idx = 0; idx < numOfParts; idx++)
         {
-            var part = ((idx + 1) * CHUNK_SIZE < message.Length) ? message.Substring(idx * CHUNK_SIZE, CHUNK_SIZE) : message.Substring(idx * CHUNK_SIZE);
+            var part = ((idx + 1) * chunkSize < message.Length) ? message.Substring(idx * chunkSize, chunkSize) : message.Substring(idx * chunkSize);
             var newEvent = new NostrEvent()
             {
                 Kind = 4,
@@ -81,8 +82,8 @@ public abstract class NostrNode
                 }
             };
 
-            await newEvent.EncryptNip04EventAsync(this._privateKey);
-            await newEvent.ComputeIdAndSignAsync(this._privateKey, handlenip4: false);
+            await newEvent.EncryptNip04EventAsync(this.privateKey);
+            await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
             events.Add(newEvent);
         }
         await nostrClient.SendEventsAndWaitUntilReceived(events.ToArray(), CancellationToken.None);
@@ -102,12 +103,12 @@ public abstract class NostrNode
                 new NostrSubscriptionFilter()
                 {
                     Kinds = new []{3},
-                    Authors = new []{ _publicKey.ToHex() },
+                    Authors = new []{ publicKey.ToHex() },
                 },
                 new NostrSubscriptionFilter()
                 {
                     Kinds = new []{4},
-                    ReferencedPublicKeys = new []{ _publicKey.ToHex() }
+                    ReferencedPublicKeys = new []{ publicKey.ToHex() }
                 }
             }, false, CancellationToken.None);
 
@@ -132,12 +133,12 @@ public abstract class NostrNode
                 tagDic[tag.TagIdentifier] = tag.Data;
         }
         if (tagDic.ContainsKey("p") && tagDic.ContainsKey("t"))
-            if (tagDic["p"][0] == _publicKey.ToHex())
+            if (tagDic["p"][0] == publicKey.ToHex())
             {
                 int parti = int.Parse(tagDic["i"][0]);
                 int partNum = int.Parse(tagDic["n"][0]);
                 string idx = tagDic["x"][0];
-                var msg = await nostrEvent.DecryptNip04EventAsync(this._privateKey);
+                var msg = await nostrEvent.DecryptNip04EventAsync(this.privateKey);
                 if (partNum == 1)
                 {
                     var type = tagDic["t"][0];

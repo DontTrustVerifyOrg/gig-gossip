@@ -36,7 +36,7 @@ namespace NGigGossip4Nostr
 						invToMon = (from kv in monitoredInvoices.ToList() where (kv.Value != "Settled") && (kv.Value != "Cancelled") select kv).ToList();
 					foreach (var inv in invToMon)
 					{
-						var state = await gigGossipNode.LNDWalletClient.GetInvoiceStateAsync(gigGossipNode.WalletToken(), inv.Key);
+						var state = await gigGossipNode.LNDWalletClient.GetInvoiceStateAsync(gigGossipNode.MakeWalletAuthToken(), inv.Key);
 						if (state != inv.Value)
 						{
 							lock (monitoredInvoices)
