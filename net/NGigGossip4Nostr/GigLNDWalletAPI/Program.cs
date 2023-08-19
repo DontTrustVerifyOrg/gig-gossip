@@ -1,4 +1,5 @@
 ﻿
+using System.Reflection;
 using System.Text.Json.Nodes;
 using System.Threading;
 using CryptoToolkit;
@@ -74,12 +75,12 @@ LNDChannelManager channelManager = new LNDChannelManager(
     walletSettings.EstimatedTxFee);
 channelManager.Start();
 
-
 app.MapGet("/gettoken", (string pubkey) =>
 {
     return walletManager.GetTokenGuid(pubkey);
 })
 .WithName("GetToken")
+.WithSummary("Creates a new token Guid that is used for further communication with the API")
 .WithOpenApi();
 
 app.MapGet("/getbalance", (string authToken) =>
@@ -87,6 +88,7 @@ app.MapGet("/getbalance", (string authToken) =>
     return walletManager.ValidateAuthTokenAndGetAccount(authToken).GetAccountBallance();
 })
 .WithName("GetBalance")
+.WithSummary("Returns the ballance of the lightning network account")
 .WithOpenApi();
 
 app.MapGet("/newaddress", (string authToken) =>
@@ -94,6 +96,7 @@ app.MapGet("/newaddress", (string authToken) =>
     return walletManager.ValidateAuthTokenAndGetAccount(authToken).NewAddress(walletSettings.NewAddressTxFee);
 })
 .WithName("NewAddress")
+.WithSummary("Creates a new Bitcoin address that can be used to top-up this lightning network account")
 .WithOpenApi();
 
 
@@ -105,6 +108,7 @@ app.MapGet("/addinvoice", (string authToken, long satoshis, string memo, long ex
     return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
 })
 .WithName("AddInvoice")
+.WithSummary("Creates a new lightning network invoice")
 .WithOpenApi();
 
 app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, string memo, long expiry) =>
@@ -116,6 +120,7 @@ app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, str
     return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
 })
 .WithName("AddHodlInvoice")
+.WithSummary("Creates a new lightning network HODL invoice")
 .WithOpenApi();
 
 app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
@@ -123,6 +128,7 @@ app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
     return walletManager.ValidateAuthTokenAndGetAccount(authToken).DecodeInvoice(paymentRequest);
 })
 .WithName("DecodeInvoice")
+.WithSummary("Decodes the given payment request and returns its details")
 .WithOpenApi();
 
 
@@ -131,6 +137,7 @@ app.MapGet("/sendpayment", (string authToken, string paymentrequest, int timeout
     walletManager.ValidateAuthTokenAndGetAccount(authToken).SendPayment(paymentrequest, timeout, walletSettings.SendPaymentTxFee, walletSettings.FeeLimit);
 })
 .WithName("SendPayment")
+.WithSummary("Sends a payment via lightning network for the given payment request")
 .WithOpenApi();
 
 app.MapGet("/settleinvoice", (string authToken, string preimage) =>
@@ -138,6 +145,7 @@ app.MapGet("/settleinvoice", (string authToken, string preimage) =>
     walletManager.ValidateAuthTokenAndGetAccount(authToken).SettleInvoice(preimage.AsBytes());
 })
 .WithName("SettleInvoice")
+.WithSummary("Settles hodl invoice that is identified by the payment hash deliverd from the given preimage")
 .WithOpenApi();
 
 app.MapGet("/cancelinvoice", (string authToken, string paymenthash) =>
@@ -145,6 +153,7 @@ app.MapGet("/cancelinvoice", (string authToken, string paymenthash) =>
     walletManager.ValidateAuthTokenAndGetAccount(authToken).CancelInvoice(paymenthash);
 })
 .WithName("CancelInvoice")
+.WithSummary("Cancels the invoice identified by the given payment hash")
 .WithOpenApi();
 
 app.MapGet("/getinvoicestate", (string authToken, string paymenthash) =>
@@ -152,6 +161,7 @@ app.MapGet("/getinvoicestate", (string authToken, string paymenthash) =>
     return walletManager.ValidateAuthTokenAndGetAccount(authToken).GetInvoiceState(paymenthash).ToString();
 })
 .WithName("GetInvoiceState")
+.WithSummary("Returns a state of the invoice identified by the given payment hash")
 .WithOpenApi();
 
 app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
@@ -159,6 +169,7 @@ app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
     return walletManager.ValidateAuthTokenAndGetAccount(authToken).GetPaymentStatus(paymenthash).ToString();
 })
 .WithName("GetPaymentStatus")
+.WithSummary("Returns a status of the payment identified by the given payment hash")
 .WithOpenApi();
 
 

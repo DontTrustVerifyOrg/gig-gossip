@@ -6,6 +6,7 @@ using GigGossipSettler;
 using Microsoft.AspNetCore.Builder;
 using GigLNDWalletAPIClient;
 using Microsoft.AspNetCore.Mvc;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,6 +56,7 @@ var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.Absolut
 var gigGossipSettler = new Settler(settlerSettings.ServiceUri, caPrivateKey, settlerSettings.PriceAmountForSettlement, TimeSpan.FromSeconds(settlerSettings.InvoicePaymentTimeoutSec));
 await gigGossipSettler.Init(lndWalletClient, settlerSettings.ConnectionString, false);
 await gigGossipSettler.Start();
+
 
 app.MapGet("/getcapublickey", () =>
 {
