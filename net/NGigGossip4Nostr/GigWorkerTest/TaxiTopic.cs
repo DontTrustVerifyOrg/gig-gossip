@@ -9,8 +9,8 @@ namespace NGigTaxiLib;
 [Serializable]
 public class TaxiTopic
 {
-    public string FromGeohash { get; set; }
-    public string ToGeohash { get; set; }
+    public required string FromGeohash { get; set; }
+    public required string ToGeohash { get; set; }
     public DateTime PickupAfter { get; set; }
     public DateTime DropoffBefore { get; set; }
 }

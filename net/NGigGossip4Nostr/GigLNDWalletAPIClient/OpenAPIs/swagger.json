@@ -10,11 +10,14 @@
         "tags": [
           "GigLNDWalletAPI"
         ],
+        "summary": "Creates authorisation token guid",
+        "description": "Creates a new token Guid that is used for further communication with the API",
         "operationId": "GetToken",
         "parameters": [
           {
             "name": "pubkey",
             "in": "query",
+            "description": "public key identifies the API user",
             "required": true,
             "style": "form",
             "schema": {
@@ -42,11 +45,14 @@
         "tags": [
           "GigLNDWalletAPI"
         ],
+        "summary": "Balance of the account",
+        "description": "Returns the account balance in Satoshis",
         "operationId": "GetBalance",
         "parameters": [
           {
             "name": "authToken",
             "in": "query",
+            "description": "authorisation token for the communication",
             "required": true,
             "style": "form",
             "schema": {
@@ -74,11 +80,14 @@
         "tags": [
           "GigLNDWalletAPI"
         ],
+        "summary": "New topup Bitcoin address",
+        "description": "Creates a new Bitcoin address that can be used to top-up this lightning network account",
         "operationId": "NewAddress",
         "parameters": [
           {
             "name": "authToken",
             "in": "query",
+            "description": "authorisation token for the communication",
             "required": true,
             "style": "form",
             "schema": {
@@ -105,11 +114,14 @@
         "tags": [
           "GigLNDWalletAPI"
         ],
+        "summary": "Creates a new lightning network invoice",
+        "description": "Creates a new lightning network invoice",
         "operationId": "AddInvoice",
         "parameters": [
           {
             "name": "authToken",
             "in": "query",
+            "description": "Authorisation token for the communication",
             "required": true,
             "style": "form",
             "schema": {
@@ -119,6 +131,7 @@
           {
             "name": "satoshis",
             "in": "query",
+            "description": "The value of this invoice in satoshis.",
             "required": true,
             "style": "form",
             "schema": {
@@ -129,6 +142,7 @@
           {
             "name": "memo",
             "in": "query",
+            "description": "An optional memo to attach along with the invoice. Used for record keeping purposes for the invoice's creator, and will also be set in the description field of the encoded payment request if the description_hash field is not being used.",
             "required": true,
             "style": "form",
             "schema": {
@@ -138,6 +152,7 @@
           {
             "name": "expiry",
             "in": "query",
+            "description": "Payment request expiry time in seconds.",
             "required": true,
             "style": "form",
             "schema": {
@@ -165,11 +180,14 @@
         "tags": [
           "GigLNDWalletAPI"
         ],
+        "summary": "Creates a new lightning network HODL invoice",
+        "description": "Creates a new lightning network HODL invoice",
         "operationId": "AddHodlInvoice",
         "parameters": [
           {
             "name": "authToken",
             "in": "query",
+            "description": "Authorisation token for the communication",
             "required": true,
             "style": "form",
             "schema": {
@@ -179,6 +197,7 @@
           {
             "name": "satoshis",
             "in": "query",
+            "description": "The value of this invoice in satoshis.",
             "required": true,
             "style": "form",
             "schema": {
@@ -189,6 +208,7 @@
           {
             "name": "hash",
             "in": "query",
+            "description": "The hash of the preimage.",
             "required": true,
             "style": "form",
             "schema": {
@@ -198,6 +218,7 @@
           {
             "name": "memo",
             "in": "query",
+            "description": "An optional memo to attach along with the invoice. Used for record keeping purposes for the invoice's creator, and will also be set in the description field of the encoded payment request if the description_hash field is not being used.",
             "required": true,
             "style": "form",
             "schema": {
@@ -207,6 +228,7 @@
           {
             "name": "expiry",
             "in": "query",
+            "description": "Payment request expiry time in seconds.",
             "required": true,
             "style": "form",
             "schema": {
@@ -234,11 +256,14 @@
         "tags": [
           "GigLNDWalletAPI"
         ],
+        "summary": "Decodes the given payment request and returns its details",
+        "description": "Takes an encoded payment request string and attempts to decode it, returning a full description of the conditions encoded within the payment request.",
         "operationId": "DecodeInvoice",
         "parameters": [
           {
             "name": "authToken",
             "in": "query",
+            "description": "Authorisation token for the communication",
             "required": true,
             "style": "form",
             "schema": {
@@ -248,6 +273,7 @@
           {
             "name": "paymentRequest",
             "in": "query",
+            "description": "The payment request string to be decoded.",
             "required": true,
             "style": "form",
             "schema": {
@@ -274,11 +300,14 @@
         "tags": [
           "GigLNDWalletAPI"
         ],
+        "summary": "Sends a payment via lightning network for the given payment request",
+        "description": "SendPayment attempts to route a payment described by the passed paymentrequest to the final destination.",
         "operationId": "SendPayment",
         "parameters": [
           {
             "name": "authToken",
             "in": "query",
+            "description": "Authorisation token for the communication",
             "required": true,
             "style": "form",
             "schema": {
@@ -288,6 +317,7 @@
           {
             "name": "paymentrequest",
             "in": "query",
+            "description": "A bare-bones invoice for a payment within the Lightning Network. With the details of the invoice, the sender has all the data necessary to send a payment to the recipient.",
             "required": true,
             "style": "form",
             "schema": {
@@ -297,6 +327,7 @@
           {
             "name": "timeout",
             "in": "query",
+            "description": "An upper limit on the amount of time we should spend when attempting to fulfill the payment. This is expressed in seconds.",
             "required": true,
             "style": "form",
             "schema": {
@@ -317,11 +348,14 @@
         "tags": [
           "GigLNDWalletAPI"
         ],
+        "summary": "SettleInvoice settles an accepted invoice.",
+        "description": "Settles hodl invoice that is identified by the payment hash deliverd from the given preimage.",
         "operationId": "SettleInvoice",
         "parameters": [
           {
             "name": "authToken",
             "in": "query",
+            "description": "Authorisation token for the communication",
             "required": true,
             "style": "form",
             "schema": {
@@ -331,6 +365,7 @@
           {
             "name": "preimage",
             "in": "query",
+            "description": "Externally discovered pre-image that should be used to settle the hold invoice.",
             "required": true,
             "style": "form",
             "schema": {
@@ -350,11 +385,14 @@
         "tags": [
           "GigLNDWalletAPI"
         ],
+        "summary": "Cancels the invoice identified by the given payment hash",
+        "description": "CancelInvoice cancels a currently open invoice. If the invoice is already canceled, this call will succeed. If the invoice is already settled, it will fail.",
         "operationId": "CancelInvoice",
         "parameters": [
           {
             "name": "authToken",
             "in": "query",
+            "description": "Authorisation token for the communication",
             "required": true,
             "style": "form",
             "schema": {
@@ -364,6 +402,7 @@
           {
             "name": "paymenthash",
             "in": "query",
+            "description": "Hash corresponding to the invoice to cancel.",
             "required": true,
             "style": "form",
             "schema": {
@@ -383,11 +422,14 @@
         "tags": [
           "GigLNDWalletAPI"
         ],
+        "summary": "Returns a state of the invoice identified by the given payment hash",
+        "description": "Returns a state of the invoice identified by the given payment hash",
         "operationId": "GetInvoiceState",
         "parameters": [
           {
             "name": "authToken",
             "in": "query",
+            "description": "Authorisation token for the communication",
             "required": true,
             "style": "form",
             "schema": {
@@ -397,6 +439,7 @@
           {
             "name": "paymenthash",
             "in": "query",
+            "description": "Hash corresponding to the invoice.",
             "required": true,
             "style": "form",
             "schema": {
@@ -423,11 +466,14 @@
         "tags": [
           "GigLNDWalletAPI"
         ],
+        "summary": "Returns a status of the payment identified by the given payment hash",
+        "description": "Returns a status of the payment identified by the given payment hash",
         "operationId": "GetPaymentStatus",
         "parameters": [
           {
             "name": "authToken",
             "in": "query",
+            "description": "Authorisation token for the communication",
             "required": true,
             "style": "form",
             "schema": {
@@ -437,6 +483,7 @@
           {
             "name": "paymenthash",
             "in": "query",
+            "description": "Hash corresponding to the payment.",
             "required": true,
             "style": "form",
             "schema": {

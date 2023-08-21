@@ -5,18 +5,17 @@ using System.Threading;
 using CryptoToolkit;
 using LNDClient;
 using LNDWallet;
-using Lnrpc;
-using Microsoft.OpenApi.Models;
-using NBitcoin.Secp256k1;
-using Newtonsoft.Json;
-using static NBitcoin.Scripting.PubKeyProvider;
+using Swashbuckle.AspNetCore.Annotations;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.EnableAnnotations();
+});
 
 var app = builder.Build();
 
@@ -75,29 +74,44 @@ LNDChannelManager channelManager = new LNDChannelManager(
     walletSettings.EstimatedTxFee);
 channelManager.Start();
 
-app.MapGet("/gettoken", (string pubkey) =>
+app.MapGet("/gettoken",(string pubkey) =>
 {
     return walletManager.GetTokenGuid(pubkey);
 })
 .WithName("GetToken")
-.WithSummary("Creates a new token Guid that is used for further communication with the API")
-.WithOpenApi();
+.WithSummary("Creates authorisation token guid")
+.WithDescription("Creates a new token Guid that is used for further communication with the API")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "public key identifies the API user";
+    return g;
+});
 
-app.MapGet("/getbalance", (string authToken) =>
+app.MapGet("/getbalance",(string authToken) =>
 {
     return walletManager.ValidateAuthTokenAndGetAccount(authToken).GetAccountBallance();
 })
 .WithName("GetBalance")
-.WithSummary("Returns the ballance of the lightning network account")
-.WithOpenApi();
+.WithSummary("Balance of the account")
+.WithDescription("Returns the account balance in Satoshis")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "authorisation token for the communication";
+    return g;
+});
 
 app.MapGet("/newaddress", (string authToken) =>
 {
     return walletManager.ValidateAuthTokenAndGetAccount(authToken).NewAddress(walletSettings.NewAddressTxFee);
 })
 .WithName("NewAddress")
-.WithSummary("Creates a new Bitcoin address that can be used to top-up this lightning network account")
-.WithOpenApi();
+.WithSummary("New topup Bitcoin address")
+.WithDescription("Creates a new Bitcoin address that can be used to top-up this lightning network account")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "authorisation token for the communication";
+    return g;
+});
 
 
 app.MapGet("/addinvoice", (string authToken, long satoshis, string memo, long expiry) =>
@@ -109,7 +123,15 @@ app.MapGet("/addinvoice", (string authToken, long satoshis, string memo, long ex
 })
 .WithName("AddInvoice")
 .WithSummary("Creates a new lightning network invoice")
-.WithOpenApi();
+.WithDescription("Creates a new lightning network invoice")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication";
+    g.Parameters[1].Description = "The value of this invoice in satoshis.";
+    g.Parameters[2].Description = "An optional memo to attach along with the invoice. Used for record keeping purposes for the invoice's creator, and will also be set in the description field of the encoded payment request if the description_hash field is not being used.";
+    g.Parameters[3].Description = "Payment request expiry time in seconds.";
+    return g;
+});
 
 app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, string memo, long expiry) =>
 {
@@ -121,7 +143,16 @@ app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, str
 })
 .WithName("AddHodlInvoice")
 .WithSummary("Creates a new lightning network HODL invoice")
-.WithOpenApi();
+.WithDescription("Creates a new lightning network HODL invoice")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication";
+    g.Parameters[1].Description = "The value of this invoice in satoshis.";
+    g.Parameters[2].Description = "The hash of the preimage.";
+    g.Parameters[3].Description = "An optional memo to attach along with the invoice. Used for record keeping purposes for the invoice's creator, and will also be set in the description field of the encoded payment request if the description_hash field is not being used.";
+    g.Parameters[4].Description = "Payment request expiry time in seconds.";
+    return g;
+});
 
 app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
 {
@@ -129,7 +160,13 @@ app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
 })
 .WithName("DecodeInvoice")
 .WithSummary("Decodes the given payment request and returns its details")
-.WithOpenApi();
+.WithDescription("Takes an encoded payment request string and attempts to decode it, returning a full description of the conditions encoded within the payment request.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication";
+    g.Parameters[1].Description = "The payment request string to be decoded.";
+    return g;
+});
 
 
 app.MapGet("/sendpayment", (string authToken, string paymentrequest, int timeout) =>
@@ -138,15 +175,28 @@ app.MapGet("/sendpayment", (string authToken, string paymentrequest, int timeout
 })
 .WithName("SendPayment")
 .WithSummary("Sends a payment via lightning network for the given payment request")
-.WithOpenApi();
+.WithDescription("SendPayment attempts to route a payment described by the passed paymentrequest to the final destination.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication";
+    g.Parameters[1].Description = "A bare-bones invoice for a payment within the Lightning Network. With the details of the invoice, the sender has all the data necessary to send a payment to the recipient.";
+    g.Parameters[2].Description = "An upper limit on the amount of time we should spend when attempting to fulfill the payment. This is expressed in seconds.";
+    return g;
+});
 
 app.MapGet("/settleinvoice", (string authToken, string preimage) =>
 {
     walletManager.ValidateAuthTokenAndGetAccount(authToken).SettleInvoice(preimage.AsBytes());
 })
 .WithName("SettleInvoice")
-.WithSummary("Settles hodl invoice that is identified by the payment hash deliverd from the given preimage")
-.WithOpenApi();
+.WithSummary("SettleInvoice settles an accepted invoice.")
+.WithDescription("Settles hodl invoice that is identified by the payment hash deliverd from the given preimage.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication";
+    g.Parameters[1].Description = "Externally discovered pre-image that should be used to settle the hold invoice.";
+    return g;
+});
 
 app.MapGet("/cancelinvoice", (string authToken, string paymenthash) =>
 {
@@ -154,7 +204,13 @@ app.MapGet("/cancelinvoice", (string authToken, string paymenthash) =>
 })
 .WithName("CancelInvoice")
 .WithSummary("Cancels the invoice identified by the given payment hash")
-.WithOpenApi();
+.WithDescription("CancelInvoice cancels a currently open invoice. If the invoice is already canceled, this call will succeed. If the invoice is already settled, it will fail.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication";
+    g.Parameters[1].Description = "Hash corresponding to the invoice to cancel.";
+    return g;
+});
 
 app.MapGet("/getinvoicestate", (string authToken, string paymenthash) =>
 {
@@ -162,7 +218,13 @@ app.MapGet("/getinvoicestate", (string authToken, string paymenthash) =>
 })
 .WithName("GetInvoiceState")
 .WithSummary("Returns a state of the invoice identified by the given payment hash")
-.WithOpenApi();
+.WithDescription("Returns a state of the invoice identified by the given payment hash")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication";
+    g.Parameters[1].Description = "Hash corresponding to the invoice.";
+    return g;
+});
 
 app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
 {
@@ -170,7 +232,13 @@ app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
 })
 .WithName("GetPaymentStatus")
 .WithSummary("Returns a status of the payment identified by the given payment hash")
-.WithOpenApi();
+.WithDescription("Returns a status of the payment identified by the given payment hash")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication";
+    g.Parameters[1].Description = "Hash corresponding to the payment.";
+    return g;
+});
 
 
 app.Run(walletSettings.ServiceUri.AbsoluteUri);

@@ -35,11 +35,11 @@ public abstract class NostrNode
 
     class Message
     {
-        public string SenderPublicKey;
-        public object Frame;
+        public required string SenderPublicKey;
+        public required object Frame;
     }
 
-    public async void AddContact(NostrContact newContact)
+    public void AddContact(NostrContact newContact)
     {
         if (newContact.PublicKey == this.PublicKey)
             throw new GigGossipException(GigGossipNodeErrorCode.SelfConnection);
@@ -53,13 +53,13 @@ public abstract class NostrNode
         {
             Kind = 3,
             Content = "",
-            Tags = tags, 
+            Tags = tags,
         };
-        await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
-        await nostrClient.SendEventsAndWaitUntilReceived(new[] { newEvent }, CancellationToken.None);
+        newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false).Wait();
+        nostrClient.SendEventsAndWaitUntilReceived(new[] { newEvent }, CancellationToken.None).Wait();
     }
 
-    public async void SendMessage(string targetPublicKey, object frame)
+    public void SendMessage(string targetPublicKey, object frame)
     {
         var message = Convert.ToBase64String(Crypto.SerializeObject(frame));
         var evid = Guid.NewGuid().ToString();
@@ -82,11 +82,11 @@ public abstract class NostrNode
                 }
             };
 
-            await newEvent.EncryptNip04EventAsync(this.privateKey);
-            await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
+            newEvent.EncryptNip04EventAsync(this.privateKey).AsTask().Wait();
+            newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false).Wait();
             events.Add(newEvent);
         }
-        await nostrClient.SendEventsAndWaitUntilReceived(events.ToArray(), CancellationToken.None);
+        nostrClient.SendEventsAndWaitUntilReceived(events.ToArray(), CancellationToken.None).Wait();
     }
 
     public abstract void OnMessage(string senderPublicKey, object frame);
@@ -124,7 +124,7 @@ public abstract class NostrNode
 
     private Dictionary<string, SortedDictionary<int, string>> _partial_messages = new();
 
-    private async void ProcessNewMessage(NostrEvent nostrEvent)
+    private void ProcessNewMessage(NostrEvent nostrEvent)
     {
         Dictionary<string, List<string>> tagDic = new();
         foreach (var tag in nostrEvent.Tags)
@@ -138,7 +138,7 @@ public abstract class NostrNode
                 int parti = int.Parse(tagDic["i"][0]);
                 int partNum = int.Parse(tagDic["n"][0]);
                 string idx = tagDic["x"][0];
-                var msg = await nostrEvent.DecryptNip04EventAsync(this.privateKey);
+                var msg =  nostrEvent.DecryptNip04EventAsync(this.privateKey).Result;
                 if (partNum == 1)
                 {
                     var type = tagDic["t"][0];

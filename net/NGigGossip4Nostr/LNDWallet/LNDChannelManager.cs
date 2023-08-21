@@ -32,31 +32,31 @@ public class LNDChannelManager
 
 	void Main()
 	{
-        var peersof2 = new HashSet<string>(from p in walletManager.ListPeers().Peers select p.PubKey+"@"+p.Address.Replace("127.0.0.1","localhost"));
+		var peersof2 = new HashSet<string>(from p in walletManager.ListPeers().Peers select p.PubKey + "@" + p.Address.Replace("127.0.0.1", "localhost"));
 
-        foreach (var friend in nearbyNodes)
+		foreach (var friend in nearbyNodes)
 		{
 			try
 			{
-				if(!peersof2.Contains(friend.Replace("127.0.0.1", "localhost")))
+				if (!peersof2.Contains(friend.Replace("127.0.0.1", "localhost")))
 					walletManager.Connect(friend.Replace("127.0.0.1", "localhost"));
 			}
-			catch(Exception ex)
+			catch (Exception ex)
 			{
 
 			}
-		}	
-        while (true)
+		}
+		while (true)
 		{
 			if (stop)
 				return;
 
 			foreach (var friend in nearbyNodes)
-				GoForOpeningNewChannelsForNode(friend.Split("@")[0], maxSatoshisPerChannel, estimatedTxFee);
-			GoForExecutingPayouts(estimatedTxFee);
+				GoForOpeningNewChannelsForNodeAsync(friend.Split("@")[0], maxSatoshisPerChannel, estimatedTxFee).Wait();
+			GoForExecutingPayoutsAsync(estimatedTxFee).Wait();
 
 			Thread.Sleep(1000);
-        }
+		}
 	}
 
 
@@ -66,7 +66,7 @@ public class LNDChannelManager
 		mainThread.Join();
 	}
 
-	public async void GoForOpeningNewChannelsForNode(string nodePubKey, long maxSatoshisPerChannel, long estimatedTxFee)
+	public async Task GoForOpeningNewChannelsForNodeAsync(string nodePubKey, long maxSatoshisPerChannel, long estimatedTxFee)
 	{
         var activeFunding = walletManager.GetChannelFundingBalance(6);
         if (activeFunding > 0)
@@ -85,10 +85,10 @@ public class LNDChannelManager
             }
 	}
 
-	public async void GoForExecutingPayouts(long estimatedTxFee)
+	public async Task GoForExecutingPayoutsAsync(long estimatedTxFee)
 	{
 		var pendingPayouts = walletManager.GetAllPendingPayouts();
-		var totalAmountNeeded = (from pp in pendingPayouts select (long)pp.satoshis - (long)pp.txfee).Sum();
+		var totalAmountNeeded = (from pp in pendingPayouts select (long)pp.Satoshis - (long)pp.TxFee).Sum();
         var fundbal = walletManager.GetChannelFundingBalance(6);
 
 		if (fundbal < totalAmountNeeded)
@@ -118,8 +118,8 @@ public class LNDChannelManager
 
 		foreach (var payout in pendingPayouts)
 		{
-            var tx = walletManager.SendCoins(payout.address, (long)payout.satoshis - (long)payout.txfee);
-            walletManager.MarkPayoutAsCompleted(payout.id, tx);
+            var tx = walletManager.SendCoins(payout.BitcoinAddress, (long)payout.Satoshis - (long)payout.TxFee);
+            walletManager.MarkPayoutAsCompleted(payout.PayoutId, tx);
 		}
 
 	}

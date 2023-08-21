@@ -8,7 +8,7 @@ namespace NGigGossip4Nostr
 	{
 		Dictionary<string, string> monitoredInvoices = new();
 		Dictionary<Tuple<string, string>, Action> monitoredInvoicesActions = new();
-        GigGossipNode gigGossipNode;
+		GigGossipNode gigGossipNode;
 
 		public LNDWalletMonitor(GigGossipNode gigGossipNode)
 		{
@@ -25,7 +25,7 @@ namespace NGigGossip4Nostr
 
 		Thread monitorThread;
 
-		public async Task Start()
+		public void Start()
 		{
 			monitorThread = new Thread(async () =>
 			{

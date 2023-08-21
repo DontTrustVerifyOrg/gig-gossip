@@ -13,32 +13,32 @@ public class UserProperty
     /// The unique identifier of the property.
     /// </summary>
     [Key]
-    public Guid propid { get; set; }
+    public Guid PropertyId { get; set; }
 
     /// <summary>
     /// The public key of the subject.
     /// </summary>
-    public string pubkey { get; set; }
+    public string PublicKey { get; set; }
 
     /// <summary>
     /// The name of the property.
     /// </summary>
-    public string name { get; set; }
+    public string Name { get; set; }
 
     /// <summary>
     /// The value of the property.
     /// </summary>
-    public byte[] value { get; set; }
+    public byte[] Value { get; set; }
 
     /// <summary>
     /// The validity till date of the property.
     /// </summary>
-    public DateTime validtill { get; set; }
+    public DateTime ValidTill { get; set; }
 
     /// <summary>
     /// Represents whether the property is revoked.
     /// </summary>
-    public bool isrevoked { get; set; }
+    public bool IsRevoked { get; set; }
 }
 
 /// <summary>
@@ -50,12 +50,12 @@ public class CertificateProperty
     /// The unique identidier of the certificate.
     /// </summary>
     [Key]
-    public Guid certid { get; set; }
+    public Guid CertificateId { get; set; }
 
     /// <summary>
     /// The unique identifier of the property.
     /// </summary>
-    public Guid propid { get; set; }
+    public Guid PropertyId { get; set; }
 }
 
 /// <summary>
@@ -67,53 +67,53 @@ public class UserCertificate
     /// The unique identifier of the certificate.
     /// </summary>
     [Key]
-    public Guid certid { get; set; }
+    public Guid CertificateId { get; set; }
  
      /// <summary>
     /// The public ke of the subject.
     /// </summary>
-    public string pubkey { get; set; }
+    public required string PublicKey { get; set; }
 
     /// <summary>
     /// The certificate in byte array format.
     /// </summary>
-    public byte[] certificate { get; set; }
+    public required byte[] TheCertificate { get; set; }
     /// <summary>
     /// Represent whether the certificate is revoked.
     /// </summary>
-    public bool isrevoked { get; set; }
+    public bool IsRevoked { get; set; }
 }
 
 /// <summary>
 /// The preimage.
 /// </summary>
-public class Preimage
+public class InvoicePreimage
 {
     /// <summary>
     /// The hash of the preimage.
     /// </summary>
     [Key]
-    public string hash { get; set; }
+    public required string PaymentHash { get; set; }
 
     /// <summary>
     /// The PayloadID of the gig-job.
     /// </summary>
-    public Guid tid { get; set; }
+    public Guid GigId { get; set; }
 
     /// <summary>
     /// The public key of the subject.
     /// </summary>
-    public string pubkey { get; set; }
+    public required string PublicKey { get; set; }
 
     /// <summary>
     /// The preimage for the hash.
     /// </summary>
-    public string preimage { get; set; }
+    public required string Preimage { get; set; }
 
     /// <summary>
     /// Represents whether the preimage is revealed and can be returned to the subject.
     /// </summary>
-    public bool revealed { get; set; }
+    public bool IsRevealed { get; set; }
 }
 
 /// <summary>
@@ -137,42 +137,42 @@ public class Gig
     /// The PayloadId of the gig.
     /// </summary>
     [Key]
-    public Guid tid { get; set; }
+    public Guid GigId { get; set; }
 
     /// <summary>
     /// The public key of the sender.
     /// </summary>
-    public string senderpubkey { get; set; }
+    public required string SenderPublicKey { get; set; }
 
     /// <summary>
     /// The public key of the replier.
     /// </summary>
-    public string replierpubkey { get; set; }
+    public required string ReplierPublicKey { get; set; }
 
     /// <summary>
     /// The symmetric key.
     /// </summary>
-    public string symmetrickey { get; set; }
+    public required string SymmetricKey { get; set; }
 
     /// <summary>
     /// The payment hash.
     /// </summary>
-    public string paymenthash { get; set; }
+    public required string PaymentHash { get; set; }
 
     /// <summary>
     /// The network payment hash.
     /// </summary>
-    public string networkhash { get; set; }
+    public required string NetworkPaymentHash { get; set; }
 
     /// <summary>
     /// The status of the gig.
     /// </summary>
-    public GigStatus status { get; set; }
+    public GigStatus Status { get; set; }
 
     /// <summary>
     /// The dispute deadline for the gig.
     /// </summary>
-    public DateTime disputedeadline { get; set; }
+    public DateTime DisputeDeadline { get; set; }
 }
 
 /// <summary>
@@ -184,12 +184,12 @@ public class Token
     /// The ID of the token.
     /// </summary>
     [Key]
-    public Guid id { get; set; }
+    public Guid TokenId { get; set; }
 
     /// <summary>
     /// The public key of the subject.
     /// </summary>
-    public string pubkey { get; set; }
+    public required string PublicKey { get; set; }
 }
 
 /// <summary>
@@ -219,7 +219,7 @@ public class SettlerContext : DbContext
      /// <summary>
     /// Preimages table.
     /// </summary>
-    public DbSet<Preimage> Preimages { get; set; }
+    public DbSet<InvoicePreimage> Preimages { get; set; }
 
     /// <summary>
     /// Gigs table.

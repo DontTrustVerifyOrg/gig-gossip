@@ -8,17 +8,17 @@ namespace CryptoToolkit;
 public interface ICertificationAuthorityAccessor
 {
     /// <summary>
-    /// Method to get the Public Key
+    /// Method to get the Public Key of the certification authority
     /// </summary>
     /// <param name="serviceUri">The Uri of the Certifiation Authority service</param>
-    /// <returns> Returns ECXOnlyPubKey of Certification Authority that can be used to validate signatures of issued certificates.</returns>
+    /// <returns> Returns ECXOnlyPubKey of Certification Authority that can be used to validate signatures of e.g. issued certificates.</returns>
     public ECXOnlyPubKey GetPubKey(Uri serviceUri);
 
     /// <summary>
     /// Method to check if a certificate is revoked
     /// </summary>
     /// <param name="certificate">A Digital Certificate object</param>
-    /// <returns>Returns true if the certificate has been revoked, false otherwise.</returns>
+    /// <returns>Returns true if the certificate has been revoked, false otherwise. Usefull to implement revocation list.</returns>
     public bool IsRevoked(Certificate certificate);
 }
 

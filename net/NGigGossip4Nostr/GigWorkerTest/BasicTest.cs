@@ -53,21 +53,20 @@ public class BasicTest
     SimpleSettlerSelector settlerSelector = new SimpleSettlerSelector();
 
 
-    public async Task Run()
+    public void Run()
     {
 
         var bitcoinClient = bitcoinSettings.NewRPCClient();
 
         // load bitcoin node wallet
-        RPCClient bitcoinWalletClient = null;
+        RPCClient? bitcoinWalletClient;
         try
         {
             bitcoinWalletClient = bitcoinClient.LoadWallet(bitcoinSettings.WalletName); ;
         }
-        catch (RPCException exception)
+        catch (RPCException exception ) when (exception.RPCCode== RPCErrorCode.RPC_WALLET_ALREADY_LOADED)
         {
-            if (exception.RPCCode == RPCErrorCode.RPC_WALLET_ALREADY_LOADED)
-                bitcoinWalletClient = bitcoinClient.SetWalletContext(bitcoinSettings.WalletName);
+            bitcoinWalletClient = bitcoinClient.SetWalletContext(bitcoinSettings.WalletName);
         }
 
         bitcoinWalletClient.Generate(10); // generate some blocks
@@ -76,7 +75,7 @@ public class BasicTest
         var settlerPrivKey = settlerAdminSettings.PrivateKey.AsECPrivKey();
         var settlerPubKey = settlerPrivKey.CreateXOnlyPubKey();
         var settlerClient = settlerSelector.GetSettlerClient(settlerAdminSettings.SettlerOpenApi);
-        var gtok = await settlerClient.GetTokenAsync(settlerPubKey.AsHex());
+        var gtok = settlerClient.GetTokenAsync(settlerPubKey.AsHex()).Result;
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.Now, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
@@ -86,15 +85,15 @@ public class BasicTest
             gigWorkerSettings.ChunkSize
             );
 
-        await settlerClient.GiveUserPropertyAsync(
+        settlerClient.GiveUserPropertyAsync(
                 token, gigWorker.PublicKey,
                 "drive", val,
                 (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
-             );
+             ).Wait();
 
         var gigWorkerCert = Crypto.DeserializeObject<Certificate>(
-            await settlerClient.IssueCertificateAsync(
-                 token, gigWorker.PublicKey, new List<string> { "drive" }));
+            settlerClient.IssueCertificateAsync(
+                 token, gigWorker.PublicKey, new List<string> { "drive" }).Result);
 
         var customer = new GigGossipNode(
             customerSettings.PrivateKey.AsECPrivKey(),
@@ -102,18 +101,18 @@ public class BasicTest
             customerSettings.ChunkSize
             );
 
-        await settlerClient.GiveUserPropertyAsync(
+        settlerClient.GiveUserPropertyAsync(
             token, customer.PublicKey,
             "ride", val,
             (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
-         );
+         ).Wait();
 
         var customerCert = Crypto.DeserializeObject<Certificate>(
-            await settlerClient.IssueCertificateAsync(
-                token, customer.PublicKey, new List<string> { "ride" }));
+             settlerClient.IssueCertificateAsync(
+                token, customer.PublicKey, new List<string> { "ride" }).Result);
 
 
-        await gigWorker.Init(
+        gigWorker.Init(
             gigWorkerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(gigWorkerSettings.BroadcastConditionsTimeoutMs),
             gigWorkerSettings.BroadcastConditionsPowScheme,
@@ -124,7 +123,7 @@ public class BasicTest
             settlerSelector);
         //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
 
-        await customer.Init(
+        customer.Init(
             customerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(customerSettings.BroadcastConditionsTimeoutMs),
             customerSettings.BroadcastConditionsPowScheme,
@@ -136,11 +135,11 @@ public class BasicTest
 
         //await customer.LoadCertificates(customerSettings.SettlerOpenApi);
 
-        var ballanceOfCustomer=await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken());
+        var ballanceOfCustomer= customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()).Result;
 
         if (ballanceOfCustomer == 0)
         {
-            var newBitcoinAddressOfCustomer = await customer.LNDWalletClient.NewAddressAsync(customer.MakeWalletAuthToken());
+            var newBitcoinAddressOfCustomer =  customer.LNDWalletClient.NewAddressAsync(customer.MakeWalletAuthToken()).Result;
             Console.WriteLine(newBitcoinAddressOfCustomer);
 
             bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, bitcoinSettings.GetNetwork()), new NBitcoin.Money(10000000ul));
@@ -149,12 +148,12 @@ public class BasicTest
 
             do
             {
-                if (await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()) > 0)
+                if ( customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()).Result > 0)
                     break;
                 Thread.Sleep(1000);
             } while (true);
 
-            ballanceOfCustomer = await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken());
+            ballanceOfCustomer =  customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()).Result;
         }
 
 
@@ -277,19 +276,19 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 
 public class SettlerAdminSettings
 {
-    public Uri SettlerOpenApi { get; set; }
-    public string PrivateKey { get; set; }
+    public required Uri SettlerOpenApi { get; set; }
+    public required string PrivateKey { get; set; }
 }
 
 public class NodeSettings
 {
-    public Uri GigWalletOpenApi { get; set; }
-    public string NostrRelays { get; set; }
-    public string PrivateKey { get; set; }
-    public Uri SettlerOpenApi { get; set; }
+    public required Uri GigWalletOpenApi { get; set; }
+    public required string NostrRelays { get; set; }
+    public required string PrivateKey { get; set; }
+    public required Uri SettlerOpenApi { get; set; }
     public long PriceAmountForRouting { get; set; }
     public long BroadcastConditionsTimeoutMs { get; set; }
-    public string BroadcastConditionsPowScheme { get; set; }
+    public required string BroadcastConditionsPowScheme { get; set; }
     public int BroadcastConditionsPowComplexity { get; set; }
     public long TimestampToleranceMs { get; set; }
     public long InvoicePaymentTimeoutSec { get; set; }
@@ -309,10 +308,10 @@ public class NodeSettings
 
 public class BitcoinSettings
 {
-    public string AuthenticationString { get; set; }
-    public string HostOrUri { get; set; }
-    public string Network { get; set; }
-    public string WalletName { get; set; }
+    public required string AuthenticationString { get; set; }
+    public required string HostOrUri { get; set; }
+    public required string Network { get; set; }
+    public required string WalletName { get; set; }
 
     public NBitcoin.Network GetNetwork()
     {

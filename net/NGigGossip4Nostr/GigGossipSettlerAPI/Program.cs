@@ -13,7 +13,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.EnableAnnotations();
+});
 
 var app = builder.Build();
 
@@ -54,8 +57,8 @@ var httpClient = new HttpClient();
 var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.AbsoluteUri, httpClient);
 
 var gigGossipSettler = new Settler(settlerSettings.ServiceUri, caPrivateKey, settlerSettings.PriceAmountForSettlement, TimeSpan.FromSeconds(settlerSettings.InvoicePaymentTimeoutSec));
-await gigGossipSettler.Init(lndWalletClient, settlerSettings.ConnectionString, false);
-await gigGossipSettler.Start();
+gigGossipSettler.Init(lndWalletClient, settlerSettings.ConnectionString, false);
+gigGossipSettler.Start();
 
 
 app.MapGet("/getcapublickey", () =>
@@ -63,6 +66,8 @@ app.MapGet("/getcapublickey", () =>
     return gigGossipSettler.CaXOnlyPublicKey.AsHex();
 })
 .WithName("GetCaPublicKey")
+.WithSummary("Public key of this Certification Authority.")
+.WithDescription("Public key of this Certification Authority that can be used to validate signatures of e.g. issued certificates.")
 .WithOpenApi();
 
 app.MapGet("/iscertificaterevoked", (Guid certid) =>
@@ -70,14 +75,27 @@ app.MapGet("/iscertificaterevoked", (Guid certid) =>
     return gigGossipSettler.IsCertificateRevoked(certid);
 })
 .WithName("IsCertificateRevoked")
-.WithOpenApi();
+.WithSummary("Is the certificate revoked by this Certification Authority.")
+.WithDescription("Returns true if the certificate has been revoked, false otherwise. Usefull to implement revocation list.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Serial number of the certificate.";
+    return g;
+});
+
 
 app.MapGet("/gettoken", (string pubkey) =>
 {
     return gigGossipSettler.GetTokenGuid(pubkey);
 })
 .WithName("GetToken")
-.WithOpenApi();
+.WithSummary("Creates authorisation token guid")
+.WithDescription("Creates a new token Guid that is used for further communication with the API")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "public key identifies the API user";
+    return g;
+});
 
 app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, string value, DateTime validTill) =>
 {
@@ -85,15 +103,31 @@ app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, s
     gigGossipSettler.GiveUserProperty(pubkey, name, Convert.FromBase64String(value), validTill);
 })
 .WithName("GiveUserProperty")
-.WithOpenApi();
+.WithSummary("Grants a property to the subject.")
+.WithDescription("Grants a property to the subject (e.g. driving licence). Only authorised users can grant the property.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Public key of the subject.";
+    g.Parameters[2].Description = "Name of the property.";
+    g.Parameters[3].Description = "Value of the property.";
+    g.Parameters[4].Description = "Date and time after which the property will not be valid anymore";
+    return g;
+});
 
 app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name) =>
 {
     gigGossipSettler.ValidateAuthToken(authToken);
     gigGossipSettler.RevokeUserProperty(pubkey, name);
 })
-.WithName("RevokeUserProperty")
-.WithOpenApi();
+.WithDescription("Revokes a property from the subject (e.g. driving licence is taken by the police). Only authorised users can revoke the property.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Public key of the subject.";
+    g.Parameters[2].Description = "Name of the property.";
+    return g;
+});
 
 app.MapGet("/issuecertificate", (string authToken, string pubkey, string[] properties) =>
 {
@@ -101,7 +135,15 @@ app.MapGet("/issuecertificate", (string authToken, string pubkey, string[] prope
     return Crypto.SerializeObject(gigGossipSettler.IssueCertificate(pubkey, properties));
 })
 .WithName("IssueCertificate")
-.WithOpenApi();
+.WithSummary("Issues a new Digital Certificate for the Subject.")
+.WithDescription("Issues a new Digital Certificate for the Subject. Only authorised users can issue the certificate.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user including Subject.";
+    g.Parameters[1].Description = "Public key of the Subject.";
+    g.Parameters[2].Description = "List of properties for the certificate";
+    return g;
+});
 
 app.MapGet("/getcertificate", (string authToken, string pubkey, Guid certid) =>
 {
@@ -109,7 +151,15 @@ app.MapGet("/getcertificate", (string authToken, string pubkey, Guid certid) =>
     return Crypto.SerializeObject(gigGossipSettler.GetCertificate(pubkey, certid));
 })
 .WithName("GetCertificate")
-.WithOpenApi();
+.WithSummary("Returns an existing Digital Certificate for the Subject.")
+.WithDescription("Returns an existing Digital Certificate for the Subject. Only authorised users can get the certificate.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user including Subject.";
+    g.Parameters[1].Description = "Public key of the Subject.";
+    g.Parameters[2].Description = "Serial number of the certificate.";
+    return g;
+});
 
 app.MapGet("/listcertificates", (string authToken, string pubkey) =>
 {
@@ -117,15 +167,29 @@ app.MapGet("/listcertificates", (string authToken, string pubkey) =>
     return gigGossipSettler.ListCertificates(pubkey);
 })
 .WithName("ListCertificates")
-.WithOpenApi();
+.WithSummary("Lists serial numbers of all Digital Certificate issued for the Subject.")
+.WithDescription("Lists serial numbers of all Digital Certificate issued for the Subject. Only authorised users can list certificates.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user including Subject.";
+    g.Parameters[1].Description = "Public key of the Subject.";
+    return g;
+});
 
-app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid tid) =>
+app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid gigId) =>
 {
     var pubkey = gigGossipSettler.ValidateAuthToken(authToken);
-    return gigGossipSettler.GenerateReplyPaymentPreimage(pubkey,tid);
+    return gigGossipSettler.GenerateReplyPaymentPreimage(pubkey,gigId);
 })
 .WithName("GenerateReplyPaymentPreimage")
-.WithOpenApi();
+.WithSummary("Generates new reply payment preimage and returns its hash.")
+.WithDescription("Generates new reply payment preimage for the lightning network HODL invoice. This preimage is secret as long as the gig-job referenced by gigId is not marked as settled. The method returns hash of this preimage.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication.";
+    g.Parameters[1].Description = "gig-job identifier";
+    return g;
+});
 
 app.MapGet("/generaterelatedpreimage", (string authToken, string paymentHash) =>
 {
@@ -133,7 +197,14 @@ app.MapGet("/generaterelatedpreimage", (string authToken, string paymentHash) =>
     return gigGossipSettler.GenerateRelatedPreimage(pubkey, paymentHash);
 })
 .WithName("GenerateRelatedPreimage")
-.WithOpenApi();
+.WithSummary("Generates new payment preimage that is related to the given paymentHash and returns its hash..")
+.WithDescription("Generates new reply payment preimage for the lightning network HODL invoice. Allows implementing payment chains. This preimage is secret as long as the gig-job referenced paymentHash is not marked as settled. The method returns hash of this preimage.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication.";
+    g.Parameters[1].Description = "Payment hash of related HODL invoice.";
+    return g;
+});
 
 app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
 {
@@ -141,35 +212,67 @@ app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
     return gigGossipSettler.RevealPreimage(pubkey, paymentHash);
 })
 .WithName("RevealPreimage")
-.WithOpenApi();
+.WithSummary("Reveals payment preimage of the specific paymentHash")
+.WithDescription("Reveals payment preimage for the settlement of lightning network HODL invoice. This preimage is secret as long as the gig-job referenced paymentHash is not marked as settled.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication.";
+    g.Parameters[1].Description = "Payment hash of related HODL invoice.";
+    return g;
+});
 
 
-app.MapGet("/generatesettlementtrust", async (string authToken, string message, string replyinvoice, string signedRequestPayloadSerialized, string replierCertificateSerialized) =>
+app.MapGet("/generatesettlementtrust", (string authToken, string message, string replyinvoice, string signedRequestPayloadSerialized, string replierCertificateSerialized) =>
 {
     var pubkey = gigGossipSettler.ValidateAuthToken(authToken);
     var signedRequestPayload = Crypto.DeserializeObject< RequestPayload>(Convert.FromBase64String(signedRequestPayloadSerialized));
     var replierCertificate = Crypto.DeserializeObject< Certificate>(Convert.FromBase64String(replierCertificateSerialized));
-    var st = await gigGossipSettler.GenerateSettlementTrust(pubkey, Convert.FromBase64String(message), replyinvoice, signedRequestPayload, replierCertificate);
+    var st =  gigGossipSettler.GenerateSettlementTrustAsync(pubkey, Convert.FromBase64String(message), replyinvoice, signedRequestPayload, replierCertificate).Result;
     return Convert.ToBase64String(Crypto.SerializeObject(st));
 })
 .WithName("GenerateSettlementTrust")
-.WithOpenApi();
+.WithSummary("Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.")
+.WithDescription("Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication.";
+    g.Parameters[1].Description = "Message to be delivered to the customer.";
+    g.Parameters[2].Description = "Invoice for the job.";
+    g.Parameters[3].Description = "Request payload";
+    g.Parameters[4].Description = "Gig-worker certificate";
+    return g;
+});
 
-app.MapGet("/revealsymmetrickey", (string authToken, Guid tid) =>
+app.MapGet("/revealsymmetrickey", (string authToken, Guid gigId) =>
 {
     var pubkey = gigGossipSettler.ValidateAuthToken(authToken);
-    return gigGossipSettler.RevealSymmetricKey(pubkey, tid);
+    return gigGossipSettler.RevealSymmetricKey(pubkey, gigId);
 })
 .WithName("RevealSymmetricKey")
-.WithOpenApi();
+.WithSummary("Reveals symmetric key that customer can use to decrypt the message from gig-worker.")
+.WithDescription("Reveals symmetric key that customer can use to decrypt the message from gig-worker. This key is secret as long as the gig-job is not marked as accepted.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication.";
+    g.Parameters[1].Description = "Gig-job identifier.";
+    return g;
+});
 
-app.MapGet("/managedispute", (string authToken, Guid tid, bool open) =>
+app.MapGet("/managedispute", (string authToken, Guid gigId, bool open) =>
 {
     gigGossipSettler.ValidateAuthToken(authToken);
-    gigGossipSettler.ManageDispute(tid, open);
+    gigGossipSettler.ManageDispute(gigId, open);
 })
 .WithName("ManageDispute")
-.WithOpenApi();
+.WithSummary("Allows opening and closing disputes.")
+.WithDescription("Allows opening and closing disputes. After opening, the dispute needs to be solved positively before the HODL invoice timeouts occure. Otherwise all the invoices and payments will be cancelled.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
+    g.Parameters[1].Description = "Gig-job identifier.";
+    g.Parameters[2].Description = "True to open/False to close dispute.";
+    return g;
+});
 
 app.Run(settlerSettings.ServiceUri.AbsoluteUri);
 

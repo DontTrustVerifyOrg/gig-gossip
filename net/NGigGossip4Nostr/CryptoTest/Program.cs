@@ -5,8 +5,6 @@ using NBitcoin;
 using NBitcoin.Secp256k1;
 using NGigGossip4Nostr;
 
-Console.WriteLine("Hello, World!");
-
 var hash = Crypto.ComputeSha256(new List<byte[]> { Encoding.ASCII.GetBytes("A"), Encoding.ASCII.GetBytes("B") });
 
 Console.WriteLine(hash.AsHex());

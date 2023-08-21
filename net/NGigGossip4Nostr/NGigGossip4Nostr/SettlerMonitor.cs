@@ -40,7 +40,7 @@ namespace NGigGossip4Nostr
 		Thread monitorThread;
 
 
-		public async Task Start()
+		public void Start()
 		{
 			monitorThread = new Thread(async () =>
 			{
@@ -54,7 +54,7 @@ namespace NGigGossip4Nostr
 						{
 							var serviceUri = kv.Key.Item1;
 							var phash = kv.Key.Item2;
-							var preimage = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthToken(serviceUri), phash);
+							var preimage = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash);
                             if (!string.IsNullOrWhiteSpace(preimage))
                             {
 								lock (monitoredPreimages)
@@ -76,7 +76,7 @@ namespace NGigGossip4Nostr
 						{
 							var serviceUri = kv.Key.Item1;
 							var tid = kv.Key.Item2;
-							var key = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthToken(serviceUri), tid.ToString());
+							var key = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), tid.ToString());
 							if (!string.IsNullOrWhiteSpace(key))
 							{
 								lock (monitoredKeys)
