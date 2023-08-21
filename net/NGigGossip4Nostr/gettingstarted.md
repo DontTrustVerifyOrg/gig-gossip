@@ -16,9 +16,14 @@ Install required packages
 $ brew install build-essential libtool autotools-dev automake pkg-config bsdmainutils python3 libsqlite3-dev libminiupnpc-dev libnatpmp-dev systemtap-sdt-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools qtwayland5  libqrencode-dev  gcc-c++ libtool make autoconf pkgconf qrencode-devel automake libtool boost pkg-config libevent zeromq gnu-tar berkeley-db@4
 ```
 
-append BerkleyDB to the `$PATH`
+append BerkleyDB to the `$PATH` by appending `~/.zshrc` with the following:
 ```bash
 export PATH="/usr/local/opt/berkeley-db@4/bin:$PATH"
+```
+
+install Go for Lightning Network
+```
+$ brew install go
 ```
 
 Directory Structure
@@ -38,33 +43,30 @@ For the sake of this tutorial we will assume that we work in the `~/work/` folde
 │   │
 │   ├── .lnd
 │   │   ├── data
-│   │   │   ├── chain
-│   │   │   │   └── bitcoin
-│   │   │   │       └── regtest
-│   │   │   │           └── admin.macaroon
+│   │   │   └── chain
+│   │   │       └── bitcoin
+│   │   │           └── regtest
+│   │   │               └── admin.macaroon
 │   │   ├── lnd.conf - lightning node configuration
-│   │   ├── tls.cert
-│   │   └── tls.key
+│   │   └── tls.cert
 │   │
 │   ├── .lnd2
 │   │   ├── data
-│   │   │   ├── chain
-│   │   │   │   └── bitcoin
-│   │   │   │       └── regtest
-│   │   │   │           └── admin.macaroon
+│   │   │   └── chain
+│   │   │       └── bitcoin
+│   │   │           └── regtest
+│   │   │               └── admin.macaroon
 │   │   ├── lnd.conf - lightning node configuration
-│   │   ├── tls.cert
-│   │   └── tls.key
+│   │   └── tls.cert
 │   │
 │   ├── .lnd3
 │   │   ├── data
-│   │   │   ├── chain
-│   │   │   │   └── bitcoin
-│   │   │   │       └── regtest
-│   │   │   │           └── admin.macaroon
+│   │   │   └── chain
+│   │   │       └── bitcoin
+│   │   │           └── regtest
+│   │   │               └── admin.macaroon
 │   │   ├── lnd.conf - lightning node configuration
-│   │   ├── tls.cert
-│   │   └── tls.key
+│   │   └── tls.cert
 │   │
 │   ├── .secret
 │   │   └── password.txt - lnd wallet unlock password
@@ -112,7 +114,7 @@ Your password:
 lightning
 ```
 
-Now we create a `bitcoin.conf` configuration file. This should be placed under `~/work/locallnd/.bitcoin/` folder.
+Now we create a `bitcoin.conf` configuration file. This file should be placed under `~/work/locallnd/.bitcoin/` folder. Remember to enter the proper rpcauth string into the configuration.
 
 ```ini
 regtest=1
@@ -130,30 +132,34 @@ rpcport=18332
 
 We use regtest mode, run as a daemon, and keep an index of all transactions, sets up RPC authentication and ZMQ ports for LND to use to communicate with the node. We are allso explicitly specyfing fallbackfee as we will not use a transaction fee discovery.
 
-Now we need to setup some shortcuts that will allow us to work with bitcoin deamon and bitcoin-cli. We create aliases `biststeind` for our configured `bitcoind` and `bitstein-cli` for `bitcoin-cli`.
-
+Now we need to setup some shortcuts that will allow us to work with bitcoin deamon and bitcoin-cli. We create aliases `bitcoind-local` for our configured `bitcoind` and `bitcoin-local-cli` for `bitcoin-cli` by appending `~/.zshrc` with the following:
 ```bash
-export BITSTEIND_DIR="$HOME/work/locallnd/.bitcoin"
-alias bitsteind="$HOME/work/bitcoin/src/bitcoind -datadir=$BITSTEIND_DIR"
-alias bitstein-cli="$HOME/work/bitcoin/src/bitcoin-cli -datadir=$BITSTEIND_DIR"
+export BITCOIN_LOCAL_DIR="$HOME/work/locallnd/.bitcoin"
+alias bitcoind-local="$HOME/work/bitcoin/src/bitcoind -datadir=$BITCOIN_LOCAL_DIR"
+alias bitcoin-local-cli="$HOME/work/bitcoin/src/bitcoin-cli -datadir=$BITCOIN_LOCAL_DIR"
 ```
+Remember to source the `~/.zshrc` after the modification
+```bash
+$ source ~/.zshrc
+```
+
 
 Now, you can run your Bitcoin node from the terminal.
 
 ```bash
-$ bitsteind
+$ bitcoind-local
 Bitcoin Core starting
 ```
 
 Later you can stop the node with
 ```bash
-$ bitstein-cli stop
+$ bitcoin-local-cli stop
 Bitcoin Core stopping
 ```
 
 We need to create our `testwallet`
 ```bash
-$ bitstein-cli createwallet "testwallet"
+$ bitcoin-local-cli createwallet "testwallet"
 {
   "name": "testwallet"
 }
@@ -161,7 +167,7 @@ $ bitstein-cli createwallet "testwallet"
 
 you can load this wallet with
 ```bash
-bitstein-cli loadwallet "testwallet"
+$ bitcoin-local-cli loadwallet "testwallet"
 {
   "name": "testwallet"
 }
@@ -170,7 +176,7 @@ bitstein-cli loadwallet "testwallet"
 Coins are not spendable by miners until there are 100 confirmations, so we need to mine 101 blocks.
 
 ```bash
-$ bitstein-cli -generate 101
+$ bitcoin-local-cli -generate 101
 {
   "address": "bcrt1qgp3ypd36cx2f8enkmj62hxdtk5ddf7k0me3ghk",
   "blocks": [
@@ -183,14 +189,14 @@ $ bitstein-cli -generate 101
 
 Now you should see a positive balance:
 ```bash
-$ bitstein-cli getbalance
+$ bitcoin-local-cli getbalance
 0.39062500
 ```
 
 Setting Up Lightning Network
 --------
 
-We will configure 3 local LND nodes that will be refering to our bitcoin node.
+We will configure 3 local LND nodes that will be refering to our local bitcoin node.
 
 ```mermaid
 graph BT
@@ -204,15 +210,16 @@ First we need to clone the repo into our ~/work directory
 $ git clone https://github.com/lightningnetwork/lnd
 ```
 
-And build it
+And build it with support of HODL invoices
 ```bash
 $ cd lnd
-$ make && make install
+$ make tags="signrpc walletrpc routerrpc invoicesrpc chainrpc" && make install
 $ make check
 ```
-now we can need to configure our LND nodes.
 
-First one by putting the `lnd.conf` files into `~/work/locallnd/.lnd/`
+Now we need to configure LND nodes.
+
+Configure the first one by putting the `lnd.conf` files into `~/work/locallnd/.lnd/`
 
 ```ini
 [Application Options]
@@ -281,10 +288,46 @@ bitcoind.zmqpubrawblock=tcp://127.0.0.1:28332
 bitcoind.zmqpubrawtx=tcp://127.0.0.1:28333
 ```
 
-This configures their GRPC/RPC and REST addresses and points them to our bitcoin node.
+This configures their GRPC/RPC and REST addresses and points them to our bitcoin node. Note the differences in port numbers.
+
+We need to add aliases for our nodes by appending `~/.zshrc` with the following:
+```bash
+export LND1_DIR="$HOME/work/locallnd/.lnd"
+export LND2_DIR="$HOME/work/locallnd/.lnd2"
+export LND3_DIR="$HOME/work/locallnd/.lnd3"
+alias lnd1="$HOME/work/lnd/lnd-debug --lnddir=$LND1_DIR"
+alias lnd2="$HOME/work/lnd/lnd-debug --lnddir=$LND2_DIR"
+alias lnd3="$HOME/work/lnd/lnd-debug --lnddir=$LND3_DIR"
+alias lncli1="$HOME/work/lnd/lncli-debug -n regtest --lnddir=$LND1_DIR"
+alias lncli2="$HOME/work/lnd/lncli-debug -n regtest --lnddir=$LND2_DIR --rpcserver=localhost:11009"
+alias lncli3="$HOME/work/lnd/lncli-debug -n regtest --lnddir=$LND3_DIR --rpcserver=localhost:11010"
+```
+
+Remember to source the `~/.zshrc` after the modification
+```bash
+$ source ~/.zshrc
+```
+
+Now we can setup LND node wallets. Firts start the node:
+```bash
+$ lnd1
+```
+And create the wallet. Use the password `testertester`.
+```bash
+$ lncli1 create
+```
+Do the same for all three nodes.
+Now we will configure the nodes for automatic wallet unlocking. This can be done by creating the textfile with password from above (`testertester`) and referring to this file when starting the node.
+
+```bash
+$ lnd1 --wallet-unlock-password-file=$HOME/work/locallnd/.secret/password.txt
+```
+
+This will start the node and unlock the wallet automatically. 
+
+
 
 We want these nodes to be connected.
-
 ```mermaid
 graph BT
     LND2(LND2) -.- LND1(LND1)
