@@ -51,14 +51,14 @@ public static class LND
     static SslCredentials GetSslCredentials(NodeSettings conf)
     {
         Environment.SetEnvironmentVariable("GRPC_SSL_CIPHER_SUITES", "HIGH+ECDSA");
-        var cert = System.IO.File.ReadAllText(conf.TlsCertFile);
+        var cert = System.IO.File.ReadAllText(conf.TlsCertFile.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
         var sslCreds = new SslCredentials(cert);
         return sslCreds;
     }
 
     static string GetMacaroon(NodeSettings conf)
     {
-        return File.ReadAllBytes(conf.MacaroonFile).AsHex();
+        return File.ReadAllBytes(conf.MacaroonFile.Replace("$HOME",Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))).AsHex();
     }
 
     static Metadata Metadata(NodeSettings conf)

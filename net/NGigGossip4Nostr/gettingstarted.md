@@ -214,7 +214,7 @@ $ dotnet ~/work/donttrustverify/gig-gossip/net/NGigGossip4Nostr/BTCTest/bin/Debu
 1262
 1487606431636
 ```
-It displays the block-height and ballance of the local bitcoin wallet.
+It displays the block-height and ballance of the local bitcoin wallet in Satoshis.
 
 Setting Up Lightning Network
 --------
@@ -348,7 +348,42 @@ $ lnd1 --wallet-unlock-password-file=$HOME/work/locallnd/.secret/password.txt
 
 This will start the node and unlock the wallet automatically. 
 
+Running the LNDTest
+------
+Now you should be able to run and play with `LNDTest` program from the solution. To work with this programm you need to put `lndtest.conf` configuration file under `~/work/locallnd/.giggossip/`
 
+```ini
+[LndNodes]
+NodeSections = ["Lnd1","Lnd2","Lnd3"]
+
+[Lnd1]
+MacaroonFile="$HOME/work/locallnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon"
+TlsCertFile="$HOME/work/locallnd/.lnd/tls.cert"
+RpcHost = "localhost:10009"
+ListenHost="localhost:9735"
+MaxSatoshisPerChannel = 1000000
+
+[Lnd2]
+MacaroonFile="$HOME/work/locallnd/.lnd2/data/chain/bitcoin/regtest/admin.macaroon"
+TlsCertFile="$HOME/work/locallnd/.lnd2/tls.cert"
+RpcHost = "localhost:11009"
+ListenHost="localhost:9734"
+MaxSatoshisPerChannel = 1000000
+
+[Lnd3]
+MacaroonFile="$HOME/work/locallnd/.lnd3/data/chain/bitcoin/regtest/admin.macaroon"
+TlsCertFile="$HOME/work/locallnd/.lnd3/tls.cert"
+RpcHost = "localhost:11010"
+ListenHost="localhost:9736"
+MaxSatoshisPerChannel = 1000000
+
+```
+
+And run it with:
+
+```bash
+$ dotnet ~/work/donttrustverify/gig-gossip/net/NGigGossip4Nostr/LNDTest/bin/Debug/net7.0/LNDTest.dll --basedir="$HOME/work/locallnd/.giggossip/"
+```
 
 We want these nodes to be connected.
 ```mermaid
