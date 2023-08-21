@@ -1,6 +1,6 @@
 
 Preliminaries
---------
+======
 Install Xcode Command Line Tools
 ```bash
 $ xcode-select --install
@@ -84,8 +84,8 @@ For the sake of this tutorial we will assume that we work in the `~/work/` folde
 │   │   └── wallettest.conf
 ```
 
-Setting Up Bitcoin
---------
+Setting Up Local Bitcoin Node on RegTest network
+======
 We will compile bitcoin from source code and use regtest network. Regtest is a local testing environment in which developers can almost instantly generate blocks on demand for testing events, and can create private satoshis with no real-world value.
 
 ```bash
@@ -193,6 +193,29 @@ $ bitcoin-local-cli getbalance
 0.39062500
 ```
 
+Running the BTCTest
+--------
+Now you should be able to run and play with `BTCTest` program from the solution. To work with this programm you need to put `btctest.conf` configuration file under `~/work/locallnd/.giggossip/`
+
+```ini
+[Bitcoin]
+AuthenticationString="lnd:lightning"
+HostOrUri="127.0.0.1:18332"
+Network="RegTest"
+
+[User]
+WalletName = "testwallet"
+```
+
+And run it with:
+
+```bash
+$ dotnet ~/work/donttrustverify/gig-gossip/net/NGigGossip4Nostr/BTCTest/bin/Debug/net7.0/BTCTest.dll --basedir="$HOME/work/locallnd/.giggossip/"
+1262
+1487606431636
+```
+It displays the block-height and ballance of the local bitcoin wallet.
+
 Setting Up Lightning Network
 --------
 
@@ -219,7 +242,7 @@ $ make check
 
 Now we need to configure LND nodes.
 
-Configure the first one by putting the `lnd.conf` files into `~/work/locallnd/.lnd/`
+Configure the first one by putting the `lnd.conf` file into `~/work/locallnd/.lnd/`
 
 ```ini
 [Application Options]
@@ -242,7 +265,7 @@ bitcoind.zmqpubrawblock=tcp://127.0.0.1:28332
 bitcoind.zmqpubrawtx=tcp://127.0.0.1:28333
 ```
 
-Second one by putting the `lnd.conf` files into `~/work/locallnd/.lnd2/`
+Second one by putting the `lnd.conf` file into `~/work/locallnd/.lnd2/`
 
 ```ini
 [Application Options]
@@ -265,7 +288,7 @@ bitcoind.zmqpubrawblock=tcp://127.0.0.1:28332
 bitcoind.zmqpubrawtx=tcp://127.0.0.1:28333
 ```
 
-Third one by putting the `lnd.conf` files into `~/work/locallnd/.lnd3/`
+Third one by putting the `lnd.conf` file into `~/work/locallnd/.lnd3/`
 
 ```ini
 [Application Options]

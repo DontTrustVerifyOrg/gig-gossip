@@ -63,10 +63,7 @@ catch (RPCException exception)
         wallet = client.CreateWallet(walletName, new CreateWalletOptions() { DisablePrivateKeys = true, LoadOnStartup = false, Descriptors = false });
 }
 
-// Import Bitcoin address into the lightning wallet
-wallet.ImportAddress(BitcoinAddress.Create(userSettings.BitcoinAddress, bitcoinSettings.GetNetwork()),null,true);
-
-// Display the current balance in the lightning wallet
+// Display the current balance in the wallet
 Console.WriteLine(wallet.GetBalance(6, true));
 
 public class BitcoinSettings
@@ -104,5 +101,4 @@ public class BitcoinSettings
 public class UserSettings
 {
     public string WalletName { get; set; }
-    public string BitcoinAddress { get; set; }
 }
