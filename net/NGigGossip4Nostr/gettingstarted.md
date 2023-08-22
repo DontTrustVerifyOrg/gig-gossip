@@ -225,7 +225,7 @@ Wallet ballance: 14876.06431636
 It displays the block-height and ballance of the local bitcoin wallet in Satoshis.
 
 Setting Up Lightning Network
---------
+=====
 
 We will configure 3 local LND nodes that will be refering to our local bitcoin node.
 
@@ -451,7 +451,7 @@ Public keys of the nodes are important to properly configure the `LNDWallet` des
 `LNDTest` app is then checking the ballance of the node `localhost:9734` and if empty it tops it up with local Bitcoin amount from Bitcoin network. It is then opening channels and creating some invoices and payments. Give it a try.
 
 Working with LND wallets
--------------
+=======
 Lightning Network node usually sits on the same Virtual Network as Bitcoin node, therefore makes it practically imposible to become a client-side solution. Client applications like mobile-apps need to communicate with the node via API. This API is implemented in `LNDWallet` and `LNDWalletAPI` exposes the `OpenAPI` allowing to work with User Accounts. Multiple User Accounts can share the same Lightnig Network Node. Accounts and transactions that are maintained by the same `LNDWalletAPI` reside in local databases of the wallet.
 
 ```mermaid
@@ -523,7 +523,7 @@ $ dotnet $HOME/work/donttrustverify/gig-gossip/net/NGigGossip4Nostr/GigLNDWallet
 ```
 
 Working with Settlers
--------------
+======
 Settler is a Certification Authority for GigGossip that  reveals preimages for the LND payments making possible for dispute resolution implementation.
 
 To configure `SettlerAPI` you need to put the following under `settler.conf` into the `~/work/locallnd/.giggossip/`.
@@ -546,7 +546,7 @@ $ dotnet $HOME/work/donttrustverify/gig-gossip/net/NGigGossip4Nostr/GigGossipSet
 ```
 
 Setting up Nostr-Relay
--------------
+======
 Gig gossip communicates using Nostr. Nostr is based on the idea of implicit network built on top of redundant connections of Users to multiple relays. Relays are not connected directly to other relays. User can publish event or subscribe for event from one or multiple relays. Published event is distributed to all the other users of the specific relay. The network topology emerges as the users and relays are joing network. Nostr allows implementing the message p2p communication with encrypted messages. The protocol is described here: <https://github.com/nostr-protocol/nips>.
 
 ```mermaid
@@ -570,6 +570,90 @@ Here we will be using python impementation of Nostr-Relay <https://pypi.org/proj
 $ pip install nostr-relay
 ```
 
+We configure the `nostr-relay` with the file `config.yaml` in the `~/work/locallnd/.nostr_relay`.
+
+```yaml
+DEBUG: false
+
+relay_name: python relay
+relay_description: relay written in python
+sysop_pubkey: 
+sysop_contact: 
+
+storage:
+  sqlalchemy.url: sqlite+aiosqlite:///nostr.sqlite3
+  # the number of concurrent REQ queries sent to the db
+  num_concurrent_reqs: 10
+  # the number of concurrent event saves. (sqlite can only support 1 writer at a time)
+  num_concurrent_adds: 2
+  validators:
+    - nostr_relay.validators.is_not_too_large
+    - nostr_relay.validators.is_signed
+    - nostr_relay.validators.is_recent
+    - nostr_relay.validators.is_not_hellthread
+
+verification:
+  # options are disabled, passive, enabled
+  nip05_verification: disabled
+  expiration: 86400 * 30
+  update_frequency: 3600
+  #blacklist:
+  # - badhost.biz
+  #whitelist:
+  # - goodhost.com
+
+
+gunicorn:
+  bind: 127.0.0.1:6969
+  workers: 1
+  loglevel: info
+  reload: false
+
+
+purple:
+  host: 127.0.0.1
+  port: 6969
+  workers: 1
+  disable_compression: true
+
+
+# see docs/authentication.md
+authentication:
+  enabled: false
+  valid_urls: 
+    - ws://localhost:6969
+    - ws://127.0.0.1:6969
+  actions:
+    save: a
+    query: a
+
+# number of seconds to allow between client messages
+message_timeout: 1800
+
+# number of open subscriptions per connection
+subscription_limit: 32
+
+# set this to a private key used for internal control events
+# service_privatekey: 9627da965699a2a3048f97b77df5047e8cd0d11daca75e7687d0b28b65416a3c
+
+# set this to limit the number of events returned per REQ
+max_limit: 6000
+
+# set this to the maximum number of "p" tags in an event
+hellthread_limit: 100
+```
+
+And we are starting this with
+```bash
+$ cd ~/work/locallnd/.nostr_relay/ && nostr-relay -c config.yaml serve
+```
+
+This will start our relay listening on port `6969`. We can access it via `ws://127.0.0.1:6969`.
+
+Running the BasicTest
+=======
+
+Basic test runs the following gig-gossip setup.
 
 ```mermaid
 graph BT
