@@ -667,3 +667,42 @@ graph BT
     CUST --- NSTR
     WORK --- NSTR
 ```
+
+The configuration file is the following:
+```ini
+[Bitcoin]
+AuthenticationString="lnd:lightning"
+HostOrUri="127.0.0.1:18332"
+Network="RegTest"
+WalletName = "testwallet"
+
+[SettlerAdmin]
+SettlerOpenApi="https://localhost:7189/"
+PrivateKey="7f4c11a9742721d66e40e321ca70b682c27f7402190c84a187525e69e6038362"
+
+[GigWorker]
+GigWalletOpenApi="https://localhost:7101/"
+NostrRelays = ["ws://127.0.0.1:6969"]
+PrivateKey="7f4c11a9742721d66e40e321ca70b682c27f7402190c84a187525e69e6038369"
+SettlerOpenApi="https://localhost:7189/"
+PriceAmountForRouting=1000
+BroadcastConditionsTimeoutMs=1000000
+BroadcastConditionsPowScheme="sha256"
+BroadcastConditionsPowComplexity=0
+TimestampToleranceMs=1000000
+InvoicePaymentTimeoutSec=1000
+ChunkSize=2048
+
+[Customer]
+GigWalletOpenApi="https://localhost:7101/"
+NostrRelays = ["ws://127.0.0.1:6969"]
+PrivateKey="7f4c11a9742721d66e40e321ca70b632c27f7422190c84a187525e69e6038369"
+SettlerOpenApi="https://localhost:7189/"
+PriceAmountForRouting=1000
+BroadcastConditionsTimeoutMs=1000000
+BroadcastConditionsPowScheme="sha256"
+BroadcastConditionsPowComplexity=0
+TimestampToleranceMs=1000000
+InvoicePaymentTimeoutSec=1000
+ChunkSize=2048
+```
