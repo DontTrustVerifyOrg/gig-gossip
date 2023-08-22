@@ -80,7 +80,15 @@ For the sake of this tutorial we will assume that we work in the `~/work/` folde
 │   │   ├── lndtest.conf
 │   │   ├── lndwallettest.conf
 │   │   ├── settler.conf
+│   │   ├── settlerdata
+│   │   │   ├── settler.db-wal - settler database
+│   │   │   ├── settler.db-shm - settler database
+│   │   │   └── settler.db - settler database
 │   │   ├── wallet.conf
+│   │   ├── walletdata
+│   │   │   ├── wallet.db-wal - wallet database
+│   │   │   ├── wallet.db-shm - wallet database
+│   │   │   └── wallet.db - wallet database
 │   │   └── wallettest.conf
 ```
 
@@ -211,8 +219,8 @@ And run it with:
 
 ```bash
 $ dotnet ~/work/donttrustverify/gig-gossip/net/NGigGossip4Nostr/BTCTest/bin/Debug/net7.0/BTCTest.dll --basedir="$HOME/work/locallnd/.giggossip/"
-1262
-1487606431636
+Number of blocks: 1262
+Wallet ballance: 14876.06431636
 ```
 It displays the block-height and ballance of the local bitcoin wallet in Satoshis.
 
@@ -343,16 +351,49 @@ Do the same for all three nodes.
 Now we will configure the nodes for automatic wallet unlocking. This can be done by creating the textfile with password from above (`testertester`) and referring to this file when starting the node.
 
 ```bash
-$ lnd1 --wallet-unlock-password-file=$HOME/work/locallnd/.secret/password.txt
+$ lnd1 --wallet-unlock-password-file=$HOME/work/locallnd/.secret/password.txt &
 ```
 
 This will start the node and unlock the wallet automatically. 
+If the LND is not synched, we can speed it up with mining a few blocks.
+
+```bash
+$ bitcoin-local-cli -generate 6
+```
+
+In the same way you should start both other nodes
+```bash
+$ lnd2 --wallet-unlock-password-file=$HOME/work/locallnd/.secret/password.txt &
+```
+and
+```bash
+$ lnd3 --wallet-unlock-password-file=$HOME/work/locallnd/.secret/password.txt &
+```
 
 Running the LNDTest
 ------
-Now you should be able to run and play with `LNDTest` program from the solution. To work with this programm you need to put `lndtest.conf` configuration file under `~/work/locallnd/.giggossip/`
+
+`LNDTest` app allows you to play with `LNDClient` library. The app creates 3 instances of `LNDClient` for each of the LND nodes we have set up before.
+
+```mermaid
+graph BT
+    BTC(Bitcoind\non RegTest Network) -- RPC --- LND1(LND1)
+    BTC(Bitcoind\non RegTest Network) -- RPC --- LND2(LND2)
+    BTC(Bitcoind\non RegTest Network) -- RPC --- LND3(LND3)
+    LND1 -- LNDClient --- LNT(LNDTest)
+    LND2 -- LNDClient --- LNT(LNDTest)
+    LND3 -- LNDClient --- LNT(LNDTest)
+```
+
+To work with this 'LNDTest' you need to put `lndtest.conf` configuration file under `~/work/locallnd/.giggossip/`
 
 ```ini
+[Bitcoin]
+AuthenticationString="lnd:lightning"
+HostOrUri="127.0.0.1:18332"
+Network="RegTest"
+WalletName = "testwallet"
+
 [LndNodes]
 NodeSections = ["Lnd1","Lnd2","Lnd3"]
 
@@ -379,19 +420,39 @@ MaxSatoshisPerChannel = 1000000
 
 ```
 
-And run it with:
+They are pointing to the Macaroon files and Tls Certificates that were generated during the startup of the LND nodes. <https://docs.lightning.engineering/the-lightning-network/l402/macaroons>
 
 ```bash
 $ dotnet ~/work/donttrustverify/gig-gossip/net/NGigGossip4Nostr/LNDTest/bin/Debug/net7.0/LNDTest.dll --basedir="$HOME/work/locallnd/.giggossip/"
+localhost:9735 Pubkey: 02ab5c7f2ff8c0962892467165bbe6fff3253a53d7b44aeaa5b44c851916384411
+localhost:9734 Pubkey: 02c4708baffce0e83ed0f91ae7de1726dea44100ca9ac03cef8c899d07f673f8ee
+localhost:9736 Pubkey: 03440b27f8d0ba1f3bb6d1a92e7181367d3ba89c9057d70cc3fecb76246311db5d
 ```
 
-We want these nodes to be connected.
+The app displays first the identity public keys of the nodes and uses them to connects the LND nodes into structure like this:
 ```mermaid
 graph BT
     LND2(LND2) -.- LND1(LND1)
     LND2(LND2) -.- LND3(LND3)
 ```
 
+You can obtain pubkeys of LND node also in the following way:
+```bash
+$ lncli1 getinfo
+{
+    "version":  "0.16.99-beta commit=tor/v1.1.1-76-gc3cd93c98",
+    "commit_hash":  "c3cd93c98a7c48c97a8264350fa2ef72e4188c28",
+    "identity_pubkey":  "02ab5c7f2ff8c0962892467165bbe6fff3253a53d7b44aeaa5b44c851916384411",
+    "alias":  "02ab...
+    ...
+```
+
+Public keys of the nodes are important to properly configure the `LNDWallet` described in next sections.
+`LNDTest` app is then checking the ballance of the node `localhost:9734` and if empty it tops it up with local Bitcoin amount from Bitcoin network. It is then opening channels and creating some invoices and payments. Give it a try.
+
+Working with LND wallets
+-------------
+Lightning Network node usually sits on the same Virtual Network as Bitcoin node, therefore makes it practically imposible to become a client-side solution. Client applications like mobile-apps need to communicate with the node via API. This API is implemented in `LNDWallet` and `LNDWalletAPI` exposes the `OpenAPI` allowing to work with User Accounts. Multiple User Accounts can share the same Lightnig Network Node. Accounts and transactions that are maintained by the same `LNDWalletAPI` reside in local databases of the wallet.
 
 ```mermaid
 graph BT
@@ -408,17 +469,17 @@ graph BT
     LNT((Lightning Network)) -.- LND3(LND3)
 
     subgraph LND Wallet1
-    LND1 --- WLT1(Wallet1API)
+    LND1 -- LNDClient --- WLT1(Wallet1API)
     WDB1[(Wallet1DB)] --- WLT1 
     end
 
     subgraph LND Wallet2
-    LND2 --- WLT2(Wallet2API)
+    LND2 -- LNDClient --- WLT2(Wallet2API)
     WDB2[(Wallet2DB)] --- WLT2
     end
 
     subgraph LND Wallet3
-    LND3 --- WLT3(Wallet3API)
+    LND3 -- LNDClient --- WLT3(Wallet3API)
     WDB3[(Wallet3DB)] --- WLT3
     end
 
@@ -433,17 +494,92 @@ graph BT
     WLT3 -- LND Account ---- U9(User9)
 ```
 
+The configuration file for `WalletAPI` sits in `wallet.conf` inside of `~/work/locallnd/.giggossip/` folder and has the following structure:
+```ini
+[Wallet]
+ServiceUri = "https://localhost:7101/"
+ConnectionString="Data Source=$HOME/work/locallnd/.giggossip/walletdata/wallet.db"
+NewAddressTxFee = 100
+AddInvoiceTxFee = 100
+SendPaymentTxFee = 100
+FeeLimit = 1000
+EstimatedTxFee = 1000
+
+[Lnd]
+MacaroonFile="$HOME/work/locallnd/.lnd2/data/chain/bitcoin/regtest/admin.macaroon"
+TlsCertFile="$HOME/work/locallnd/.lnd2/tls.cert"
+RpcHost = "localhost:11009"
+ListenHost="localhost:9734"
+FriendNodes= ["02ab5c7f2ff8c0962892467165bbe6fff3253a53d7b44aeaa5b44c851916384411@localhost:9735","03440b27f8d0ba1f3bb6d1a92e7181367d3ba89c9057d70cc3fecb76246311db5d@localhost:9736"]
+MaxSatoshisPerChannel = 1000000
+```
+
+The file specifies `ServiceUri` - the endpoint OpenAPI uri on which the Wallet API operates, `ConnectionString` - the conenction string for the internal Wallet database, fees for operation, `FeeLimit` - meaining the maximal fee the operator of the wallet agrees to pay to Lightning Network for the payment route and EstimatedTxFee - the estimation of the Fee for the payment. 
+The LND node configuration section contains the list of `FriendNodes` in the format `<node public key>@<node listening host>`. The node tries to connect to these nodes and manages open channels with them. The `MaxSatoshisPerChannel` means the maximal amout that can be used to open a new channel. Channels are managed automatically by the Wallet.
+
+To start the `WalletAPI` we write:
+```bash
+$ dotnet $HOME/work/donttrustverify/gig-gossip/net/NGigGossip4Nostr/GigLNDWalletAPI/bin/Debug/net7.0/GigLNDWalletAPI.dll --basedir="$HOME/work/locallnd/.giggossip/"
+```
+
+Working with Settlers
+-------------
+Settler is a Certification Authority for GigGossip that  reveals preimages for the LND payments making possible for dispute resolution implementation.
+
+To configure `SettlerAPI` you need to put the following under `settler.conf` into the `~/work/locallnd/.giggossip/`.
+
+```ini
+[Settler]
+ServiceUri="https://localhost:7189/"
+ConnectionString="Data Source=$HOME/work/locallnd/.giggossip/settlerdata/settler.db"
+PriceAmountForSettlement = 1000
+InvoicePaymentTimeoutSec=1000
+GigWalletOpenApi="https://localhost:7101/"
+SettlerPrivateKey="7f4c11a9742721d66e40e321ca70b682c27f7422190c84a187525e69e6038369"
+```
+
+The file specifies `ServiceUri` - the endpoint OpenAPI uri on which the Settler API operates, `ConnectionString` - the conenction string for the internal Settler database, price for the settlement and the timeout after which the payments are automatically settled. `SettlerPrivateKey` is the main private key for the settler used to sign all the certificates.
+
+To start the `SettlerAPI` we write:
+```bash
+$ dotnet $HOME/work/donttrustverify/gig-gossip/net/NGigGossip4Nostr/GigGossipSettlerAPI/bin/Debug/net7.0/GigGossipSettlerAPI.dll --basedir="$HOME/work/locallnd/.giggossip/"
+```
+
+Setting up Nostr-Relay
+-------------
+Gig gossip communicates using Nostr. Nostr is based on the idea of implicit network built on top of redundant connections of Users to multiple relays. Relays are not connected directly to other relays. User can publish event or subscribe for event from one or multiple relays. Published event is distributed to all the other users of the specific relay. The network topology emerges as the users and relays are joing network. Nostr allows implementing the message p2p communication with encrypted messages. The protocol is described here: <https://github.com/nostr-protocol/nips>.
+
+```mermaid
+graph BT
+    NSTR1(NostrRelay1) --- U1(User1)
+    NSTR1(NostrRelay1) --- U2(User2)
+    NSTR1(NostrRelay1) --- U3(User3)
+    NSTR1(NostrRelay1) --- U4(User4)
+    NSTR1(NostrRelay1) --- U5(User5)
+    NSTR2(NostrRelay2) --- U3(User3)
+    NSTR2(NostrRelay2) --- U4(User4)
+    NSTR2(NostrRelay2) --- U5(User5)
+    NSTR3(NostrRelay3) --- U4(User4)
+    NSTR3(NostrRelay3) --- U5(User5)
+    NSTR3(NostrRelay3) --- U6(User6)
+    NSTR3(NostrRelay3) --- U7(User7)
+```
+
+Here we will be using python impementation of Nostr-Relay <https://pypi.org/project/nostr-relay/>. Install it into your VirtualEnv or Conda envinromnent with:
+```bash
+$ pip install nostr-relay
+```
+
 
 ```mermaid
 graph BT
     LND2 --- WLT2(Wallet2API)
-    WLT2 -- LND Wallet Account --- SET(Settler)
-    SET(Settler) --- SAPI(Settler API)
+    WLT2 -- LND Wallet Account --- SAPI(Settler API)
     WLT2 -- LND Wallet Account --- CUST(Customer)
     WLT2 -- LND Wallet Account --- WORK(GigWorker)
-    CUST -.- SAPI
-    WORK -.- SAPI
+    CUST --- SAPI
+    WORK --- SAPI
     NSTR(NostrRelay)
-    CUST <--> NSTR
-    WORK <--> NSTR
+    CUST --- NSTR
+    WORK --- NSTR
 ```

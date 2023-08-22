@@ -62,7 +62,7 @@ while (true)
 
 
 LNDWalletManager walletManager = new LNDWalletManager(
-    walletSettings.ConnectionString,
+    walletSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)),
     lndConf,
     deleteDb: false);
 walletManager.Start();

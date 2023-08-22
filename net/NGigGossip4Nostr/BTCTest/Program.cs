@@ -45,7 +45,7 @@ var userSettings = config.GetSection("user").Get<UserSettings>();
 var client = bitcoinSettings.NewRPCClient();
 
 // Print the number of blocks in the Bitcoin blockchain
-Console.WriteLine(client.GetBlockchainInfo().Blocks);
+Console.WriteLine("Number of blocks: "+client.GetBlockchainInfo().Blocks.ToString());
 
 RPCClient wallet = null;
 string walletName = userSettings.WalletName;
@@ -64,7 +64,7 @@ catch (RPCException exception)
 }
 
 // Display the current balance in the wallet
-Console.WriteLine(wallet.GetBalance(6, true));
+Console.WriteLine("Wallet ballance: " + wallet.GetBalance(6, true).ToString());
 
 public class BitcoinSettings
 {

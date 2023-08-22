@@ -66,6 +66,12 @@ public static class LND
         return new Metadata() { new Metadata.Entry("macaroon", GetMacaroon(conf)) };
     }
 
+    public static WalletBalanceResponse WalletBallance(NodeSettings conf)
+    {
+        return LightningClient(conf).WalletBalance(new WalletBalanceRequest() { },
+            Metadata(conf));
+    }
+
     public static string NewAddress(NodeSettings conf, string account = null)
     {
         var nar = new NewAddressRequest() { Type = AddressType.NestedPubkeyHash };

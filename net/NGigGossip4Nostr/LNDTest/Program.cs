@@ -5,7 +5,9 @@ using System.Text.Json.Nodes;
 using Grpc.Core;
 using LNDClient;
 using Microsoft.Extensions.Configuration;
+using NBitcoin.RPC;
 using static LNDClient.LND;
+using static Lnrpc.Lightning;
 
 IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
 {
@@ -26,12 +28,59 @@ IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
 }
 
 var config = GetConfigurationRoot(".giggossip", "lndtest.conf");
-var lndNodeSettings = config.GetSection("lndnodes").Get<LndNodesSettings>();
+var bitcoinSettings = config.GetSection("bitcoin").Get<BitcoinSettings>();
 
+var bitcoinClient = bitcoinSettings.NewRPCClient();
+
+// load bitcoin node wallet
+RPCClient? bitcoinWalletClient;
+try
+{
+    bitcoinWalletClient = bitcoinClient.LoadWallet(bitcoinSettings.WalletName); ;
+}
+catch (RPCException exception) when (exception.RPCCode == RPCErrorCode.RPC_WALLET_ALREADY_LOADED)
+{
+    bitcoinWalletClient = bitcoinClient.SetWalletContext(bitcoinSettings.WalletName);
+}
+
+bitcoinWalletClient.Generate(10); // generate some blocks
+
+
+var lndNodeSettings = config.GetSection("lndnodes").Get<LndNodesSettings>();
 var confs = lndNodeSettings.GetNodesConfiguration(config);
 
+for (int i = 0; i < 3; i++)
+    while (!LND.GetNodeInfo(confs[i]).SyncedToChain)
+    {
+        bitcoinWalletClient.Generate(1); // generate some blocks
+        Console.WriteLine("Node not synced to chain");
+        Thread.Sleep(1000);
+    }
+
 foreach (var conf in confs)
-    Console.WriteLine(" Pubkey: {" + LND.GetNodeInfo(conf) + "}");
+    Console.WriteLine(conf.ListenHost + " Pubkey: " + LND.GetNodeInfo(conf).IdentityPubkey);
+
+//Top up the node
+var ballanceOfCustomer = LND.WalletBallance(confs[1]).ConfirmedBalance;
+if (ballanceOfCustomer == 0)
+{
+    var newBitcoinAddressOfCustomer = LND.NewAddress(confs[1]);
+    Console.WriteLine(newBitcoinAddressOfCustomer);
+
+    bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, bitcoinSettings.GetNetwork()), new NBitcoin.Money(10000000ul));
+
+    bitcoinClient.Generate(6); // generate some blocks
+
+    do
+    {
+        if (LND.WalletBallance(confs[1]).ConfirmedBalance > 0)
+            break;
+        Thread.Sleep(1000);
+    } while (true);
+
+    ballanceOfCustomer = LND.WalletBallance(confs[1]).ConfirmedBalance;
+}
+
 
 var peersof2 = LND.ListPeers(confs[1]);
 var nd1 = LND.GetNodeInfo(confs[0]);
@@ -129,4 +178,29 @@ public class LndNodesSettings
 public class LndSettings: NodeSettings
 {
     public long MaxSatoshisPerChannel { get; set; }
+}
+
+public class BitcoinSettings
+{
+    public required string AuthenticationString { get; set; }
+    public required string HostOrUri { get; set; }
+    public required string Network { get; set; }
+    public required string WalletName { get; set; }
+
+    public NBitcoin.Network GetNetwork()
+    {
+        if (Network.ToLower() == "main")
+            return NBitcoin.Network.Main;
+        if (Network.ToLower() == "testnet")
+            return NBitcoin.Network.TestNet;
+        if (Network.ToLower() == "regtest")
+            return NBitcoin.Network.RegTest;
+        throw new NotImplementedException();
+    }
+
+    public RPCClient NewRPCClient()
+    {
+        return new RPCClient(AuthenticationString, HostOrUri, GetNetwork());
+    }
+
 }
