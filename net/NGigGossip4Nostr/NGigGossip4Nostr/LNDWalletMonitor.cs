@@ -1,26 +1,41 @@
 ﻿using System;
+using System.IO;
 using CryptoToolkit;
 using NBitcoin.Secp256k1;
+using Newtonsoft.Json.Linq;
 
 namespace NGigGossip4Nostr
 {
+	public interface ILNDWalletMonitorEvents
+	{
+		public void OnInvoiceStateChange(byte[] data);
+    }
+
 	public class LNDWalletMonitor
 	{
-		Dictionary<string, string> monitoredInvoices = new();
-		Dictionary<Tuple<string, string>, Action> monitoredInvoicesActions = new();
 		GigGossipNode gigGossipNode;
 
-		public LNDWalletMonitor(GigGossipNode gigGossipNode)
+        public LNDWalletMonitor(GigGossipNode gigGossipNode)
 		{
 			this.gigGossipNode = gigGossipNode;
-		}
+        }
 
-		public void MonitorInvoice(string phash, string value, Action action)
+		public void MonitorInvoice(string phash, string value, byte[] data)
 		{
-			lock (monitoredInvoices)
-				monitoredInvoices[phash] = null;
-			lock (monitoredInvoicesActions)
-				monitoredInvoicesActions[Tuple.Create(phash, value)] = action;
+			if ((from i in gigGossipNode.nodeContext.Value.MonitoredInvoices
+				 where i.PaymentHash == phash && i.InvoiceState == value && i.PublicKey == this.gigGossipNode.PublicKey
+				 select i).FirstOrDefault() != null)
+				return;
+
+			gigGossipNode.nodeContext.Value.MonitoredInvoices.Add(
+				new MonitoredInvoiceRow()
+				{
+					PublicKey = this.gigGossipNode.PublicKey,
+					PaymentHash = phash,
+					InvoiceState = value,
+					Data = data,
+				});
+			gigGossipNode.nodeContext.Value.SaveChanges();
 		}
 
 		Thread monitorThread;
@@ -31,23 +46,21 @@ namespace NGigGossip4Nostr
 			{
 				while (true)
 				{
-					List<KeyValuePair<string, string>> invToMon;
-					lock (monitoredInvoices)
-						invToMon = (from kv in monitoredInvoices.ToList() where (kv.Value != "Settled") && (kv.Value != "Cancelled") select kv).ToList();
+					var invToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredInvoices
+								where i.PublicKey == this.gigGossipNode.PublicKey
+								&& i.InvoiceState!="Settled" && i.InvoiceState!="Cancelled"
+								select i).ToList();
+
 					foreach (var inv in invToMon)
 					{
-						var state = await gigGossipNode.LNDWalletClient.GetInvoiceStateAsync(gigGossipNode.MakeWalletAuthToken(), inv.Key);
-						if (state != inv.Value)
+						var state = await gigGossipNode.LNDWalletClient.GetInvoiceStateAsync(gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash);
+						if (state != inv.InvoiceState)
 						{
-							lock (monitoredInvoices)
-								monitoredInvoices[inv.Key] = state;
-							Action act = null;
-							lock (monitoredInvoicesActions)
-								if (monitoredInvoicesActions.ContainsKey(Tuple.Create(inv.Key, state)))
-									act = monitoredInvoicesActions[Tuple.Create(inv.Key, state)];
-							if (act != null)
-								act();
-						}
+                            gigGossipNode.OnInvoiceStateChange(inv.Data);
+                            inv.InvoiceState = state;
+							gigGossipNode.nodeContext.Value.MonitoredInvoices.Update(inv);
+							gigGossipNode.nodeContext.Value.SaveChanges();
+                        }
 					}
 					Thread.Sleep(1000);
 				}

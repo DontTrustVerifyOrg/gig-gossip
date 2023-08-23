@@ -75,6 +75,10 @@ For the sake of this tutorial we will assume that we work in the `~/work/` folde
 │   │   └── nostr.sqlote3 - nostr database
 │   │
 │   ├── .giggossip  - gig gossip configurations
+│   │   ├── giggossipdata
+│   │   │   ├── basictest.db-wal - basictest database
+│   │   │   ├── basictest.db-shm - basictest database
+│   │   │   └── basictest.db - basictest database
 │   │   ├── basictest.conf
 │   │   ├── btctest.conf
 │   │   ├── lndtest.conf
@@ -682,6 +686,8 @@ PrivateKey="7f4c11a9742721d66e40e321ca70b682c27f7402190c84a187525e69e6038362"
 
 [GigWorker]
 GigWalletOpenApi="https://localhost:7101/"
+ConnectionString=="Data Source=$HOME/work/locallnd/.giggossip/giggossipdata/basictest.db"
+Fanout = 2
 NostrRelays = ["ws://127.0.0.1:6969"]
 PrivateKey="7f4c11a9742721d66e40e321ca70b682c27f7402190c84a187525e69e6038369"
 SettlerOpenApi="https://localhost:7189/"
@@ -695,6 +701,8 @@ ChunkSize=2048
 
 [Customer]
 GigWalletOpenApi="https://localhost:7101/"
+ConnectionString=="Data Source=$HOME/work/locallnd/.giggossip/giggossipdata/basictest.db"
+Fanout = 2
 NostrRelays = ["ws://127.0.0.1:6969"]
 PrivateKey="7f4c11a9742721d66e40e321ca70b632c27f7422190c84a187525e69e6038369"
 SettlerOpenApi="https://localhost:7189/"

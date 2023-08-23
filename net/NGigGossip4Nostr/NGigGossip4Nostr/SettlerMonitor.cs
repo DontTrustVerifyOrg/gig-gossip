@@ -3,16 +3,23 @@ using System.IO;
 using CryptoToolkit;
 using NBitcoin;
 using NBitcoin.Secp256k1;
+using Newtonsoft.Json.Linq;
 using static System.Collections.Specialized.BitVector32;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace NGigGossip4Nostr
 {
-	public class SettlerMonitor
+	public interface ISettlerMonitorEvents
+	{
+		public void OnPreimageRevealed(string preimage);
+		public void OnSymmetricKeyRevealed(byte[] data, string key);
+    }
+
+    public class SettlerMonitor
 	{
 		Dictionary<Tuple<Uri, string>, string> monitoredPreimages = new();
-		Dictionary<string, Action<string>> monitoredPreimagesActions = new();
 		Dictionary<Tuple<Uri, Guid>, string> monitoredKeys = new();
-		Dictionary<Guid, Action<string>> monitoredKeysActions = new();
+		Dictionary<Guid, byte[]> monitoredKeysActions = new();
 		GigGossipNode gigGossipNode;
 
 		public SettlerMonitor(GigGossipNode gigGossipNode)
@@ -20,21 +27,42 @@ namespace NGigGossip4Nostr
 			this.gigGossipNode = gigGossipNode;
 		}
 
-		public void MonitorPreimage(Uri serviceUri, string phash, Action<string> action)
-		{
-			lock (monitoredPreimages)
-				monitoredPreimages[Tuple.Create(serviceUri, phash)] = null;
-			lock (monitoredPreimagesActions)
-				monitoredPreimagesActions[phash] = action;
+		public void MonitorPreimage(Uri serviceUri, string phash)
+        {
+            if ((from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
+                 where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
+                 select i).FirstOrDefault() != null)
+                return;
+
+            gigGossipNode.nodeContext.Value.MonitoredPreimages.Add(
+                new MonitoredPreimageRow()
+                {
+                    PublicKey = this.gigGossipNode.PublicKey,
+                    ServiceUri = serviceUri,
+                    PaymentHash = phash,
+					Preimage =null
+                });
+            gigGossipNode.nodeContext.Value.SaveChanges();
 		}
 
-		public void MonitorSymmetricKey(Uri serviceUri, Guid tid, Action<string> action)
+		public void MonitorSymmetricKey(Uri serviceUri, Guid tid, byte[] data)
 		{
-			lock (monitoredKeys)
-				monitoredKeys[Tuple.Create(serviceUri, tid)] = null;
-			lock (monitoredKeysActions)
-				monitoredKeysActions[tid] = action;
-		}
+            if ((from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
+                 where i.PayloadId == tid && i.PublicKey == this.gigGossipNode.PublicKey
+                 select i).FirstOrDefault() != null)
+                return;
+
+            gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys.Add(
+                new MonitoredSymmetricKeyRow
+                {
+                    PublicKey = this.gigGossipNode.PublicKey,
+                    ServiceUri = serviceUri,
+					PayloadId = tid,
+					Data = data,
+					SymmetricKey = null
+                });
+            gigGossipNode.nodeContext.Value.SaveChanges();
+        }
 
 
 		Thread monitorThread;
@@ -47,46 +75,42 @@ namespace NGigGossip4Nostr
 				while (true)
 				{
 					{
-						List<KeyValuePair<Tuple<Uri, string>, string>> pToMon;
-						lock (monitoredPreimages)
-							pToMon = (from kv in monitoredPreimages.ToList() where (kv.Value == null) select kv).ToList();
+                        var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
+                                        where i.PublicKey == this.gigGossipNode.PublicKey 
+                                        && i.Preimage == null
+                                        select i).ToList();
+
 						foreach (var kv in pToMon)
 						{
-							var serviceUri = kv.Key.Item1;
-							var phash = kv.Key.Item2;
+							var serviceUri = kv.ServiceUri;
+							var phash = kv.PaymentHash;
 							var preimage = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash);
                             if (!string.IsNullOrWhiteSpace(preimage))
                             {
-								lock (monitoredPreimages)
-									monitoredPreimages[kv.Key] = preimage;
-								Action<string> act = null;
-								lock (monitoredPreimagesActions)
-									if (monitoredPreimagesActions.ContainsKey(phash))
-										act = monitoredPreimagesActions[phash];
-								if (act != null)
-									act(preimage);
+                                gigGossipNode.OnPreimageRevealed(preimage);
+                                kv.Preimage = preimage;
+								gigGossipNode.nodeContext.Value.MonitoredPreimages.Update(kv);
+								gigGossipNode.nodeContext.Value.SaveChanges();
 							}
 						}
 					}
 					{
-						List<KeyValuePair<Tuple<Uri, Guid>, string>> kToMon;
-						lock (monitoredKeys)
-							kToMon = (from kv in monitoredKeys.ToList() where (kv.Value == null) select kv).ToList();
+                        var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
+                                      where i.PublicKey == this.gigGossipNode.PublicKey
+                                      && i.SymmetricKey == null
+                                      select i).ToList();
+
 						foreach (var kv in kToMon)
 						{
-							var serviceUri = kv.Key.Item1;
-							var tid = kv.Key.Item2;
+							var serviceUri = kv.ServiceUri;
+							var tid = kv.PayloadId;
 							var key = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), tid.ToString());
 							if (!string.IsNullOrWhiteSpace(key))
 							{
-								lock (monitoredKeys)
-									monitoredKeys[kv.Key] = key;
-								Action<string> act = null;
-								lock (monitoredKeysActions)
-									if (monitoredKeysActions.ContainsKey(tid))
-										act = monitoredKeysActions[tid];
-								if (act != null)
-									act(key);
+                                gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
+                                kv.SymmetricKey = key;
+								gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys.Update(kv);
+								gigGossipNode.nodeContext.Value.SaveChanges();
 							}
 						}
 					}

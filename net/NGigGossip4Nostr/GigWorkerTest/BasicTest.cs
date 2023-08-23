@@ -52,6 +52,7 @@ public class BasicTest
     HttpClient httpClient = new HttpClient();
     SimpleSettlerSelector settlerSelector = new SimpleSettlerSelector();
 
+    public bool IsRunning { get; set; } = true;
 
     public void Run()
     {
@@ -80,6 +81,7 @@ public class BasicTest
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
         var gigWorker = new GigGossipNode(
+            gigWorkerSettings.ConnectionString,
             gigWorkerSettings.PrivateKey.AsECPrivKey(),
             gigWorkerSettings.GetNostrRelays(),
             gigWorkerSettings.ChunkSize
@@ -96,6 +98,7 @@ public class BasicTest
                  token, gigWorker.PublicKey, new List<string> { "drive" }).Result);
 
         var customer = new GigGossipNode(
+            customerSettings.ConnectionString,
             customerSettings.PrivateKey.AsECPrivKey(),
             customerSettings.GetNostrRelays(),
             customerSettings.ChunkSize
@@ -113,6 +116,7 @@ public class BasicTest
 
 
         gigWorker.Init(
+            gigWorkerSettings.Fanout,
             gigWorkerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(gigWorkerSettings.BroadcastConditionsTimeoutMs),
             gigWorkerSettings.BroadcastConditionsPowScheme,
@@ -124,6 +128,7 @@ public class BasicTest
         //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
 
         customer.Init(
+            customerSettings.Fanout,
             customerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(customerSettings.BroadcastConditionsTimeoutMs),
             customerSettings.BroadcastConditionsPowScheme,
@@ -159,7 +164,7 @@ public class BasicTest
 
 
         gigWorker.Start(new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi, gigWorkerCert));
-        customer.Start(new CustomerGossipNodeEvents());
+        customer.Start(new CustomerGossipNodeEvents(this));
 
         gigWorker.AddContact(new NostrContact() { PublicKey = customer.PublicKey, Petname = "Customer", Relay = "" });
         customer.AddContact(new NostrContact() { PublicKey = gigWorker.PublicKey, Petname = "GigWorker", Relay = "" });
@@ -179,9 +184,12 @@ public class BasicTest
 
         }
 
-        while (true)
+        while (this.IsRunning)
         {
-            Thread.Sleep(1000);
+            lock(this)
+            {
+                Monitor.Wait(this);
+            }
         }
 
     }
@@ -252,8 +260,10 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
 public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 {
-    public CustomerGossipNodeEvents()
+    BasicTest basicTest;
+    public CustomerGossipNodeEvents(BasicTest basicTest)
     {
+        this.basicTest = basicTest;
     }
 
     public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
@@ -271,6 +281,11 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
             key.AsBytes(),
             replyPayload.EncryptedReplyMessage);
         Trace.TraceInformation(Encoding.Default.GetString(message));
+        lock(basicTest)
+        {
+            basicTest.IsRunning = false;
+            Monitor.PulseAll(basicTest);
+        }
     }
 }
 
@@ -282,6 +297,7 @@ public class SettlerAdminSettings
 
 public class NodeSettings
 {
+    public required string ConnectionString { get; set; }
     public required Uri GigWalletOpenApi { get; set; }
     public required string NostrRelays { get; set; }
     public required string PrivateKey { get; set; }
@@ -293,6 +309,7 @@ public class NodeSettings
     public long TimestampToleranceMs { get; set; }
     public long InvoicePaymentTimeoutSec { get; set; }
     public int ChunkSize { get; set; }
+    public int Fanout { get; set; }
 
     public string[] GetNostrRelays()
     {
