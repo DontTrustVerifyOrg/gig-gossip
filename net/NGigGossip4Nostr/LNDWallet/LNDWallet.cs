@@ -187,9 +187,17 @@ public class LNDAccountManager
             var selfInv = (from inv in walletContext.Value.Invoices where inv.PaymentHash == decinv.PaymentHash select inv).FirstOrDefault();
             if (selfInv != null) // selfpayment
             {
-                selfInv.IsSelfManaged = true;
-                selfInv.State = selfInv.IsHodlInvoice ? InvoiceState.Accepted : InvoiceState.Settled;
-                walletContext.Value.Invoices.Update(selfInv);
+                walletContext.Value.Invoices
+                    .Where(i=>i.PaymentHash==selfInv.PaymentHash)
+                    .ExecuteUpdate(i=>
+                        i.SetProperty(
+                            a=>a.State,
+                            a=>selfInv.IsHodlInvoice ? InvoiceState.Accepted : InvoiceState.Settled)
+                        .SetProperty(
+                            a=>a.IsSelfManaged,
+                            a=>true
+                            ));
+
                 walletContext.Value.Payments.Add(new Payment()
                 {
                     PaymentHash = decinv.PaymentHash,

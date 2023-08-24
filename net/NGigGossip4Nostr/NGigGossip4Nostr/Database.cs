@@ -156,7 +156,7 @@ public class GigGossipNodeContext : DbContext
     /// <param name="optionsBuilder">A builder used to create or modify options for this context.</param>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseSqlite(connectionString);
+        optionsBuilder.UseSqlite(connectionString).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
     }
 
 }
