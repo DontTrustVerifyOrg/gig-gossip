@@ -4,6 +4,7 @@ using NBitcoin.Secp256k1;
 using NNostr.Client;
 using CryptoToolkit;
 using System.Threading;
+using NBitcoin.RPC;
 
 namespace NGigGossip4Nostr;
 
@@ -59,7 +60,7 @@ public abstract class NostrNode
         nostrClient.SendEventsAndWaitUntilReceived(new[] { newEvent }, CancellationToken.None).Wait();
     }
 
-    public void SendMessage(string targetPublicKey, object frame)
+    public string SendMessage(string targetPublicKey, object frame)
     {
         var message = Convert.ToBase64String(Crypto.SerializeObject(frame));
         var evid = Guid.NewGuid().ToString();
@@ -87,11 +88,13 @@ public abstract class NostrNode
             events.Add(newEvent);
         }
         nostrClient.SendEventsAndWaitUntilReceived(events.ToArray(), CancellationToken.None).Wait();
+        return evid;
     }
 
-    public abstract void OnMessage(string senderPublicKey, object frame);
+    public abstract void OnMessage(string eventId, string senderPublicKey, object frame);
 
     Thread mainThread;
+    CancellationTokenSource subscribeForEventsTokenSource = new CancellationTokenSource();
 
     protected void Start()
     {
@@ -110,17 +113,32 @@ public abstract class NostrNode
                     Kinds = new []{4},
                     ReferencedPublicKeys = new []{ publicKey.ToHex() }
                 }
-            }, false, CancellationToken.None);
+            }, false, subscribeForEventsTokenSource.Token);
 
+            try
+            { 
             await foreach (var nostrEvent in q)
                 if (nostrEvent.Kind == 3)
                     ProcessContactList(nostrEvent);
                 else
                     ProcessNewMessage(nostrEvent);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Streaming was cancelled from the client!");
+            }
 
         });
         mainThread.Start();
     }
+
+    public virtual void Stop()
+    {
+        subscribeForEventsTokenSource.Cancel();
+        mainThread.Join();
+    }
+
+
 
     private Dictionary<string, SortedDictionary<int, string>> _partial_messages = new();
 
@@ -144,7 +162,7 @@ public abstract class NostrNode
                     var type = tagDic["t"][0];
                     var t = System.Reflection.Assembly.Load("GigGossipFrames").GetType("NGigGossip4Nostr." + type);
                     var frame = Crypto.DeserializeObject(Convert.FromBase64String(msg),t);
-                    this.OnMessage(nostrEvent.PublicKey, frame);
+                    this.OnMessage(idx, nostrEvent.PublicKey, frame);
                 }
                 else
                 {
@@ -164,7 +182,7 @@ public abstract class NostrNode
                         }
                     }
                     if (frame != null)
-                        this.OnMessage(nostrEvent.PublicKey, frame);
+                        this.OnMessage(idx, nostrEvent.PublicKey, frame);
                 }
             }
     }

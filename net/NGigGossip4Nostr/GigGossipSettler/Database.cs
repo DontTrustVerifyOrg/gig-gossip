@@ -249,4 +249,44 @@ public class SettlerContext : DbContext
         optionsBuilder.UseSqlite(connectionString).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
     }
 
+    dynamic Type2DbSet(object obj)
+    {
+        if(obj is Token)
+            return this.Tokens;
+        else if (obj is InvoicePreimage)
+            return this.Preimages;
+        else if (obj is Gig)
+            return this.Gigs;
+        else if (obj is UserProperty)
+            return this.UserProperties;
+        else if (obj is CertificateProperty)
+            return this.CertificateProperties;
+        else if (obj is UserCertificate)
+            return this.UserCertificates;
+        throw new InvalidOperationException();
+    }
+
+    public void SaveObject<T>(T obj)
+    {
+        this.Type2DbSet(obj).Update(obj);
+        this.SaveChanges();
+        this.ChangeTracker.Clear();
+    }
+
+    public void AddObject<T>(T obj)
+    {
+        this.Type2DbSet(obj).Add(obj);
+        this.SaveChanges();
+        this.ChangeTracker.Clear();
+    }
+
+    public void AddObjectRange<T>(IEnumerable<T> range)
+    {
+        if (range.Count() == 0)
+            return;
+        this.Type2DbSet(range.First()).AddRange(range);
+        this.SaveChanges();
+        this.ChangeTracker.Clear();
+    }
+
 }

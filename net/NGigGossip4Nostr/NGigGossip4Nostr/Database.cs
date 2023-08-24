@@ -122,6 +122,17 @@ public class MonitoredSymmetricKeyRow
     public byte[] Data { get; set; }
 }
 
+public class MessageDoneRow
+{
+    /// <summary>
+    /// The public key of the subject.
+    /// </summary>
+    public string PublicKey { get; set; }
+
+    [Key]
+    public string MessageId { get; set; }
+}
+
 /// <summary>
 /// Context class for interaction with database.
 /// </summary>
@@ -149,6 +160,7 @@ public class GigGossipNodeContext : DbContext
     public DbSet<MonitoredInvoiceRow> MonitoredInvoices { get; set; }
     public DbSet<MonitoredPreimageRow> MonitoredPreimages { get; set; }
     public DbSet<MonitoredSymmetricKeyRow> MonitoredSymmetricKeys { get; set; }
+    public DbSet<MessageDoneRow> MessagesDone { get; set; }
 
     /// <summary>
     /// Configures the context for use with a SQLite database.
@@ -157,6 +169,53 @@ public class GigGossipNodeContext : DbContext
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.UseSqlite(connectionString).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+    }
+
+    dynamic Type2DbSet(object obj)
+    {
+        if (obj is UserCertificate)
+            return this.UserCertificates;
+        else if (obj is BroadcastPayloadRow)
+            return this.BroadcastPayloadsByAskId;
+        else if (obj is POWBroadcastConditionsFrameRow)
+            return this.POWBroadcastConditionsFrameRowByAskId;
+        else if (obj is BroadcastCounterRow)
+            return this.BroadcastCounters;
+        else if (obj is ReplyPayloadRow)
+            return this.ReplyPayloads;
+        else if (obj is MonitoredInvoiceRow)
+            return this.MonitoredInvoices;
+        else if (obj is MonitoredPreimageRow)
+            return this.MonitoredPreimages;
+        else if (obj is MonitoredSymmetricKeyRow)
+            return this.MonitoredSymmetricKeys;
+        else if (obj is MessageDoneRow)
+            return this.MessagesDone;
+
+        throw new InvalidOperationException();
+    }
+
+    public void SaveObject<T>(T obj)
+    {
+        this.Type2DbSet(obj).Update(obj);
+        this.SaveChanges();
+        this.ChangeTracker.Clear();
+    }
+
+    public void AddObject<T>(T obj)
+    {
+        this.Type2DbSet(obj).Add(obj);
+        this.SaveChanges();
+        this.ChangeTracker.Clear();
+    }
+
+    public void AddObjectRange<T>(IEnumerable<T> range)
+    {
+        if (range.Count() == 0)
+            return;
+        this.Type2DbSet(range.First()).AddRange(range);
+        this.SaveChanges();
+        this.ChangeTracker.Clear();
     }
 
 }

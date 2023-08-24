@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using CryptoToolkit;
+using Microsoft.EntityFrameworkCore;
 using NBitcoin;
 using NBitcoin.Secp256k1;
 using Newtonsoft.Json.Linq;
@@ -27,14 +28,14 @@ namespace NGigGossip4Nostr
 			this.gigGossipNode = gigGossipNode;
 		}
 
-		public void MonitorPreimage(Uri serviceUri, string phash)
+		public bool MonitorPreimage(Uri serviceUri, string phash)
         {
             if ((from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
                  where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
                  select i).FirstOrDefault() != null)
-                return;
+                return false;
 
-            gigGossipNode.nodeContext.Value.MonitoredPreimages.Add(
+            gigGossipNode.nodeContext.Value.AddObject(
                 new MonitoredPreimageRow()
                 {
                     PublicKey = this.gigGossipNode.PublicKey,
@@ -42,17 +43,17 @@ namespace NGigGossip4Nostr
                     PaymentHash = phash,
 					Preimage =null
                 });
-            gigGossipNode.nodeContext.Value.SaveChanges();
+			return true;
 		}
 
-		public void MonitorSymmetricKey(Uri serviceUri, Guid tid, byte[] data)
+		public bool MonitorSymmetricKey(Uri serviceUri, Guid tid, byte[] data)
 		{
             if ((from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
                  where i.PayloadId == tid && i.PublicKey == this.gigGossipNode.PublicKey
                  select i).FirstOrDefault() != null)
-                return;
+                return false;
 
-            gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys.Add(
+            gigGossipNode.nodeContext.Value.AddObject(
                 new MonitoredSymmetricKeyRow
                 {
                     PublicKey = this.gigGossipNode.PublicKey,
@@ -61,18 +62,19 @@ namespace NGigGossip4Nostr
 					Data = data,
 					SymmetricKey = null
                 });
-            gigGossipNode.nodeContext.Value.SaveChanges();
+			return true; 
         }
 
 
 		Thread monitorThread;
+        long _monitorThreadStop;
 
-
-		public void Start()
+        public void Start()
 		{
-			monitorThread = new Thread(async () =>
+            _monitorThreadStop = 0;
+            monitorThread = new Thread(async () =>
 			{
-				while (true)
+				while (Interlocked.Read(ref _monitorThreadStop) == 0)
 				{
 					{
                         var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
@@ -89,9 +91,8 @@ namespace NGigGossip4Nostr
                             {
                                 gigGossipNode.OnPreimageRevealed(preimage);
                                 kv.Preimage = preimage;
-								gigGossipNode.nodeContext.Value.MonitoredPreimages.Update(kv);
-								gigGossipNode.nodeContext.Value.SaveChanges();
-							}
+                                gigGossipNode.nodeContext.Value.SaveObject(kv);
+                            }
 						}
 					}
 					{
@@ -109,8 +110,7 @@ namespace NGigGossip4Nostr
 							{
                                 gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
                                 kv.SymmetricKey = key;
-								gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys.Update(kv);
-								gigGossipNode.nodeContext.Value.SaveChanges();
+								gigGossipNode.nodeContext.Value.SaveObject(kv);
 							}
 						}
 					}
@@ -120,6 +120,12 @@ namespace NGigGossip4Nostr
 			});
 			monitorThread.Start();
 		}
-	}
+
+        public void Stop()
+        {
+            Interlocked.Add(ref _monitorThreadStop, 1);
+            monitorThread.Join();
+        }
+    }
 }
 

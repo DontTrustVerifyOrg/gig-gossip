@@ -9,8 +9,6 @@ namespace LNDWallet;
 public class LNDChannelManager
 {
 	LNDWalletManager walletManager;
-	Thread mainThread;
-	bool stop = false;
 	List<string> nearbyNodes;
 	long maxSatoshisPerChannel;
 	long estimatedTxFee;
@@ -24,46 +22,45 @@ public class LNDChannelManager
 		this.estimatedTxFee = estimatedTxFee;
 	}
 
-	public void Start()
+    Thread mainThread;
+    private long _mainThreadStop;
+
+    public void Start()
 	{
-		mainThread = new Thread(Main);
-		mainThread.Start();
-	}
-
-	void Main()
-	{
-		var peersof2 = new HashSet<string>(from p in walletManager.ListPeers().Peers select p.PubKey + "@" + p.Address.Replace("127.0.0.1", "localhost"));
-
-		foreach (var friend in nearbyNodes)
+		_mainThreadStop = 0;
+        mainThread = new Thread(() =>
 		{
-			try
-			{
-				if (!peersof2.Contains(friend.Replace("127.0.0.1", "localhost")))
-					walletManager.Connect(friend.Replace("127.0.0.1", "localhost"));
-			}
-			catch (Exception ex)
-			{
-
-			}
-		}
-		while (true)
-		{
-			if (stop)
-				return;
+			var peersof2 = new HashSet<string>(from p in walletManager.ListPeers().Peers select p.PubKey + "@" + p.Address.Replace("127.0.0.1", "localhost"));
 
 			foreach (var friend in nearbyNodes)
-				GoForOpeningNewChannelsForNodeAsync(friend.Split("@")[0], maxSatoshisPerChannel, estimatedTxFee).Wait();
-			GoForExecutingPayoutsAsync(estimatedTxFee).Wait();
+			{
+				try
+				{
+					if (!peersof2.Contains(friend.Replace("127.0.0.1", "localhost")))
+						walletManager.Connect(friend.Replace("127.0.0.1", "localhost"));
+				}
+				catch (Exception ex)
+				{
 
-			Thread.Sleep(1000);
-		}
+				}
+			}
+			while (Interlocked.Read(ref _mainThreadStop) == 0)
+			{
+				foreach (var friend in nearbyNodes)
+					GoForOpeningNewChannelsForNodeAsync(friend.Split("@")[0], maxSatoshisPerChannel, estimatedTxFee).Wait();
+				GoForExecutingPayoutsAsync(estimatedTxFee).Wait();
+
+				Thread.Sleep(1000);
+			}
+		});
+		mainThread.Start();
 	}
 
 
 	public void Stop()
 	{
-		stop = true;
-		mainThread.Join();
+        Interlocked.Add(ref _mainThreadStop, 1);
+        mainThread.Join();
 	}
 
 	public async Task GoForOpeningNewChannelsForNodeAsync(string nodePubKey, long maxSatoshisPerChannel, long estimatedTxFee)

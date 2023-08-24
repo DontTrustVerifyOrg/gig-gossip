@@ -49,8 +49,7 @@ public class Settler : CertificationAuthority
         if (t == null)
         {
             t = new Token() { TokenId = Guid.NewGuid(), PublicKey = pubkey };
-            settlerContext.Value.Tokens.Add(t);
-            settlerContext.Value.SaveChanges();
+            settlerContext.Value.AddObject(t);
         }
         return t.TokenId;
     }
@@ -72,10 +71,17 @@ public class Settler : CertificationAuthority
 
     public void GiveUserProperty(string pubkey, string name, byte[] value, DateTime validTill)
     {
-        var up = (from u in settlerContext.Value.UserProperties where u.Name == name && u.PublicKey == pubkey select u).FirstOrDefault();
-        if (up == null)
+        if (
+            (from u in settlerContext.Value.UserProperties
+             where u.Name == name && u.PublicKey == pubkey
+             select u)
+                .ExecuteUpdate(i => i
+                .SetProperty(a => a.Value, a => value)
+                .SetProperty(a => a.IsRevoked, a => false)
+                .SetProperty(a => a.ValidTill, a => validTill))
+             == 0)
         {
-            settlerContext.Value.UserProperties.Add(new UserProperty()
+            settlerContext.Value.AddObject(new UserProperty()
             {
                 PropertyId = Guid.NewGuid(),
                 IsRevoked = false,
@@ -85,14 +91,6 @@ public class Settler : CertificationAuthority
                 Value = value
             });
         }
-        else
-        {
-            up.Value = value;
-            up.IsRevoked = false;
-            up.ValidTill = validTill;
-            settlerContext.Value.UserProperties.Update(up);
-        }
-        settlerContext.Value.SaveChanges();
     }
 
     public void RevokeUserProperty(string pubkey, string name)
@@ -101,15 +99,14 @@ public class Settler : CertificationAuthority
         if (up != null)
         {
             up.IsRevoked = true;
-            settlerContext.Value.UserProperties.Update(up);
+            settlerContext.Value.SaveObject(up);
             var certids = (from cp in settlerContext.Value.CertificateProperties where cp.PropertyId == up.PropertyId select cp.CertificateId).ToArray();
             var certs = (from c in settlerContext.Value.UserCertificates where certids.Contains(c.CertificateId) select c).ToArray();
             foreach (var c in certs)
             {
                 c.IsRevoked = true;
-                settlerContext.Value.UserCertificates.Update(c);
+                settlerContext.Value.SaveObject(c);
             }
-            settlerContext.Value.SaveChanges();
         }
     }
 
@@ -124,9 +121,8 @@ public class Settler : CertificationAuthority
         var prp = new Dictionary<string, byte[]>((from p in props select KeyValuePair.Create<string, byte[]>(p.Name, p.Value)));
         var cert = base.IssueCertificate(pubkey.AsECXOnlyPubKey(), prp, minDate, DateTime.Now);
         var certProps = (from p in props select new CertificateProperty() { CertificateId = cert.Id, PropertyId = p.PropertyId }).ToArray();
-        settlerContext.Value.CertificateProperties.AddRange(certProps);
-        settlerContext.Value.UserCertificates.Add(new UserCertificate() { PublicKey = pubkey, CertificateId = cert.Id, IsRevoked = false, TheCertificate = Crypto.SerializeObject(cert) });
-        settlerContext.Value.SaveChanges();
+        settlerContext.Value.AddObjectRange(certProps);
+        settlerContext.Value.AddObject(new UserCertificate() { PublicKey = pubkey, CertificateId = cert.Id, IsRevoked = false, TheCertificate = Crypto.SerializeObject(cert) });
         return cert;
     }
 
@@ -153,8 +149,7 @@ public class Settler : CertificationAuthority
         var preimage = Crypto.GenerateRandomPreimage();
         var paymentHash = Crypto.ComputePaymentHash(preimage).AsHex();
 
-        settlerContext.Value.Preimages.Add(new InvoicePreimage() { PaymentHash = paymentHash, Preimage = preimage.AsHex(), GigId = tid, PublicKey = pubkey, IsRevealed = false });
-        settlerContext.Value.SaveChanges();
+        settlerContext.Value.AddObject(new InvoicePreimage() { PaymentHash = paymentHash, Preimage = preimage.AsHex(), GigId = tid, PublicKey = pubkey, IsRevealed = false });
         return paymentHash;
     }
 
@@ -166,8 +161,7 @@ public class Settler : CertificationAuthority
         var pix = (from pi in settlerContext.Value.Preimages where pi.PaymentHash == paymentHash select pi).FirstOrDefault();
         if (pix != null)
         {
-            settlerContext.Value.Preimages.Add(new InvoicePreimage() { PaymentHash = newPaymentHash, Preimage = preimage.AsHex(), GigId = pix.GigId, PublicKey = pubkey, IsRevealed = false });
-            settlerContext.Value.SaveChanges();
+            settlerContext.Value.AddObject(new InvoicePreimage() { PaymentHash = newPaymentHash, Preimage = preimage.AsHex(), GigId = pix.GigId, PublicKey = pubkey, IsRevealed = false });
         }
         return newPaymentHash;
     }
@@ -204,7 +198,7 @@ public class Settler : CertificationAuthority
         var networkInvoice = await lndWalletClient.AddHodlInvoiceAsync(
              MakeAuthToken(), priceAmountForSettlement, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds);
 
-        settlerContext.Value.Gigs.Add(new Gig()
+        settlerContext.Value.AddObject(new Gig()
         {
             SenderPublicKey = signedRequestPayload.SenderCertificate.PublicKey,
             ReplierPublicKey = replierpubkey,
@@ -215,7 +209,6 @@ public class Settler : CertificationAuthority
             PaymentHash = decodedInv.PaymentHash,
             DisputeDeadline = DateTime.MaxValue
         });
-        settlerContext.Value.SaveChanges();
 
         ReplyPayload replyPayload = new ReplyPayload()
         {
@@ -251,13 +244,12 @@ public class Settler : CertificationAuthority
         if (gig != null)
         {
             gig.Status = open ? GigStatus.Disuputed : GigStatus.Accepted;
-            settlerContext.Value.Update(gig);
-            settlerContext.Value.SaveChanges();
+            settlerContext.Value.SaveObject(gig);
         }
     }
 
     Thread invoiceTrackerThread;
-    private long _invoiceTrackerThreadStop = 0;
+    private long _invoiceTrackerThreadStop;
 
     public void Start()
     {
@@ -278,14 +270,12 @@ public class Settler : CertificationAuthority
                         {
                             gig.Status = GigStatus.Accepted;
                             gig.DisputeDeadline = DateTime.Now + TimeSpan.FromSeconds(10);
-                            settlerContext.Value.Gigs.Update(gig);
-                            settlerContext.Value.SaveChanges();
+                            settlerContext.Value.SaveObject(gig);
                         }
                         else if (network_state == "Cancelled" || payment_state == "Cancelled")
                         {
                             gig.Status = GigStatus.Cancelled;
-                            settlerContext.Value.Gigs.Update(gig);
-                            settlerContext.Value.SaveChanges();
+                            settlerContext.Value.SaveObject(gig);
                         }
                     }
                     else if (gig.Status == GigStatus.Accepted)
@@ -295,10 +285,9 @@ public class Settler : CertificationAuthority
                             var preims = (from pi in settlerContext.Value.Preimages where pi.GigId == gig.GigId select pi).ToList();
                             foreach (var pi in preims)
                                 pi.IsRevealed = true;
-                            settlerContext.Value.UpdateRange(preims);
+                            settlerContext.Value.Preimages.UpdateRange(preims);
                             gig.Status = GigStatus.Completed;
-                            settlerContext.Value.Update(gig);
-                            settlerContext.Value.SaveChanges();
+                            settlerContext.Value.SaveObject(gig);
                             var settletPi = (from pi in preims where pi.PublicKey == this.CaXOnlyPublicKey.AsHex() select pi).FirstOrDefault();
                             if (settletPi == null)
                                 throw new SettlerException(SettlerErrorCode.UnknownPreimage);

@@ -9,16 +9,16 @@ namespace NGigGossip4Nostr
 	public interface ILNDWalletMonitorEvents
 	{
 		public void OnInvoiceStateChange(byte[] data);
-    }
+	}
 
 	public class LNDWalletMonitor
 	{
 		GigGossipNode gigGossipNode;
 
-        public LNDWalletMonitor(GigGossipNode gigGossipNode)
+		public LNDWalletMonitor(GigGossipNode gigGossipNode)
 		{
 			this.gigGossipNode = gigGossipNode;
-        }
+		}
 
 		public void MonitorInvoice(string phash, string value, byte[] data)
 		{
@@ -27,7 +27,7 @@ namespace NGigGossip4Nostr
 				 select i).FirstOrDefault() != null)
 				return;
 
-			gigGossipNode.nodeContext.Value.MonitoredInvoices.Add(
+			gigGossipNode.nodeContext.Value.AddObject(
 				new MonitoredInvoiceRow()
 				{
 					PublicKey = this.gigGossipNode.PublicKey,
@@ -35,38 +35,45 @@ namespace NGigGossip4Nostr
 					InvoiceState = value,
 					Data = data,
 				});
-			gigGossipNode.nodeContext.Value.SaveChanges();
 		}
 
 		Thread monitorThread;
+		long _monitorThreadStop;
 
 		public void Start()
 		{
+			_monitorThreadStop = 0;
 			monitorThread = new Thread(async () =>
 			{
-				while (true)
+				while (Interlocked.Read(ref _monitorThreadStop) == 0)
 				{
 					var invToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredInvoices
-								where i.PublicKey == this.gigGossipNode.PublicKey
-								&& i.InvoiceState!="Settled" && i.InvoiceState!="Cancelled"
-								select i).ToList();
+									where i.PublicKey == this.gigGossipNode.PublicKey
+									&& i.InvoiceState != "Settled" && i.InvoiceState != "Cancelled"
+									select i).ToList();
 
 					foreach (var inv in invToMon)
 					{
 						var state = await gigGossipNode.LNDWalletClient.GetInvoiceStateAsync(gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash);
 						if (state != inv.InvoiceState)
 						{
-                            gigGossipNode.OnInvoiceStateChange(inv.Data);
-                            inv.InvoiceState = state;
-							gigGossipNode.nodeContext.Value.MonitoredInvoices.Update(inv);
-							gigGossipNode.nodeContext.Value.SaveChanges();
-                        }
+							gigGossipNode.OnInvoiceStateChange(inv.Data);
+							inv.InvoiceState = state;
+							gigGossipNode.nodeContext.Value.SaveObject(inv);
+						}
 					}
 					Thread.Sleep(1000);
 				}
 			});
 			monitorThread.Start();
 		}
+
+		public void Stop()
+		{
+			Interlocked.Add(ref _monitorThreadStop, 1);
+			monitorThread.Join();
+		}
+
 	}
 }
 

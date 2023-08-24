@@ -192,6 +192,8 @@ public class BasicTest
             }
         }
 
+        gigWorker.Stop();
+        customer.Stop();
     }
 }
 
@@ -238,7 +240,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
         if (taxiTopic != null)
         {
-            me.AcceptBraodcast(peerPublicKey, broadcastFrame,
+            me.AcceptBraodcast( peerPublicKey, broadcastFrame,
                 new AcceptBroadcastResponse()
                 {
                     Message = Encoding.Default.GetBytes($"mynameis={me.PublicKey}"),

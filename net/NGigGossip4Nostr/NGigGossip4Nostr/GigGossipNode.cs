@@ -82,15 +82,22 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         this.SettlerSelector = settlerClientSelector;
         this._settlerToken = new();
         this.lndWalletMonitor = new LNDWalletMonitor(this);
-        this.lndWalletMonitor.Start();
         this.settlerMonitor = new SettlerMonitor(this);
-        this.settlerMonitor.Start();
     }
 
     public void Start(IGigGossipNodeEvents gigGossipNodeEvents)
     {
         this.gigGossipNodeEvents = gigGossipNodeEvents;
         base.Start();
+        this.lndWalletMonitor.Start();
+        this.settlerMonitor.Start();
+    }
+
+    public override void Stop()
+    {
+        base.Stop();
+        this.lndWalletMonitor.Stop();
+        this.settlerMonitor.Stop();
     }
 
     public void LoadCertificates(Uri settler)
@@ -109,14 +116,13 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                  authToken, this.PublicKey,
                 cid.ToString()
                 ).Result;
-            this.nodeContext.Value.UserCertificates.Add(
+            this.nodeContext.Value.AddObject(
                 new UserCertificate()
                 {
                     PublicKey = this.PublicKey,
                     CertificateId = cid,
                     TheCertificate = scert
                 });
-            this.nodeContext.Value.SaveChanges();
         }
     }
 
@@ -149,8 +155,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         var myInc = (from inc in this.nodeContext.Value.BroadcastCounters where inc.PublicKey == this.PublicKey && inc.PayloadId == payloadId select inc).FirstOrDefault();
         if (myInc == null)
         {
-            this.nodeContext.Value.BroadcastCounters.Add(new BroadcastCounterRow() { PublicKey = this.PublicKey, PayloadId = payloadId, Counter = 1 });
-            this.nodeContext.Value.SaveChanges();
+            this.nodeContext.Value.AddObject(new BroadcastCounterRow() { PublicKey = this.PublicKey, PayloadId = payloadId, Counter = 1 });
             return true;
         }
         else
@@ -158,8 +163,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             if (myInc.Counter < this.fanout)
             {
                 myInc.Counter += 1;
-                this.nodeContext.Value.BroadcastCounters.Update(myInc);
-                this.nodeContext.Value.SaveChanges();
+                this.nodeContext.Value.SaveObject(myInc);
                 return true;
             }
             else
@@ -215,24 +219,25 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
             this.SendMessage(peerPublicKey, askForBroadcastFrame);
 
-            this.nodeContext.Value.BroadcastPayloadsByAskId.Add(
+            this.nodeContext.Value.AddObject(
                 new BroadcastPayloadRow()
                 {
                     PublicKey = this.PublicKey,
                     AskId = askForBroadcastFrame.AskId,
                     TheBroadcastPayload = Crypto.SerializeObject(broadcastPayload)
                 });
-            this.nodeContext.Value.SaveChanges();
         }
     }
 
-    public void OnAskForBroadcastFrame(string peerPublicKey, AskForBroadcastFrame askForBroadcastFrame)
+    public void OnAskForBroadcastFrame(string messageId, string peerPublicKey, AskForBroadcastFrame askForBroadcastFrame)
     {
         if (!CanIncrementBroadcast(askForBroadcastFrame.SignedRequestPayload.PayloadId))
         {
             Trace.TraceInformation("already broadcasted, don't ask");
+            MarkMessageAsDone(messageId);
             return;
         }
+
         POWBroadcastConditionsFrame powBroadcastConditionsFrame = new POWBroadcastConditionsFrame()
         {
             AskId = askForBroadcastFrame.AskId,
@@ -245,24 +250,19 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             TimestampTolerance = this.timestampTolerance
         };
 
-        if ((from b in this.nodeContext.Value.POWBroadcastConditionsFrameRowByAskId
-             where b.PublicKey == this.PublicKey && b.AskId == powBroadcastConditionsFrame.AskId
-             select b).FirstOrDefault() != null)
-            return;
-
-        SendMessage(peerPublicKey, powBroadcastConditionsFrame);
-
-        this.nodeContext.Value.POWBroadcastConditionsFrameRowByAskId.Add(
+        this.nodeContext.Value.AddObject(
             new POWBroadcastConditionsFrameRow()
             {
                 PublicKey = this.PublicKey,
                 AskId = powBroadcastConditionsFrame.AskId,
                 ThePOWBroadcastConditionsFrame = Crypto.SerializeObject(powBroadcastConditionsFrame)
             });
-        this.nodeContext.Value.SaveChanges();
+
+        SendMessage(peerPublicKey, powBroadcastConditionsFrame);
+        MarkMessageAsDone(messageId);
     }
 
-    public void OnPOWBroadcastConditionsFrame(string peerPublicKey, POWBroadcastConditionsFrame powBroadcastConditionsFrame)
+    public void OnPOWBroadcastConditionsFrame(string messageId, string peerPublicKey, POWBroadcastConditionsFrame powBroadcastConditionsFrame)
     {
         if (DateTime.Now <= powBroadcastConditionsFrame.ValidTill)
         {
@@ -284,36 +284,56 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                 SendMessage(peerPublicKey, powBroadcastFrame);
             }
         }
+        MarkMessageAsDone(messageId);
     }
 
 
-    public void OnPOWBroadcastFrame(string peerPublicKey, POWBroadcastFrame powBroadcastFrame)
+    public void OnPOWBroadcastFrame(string messageId, string peerPublicKey, POWBroadcastFrame powBroadcastFrame)
     {
         var brow = (from b in this.nodeContext.Value.POWBroadcastConditionsFrameRowByAskId
                     where b.PublicKey == this.PublicKey && b.AskId == powBroadcastFrame.AskId
                     select b).FirstOrDefault();
 
         if (brow == null)
+        {
+            MarkMessageAsDone(messageId);
             return;
+        }
 
         var myPowBroadcastConditionFrame = Crypto.DeserializeObject<POWBroadcastConditionsFrame>(brow.ThePOWBroadcastConditionsFrame);
 
         if (powBroadcastFrame.ProofOfWork.PowScheme != myPowBroadcastConditionFrame.WorkRequest.PowScheme)
+        {
+            MarkMessageAsDone(messageId);
             return;
+        }
 
         if (powBroadcastFrame.ProofOfWork.PowTarget != myPowBroadcastConditionFrame.WorkRequest.PowTarget)
+        {
+            MarkMessageAsDone(messageId);
             return;
+        }
 
         if (powBroadcastFrame.BroadcastPayload.Timestamp > DateTime.Now)
+        {
+            MarkMessageAsDone(messageId);
             return;
+        }
 
         if (powBroadcastFrame.BroadcastPayload.Timestamp + myPowBroadcastConditionFrame.TimestampTolerance < DateTime.Now)
+        {
+            MarkMessageAsDone(messageId);
             return;
+        }
 
         if (!powBroadcastFrame.Verify(SettlerSelector))
+        {
+            MarkMessageAsDone(messageId);
             return;
+        }
 
         gigGossipNodeEvents.OnAcceptBroadcast(this, peerPublicKey, powBroadcastFrame);
+        MarkMessageAsDone(messageId);
     }
 
     public void BroadcastToPeers(string peerPublicKey, POWBroadcastFrame powBroadcastFrame)
@@ -349,10 +369,10 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             NetworkInvoice = networkInvoice
         };
 
-        this.OnResponseFrame(peerPublicKey, responseFrame, newResponse: true);
+        this.OnResponseFrame(null, peerPublicKey, responseFrame, newResponse: true);
     }
 
-    public void OnResponseFrame(string peerPublicKey, ReplyFrame responseFrame, bool newResponse = false)
+    public void OnResponseFrame(string messageId, string peerPublicKey, ReplyFrame responseFrame, bool newResponse = false)
     {
         var decodedInvoice = LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), responseFrame.NetworkInvoice).Result;
         if (responseFrame.ForwardOnion.IsEmpty())
@@ -360,6 +380,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             if (!responseFrame.SignedSettlementPromise.NetworkPaymentHash.AsHex().SequenceEqual(decodedInvoice.PaymentHash))
             {
                 Trace.TraceError("reply payload has different network_payment_hash than network_invoice");
+                if(messageId!=null) MarkMessageAsDone(messageId);
                 return;
             }
 
@@ -367,6 +388,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             if (replyPayload == null)
             {
                 Trace.TraceError("reply payload mismatch");
+                if (messageId != null) MarkMessageAsDone(messageId);
                 return;
             }
             var payloadId = replyPayload.SignedRequestPayload.PayloadId;
@@ -375,7 +397,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
             gigGossipNodeEvents.OnNewResponse(this, replyPayload, responseFrame.NetworkInvoice);
 
-            this.nodeContext.Value.ReplyPayloads.Add(
+            this.nodeContext.Value.AddObject(
                 new ReplyPayloadRow()
                 {
                     ReplyId = Guid.NewGuid(),
@@ -385,8 +407,6 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                     NetworkInvoice = responseFrame.NetworkInvoice,
                     TheReplyPayload = Crypto.SerializeObject(replyPayload)
                 });
-
-            this.nodeContext.Value.SaveChanges();
         }
         else
         {
@@ -395,10 +415,12 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             {
                 if (!responseFrame.SignedSettlementPromise.Verify(responseFrame.EncryptedReplyPayload, this.SettlerSelector))
                 {
+                    if (messageId != null) MarkMessageAsDone(messageId);
                     return;
                 }
                 if (!responseFrame.SignedSettlementPromise.NetworkPaymentHash.AsHex().SequenceEqual(decodedInvoice.PaymentHash))
                 {
+                    if (messageId != null) MarkMessageAsDone(messageId);
                     return;
                 }
                 if (!newResponse)
@@ -425,6 +447,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                 SendMessage(topLayerPulicKey, responseFrame);
             }
         }
+        if (messageId != null) MarkMessageAsDone(messageId);
     }
 
     [Serializable]
@@ -462,28 +485,42 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         LNDWalletClient.SendPaymentAsync(MakeWalletAuthToken(), replyPayload.ReplyInvoice, (int)this.invoicePaymentTimeout.TotalSeconds).Wait();
     }
 
-    public override void OnMessage(string senderPublicKey, object frame)
+    public bool IsMessageDone(string messageId)
     {
+        return (from m in this.nodeContext.Value.MessagesDone where m.MessageId == messageId && m.PublicKey == this.PublicKey select m).FirstOrDefault() != null;
+    }
+
+    public void MarkMessageAsDone(string messageId)
+    {
+        this.nodeContext.Value.AddObject(new MessageDoneRow() { MessageId = messageId, PublicKey = this.PublicKey });
+    }
+
+    public override void OnMessage(string messageId, string senderPublicKey, object frame)
+    {
+        if (IsMessageDone(messageId))
+            return; //Already Processed
+
         if (frame is AskForBroadcastFrame)
         {
-            OnAskForBroadcastFrame(senderPublicKey, (AskForBroadcastFrame)frame);
+            OnAskForBroadcastFrame(messageId, senderPublicKey, (AskForBroadcastFrame)frame);
         }
         else if (frame is POWBroadcastConditionsFrame)
         {
-            OnPOWBroadcastConditionsFrame(senderPublicKey, (POWBroadcastConditionsFrame)frame);
+            OnPOWBroadcastConditionsFrame(messageId, senderPublicKey, (POWBroadcastConditionsFrame)frame);
         }
         else if (frame is POWBroadcastFrame)
         {
-            OnPOWBroadcastFrame(senderPublicKey, (POWBroadcastFrame)frame);
+            OnPOWBroadcastFrame(messageId, senderPublicKey, (POWBroadcastFrame)frame);
         }
         else if (frame is ReplyFrame)
         {
-            OnResponseFrame(senderPublicKey, (ReplyFrame)frame);
+            OnResponseFrame(messageId, senderPublicKey, (ReplyFrame)frame);
         }
         else
         {
             Trace.TraceError("unknown request: ", senderPublicKey, frame);
         }
+
     }
 
     public Guid BroadcastTopic<T>(T topic, Certificate certificate)

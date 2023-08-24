@@ -234,5 +234,45 @@ public class WaletContext : DbContext
         optionsBuilder.UseSqlite(connectionString).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
     }
 
+
+    dynamic Type2DbSet(object obj)
+    {
+        if (obj is Address)
+            return this.FundingAddresses;
+        else if (obj is Payout)
+            return this.Payouts;
+        else if (obj is Invoice)
+            return this.Invoices;
+        else if (obj is Payment)
+            return this.Payments;
+        else if (obj is Token)
+            return this.Tokens;
+
+        throw new InvalidOperationException();
+    }
+
+    public void SaveObject<T>(T obj)
+    {
+        this.Type2DbSet(obj).Update(obj);
+        this.SaveChanges();
+        this.ChangeTracker.Clear();
+    }
+
+    public void AddObject<T>(T obj)
+    {
+        this.Type2DbSet(obj).Add(obj);
+        this.SaveChanges();
+        this.ChangeTracker.Clear();
+    }
+
+    public void AddObjectRange<T>(IEnumerable<T> range)
+    {
+        if (range.Count() == 0)
+            return;
+        this.Type2DbSet(range.First()).AddRange(range);
+        this.SaveChanges();
+        this.ChangeTracker.Clear();
+    }
+
 }
 
