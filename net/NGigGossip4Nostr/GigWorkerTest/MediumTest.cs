@@ -12,9 +12,9 @@ using NGeoHash;
 using NBitcoin.RPC;
 using GigLNDWalletAPIClient;
 
-namespace GigWorkerBasicTest;
+namespace GigWorkerMediumTest;
 
-public class BasicTest
+public class MediumTest
 {
     string[] args;
 
@@ -35,18 +35,21 @@ public class BasicTest
 
         return builder.Build();
     }
-    NodeSettings gigWorkerSettings, customerSettings;
+    NodeSettings gigWorkerSettings, customerSettings, gossiperSettings;
     SettlerAdminSettings settlerAdminSettings;
     BitcoinSettings bitcoinSettings;
+    ApplicationSettings applicationSettings;
 
-    public BasicTest(string[] args)
+    public MediumTest(string[] args)
     {
         this.args = args;
-        var config = GetConfigurationRoot(".giggossip", "basictest.conf");
+        var config = GetConfigurationRoot(".giggossip", "mediumtest.conf");
         gigWorkerSettings = config.GetSection("gigworker").Get<NodeSettings>();
         customerSettings = config.GetSection("customer").Get<NodeSettings>();
+        gossiperSettings = config.GetSection("gossiper").Get<NodeSettings>();
         settlerAdminSettings = config.GetSection("settleradmin").Get<SettlerAdminSettings>();
         bitcoinSettings = config.GetSection("bitcoin").Get<BitcoinSettings>();
+        applicationSettings = config.GetSection("application").Get<ApplicationSettings>();
     }
 
 
@@ -98,6 +101,17 @@ public class BasicTest
             settlerClient.IssueCertificateAsync(
                  token, gigWorker.PublicKey, new List<string> { "drive" }).Result);
 
+
+        var gossipers = new List<GigGossipNode>();
+        for (int i = 0; i < applicationSettings.NumberOfGossipers; i++)
+            gossipers.Add(new GigGossipNode(
+                gossiperSettings.ConnectionString,
+                Crypto.GeneratECPrivKey(),
+                gossiperSettings.GetNostrRelays(),
+                gossiperSettings.ChunkSize
+                ));
+
+
         var customer = new GigGossipNode(
             customerSettings.ConnectionString,
             customerSettings.PrivateKey.AsECPrivKey(),
@@ -128,6 +142,21 @@ public class BasicTest
             settlerSelector);
         //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
 
+
+        foreach(var node in gossipers)
+        {
+            node.Init(
+            gossiperSettings.Fanout,
+            gossiperSettings.PriceAmountForRouting,
+            TimeSpan.FromMilliseconds(gossiperSettings.BroadcastConditionsTimeoutMs),
+            gossiperSettings.BroadcastConditionsPowScheme,
+            gossiperSettings.BroadcastConditionsPowComplexity,
+            TimeSpan.FromMilliseconds(gossiperSettings.TimestampToleranceMs),
+            TimeSpan.FromSeconds(gossiperSettings.InvoicePaymentTimeoutSec),
+            gossiperSettings.GetLndWalletClient(httpClient),
+            settlerSelector);
+        }
+
         customer.Init(
             customerSettings.Fanout,
             customerSettings.PriceAmountForRouting,
@@ -141,34 +170,56 @@ public class BasicTest
 
         //await customer.LoadCertificates(customerSettings.SettlerOpenApi);
 
-        var ballanceOfCustomer= customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()).Result;
-
-        if (ballanceOfCustomer == 0)
+        void TopupNode(GigGossipNode node, long minAmout,long topUpAmount)
         {
-            var newBitcoinAddressOfCustomer =  customer.LNDWalletClient.NewAddressAsync(customer.MakeWalletAuthToken()).Result;
-            Console.WriteLine(newBitcoinAddressOfCustomer);
-
-            bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, bitcoinSettings.GetNetwork()), new NBitcoin.Money(10000000ul));
-
-            bitcoinClient.Generate(10); // generate some blocks
-
-            do
+            var ballanceOfCustomer = node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken()).Result;
+            if (ballanceOfCustomer < minAmout)
             {
-                if ( customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()).Result > 0)
-                    break;
-                Thread.Sleep(1000);
-            } while (true);
-
-            ballanceOfCustomer =  customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()).Result;
+                var newBitcoinAddressOfCustomer = node.LNDWalletClient.NewAddressAsync(node.MakeWalletAuthToken()).Result;
+                bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, bitcoinSettings.GetNetwork()), new NBitcoin.Money(topUpAmount));
+            }
         }
 
+        var minAmount = 1000000;
+        var topUpAmount = 10000000;
+        TopupNode(customer, minAmount, topUpAmount);
+        foreach (var node in gossipers)
+            TopupNode(node, minAmount, topUpAmount);
 
+        bitcoinClient.Generate(10); // generate some blocks
+
+        do
+        {
+            if (customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()).Result >= minAmount)
+            {
+            outer:
+                foreach (var node in gossipers)
+                    if (node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken()).Result < minAmount)
+                    {
+                        Thread.Sleep(1000);
+                        goto outer;
+                    }
+                break;
+            }
+        } while (true);
 
         gigWorker.Start(new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi, gigWorkerCert));
+        foreach (var node in gossipers)
+            node.Start(new NetworkEarnerNodeEvents());
         customer.Start(new CustomerGossipNodeEvents(this));
 
-        gigWorker.AddContact(new NostrContact() { PublicKey = customer.PublicKey, Petname = "Customer", Relay = "" });
-        customer.AddContact(new NostrContact() { PublicKey = gigWorker.PublicKey, Petname = "GigWorker", Relay = "" });
+        gigWorker.AddContact(new NostrContact() { PublicKey = gossipers[0].PublicKey, Petname = "Gossiper0", Relay = "" });
+        gossipers[0].AddContact(new NostrContact() { PublicKey = gigWorker.PublicKey, Petname = "GigWorker", Relay = "" });
+
+        for (int i = 0; i < gossipers.Count - 1; i++)
+            for (int j = i + 1; j < gossipers.Count - 1; j++)
+            {
+                gossipers[i].AddContact(new NostrContact() { PublicKey = gossipers[j].PublicKey, Petname = "Gossiper" + j.ToString(), Relay = "" });
+                gossipers[j].AddContact(new NostrContact() { PublicKey = gossipers[i].PublicKey, Petname = "Gossiper" + i.ToString(), Relay = "" });
+            }
+
+        customer.AddContact(new NostrContact() { PublicKey = gossipers[gossipers.Count-1].PublicKey, Petname = "Gossiper"+(gossipers.Count - 1).ToString(), Relay = "" });
+        gossipers[gossipers.Count - 1].AddContact(new NostrContact() { PublicKey = customer.PublicKey, Petname = "Customer", Relay = "" });
 
         {
             var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);
@@ -194,7 +245,35 @@ public class BasicTest
         }
 
         gigWorker.Stop();
+        foreach (var node in gossipers)
+            node.Stop();
         customer.Stop();
+    }
+}
+
+
+public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
+{
+    public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
+    {
+        var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(broadcastFrame.BroadcastPayload.SignedRequestPayload.Topic);
+        if (taxiTopic != null)
+        {
+            if (taxiTopic.FromGeohash.Length >= 7 &&
+                   taxiTopic.ToGeohash.Length >= 7 &&
+                   taxiTopic.DropoffBefore >= DateTime.Now)
+            {
+                me.BroadcastToPeers(peerPublicKey, broadcastFrame);
+            }
+        }
+    }
+
+    public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    {
+    }
+
+    public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)
+    {
     }
 }
 
@@ -237,10 +316,10 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
 public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 {
-    BasicTest basicTest;
-    public CustomerGossipNodeEvents(BasicTest basicTest)
+    MediumTest test;
+    public CustomerGossipNodeEvents(MediumTest test)
     {
-        this.basicTest = basicTest;
+        this.test = test;
     }
 
     public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
@@ -249,7 +328,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
-        me.AcceptResponse(replyPayload, replyInvoice,decodedReplyInvoice,networkInvoice,decodedNetworkInvoice);
+        me.AcceptResponse(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
     }
 
     public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)
@@ -258,10 +337,10 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
             key.AsBytes(),
             replyPayload.EncryptedReplyMessage);
         Trace.TraceInformation(Encoding.Default.GetString(message));
-        lock(basicTest)
+        lock(test)
         {
-            basicTest.IsRunning = false;
-            Monitor.PulseAll(basicTest);
+            test.IsRunning = false;
+            Monitor.PulseAll(test);
         }
     }
 }
@@ -272,6 +351,10 @@ public class SettlerAdminSettings
     public required string PrivateKey { get; set; }
 }
 
+public class ApplicationSettings
+{
+    public required int NumberOfGossipers { get; set; }
+}
 public class NodeSettings
 {
     public required string ConnectionString { get; set; }

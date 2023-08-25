@@ -125,7 +125,7 @@ public abstract class NostrNode
             }
             catch (Exception e)
             {
-                Console.WriteLine("Streaming was cancelled from the client!");
+                Trace.TraceError(e.ToString());
             }
 
         });

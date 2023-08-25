@@ -41,15 +41,21 @@ public class LNDChannelManager
 				}
 				catch (Exception ex)
 				{
-
-				}
-			}
+                    Trace.TraceError(ex.ToString());
+                }
+            }
 			while (Interlocked.Read(ref _mainThreadStop) == 0)
 			{
-				foreach (var friend in nearbyNodes)
-					GoForOpeningNewChannelsForNodeAsync(friend.Split("@")[0], maxSatoshisPerChannel, estimatedTxFee).Wait();
-				GoForExecutingPayoutsAsync(estimatedTxFee).Wait();
-
+				try
+				{
+					foreach (var friend in nearbyNodes)
+						GoForOpeningNewChannelsForNodeAsync(friend.Split("@")[0], maxSatoshisPerChannel, estimatedTxFee).Wait();
+					GoForExecutingPayoutsAsync(estimatedTxFee).Wait();
+				}
+				catch(Exception ex)
+				{
+					Trace.TraceError(ex.ToString());
+				}
 				Thread.Sleep(1000);
 			}
 		});

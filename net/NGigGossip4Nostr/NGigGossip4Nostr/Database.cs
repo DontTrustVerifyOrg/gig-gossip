@@ -1,7 +1,9 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using CryptoToolkit;
 using Microsoft.EntityFrameworkCore;
+using NBitcoin.Protocol;
 
 namespace NGigGossip4Nostr;
 
@@ -9,18 +11,18 @@ namespace NGigGossip4Nostr;
 /// <summary>
 /// Represents a certificate issued for the Subject by Certification Authority.
 /// </summary>
+[PrimaryKey(nameof(PublicKey), nameof(CertificateId))]
 public class UserCertificate
 {
     /// <summary>
-    /// The unique identifier of the certificate.
-    /// </summary>
-    [Key]
-    public Guid CertificateId { get; set; }
-
-    /// <summary>
     /// The public key of the subject.
     /// </summary>
+    [Column(Order = 1)]
     public required string PublicKey { get; set; }
+
+    [Column(Order = 2)]
+    public Guid CertificateId { get; set; }
+
 
     /// <summary>
     /// The certificate in byte array format.
@@ -28,108 +30,146 @@ public class UserCertificate
     public required byte[] TheCertificate { get; set; }
 }
 
+[PrimaryKey(nameof(PublicKey), nameof(AskId))]
 public class BroadcastPayloadRow
 {
-    [Key]
-    public Guid AskId { get; set; }
-
     /// <summary>
     /// The public key of the subject.
     /// </summary>
+    [Column(Order = 1)]
     public required string PublicKey { get; set; }
+
+    [Column(Order = 2)]
+    public Guid AskId { get; set; }
 
     public required byte[] TheBroadcastPayload { get; set; }
 }
 
+[PrimaryKey(nameof(PublicKey), nameof(AskId))]
 public class POWBroadcastConditionsFrameRow
 {
-    [Key]
-    public Guid AskId { get; set; }
-
     /// <summary>
     /// The public key of the subject.
     /// </summary>
+    [Column(Order = 1)]
     public required string PublicKey { get; set; }
+
+    [Column(Order = 2)]
+    public Guid AskId { get; set; }
 
     public required byte[] ThePOWBroadcastConditionsFrame { get; set; }
 }
 
+[PrimaryKey(nameof(PublicKey), nameof(PayloadId))]
 public class BroadcastCounterRow
 {
-    [Key]
-    public Guid PayloadId { get; set; }
-
     /// <summary>
     /// The public key of the subject.
     /// </summary>
+    [Column(Order = 1)]
     public required string PublicKey { get; set; }
+
+    [Column(Order = 2)]
+    public Guid PayloadId { get; set; }
 
     public required int Counter { get; set; }
 }
 
 
+[PrimaryKey(nameof(PublicKey), nameof(ReplyId))]
 public class ReplyPayloadRow
 {
-    [Key]
-    public Guid ReplyId { get; set; }
-
     /// <summary>
     /// The public key of the subject.
     /// </summary>
+    [Column(Order = 1)]
     public required string PublicKey { get; set; }
 
+    [Column(Order = 2)]
+    public Guid ReplyId { get; set; }
+
     public Guid PayloadId { get; set; }
+
     public string ReplierPublicKey { get; set; }
     public byte[] TheReplyPayload { get; set; }
     public string NetworkInvoice { get; set; }
 }
 
+[PrimaryKey(nameof(PublicKey), nameof(PaymentHash))]
 public class MonitoredInvoiceRow
 {
     /// <summary>
     /// The public key of the subject.
     /// </summary>
+    [Column(Order = 1)]
     public string PublicKey { get; set; }
 
-    [Key]
+    [Column(Order = 2)]
     public string PaymentHash { get; set; }
+
     public string InvoiceState { get; set; }
     public byte[] Data { get; set; }
 }
 
+[PrimaryKey(nameof(PublicKey), nameof(PaymentHash))]
+public class MonitoredPaymentRow
+{
+    /// <summary>
+    /// The public key of the subject.
+    /// </summary>
+    [Column(Order = 1)]
+    public string PublicKey { get; set; }
+
+    [Column(Order = 2)]
+    public string PaymentHash { get; set; }
+
+    public string PaymentStatus { get; set; }
+    public byte[] Data { get; set; }
+}
+
+[PrimaryKey(nameof(PublicKey), nameof(PaymentHash))]
 public class MonitoredPreimageRow
 {
     /// <summary>
     /// The public key of the subject.
     /// </summary>
+    [Column(Order = 1)]
     public string PublicKey { get; set; }
-    public Uri ServiceUri { get; set; }
-    [Key]
+
+    [Column(Order = 2)]
     public string PaymentHash { get; set; }
+
+    public Uri ServiceUri { get; set; }
     public string? Preimage { get; set; }
 }
 
+[PrimaryKey(nameof(PublicKey), nameof(PayloadId))]
 public class MonitoredSymmetricKeyRow
 {
     /// <summary>
     /// The public key of the subject.
     /// </summary>
+    [Column(Order = 1)]
     public string PublicKey { get; set; }
-    public Uri ServiceUri { get; set; }
-    [Key]
+
+    [Column(Order = 2)]
     public Guid PayloadId { get; set; }
+
+    public Uri ServiceUri { get; set; }
     public string? SymmetricKey { get; set; }
     public byte[] Data { get; set; }
 }
 
+[PrimaryKey(nameof(PublicKey), nameof(MessageId))]
 public class MessageDoneRow
 {
     /// <summary>
     /// The public key of the subject.
     /// </summary>
+    [Column(Order = 1)]
     public string PublicKey { get; set; }
 
-    [Key]
+    [Column(Order = 2)]
     public string MessageId { get; set; }
 }
 
@@ -158,6 +198,7 @@ public class GigGossipNodeContext : DbContext
     public DbSet<BroadcastCounterRow> BroadcastCounters { get; set; }
     public DbSet<ReplyPayloadRow> ReplyPayloads { get; set; }
     public DbSet<MonitoredInvoiceRow> MonitoredInvoices { get; set; }
+    public DbSet<MonitoredPaymentRow> MonitoredPayments { get; set; }
     public DbSet<MonitoredPreimageRow> MonitoredPreimages { get; set; }
     public DbSet<MonitoredSymmetricKeyRow> MonitoredSymmetricKeys { get; set; }
     public DbSet<MessageDoneRow> MessagesDone { get; set; }
@@ -185,6 +226,8 @@ public class GigGossipNodeContext : DbContext
             return this.ReplyPayloads;
         else if (obj is MonitoredInvoiceRow)
             return this.MonitoredInvoices;
+        else if (obj is MonitoredPaymentRow)
+            return this.MonitoredPayments;
         else if (obj is MonitoredPreimageRow)
             return this.MonitoredPreimages;
         else if (obj is MonitoredSymmetricKeyRow)

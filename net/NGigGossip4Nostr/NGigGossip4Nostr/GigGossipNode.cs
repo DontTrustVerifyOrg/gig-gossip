@@ -14,10 +14,11 @@ using NNostr.Client;
 using CryptoToolkit;
 using System.Security.Cryptography.X509Certificates;
 using System.Runtime.ConstrainedExecution;
+using GigLNDWalletAPIClient;
 
 public interface IGigGossipNodeEvents
 {
-    public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string networkInvoice);
+    public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice);
     public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key);
     public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame);
 }
@@ -377,13 +378,6 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         var decodedInvoice = LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), responseFrame.NetworkInvoice).Result;
         if (responseFrame.ForwardOnion.IsEmpty())
         {
-            if (!responseFrame.SignedSettlementPromise.NetworkPaymentHash.AsHex().SequenceEqual(decodedInvoice.PaymentHash))
-            {
-                Trace.TraceError("reply payload has different network_payment_hash than network_invoice");
-                if(messageId!=null) MarkMessageAsDone(messageId);
-                return;
-            }
-
             ReplyPayload replyPayload = responseFrame.DecryptAndVerify(privateKey, SettlerSelector.GetPubKey(responseFrame.SignedSettlementPromise.ServiceUri), this.SettlerSelector);
             if (replyPayload == null)
             {
@@ -395,7 +389,9 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
             settlerMonitor.MonitorSymmetricKey(responseFrame.SignedSettlementPromise.ServiceUri, payloadId, Crypto.SerializeObject(replyPayload));
 
-            gigGossipNodeEvents.OnNewResponse(this, replyPayload, responseFrame.NetworkInvoice);
+            var decodedReplyInvoice = LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), replyPayload.ReplyInvoice).Result;
+
+            gigGossipNodeEvents.OnNewResponse(this, replyPayload, replyPayload.ReplyInvoice, decodedReplyInvoice, responseFrame.NetworkInvoice, decodedInvoice);
 
             this.nodeContext.Value.AddObject(
                 new ReplyPayloadRow()
@@ -432,10 +428,11 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                         decodedInvoice.NumSatoshis + this.priceAmountForRouting,
                         relatedNetworkPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds).Result;
                     this.lndWalletMonitor.MonitorInvoice(
-                        relatedNetworkPaymentHash, "Accepted",
+                        relatedNetworkPaymentHash,
                         Crypto.SerializeObject(new InvoiceAcceptedData()
                         {
                             NetworkInvoice = responseFrame.NetworkInvoice,
+                            NetworkInvoicePaymentHash = decodedInvoice.PaymentHash,
                             TotalSeconds = (int)invoicePaymentTimeout.TotalSeconds
                         }));
                     this.settlerMonitor.MonitorPreimage(
@@ -454,15 +451,26 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
     public class InvoiceAcceptedData
     {
         public string NetworkInvoice { get; set; }
+        public string NetworkInvoicePaymentHash { get; set; }
         public int TotalSeconds { get; set; }
     }
 
-    public void OnInvoiceStateChange(byte[] data)
+    public void OnInvoiceStateChange(string state, byte[] data)
     {
-        var iac = Crypto.DeserializeObject<InvoiceAcceptedData>(data);
-        LNDWalletClient.SendPaymentAsync(
-            MakeWalletAuthToken(), iac.NetworkInvoice, iac.TotalSeconds
-            ).Wait();
+        if (state == "Accepted")
+        {
+            var iac = Crypto.DeserializeObject<InvoiceAcceptedData>(data);
+            if (lndWalletMonitor.IsPaymentMonitored(iac.NetworkInvoicePaymentHash))
+                return;
+            LNDWalletClient.SendPaymentAsync(
+                MakeWalletAuthToken(), iac.NetworkInvoice, iac.TotalSeconds
+                ).Wait();
+            lndWalletMonitor.MonitorPayment(iac.NetworkInvoicePaymentHash, new byte[] { });
+        }
+    }
+
+    public void OnPaymentStatusChange(string statys, byte[] data)
+    {
     }
 
     public void OnPreimageRevealed(string preimage)
@@ -479,10 +487,19 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         gigGossipNodeEvents.OnResponseReady(this, replyPayload, key);
     }
 
-    public void AcceptResponse(ReplyPayload replyPayload, string networkInvoice)
+    public void AcceptResponse(ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
-        LNDWalletClient.SendPaymentAsync(MakeWalletAuthToken(), networkInvoice, (int)this.invoicePaymentTimeout.TotalSeconds).Wait();
-        LNDWalletClient.SendPaymentAsync(MakeWalletAuthToken(), replyPayload.ReplyInvoice, (int)this.invoicePaymentTimeout.TotalSeconds).Wait();
+        if (!lndWalletMonitor.IsPaymentMonitored(decodedNetworkInvoice.PaymentHash))
+        {
+            LNDWalletClient.SendPaymentAsync(MakeWalletAuthToken(), networkInvoice, (int)this.invoicePaymentTimeout.TotalSeconds).Wait();
+            lndWalletMonitor.MonitorPayment(decodedNetworkInvoice.PaymentHash, new byte[] { });
+        }
+
+        if (!lndWalletMonitor.IsPaymentMonitored(decodedReplyInvoice.PaymentHash))
+        {
+            LNDWalletClient.SendPaymentAsync(MakeWalletAuthToken(), replyInvoice, (int)this.invoicePaymentTimeout.TotalSeconds).Wait();
+            lndWalletMonitor.MonitorPayment(decodedReplyInvoice.PaymentHash, new byte[] { });
+        }
     }
 
     public bool IsMessageDone(string messageId)

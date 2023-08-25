@@ -22,7 +22,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="ComplexTest.cs" />
-    <Compile Remove="MidTest.cs" />
     <Compile Remove="GridNode.cs" />
   </ItemGroup>
 </Project>

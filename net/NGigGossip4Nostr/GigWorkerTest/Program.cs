@@ -7,14 +7,14 @@ using NGeoHash;
 using NBitcoin.Protocol;
 using System.Diagnostics;
 
-namespace GigWorkerTest;
 
 internal class Program
 {
 
     static void Main(string[] args)
     {
-        new BasicTest(args).Run();
+ //       new GigWorkerBasicTest.BasicTest(args).Run();
+        new GigWorkerMediumTest.MediumTest(args).Run();
     }
 
 }

@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using Walletrpc;
 using System.Security.Principal;
 using System;
+using System.Diagnostics;
 
 namespace LNDWallet;
 
@@ -380,7 +381,7 @@ public class LNDWalletManager
             }
             catch (RpcException e) when (e.Status.StatusCode == StatusCode.Cancelled)
             {
-                Console.WriteLine("Streaming was cancelled from the client!");
+                Trace.TraceInformation("Streaming was cancelled from the client!");
             }
 
         });
@@ -405,7 +406,7 @@ public class LNDWalletManager
             }
             catch (RpcException e) when (e.Status.StatusCode == StatusCode.Cancelled)
             {
-                Console.WriteLine("Streaming was cancelled from the client!");
+                Trace.TraceInformation("Streaming was cancelled from the client!");
             }
 
         });
