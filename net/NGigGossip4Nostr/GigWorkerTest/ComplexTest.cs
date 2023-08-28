@@ -11,10 +11,11 @@ using System.Reflection;
 using NGeoHash;
 using NBitcoin.RPC;
 using GigLNDWalletAPIClient;
+using GigWorkerTest;
 
-namespace GigWorkerMediumTest;
+namespace GigWorkerComplexTest;
 
-public class MediumTest
+public class ComplexTest
 {
     string[] args;
 
@@ -35,18 +36,16 @@ public class MediumTest
 
         return builder.Build();
     }
-    NodeSettings gigWorkerSettings, customerSettings, gossiperSettings;
+    NodeSettings gridNodeSettings;
     SettlerAdminSettings settlerAdminSettings;
     BitcoinSettings bitcoinSettings;
     ApplicationSettings applicationSettings;
 
-    public MediumTest(string[] args)
+    public ComplexTest(string[] args)
     {
         this.args = args;
-        var config = GetConfigurationRoot(".giggossip", "mediumtest.conf");
-        gigWorkerSettings = config.GetSection("gigworker").Get<NodeSettings>();
-        customerSettings = config.GetSection("customer").Get<NodeSettings>();
-        gossiperSettings = config.GetSection("gossiper").Get<NodeSettings>();
+        var config = GetConfigurationRoot(".giggossip", "complextest.conf");
+        gridNodeSettings = config.GetSection("gridnode").Get<NodeSettings>();
         settlerAdminSettings = config.GetSection("settleradmin").Get<SettlerAdminSettings>();
         bitcoinSettings = config.GetSection("bitcoin").Get<BitcoinSettings>();
         applicationSettings = config.GetSection("application").Get<ApplicationSettings>();
@@ -84,91 +83,117 @@ public class MediumTest
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.Now, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
-        var gigWorker = new GigGossipNode(
-            gigWorkerSettings.ConnectionString,
-            gigWorkerSettings.PrivateKey.AsECPrivKey(),
-            gigWorkerSettings.GetNostrRelays(),
-            gigWorkerSettings.ChunkSize
-            );
+        var gridShape = applicationSettings.GetGridShape();
+        var gridShapeIter = from x in gridShape select Enumerable.Range(0, x);
 
-        settlerClient.GiveUserPropertyAsync(
-                token, gigWorker.PublicKey,
-                "drive", val,
+        var nod_name_f = (IEnumerable<int> nod_idx) => "GridNode<" + string.Join(",", nod_idx.Select(i => i.ToString()).ToList()) + ">";
+
+        var things = new Dictionary<string, GigGossipNode>();
+        foreach (var nod_idx in gridShapeIter.MultiCartesian())
+        {
+            things[nod_name_f(nod_idx)] = new GigGossipNode(
+                gridNodeSettings.ConnectionString,
+                gridNodeSettings.PrivateKey.AsECPrivKey(),
+                gridNodeSettings.GetNostrRelays(),
+                gridNodeSettings.ChunkSize
+            );
+        }
+
+        var already = new HashSet<string>();
+        foreach (var nod_idx in gridShapeIter.MultiCartesian())
+        {
+            var node_name = nod_name_f(nod_idx);
+            for (int k = 0; k < nod_idx.Length; k++)
+            {
+                var nod1_idx = nod_idx.Select((x, i) => i == k ? (x + 1) % gridShape[k] : x);
+                var node_name_1 = nod_name_f(nod1_idx);
+                if (already.Contains(node_name + ":" + node_name_1))
+                    continue;
+                if (already.Contains(node_name_1 + ":" + node_name))
+                    continue;
+
+                things[node_name].AddContact(things[node_name_1].PublicKey, node_name_1);
+                things[node_name_1].AddContact(things[node_name].PublicKey, node_name);
+                already.Add(node_name + ":" + node_name_1);
+                already.Add(node_name_1 + ":" + node_name);
+                Console.WriteLine(node_name + "<->" + node_name_1);
+            }
+        }
+
+        var rnd = new Random();
+        var thingsList = new Queue<GigGossipNode>(things.Values.OrderBy(a => rnd.Next()));
+
+        for (int i = 0; i < applicationSettings.NumMessages; i++)
+        {
+            var gigWorker = thingsList.Dequeue();
+            settlerClient.GiveUserPropertyAsync(
+                    token, gigWorker.PublicKey,
+                    "drive", val,
+                    (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
+                 ).Wait();
+            var gigWorkerCert = Crypto.DeserializeObject<Certificate>(
+                settlerClient.IssueCertificateAsync(
+                     token, gigWorker.PublicKey, new List<string> { "drive" }).Result);
+
+            gigWorker.Init(
+                gridNodeSettings.Fanout,
+                gridNodeSettings.PriceAmountForRouting,
+                TimeSpan.FromMilliseconds(gridNodeSettings.BroadcastConditionsTimeoutMs),
+                gridNodeSettings.BroadcastConditionsPowScheme,
+                gridNodeSettings.BroadcastConditionsPowComplexity,
+                TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
+                TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
+                gridNodeSettings.GetLndWalletClient(httpClient),
+                settlerSelector);
+            //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
+
+            gigWorker.Start(new GigWorkerGossipNodeEvents(gridNodeSettings.SettlerOpenApi, gigWorkerCert));
+
+        }
+
+        var customers = new List<Tuple<GigGossipNode, Certificate>>();
+        for (int i = 0; i < applicationSettings.NumMessages; i++)
+        {
+            var customer = thingsList.Dequeue();
+            settlerClient.GiveUserPropertyAsync(
+                token, customer.PublicKey,
+                "ride", val,
                 (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
              ).Wait();
 
-        var gigWorkerCert = Crypto.DeserializeObject<Certificate>(
-            settlerClient.IssueCertificateAsync(
-                 token, gigWorker.PublicKey, new List<string> { "drive" }).Result);
+            var customerCert = Crypto.DeserializeObject<Certificate>(
+                 settlerClient.IssueCertificateAsync(
+                    token, customer.PublicKey, new List<string> { "ride" }).Result);
 
-
-        var gossipers = new List<GigGossipNode>();
-        for (int i = 0; i < applicationSettings.NumberOfGossipers; i++)
-            gossipers.Add(new GigGossipNode(
-                gossiperSettings.ConnectionString,
-                Crypto.GeneratECPrivKey(),
-                gossiperSettings.GetNostrRelays(),
-                gossiperSettings.ChunkSize
-                ));
-
-
-        var customer = new GigGossipNode(
-            customerSettings.ConnectionString,
-            customerSettings.PrivateKey.AsECPrivKey(),
-            customerSettings.GetNostrRelays(),
-            customerSettings.ChunkSize
-            );
-
-        settlerClient.GiveUserPropertyAsync(
-            token, customer.PublicKey,
-            "ride", val,
-            (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
-         ).Wait();
-
-        var customerCert = Crypto.DeserializeObject<Certificate>(
-             settlerClient.IssueCertificateAsync(
-                token, customer.PublicKey, new List<string> { "ride" }).Result);
-
-
-        gigWorker.Init(
-            gigWorkerSettings.Fanout,
-            gigWorkerSettings.PriceAmountForRouting,
-            TimeSpan.FromMilliseconds(gigWorkerSettings.BroadcastConditionsTimeoutMs),
-            gigWorkerSettings.BroadcastConditionsPowScheme,
-            gigWorkerSettings.BroadcastConditionsPowComplexity,
-            TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
-            TimeSpan.FromSeconds(gigWorkerSettings.InvoicePaymentTimeoutSec),
-            gigWorkerSettings.GetLndWalletClient(httpClient),
-            settlerSelector);
-        //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
-
-
-        foreach(var node in gossipers)
+            customer.Init(
+                gridNodeSettings.Fanout,
+                gridNodeSettings.PriceAmountForRouting,
+                TimeSpan.FromMilliseconds(gridNodeSettings.BroadcastConditionsTimeoutMs),
+                gridNodeSettings.BroadcastConditionsPowScheme,
+                gridNodeSettings.BroadcastConditionsPowComplexity,
+                TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
+                TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
+                gridNodeSettings.GetLndWalletClient(httpClient),
+                settlerSelector);
+            //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
+            customer.Start(new CustomerGossipNodeEvents(this));
+            customers.Add(Tuple.Create(customer, customerCert));
+        }
+        foreach (var node in thingsList)
         {
             node.Init(
-            gossiperSettings.Fanout,
-            gossiperSettings.PriceAmountForRouting,
-            TimeSpan.FromMilliseconds(gossiperSettings.BroadcastConditionsTimeoutMs),
-            gossiperSettings.BroadcastConditionsPowScheme,
-            gossiperSettings.BroadcastConditionsPowComplexity,
-            TimeSpan.FromMilliseconds(gossiperSettings.TimestampToleranceMs),
-            TimeSpan.FromSeconds(gossiperSettings.InvoicePaymentTimeoutSec),
-            gossiperSettings.GetLndWalletClient(httpClient),
-            settlerSelector);
+                gridNodeSettings.Fanout,
+                gridNodeSettings.PriceAmountForRouting,
+                TimeSpan.FromMilliseconds(gridNodeSettings.BroadcastConditionsTimeoutMs),
+                gridNodeSettings.BroadcastConditionsPowScheme,
+                gridNodeSettings.BroadcastConditionsPowComplexity,
+                TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
+                TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
+                gridNodeSettings.GetLndWalletClient(httpClient),
+                settlerSelector);
+            //await node.LoadCertificates(gigWorkerSettings.SettlerOpenApi);        
+            node.Start(new NetworkEarnerNodeEvents());
         }
-
-        customer.Init(
-            customerSettings.Fanout,
-            customerSettings.PriceAmountForRouting,
-            TimeSpan.FromMilliseconds(customerSettings.BroadcastConditionsTimeoutMs),
-            customerSettings.BroadcastConditionsPowScheme,
-            customerSettings.BroadcastConditionsPowComplexity,
-            TimeSpan.FromMilliseconds(customerSettings.TimestampToleranceMs),
-            TimeSpan.FromSeconds(customerSettings.InvoicePaymentTimeoutSec),
-            customerSettings.GetLndWalletClient(httpClient),
-            settlerSelector);
-
-        //await customer.LoadCertificates(customerSettings.SettlerOpenApi);
 
         void TopupNode(GigGossipNode node, long minAmout,long topUpAmount)
         {
@@ -182,58 +207,40 @@ public class MediumTest
 
         var minAmount = 1000000;
         var topUpAmount = 10000000;
-        TopupNode(customer, minAmount, topUpAmount);
-        foreach (var node in gossipers)
-            TopupNode(node, minAmount, topUpAmount);
+
+        foreach (var nod_idx in gridShapeIter.MultiCartesian())
+        {
+            var node_name = nod_name_f(nod_idx);
+            TopupNode(things[node_name], minAmount, topUpAmount);
+        }
 
         bitcoinClient.Generate(10); // generate some blocks
 
         do
         {
-            if (customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()).Result >= minAmount)
-            {
-            outer:
-                foreach (var node in gossipers)
-                    if (node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken()).Result < minAmount)
-                    {
-                        Thread.Sleep(1000);
-                        goto outer;
-                    }
-                break;
-            }
+        outer:
+            foreach (var node in things.Values)
+                if (node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken()).Result < minAmount)
+                {
+                    Thread.Sleep(1000);
+                    goto outer;
+                }
+            break;
         } while (true);
 
-        gigWorker.Start(new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi, gigWorkerCert));
-        foreach (var node in gossipers)
-            node.Start(new NetworkEarnerNodeEvents());
-        customer.Start(new CustomerGossipNodeEvents(this));
-
-        gigWorker.AddContact( gossipers[0].PublicKey, "Gossiper0");
-        gossipers[0].AddContact( gigWorker.PublicKey, "GigWorker");
-
-        for (int i = 0; i < gossipers.Count; i++)
-            for (int j = 0; j < gossipers.Count; j++)
-            {
-                if (i == j)
-                    continue;
-                gossipers[i].AddContact(gossipers[j].PublicKey, "Gossiper" + j.ToString());
-            }
-
-        customer.AddContact(gossipers[gossipers.Count-1].PublicKey, "Gossiper"+(gossipers.Count - 1).ToString());
-        gossipers[gossipers.Count - 1].AddContact(customer.PublicKey, "Customer");
-
+        foreach (var customercert in customers)
         {
             var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);
             var toGh = GeoHash.Encode(latitude: 42.5, longitude: -5.6, numberOfChars: 7);
 
-            customer.BroadcastTopic(new TaxiTopic()
+            customercert.Item1.BroadcastTopic(new TaxiTopic()
             {
                 FromGeohash = fromGh,
                 ToGeohash = toGh,
                 PickupAfter = DateTime.Now,
                 DropoffBefore = DateTime.Now.AddMinutes(20)
             },
-            customerCert);
+            customercert.Item2);
 
         }
 
@@ -244,11 +251,12 @@ public class MediumTest
                 Monitor.Wait(this);
             }
         }
+        foreach (var nod_idx in gridShapeIter.MultiCartesian())
+        {
+            var node_name = nod_name_f(nod_idx);
+            things[node_name].Stop();
+        }
 
-        gigWorker.Stop();
-        foreach (var node in gossipers)
-            node.Stop();
-        customer.Stop();
     }
 }
 
@@ -317,8 +325,8 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
 public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 {
-    MediumTest test;
-    public CustomerGossipNodeEvents(MediumTest test)
+    ComplexTest test;
+    public CustomerGossipNodeEvents(ComplexTest test)
     {
         this.test = test;
     }
@@ -380,7 +388,12 @@ public class SettlerAdminSettings
 
 public class ApplicationSettings
 {
-    public required int NumberOfGossipers { get; set; }
+    public required string GridShape { get; set; }
+    public required int NumMessages { get; set; }
+    public int[] GetGridShape()
+    {
+        return (from s in JsonArray.Parse(GridShape).AsArray() select s.GetValue<int>()).ToArray();
+    }
 }
 public class NodeSettings
 {
