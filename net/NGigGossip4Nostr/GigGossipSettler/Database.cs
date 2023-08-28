@@ -273,6 +273,15 @@ public class SettlerContext : DbContext
         this.ChangeTracker.Clear();
     }
 
+    public void SaveObjectRange<T>(IEnumerable<T> range)
+    {
+        if (range.Count() == 0)
+            return;
+        this.Type2DbSet(range.First()).UpdateRange(range);
+        this.SaveChanges();
+        this.ChangeTracker.Clear();
+    }
+
     public void AddObject<T>(T obj)
     {
         this.Type2DbSet(obj).Add(obj);

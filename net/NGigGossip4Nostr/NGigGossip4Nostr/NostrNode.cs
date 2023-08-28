@@ -8,12 +8,6 @@ using NBitcoin.RPC;
 
 namespace NGigGossip4Nostr;
 
-public class NostrContact
-{
-    public string PublicKey;
-    public string Relay;
-    public string Petname;
-}
 
 public abstract class NostrNode
 {
@@ -21,7 +15,6 @@ public abstract class NostrNode
     protected ECPrivKey privateKey;
     protected ECXOnlyPubKey publicKey;
     public string PublicKey;
-    private Dictionary<string, NostrContact> _contactList;
     private int chunkSize;
 
     public NostrNode(ECPrivKey privateKey, string[] nostrRelays,int chunkSize)
@@ -30,7 +23,6 @@ public abstract class NostrNode
         this.publicKey = privateKey.CreateXOnlyPubKey();
         this.PublicKey = this.publicKey.AsHex();
         nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
-        this._contactList = new();
         this.chunkSize = chunkSize;
     }
 
@@ -40,15 +32,12 @@ public abstract class NostrNode
         public required object Frame;
     }
 
-    public void AddContact(NostrContact newContact)
+    protected void PublishContactList(Dictionary<string,NostrContact> contactList)
     {
-        if (newContact.PublicKey == this.PublicKey)
-            throw new GigGossipException(GigGossipNodeErrorCode.SelfConnection);
         List<NostrEventTag> tags;
-        lock (_contactList)
+        lock (contactList)
         {
-            _contactList[newContact.PublicKey] = newContact;
-            tags = (from c in _contactList.Values select new NostrEventTag() { TagIdentifier = "p", Data = { c.PublicKey, c.Relay, c.Petname } }).ToList();
+            tags = (from c in contactList.Values select new NostrEventTag() { TagIdentifier = "p", Data = { c.ContactPublicKey, c.Relay, c.Petname } }).ToList();
         }
         var newEvent = new NostrEvent()
         {
@@ -92,6 +81,7 @@ public abstract class NostrNode
     }
 
     public abstract void OnMessage(string eventId, string senderPublicKey, object frame);
+    public abstract void OnContactList(string eventId, Dictionary<string, NostrContact> contactList);
 
     Thread mainThread;
     CancellationTokenSource subscribeForEventsTokenSource = new CancellationTokenSource();
@@ -189,23 +179,13 @@ public abstract class NostrNode
 
     private void ProcessContactList(NostrEvent nostrEvent)
     {
-        lock (_contactList)
+        var newCL = new Dictionary<string, NostrContact>();
+        foreach (var tag in nostrEvent.Tags)
         {
-            var newCL = new Dictionary<string, NostrContact>();
-            foreach (var tag in nostrEvent.Tags)
-            {
-                if (tag.TagIdentifier == "p")
-                    newCL[tag.Data[0]] = new NostrContact() { PublicKey = tag.Data[0], Relay = tag.Data[1], Petname = tag.Data[2] };
-            }
-            _contactList = newCL;
+            if (tag.TagIdentifier == "p")
+                newCL[tag.Data[0]] = new NostrContact() { PublicKey = tag.Data[0], Relay = tag.Data[1], Petname = tag.Data[2] };
         }
+        OnContactList(nostrEvent.Id, newCL);
     }
 
-    public List<string> GetContacts()
-    {
-        lock (_contactList)
-        {
-            return _contactList.Keys.ToList();
-        }
-    }
 }

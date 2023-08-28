@@ -1,9 +1,11 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Security.Cryptography.X509Certificates;
 using CryptoToolkit;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin.Protocol;
+using NNostr.Client;
 
 namespace NGigGossip4Nostr;
 
@@ -93,7 +95,31 @@ public class ReplyPayloadRow
     public string ReplierPublicKey { get; set; }
     public byte[] TheReplyPayload { get; set; }
     public string NetworkInvoice { get; set; }
+    public byte[] DecodedNetworkInvoice { get; set; }
+    public string ReplyInvoice { get; set; }
+    public byte[] DecodedReplyInvoice { get; set; }
 }
+
+[PrimaryKey(nameof(PublicKey), nameof(SettlerServiceUri), nameof(PayloadId))]
+public class AcceptedBroadcastRow
+{
+    /// <summary>
+    /// The public key of the subject.
+    /// </summary>
+    [Column(Order = 1)]
+    public required string PublicKey { get; set; }
+
+    [Column(Order = 1)]
+    public Uri SettlerServiceUri { get; set; }
+
+    [Column(Order = 2)]
+    public Guid PayloadId { get; set; }
+
+    public byte[] SignedSettlementPromise { get; set; }
+    public string NetworkInvoice { get; set; }
+    public byte[] EncryptedReplyPayload { get; set; }
+}
+
 
 [PrimaryKey(nameof(PublicKey), nameof(PaymentHash))]
 public class MonitoredInvoiceRow
@@ -173,6 +199,20 @@ public class MessageDoneRow
     public string MessageId { get; set; }
 }
 
+[PrimaryKey(nameof(PublicKey), nameof(ContactPublicKey))]
+public class NostrContact
+{
+    /// <summary>
+    /// The public key of the subject.
+    /// </summary>
+    [Column(Order = 1)]
+    public string PublicKey { get; set; }
+
+    public string ContactPublicKey { get; set; }
+    public string Relay { get; set; }
+    public string Petname { get; set; }
+}
+
 /// <summary>
 /// Context class for interaction with database.
 /// </summary>
@@ -197,11 +237,13 @@ public class GigGossipNodeContext : DbContext
     public DbSet<POWBroadcastConditionsFrameRow> POWBroadcastConditionsFrameRowByAskId { get; set; }
     public DbSet<BroadcastCounterRow> BroadcastCounters { get; set; }
     public DbSet<ReplyPayloadRow> ReplyPayloads { get; set; }
+    public DbSet<AcceptedBroadcastRow> AcceptedBroadcasts { get; set; }
     public DbSet<MonitoredInvoiceRow> MonitoredInvoices { get; set; }
     public DbSet<MonitoredPaymentRow> MonitoredPayments { get; set; }
     public DbSet<MonitoredPreimageRow> MonitoredPreimages { get; set; }
     public DbSet<MonitoredSymmetricKeyRow> MonitoredSymmetricKeys { get; set; }
     public DbSet<MessageDoneRow> MessagesDone { get; set; }
+    public DbSet<NostrContact> NostrContacts { get; set; }
 
     /// <summary>
     /// Configures the context for use with a SQLite database.
@@ -224,6 +266,8 @@ public class GigGossipNodeContext : DbContext
             return this.BroadcastCounters;
         else if (obj is ReplyPayloadRow)
             return this.ReplyPayloads;
+        else if (obj is AcceptedBroadcastRow)
+            return this.AcceptedBroadcasts;
         else if (obj is MonitoredInvoiceRow)
             return this.MonitoredInvoices;
         else if (obj is MonitoredPaymentRow)
@@ -234,6 +278,8 @@ public class GigGossipNodeContext : DbContext
             return this.MonitoredSymmetricKeys;
         else if (obj is MessageDoneRow)
             return this.MessagesDone;
+        else if (obj is NostrContact)
+            return this.NostrContacts;
 
         throw new InvalidOperationException();
     }
@@ -241,6 +287,15 @@ public class GigGossipNodeContext : DbContext
     public void SaveObject<T>(T obj)
     {
         this.Type2DbSet(obj).Update(obj);
+        this.SaveChanges();
+        this.ChangeTracker.Clear();
+    }
+
+    public void SaveObjectRange<T>(IEnumerable<T> range)
+    {
+        if (range.Count() == 0)
+            return;
+        this.Type2DbSet(range.First()).UpdateRange(range);
         this.SaveChanges();
         this.ChangeTracker.Clear();
     }

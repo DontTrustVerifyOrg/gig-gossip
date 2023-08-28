@@ -208,18 +208,19 @@ public class MediumTest
             node.Start(new NetworkEarnerNodeEvents());
         customer.Start(new CustomerGossipNodeEvents(this));
 
-        gigWorker.AddContact(new NostrContact() { PublicKey = gossipers[0].PublicKey, Petname = "Gossiper0", Relay = "" });
-        gossipers[0].AddContact(new NostrContact() { PublicKey = gigWorker.PublicKey, Petname = "GigWorker", Relay = "" });
+        gigWorker.AddContact( gossipers[0].PublicKey, "Gossiper0");
+        gossipers[0].AddContact( gigWorker.PublicKey, "GigWorker");
 
-        for (int i = 0; i < gossipers.Count - 1; i++)
-            for (int j = i + 1; j < gossipers.Count - 1; j++)
+        for (int i = 0; i < gossipers.Count; i++)
+            for (int j = 0; j < gossipers.Count; j++)
             {
-                gossipers[i].AddContact(new NostrContact() { PublicKey = gossipers[j].PublicKey, Petname = "Gossiper" + j.ToString(), Relay = "" });
-                gossipers[j].AddContact(new NostrContact() { PublicKey = gossipers[i].PublicKey, Petname = "Gossiper" + i.ToString(), Relay = "" });
+                if (i == j)
+                    continue;
+                gossipers[i].AddContact(gossipers[j].PublicKey, "Gossiper" + j.ToString());
             }
 
-        customer.AddContact(new NostrContact() { PublicKey = gossipers[gossipers.Count-1].PublicKey, Petname = "Gossiper"+(gossipers.Count - 1).ToString(), Relay = "" });
-        gossipers[gossipers.Count - 1].AddContact(new NostrContact() { PublicKey = customer.PublicKey, Petname = "Customer", Relay = "" });
+        customer.AddContact(gossipers[gossipers.Count-1].PublicKey, "Gossiper"+(gossipers.Count - 1).ToString());
+        gossipers[gossipers.Count - 1].AddContact(customer.PublicKey, "Customer");
 
         {
             var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);
@@ -326,9 +327,35 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     {
     }
 
+    Timer timer=null;
+    int old_cnt = 0;
+
     public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
-        me.AcceptResponse(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
+        lock (this)
+        {
+            if (timer == null)
+                timer = new Timer((o) => {
+                    var new_cnt = me.GetReplyPayloads(replyPayload.SignedRequestPayload.PayloadId).Count();
+                    if (new_cnt == old_cnt)
+                    {
+                        var resps = me.GetReplyPayloads(replyPayload.SignedRequestPayload.PayloadId).ToList();
+                        resps.Sort((a, b) => (int)(Crypto.DeserializeObject<PayReq>(a.DecodedNetworkInvoice).NumSatoshis - Crypto.DeserializeObject<PayReq>(b.DecodedNetworkInvoice).NumSatoshis));
+                        var win = resps[0];
+                        me.AcceptResponse(
+                            Crypto.DeserializeObject<ReplyPayload>(win.TheReplyPayload),
+                            win.ReplyInvoice,
+                            Crypto.DeserializeObject<PayReq>(win.DecodedReplyInvoice),
+                            win.NetworkInvoice,
+                            Crypto.DeserializeObject<PayReq>(win.DecodedNetworkInvoice));
+                    }
+                    else
+                    {
+                        old_cnt = new_cnt;
+                        timer.Change(5000, Timeout.Infinite);
+                    }
+                },null,5000, Timeout.Infinite);
+        }
     }
 
     public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)

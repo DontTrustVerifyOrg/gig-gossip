@@ -167,8 +167,8 @@ public class BasicTest
         gigWorker.Start(new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi, gigWorkerCert));
         customer.Start(new CustomerGossipNodeEvents(this));
 
-        gigWorker.AddContact(new NostrContact() { PublicKey = customer.PublicKey, Petname = "Customer", Relay = "" });
-        customer.AddContact(new NostrContact() { PublicKey = gigWorker.PublicKey, Petname = "GigWorker", Relay = "" });
+        gigWorker.AddContact(customer.PublicKey,"Customer" );
+        customer.AddContact(gigWorker.PublicKey, "GigWorker");
 
         {
             var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);

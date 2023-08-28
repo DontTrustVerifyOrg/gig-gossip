@@ -285,7 +285,7 @@ public class Settler : CertificationAuthority
                             var preims = (from pi in settlerContext.Value.Preimages where pi.GigId == gig.GigId select pi).ToList();
                             foreach (var pi in preims)
                                 pi.IsRevealed = true;
-                            settlerContext.Value.Preimages.UpdateRange(preims);
+                            settlerContext.Value.SaveObjectRange(preims);
                             gig.Status = GigStatus.Completed;
                             settlerContext.Value.SaveObject(gig);
                             var settletPi = (from pi in preims where pi.PublicKey == this.CaXOnlyPublicKey.AsHex() select pi).FirstOrDefault();
