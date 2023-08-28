@@ -46,7 +46,7 @@ namespace NGigGossip4Nostr
 			return true;
 		}
 
-		public bool MonitorSymmetricKey(Uri serviceUri, Guid tid, byte[] data)
+		public bool MonitorSymmetricKey(Uri serviceUri, Guid tid, string replierPublicKey, byte[] data)
 		{
             if ((from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
                  where i.PayloadId == tid && i.PublicKey == this.gigGossipNode.PublicKey
@@ -57,6 +57,7 @@ namespace NGigGossip4Nostr
                 new MonitoredSymmetricKeyRow
                 {
                     PublicKey = this.gigGossipNode.PublicKey,
+					ReplierPublicKey = replierPublicKey,
                     ServiceUri = serviceUri,
 					PayloadId = tid,
 					Data = data,
@@ -105,7 +106,7 @@ namespace NGigGossip4Nostr
 						{
 							var serviceUri = kv.ServiceUri;
 							var tid = kv.PayloadId;
-							var key = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), tid.ToString());
+							var key = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), tid.ToString(), kv.ReplierPublicKey);
 							if (!string.IsNullOrWhiteSpace(key))
 							{
                                 gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);

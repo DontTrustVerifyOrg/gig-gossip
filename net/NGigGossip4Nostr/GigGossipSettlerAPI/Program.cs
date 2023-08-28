@@ -175,10 +175,10 @@ app.MapGet("/listcertificates", (string authToken, string pubkey) =>
     return g;
 });
 
-app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid gigId) =>
+app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid gigId, string repliperPubKey) =>
 {
     var pubkey = gigGossipSettler.ValidateAuthToken(authToken);
-    return gigGossipSettler.GenerateReplyPaymentPreimage(pubkey,gigId);
+    return gigGossipSettler.GenerateReplyPaymentPreimage(pubkey, gigId, repliperPubKey);
 })
 .WithName("GenerateReplyPaymentPreimage")
 .WithSummary("Generates new reply payment preimage and returns its hash.")
@@ -187,6 +187,7 @@ app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid gigId) =>
 {
     g.Parameters[0].Description = "Authorisation token for the communication.";
     g.Parameters[1].Description = "gig-job identifier";
+    g.Parameters[2].Description = "Public key of the replier.";
     return g;
 });
 
@@ -242,10 +243,10 @@ app.MapGet("/generatesettlementtrust", (string authToken, string message, string
     return g;
 });
 
-app.MapGet("/revealsymmetrickey", (string authToken, Guid gigId) =>
+app.MapGet("/revealsymmetrickey", (string authToken, Guid gigId, string repliperPubKey) =>
 {
     var pubkey = gigGossipSettler.ValidateAuthToken(authToken);
-    return gigGossipSettler.RevealSymmetricKey(pubkey, gigId);
+    return gigGossipSettler.RevealSymmetricKey(pubkey, gigId, repliperPubKey);
 })
 .WithName("RevealSymmetricKey")
 .WithSummary("Reveals symmetric key that customer can use to decrypt the message from gig-worker.")
@@ -254,13 +255,14 @@ app.MapGet("/revealsymmetrickey", (string authToken, Guid gigId) =>
 {
     g.Parameters[0].Description = "Authorisation token for the communication.";
     g.Parameters[1].Description = "Gig-job identifier.";
+    g.Parameters[2].Description = "Public key of the replier.";
     return g;
 });
 
-app.MapGet("/managedispute", (string authToken, Guid gigId, bool open) =>
+app.MapGet("/managedispute", (string authToken, Guid gigId, string repliperPubKey, bool open) =>
 {
     gigGossipSettler.ValidateAuthToken(authToken);
-    gigGossipSettler.ManageDispute(gigId, open);
+    gigGossipSettler.ManageDispute(gigId, repliperPubKey, open);
 })
 .WithName("ManageDispute")
 .WithSummary("Allows opening and closing disputes.")
@@ -269,7 +271,8 @@ app.MapGet("/managedispute", (string authToken, Guid gigId, bool open) =>
 {
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
     g.Parameters[1].Description = "Gig-job identifier.";
-    g.Parameters[2].Description = "True to open/False to close dispute.";
+    g.Parameters[2].Description = "Public key of the replier.";
+    g.Parameters[3].Description = "True to open/False to close dispute.";
     return g;
 });
 

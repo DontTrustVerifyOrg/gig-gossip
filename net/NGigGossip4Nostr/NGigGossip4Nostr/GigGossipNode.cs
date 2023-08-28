@@ -420,6 +420,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
     {
         var abror = (from abx in this.nodeContext.Value.AcceptedBroadcasts
                        where abx.PublicKey == this.PublicKey
+                       && abx.ReplierPublicKey == this.PublicKey
                        && abx.PayloadId == powBroadcastFrame.BroadcastPayload.SignedRequestPayload.PayloadId
                        && abx.SettlerServiceUri == acceptBroadcastResponse.SettlerServiceUri
                        select abx).FirstOrDefault();
@@ -429,7 +430,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         {
             var settlerClient = this.SettlerSelector.GetSettlerClient(acceptBroadcastResponse.SettlerServiceUri);
             var authToken = MakeSettlerAuthTokenAsync(acceptBroadcastResponse.SettlerServiceUri).Result;
-            var replyPaymentHash = settlerClient.GenerateReplyPaymentPreimageAsync(authToken, powBroadcastFrame.BroadcastPayload.SignedRequestPayload.PayloadId.ToString()).Result;
+            var replyPaymentHash = settlerClient.GenerateReplyPaymentPreimageAsync(authToken, powBroadcastFrame.BroadcastPayload.SignedRequestPayload.PayloadId.ToString(),this.PublicKey).Result;
             var replyInvoice = (LNDWalletClient.AddHodlInvoiceAsync(MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds)).Result.PaymentRequest;
             this.settlerMonitor.MonitorPreimage(
                 acceptBroadcastResponse.SettlerServiceUri,
@@ -446,6 +447,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             this.nodeContext.Value.AddObject(new AcceptedBroadcastRow()
             {
                 PublicKey = this.PublicKey,
+                ReplierPublicKey = this.PublicKey,
                 PayloadId = powBroadcastFrame.BroadcastPayload.SignedRequestPayload.PayloadId,
                 SettlerServiceUri = acceptBroadcastResponse.SettlerServiceUri,
                 EncryptedReplyPayload = encryptedReplyPayload,
@@ -488,8 +490,8 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                 return;
             }
             var payloadId = replyPayload.SignedRequestPayload.PayloadId;
-
-            settlerMonitor.MonitorSymmetricKey(responseFrame.SignedSettlementPromise.ServiceUri, payloadId, Crypto.SerializeObject(replyPayload));
+            
+            settlerMonitor.MonitorSymmetricKey(responseFrame.SignedSettlementPromise.ServiceUri, payloadId, replyPayload.ReplierCertificate.PublicKey, Crypto.SerializeObject(replyPayload));
 
             var decodedReplyInvoice = LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), replyPayload.ReplyInvoice).Result;
 

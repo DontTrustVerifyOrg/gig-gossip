@@ -16,6 +16,7 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.EnableAnnotations();
 });
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -240,10 +241,9 @@ app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
     return g;
 });
 
+//app.MapHub<InvoiceStatusHub>("/invoicestatusupdates/{authtoken}");
 
 app.Run(walletSettings.ServiceUri.AbsoluteUri);
-
-
 
 public record InvoiceRet
 {

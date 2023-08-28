@@ -397,6 +397,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "repliperPubKey",
+            "in": "query",
+            "description": "Public key of the replier.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -603,6 +613,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "repliperPubKey",
+            "in": "query",
+            "description": "Public key of the replier.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -642,6 +662,16 @@
             "name": "gigId",
             "in": "query",
             "description": "Gig-job identifier.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "repliperPubKey",
+            "in": "query",
+            "description": "Public key of the replier.",
             "required": true,
             "style": "form",
             "schema": {

@@ -36,4 +36,7 @@
       <GlobalPropertiesToRemove></GlobalPropertiesToRemove>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="InvoiceStatusUpdatesHub.cs" />
+  </ItemGroup>
 </Project>

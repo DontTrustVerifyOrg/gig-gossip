@@ -100,7 +100,7 @@ public class ReplyPayloadRow
     public byte[] DecodedReplyInvoice { get; set; }
 }
 
-[PrimaryKey(nameof(PublicKey), nameof(SettlerServiceUri), nameof(PayloadId))]
+[PrimaryKey(nameof(PublicKey), nameof(SettlerServiceUri), nameof(PayloadId), nameof(ReplierPublicKey))]
 public class AcceptedBroadcastRow
 {
     /// <summary>
@@ -109,11 +109,14 @@ public class AcceptedBroadcastRow
     [Column(Order = 1)]
     public required string PublicKey { get; set; }
 
-    [Column(Order = 1)]
+    [Column(Order = 2)]
     public Uri SettlerServiceUri { get; set; }
 
-    [Column(Order = 2)]
+    [Column(Order = 3)]
     public Guid PayloadId { get; set; }
+
+    [Column(Order = 4)]
+    public required string ReplierPublicKey { get; set; }
 
     public byte[] SignedSettlementPromise { get; set; }
     public string NetworkInvoice { get; set; }
@@ -169,7 +172,7 @@ public class MonitoredPreimageRow
     public string? Preimage { get; set; }
 }
 
-[PrimaryKey(nameof(PublicKey), nameof(PayloadId))]
+[PrimaryKey(nameof(PublicKey), nameof(PayloadId), nameof(ReplierPublicKey))]
 public class MonitoredSymmetricKeyRow
 {
     /// <summary>
@@ -180,6 +183,9 @@ public class MonitoredSymmetricKeyRow
 
     [Column(Order = 2)]
     public Guid PayloadId { get; set; }
+
+    [Column(Order = 3)]
+    public string ReplierPublicKey { get; set; }
 
     public Uri ServiceUri { get; set; }
     public string? SymmetricKey { get; set; }

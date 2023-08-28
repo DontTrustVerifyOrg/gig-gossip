@@ -1,6 +1,9 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
+using CryptoToolkit;
+using System.Security.Cryptography.X509Certificates;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GigGossipSettler;
 
@@ -101,6 +104,11 @@ public class InvoicePreimage
     public Guid GigId { get; set; }
 
     /// <summary>
+    /// The public key of the replier.
+    /// </summary>
+    public required string ReplierPublicKey { get; set; }
+
+    /// <summary>
     /// The public key of the subject.
     /// </summary>
     public required string PublicKey { get; set; }
@@ -131,23 +139,25 @@ public enum GigStatus
 /// <summary>
 /// A gig job
 /// </summary>
+[PrimaryKey(nameof(GigId), nameof(ReplierPublicKey))]
 public class Gig
 {
     /// <summary>
     /// The PayloadId of the gig.
     /// </summary>
-    [Key]
+    [Column(Order = 1)]
     public Guid GigId { get; set; }
+
+    /// <summary>
+    /// The public key of the replier.
+    /// </summary>
+    [Column(Order = 2)]
+    public required string ReplierPublicKey { get; set; }
 
     /// <summary>
     /// The public key of the sender.
     /// </summary>
     public required string SenderPublicKey { get; set; }
-
-    /// <summary>
-    /// The public key of the replier.
-    /// </summary>
-    public required string ReplierPublicKey { get; set; }
 
     /// <summary>
     /// The symmetric key.

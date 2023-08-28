@@ -93,7 +93,7 @@ public class ComplexTest
         {
             things[nod_name_f(nod_idx)] = new GigGossipNode(
                 gridNodeSettings.ConnectionString,
-                gridNodeSettings.PrivateKey.AsECPrivKey(),
+                Crypto.GeneratECPrivKey(),
                 gridNodeSettings.GetNostrRelays(),
                 gridNodeSettings.ChunkSize
             );

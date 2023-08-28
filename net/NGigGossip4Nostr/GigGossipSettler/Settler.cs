@@ -144,12 +144,12 @@ public class Settler : CertificationAuthority
         return (from c in settlerContext.Value.UserCertificates where c.CertificateId == certid && c.IsRevoked select c).FirstOrDefault() != null;
     }
 
-    public string GenerateReplyPaymentPreimage(string pubkey, Guid tid)
+    public string GenerateReplyPaymentPreimage(string pubkey, Guid tid, string replierPubKey)
     {
         var preimage = Crypto.GenerateRandomPreimage();
         var paymentHash = Crypto.ComputePaymentHash(preimage).AsHex();
 
-        settlerContext.Value.AddObject(new InvoicePreimage() { PaymentHash = paymentHash, Preimage = preimage.AsHex(), GigId = tid, PublicKey = pubkey, IsRevealed = false });
+        settlerContext.Value.AddObject(new InvoicePreimage() { PaymentHash = paymentHash, Preimage = preimage.AsHex(), GigId = tid, ReplierPublicKey= replierPubKey, PublicKey = pubkey, IsRevealed = false });
         return paymentHash;
     }
 
@@ -161,7 +161,7 @@ public class Settler : CertificationAuthority
         var pix = (from pi in settlerContext.Value.Preimages where pi.PaymentHash == paymentHash select pi).FirstOrDefault();
         if (pix != null)
         {
-            settlerContext.Value.AddObject(new InvoicePreimage() { PaymentHash = newPaymentHash, Preimage = preimage.AsHex(), GigId = pix.GigId, PublicKey = pubkey, IsRevealed = false });
+            settlerContext.Value.AddObject(new InvoicePreimage() { PaymentHash = newPaymentHash, Preimage = preimage.AsHex(), GigId = pix.GigId, ReplierPublicKey=pix.ReplierPublicKey, PublicKey = pubkey, IsRevealed = false });
         }
         return newPaymentHash;
     }
@@ -175,9 +175,9 @@ public class Settler : CertificationAuthority
             return preimage.Preimage;
     }
 
-    public string RevealSymmetricKey(string senderpubkey, Guid tid)
+    public string RevealSymmetricKey(string senderpubkey, Guid tid, string replierpubkey)
     {
-        var symkey = (from g in settlerContext.Value.Gigs where g.SenderPublicKey == senderpubkey && g.GigId == tid && g.Status == GigStatus.Accepted select g).FirstOrDefault();
+        var symkey = (from g in settlerContext.Value.Gigs where g.SenderPublicKey == senderpubkey && g.ReplierPublicKey == replierpubkey && g.GigId == tid && g.Status == GigStatus.Accepted select g).FirstOrDefault();
         if (symkey == null)
             return "";
         else
@@ -194,7 +194,7 @@ public class Settler : CertificationAuthority
         byte[] key = Crypto.GenerateSymmetricKey();
         byte[] encryptedReplyMessage = Crypto.SymmetricEncrypt(key, message);
 
-        var networkInvoicePaymentHash = GenerateReplyPaymentPreimage(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.PayloadId);
+        var networkInvoicePaymentHash = GenerateReplyPaymentPreimage(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.PayloadId, replierpubkey);
         var networkInvoice = await lndWalletClient.AddHodlInvoiceAsync(
              MakeAuthToken(), priceAmountForSettlement, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds);
 
@@ -238,9 +238,9 @@ public class Settler : CertificationAuthority
         };
     }
 
-    public void ManageDispute(Guid tid, bool open)
+    public void ManageDispute(Guid tid, string replierpubkey, bool open)
     {
-        var gig = (from g in settlerContext.Value.Gigs where g.GigId == tid && g.Status == GigStatus.Accepted select g).FirstOrDefault();
+        var gig = (from g in settlerContext.Value.Gigs where g.GigId == tid && g.ReplierPublicKey==replierpubkey && g.Status == GigStatus.Accepted select g).FirstOrDefault();
         if (gig != null)
         {
             gig.Status = open ? GigStatus.Disuputed : GigStatus.Accepted;
@@ -282,7 +282,7 @@ public class Settler : CertificationAuthority
                     {
                         if (DateTime.Now > gig.DisputeDeadline) 
                         {
-                            var preims = (from pi in settlerContext.Value.Preimages where pi.GigId == gig.GigId select pi).ToList();
+                            var preims = (from pi in settlerContext.Value.Preimages where pi.ReplierPublicKey==gig.ReplierPublicKey && pi.GigId == gig.GigId select pi).ToList();
                             foreach (var pi in preims)
                                 pi.IsRevealed = true;
                             settlerContext.Value.SaveObjectRange(preims);
@@ -295,6 +295,7 @@ public class Settler : CertificationAuthority
                         }
                     }
                 }
+                Thread.Sleep(1000);
             }
         });
         invoiceTrackerThread.Start();
