@@ -23,7 +23,7 @@ public class UserCertificate
     public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public Guid CertificateId { get; set; }
+    public required Guid CertificateId { get; set; }
 
 
     /// <summary>
@@ -42,7 +42,7 @@ public class BroadcastPayloadRow
     public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public Guid AskId { get; set; }
+    public required Guid AskId { get; set; }
 
     public required byte[] TheBroadcastPayload { get; set; }
 }
@@ -57,7 +57,7 @@ public class POWBroadcastConditionsFrameRow
     public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public Guid AskId { get; set; }
+    public required Guid AskId { get; set; }
 
     public required byte[] ThePOWBroadcastConditionsFrame { get; set; }
 }
@@ -72,7 +72,7 @@ public class BroadcastCounterRow
     public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public Guid PayloadId { get; set; }
+    public required Guid PayloadId { get; set; }
 
     public required int Counter { get; set; }
 }
@@ -88,16 +88,16 @@ public class ReplyPayloadRow
     public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public Guid ReplyId { get; set; }
+    public required Guid ReplyId { get; set; }
 
-    public Guid PayloadId { get; set; }
+    public required Guid PayloadId { get; set; }
 
-    public string ReplierPublicKey { get; set; }
-    public byte[] TheReplyPayload { get; set; }
-    public string NetworkInvoice { get; set; }
-    public byte[] DecodedNetworkInvoice { get; set; }
-    public string ReplyInvoice { get; set; }
-    public byte[] DecodedReplyInvoice { get; set; }
+    public required string ReplierPublicKey { get; set; }
+    public required byte[] TheReplyPayload { get; set; }
+    public required string NetworkInvoice { get; set; }
+    public required byte[] DecodedNetworkInvoice { get; set; }
+    public required string ReplyInvoice { get; set; }
+    public required byte[] DecodedReplyInvoice { get; set; }
 }
 
 [PrimaryKey(nameof(PublicKey), nameof(SettlerServiceUri), nameof(PayloadId), nameof(ReplierPublicKey))]
@@ -110,17 +110,17 @@ public class AcceptedBroadcastRow
     public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public Uri SettlerServiceUri { get; set; }
+    public required Uri SettlerServiceUri { get; set; }
 
     [Column(Order = 3)]
-    public Guid PayloadId { get; set; }
+    public required Guid PayloadId { get; set; }
 
     [Column(Order = 4)]
     public required string ReplierPublicKey { get; set; }
 
-    public byte[] SignedSettlementPromise { get; set; }
-    public string NetworkInvoice { get; set; }
-    public byte[] EncryptedReplyPayload { get; set; }
+    public required byte[] SignedSettlementPromise { get; set; }
+    public required string NetworkInvoice { get; set; }
+    public required byte[] EncryptedReplyPayload { get; set; }
 }
 
 
@@ -131,13 +131,13 @@ public class MonitoredInvoiceRow
     /// The public key of the subject.
     /// </summary>
     [Column(Order = 1)]
-    public string PublicKey { get; set; }
+    public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public string PaymentHash { get; set; }
+    public required string PaymentHash { get; set; }
 
-    public string InvoiceState { get; set; }
-    public byte[] Data { get; set; }
+    public required string InvoiceState { get; set; }
+    public required byte[] Data { get; set; }
 }
 
 [PrimaryKey(nameof(PublicKey), nameof(PaymentHash))]
@@ -147,13 +147,13 @@ public class MonitoredPaymentRow
     /// The public key of the subject.
     /// </summary>
     [Column(Order = 1)]
-    public string PublicKey { get; set; }
+    public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public string PaymentHash { get; set; }
+    public required string PaymentHash { get; set; }
 
-    public string PaymentStatus { get; set; }
-    public byte[] Data { get; set; }
+    public required string PaymentStatus { get; set; }
+    public required byte[] Data { get; set; }
 }
 
 [PrimaryKey(nameof(PublicKey), nameof(PaymentHash))]
@@ -163,13 +163,13 @@ public class MonitoredPreimageRow
     /// The public key of the subject.
     /// </summary>
     [Column(Order = 1)]
-    public string PublicKey { get; set; }
+    public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public string PaymentHash { get; set; }
+    public required string PaymentHash { get; set; }
 
-    public Uri ServiceUri { get; set; }
-    public string? Preimage { get; set; }
+    public required Uri ServiceUri { get; set; }
+    public required string? Preimage { get; set; }
 }
 
 [PrimaryKey(nameof(PublicKey), nameof(PayloadId), nameof(ReplierPublicKey))]
@@ -179,17 +179,17 @@ public class MonitoredSymmetricKeyRow
     /// The public key of the subject.
     /// </summary>
     [Column(Order = 1)]
-    public string PublicKey { get; set; }
+    public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public Guid PayloadId { get; set; }
+    public required Guid PayloadId { get; set; }
 
     [Column(Order = 3)]
-    public string ReplierPublicKey { get; set; }
+    public required string ReplierPublicKey { get; set; }
 
-    public Uri ServiceUri { get; set; }
+    public required Uri ServiceUri { get; set; }
     public string? SymmetricKey { get; set; }
-    public byte[] Data { get; set; }
+    public required byte[] Data { get; set; }
 }
 
 [PrimaryKey(nameof(PublicKey), nameof(MessageId))]
@@ -199,10 +199,10 @@ public class MessageDoneRow
     /// The public key of the subject.
     /// </summary>
     [Column(Order = 1)]
-    public string PublicKey { get; set; }
+    public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public string MessageId { get; set; }
+    public required string MessageId { get; set; }
 }
 
 [PrimaryKey(nameof(PublicKey), nameof(ContactPublicKey))]
@@ -212,11 +212,11 @@ public class NostrContact
     /// The public key of the subject.
     /// </summary>
     [Column(Order = 1)]
-    public string PublicKey { get; set; }
+    public required string PublicKey { get; set; }
 
-    public string ContactPublicKey { get; set; }
-    public string Relay { get; set; }
-    public string Petname { get; set; }
+    public required string ContactPublicKey { get; set; }
+    public required string Relay { get; set; }
+    public required string Petname { get; set; }
 }
 
 /// <summary>
@@ -262,6 +262,9 @@ public class GigGossipNodeContext : DbContext
 
     dynamic Type2DbSet(object obj)
     {
+        if (obj == null)
+            throw new ArgumentNullException();
+
         if (obj is UserCertificate)
             return this.UserCertificates;
         else if (obj is BroadcastPayloadRow)
@@ -292,7 +295,7 @@ public class GigGossipNodeContext : DbContext
 
     public void SaveObject<T>(T obj)
     {
-        this.Type2DbSet(obj).Update(obj);
+        this.Type2DbSet(obj!).Update(obj);
         this.SaveChanges();
         this.ChangeTracker.Clear();
     }
@@ -301,14 +304,14 @@ public class GigGossipNodeContext : DbContext
     {
         if (range.Count() == 0)
             return;
-        this.Type2DbSet(range.First()).UpdateRange(range);
+        this.Type2DbSet(range.First()!).UpdateRange(range);
         this.SaveChanges();
         this.ChangeTracker.Clear();
     }
 
     public void AddObject<T>(T obj)
     {
-        this.Type2DbSet(obj).Add(obj);
+        this.Type2DbSet(obj!).Add(obj);
         this.SaveChanges();
         this.ChangeTracker.Clear();
     }
@@ -317,7 +320,7 @@ public class GigGossipNodeContext : DbContext
     {
         if (range.Count() == 0)
             return;
-        this.Type2DbSet(range.First()).AddRange(range);
+        this.Type2DbSet(range.First()!).AddRange(range);
         this.SaveChanges();
         this.ChangeTracker.Clear();
     }

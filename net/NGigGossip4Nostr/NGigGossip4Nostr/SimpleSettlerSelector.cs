@@ -2,7 +2,6 @@
 using CryptoToolkit;
 using GigGossipSettlerAPIClient;
 using NBitcoin.Secp256k1;
-using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
 using System.Threading.Tasks;
 

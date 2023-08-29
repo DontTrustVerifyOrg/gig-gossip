@@ -12,15 +12,15 @@ public class SettlementTrust
     /// Gets or sets the settlement promise.
     /// </summary>
     /// <see cref="SettlementPromise"/>
-    public SettlementPromise SettlementPromise { get; set; }
+    public required SettlementPromise SettlementPromise { get; set; }
 
     /// <summary>
     /// Gets or sets the network invoice.
     /// </summary>
-    public string NetworkInvoice { get; set; }
+    public required string NetworkInvoice { get; set; }
 
     /// <summary>
     /// Gets or sets the encrypted reply payload.
     /// </summary>
-    public byte[] EncryptedReplyPayload { get; set; }
+    public required byte[] EncryptedReplyPayload { get; set; }
 }

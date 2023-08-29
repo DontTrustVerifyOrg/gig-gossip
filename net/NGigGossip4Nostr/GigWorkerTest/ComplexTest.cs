@@ -392,7 +392,7 @@ public class ApplicationSettings
     public required int NumMessages { get; set; }
     public int[] GetGridShape()
     {
-        return (from s in JsonArray.Parse(GridShape).AsArray() select s.GetValue<int>()).ToArray();
+        return (from s in JsonArray.Parse(GridShape)!.AsArray() select s.GetValue<int>()).ToArray();
     }
 }
 public class NodeSettings
@@ -402,18 +402,18 @@ public class NodeSettings
     public required string NostrRelays { get; set; }
     public required string PrivateKey { get; set; }
     public required Uri SettlerOpenApi { get; set; }
-    public long PriceAmountForRouting { get; set; }
-    public long BroadcastConditionsTimeoutMs { get; set; }
+    public required long PriceAmountForRouting { get; set; }
+    public required long BroadcastConditionsTimeoutMs { get; set; }
     public required string BroadcastConditionsPowScheme { get; set; }
-    public int BroadcastConditionsPowComplexity { get; set; }
-    public long TimestampToleranceMs { get; set; }
-    public long InvoicePaymentTimeoutSec { get; set; }
-    public int ChunkSize { get; set; }
-    public int Fanout { get; set; }
+    public required int BroadcastConditionsPowComplexity { get; set; }
+    public required long TimestampToleranceMs { get; set; }
+    public required long InvoicePaymentTimeoutSec { get; set; }
+    public required int ChunkSize { get; set; }
+    public required int Fanout { get; set; }
 
     public string[] GetNostrRelays()
     {
-        return (from s in JsonArray.Parse(NostrRelays).AsArray() select s.GetValue<string>()).ToArray();
+        return (from s in JsonArray.Parse(NostrRelays)!.AsArray() select s.GetValue<string>()).ToArray();
     }
 
     public GigLNDWalletAPIClient.swaggerClient GetLndWalletClient(HttpClient httpClient)

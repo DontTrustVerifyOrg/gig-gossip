@@ -13,17 +13,17 @@ public class Address
     /// The Bitcoin address.
     /// </summary>
     [Key]
-    public string BitcoinAddress { get; set; }
+    public required string BitcoinAddress { get; set; }
 
     /// <summary>
     /// The public key of the account associated with the Bitcoin address.
     /// </summary>
-    public string PublicKey { get; set; }
+    public required string PublicKey { get; set; }
 
     /// <summary>
     /// The transaction fee charged on topups made on this address.
     /// </summary>
-    public long TxFee { get; set; }
+    public required long TxFee { get; set; }
 }
 
 /// <summary>
@@ -35,42 +35,42 @@ public class Invoice
     /// The invoice payment hash.
     /// </summary>
     [Key]
-    public string PaymentHash { get; set; }
+    public required string PaymentHash { get; set; }
 
     /// <summary>
     /// Public key of the account associated with the invoice.
     /// </summary>
-    public string PublicKey { get; set; }
+    public required string PublicKey { get; set; }
 
     /// <summary>
     /// The payment request associated with the invoice.
     /// </summary>
-    public string PaymentRequest { get; set; }
+    public required string PaymentRequest { get; set; }
 
     /// <summary>
     /// The amount of satoshis on the invoice.
     /// </summary>
-    public long Satoshis { get; set; }
+    public required long Satoshis { get; set; }
 
     /// <summary>
     /// The current state of the invoice.
     /// </summary>
-    public InvoiceState State { get; set; }
+    public required InvoiceState State { get; set; }
 
     /// <summary>
     /// The transaction fee charged on succesfull payment to this invoice.
     /// </summary>
-    public long TxFee { get; set; }
+    public required long TxFee { get; set; }
 
     /// <summary>
     /// Indicates if the invoice is a HODL type Lightning Invoice
     /// </summary>
-    public bool IsHodlInvoice { get; set; }
+    public required bool IsHodlInvoice { get; set; }
 
     /// <summary>
     /// Indicates if the invoice is self-managed - meaning the payment done to this invoice is done via account that is managing the same LND node. In this case there is no real Lightning Network payment but the system is managing this in the database only. 
     /// </summary>
-    public bool IsSelfManaged { get; set; }
+    public required bool IsSelfManaged { get; set; }
 
     /// <summary>
     /// The preimage for the invoice, revealed for HODL invoices when settled.
@@ -89,37 +89,37 @@ public class Payment
     /// Payment hash of the invoice being payed.
     /// </summary>
     [Key]
-    public string PaymentHash { get; set; }
+    public required string PaymentHash { get; set; }
 
     /// <summary>
     /// Public key of the account associated with the invoice.
     /// </summary>
-    public string PublicKey { get; set; }
+    public required string PublicKey { get; set; }
 
     /// <summary>
     /// Amount of satoshis on the payment.
     /// </summary>
-    public long Satoshis { get; set; }
+    public required long Satoshis { get; set; }
 
     /// <summary>
     /// Current status of the payment.
     /// </summary>
-    public PaymentStatus Status { get; set; }
+    public required PaymentStatus Status { get; set; }
 
     /// <summary>
     /// Lightning network fee charged for this payment. 0 for self-managed payments
     /// </summary>
-    public long PaymentFee { get; set; }
+    public required long PaymentFee { get; set; }
 
     /// <summary>
     /// Transaction fee for the payment charged by the system.
     /// </summary>
-    public long TxFee { get; set; }
+    public required long TxFee { get; set; }
 
     /// <summary>
     /// Indicates if the payments is self-managed - meaning the payment done to this invoice is done via account that is managing the same LND node. In this case there is no real Lightning Network payment but the system is managing this in the database only. 
     /// </summary>
-    public bool IsSelfManaged { get; set; }
+    public required bool IsSelfManaged { get; set; }
 }
 
 /// <summary>
@@ -131,37 +131,37 @@ public class Payout
     /// Unique identifier for the Payout instance.
     /// </summary>
     [Key]
-    public Guid PayoutId { get; set; }
+    public required Guid PayoutId { get; set; }
 
     /// <summary>
     /// Public key of the account associated with the invoice.
     /// </summary>
-    public string PublicKey { get; set; }
+    public required string PublicKey { get; set; }
 
     /// <summary>
     /// Bitcoin address to which the payout was made.
     /// </summary>
-    public string BitcoinAddress { get; set; }
+    public required string BitcoinAddress { get; set; }
 
     /// <summary>
     /// Flag indicating if the payout is pending.
     /// </summary>
-    public bool IsPending { get; set; }
+    public required bool IsPending { get; set; }
 
     /// <summary>
     /// Amount of satoshis in the payout.
     /// </summary>
-    public long Satoshis { get; set; }
+    public required long Satoshis { get; set; }
 
     /// <summary>
     /// Transaction fee for the payout.
     /// </summary>
-    public long TxFee { get; set; }
+    public required long TxFee { get; set; }
 
     /// <summary>
     /// Bitcoin transaction identifier for the payout.
     /// </summary>
-    public string Tx { get; set; }
+    public string? Tx { get; set; }
 }
 
 /// <summary>
@@ -173,12 +173,12 @@ public class Token
     /// The ID of the token.
     /// </summary>
     [Key]
-    public Guid id { get; set; }
+    public required Guid id { get; set; }
 
     /// <summary>
     /// The public key of the account.
     /// </summary>
-    public string pubkey { get; set; }
+    public required string pubkey { get; set; }
 }
 
 /// <summary>
@@ -237,6 +237,9 @@ public class WaletContext : DbContext
 
     dynamic Type2DbSet(object obj)
     {
+        if (obj == null)
+            throw new ArgumentNullException();
+
         if (obj is Address)
             return this.FundingAddresses;
         else if (obj is Payout)
@@ -253,7 +256,7 @@ public class WaletContext : DbContext
 
     public void SaveObject<T>(T obj)
     {
-        this.Type2DbSet(obj).Update(obj);
+        this.Type2DbSet(obj!).Update(obj);
         this.SaveChanges();
         this.ChangeTracker.Clear();
     }
@@ -262,14 +265,14 @@ public class WaletContext : DbContext
     {
         if (range.Count() == 0)
             return;
-        this.Type2DbSet(range.First()).UpdateRange(range);
+        this.Type2DbSet(range.First()!).UpdateRange(range);
         this.SaveChanges();
         this.ChangeTracker.Clear();
     }
 
     public void AddObject<T>(T obj)
     {
-        this.Type2DbSet(obj).Add(obj);
+        this.Type2DbSet(obj!).Add(obj);
         this.SaveChanges();
         this.ChangeTracker.Clear();
     }
@@ -278,7 +281,7 @@ public class WaletContext : DbContext
     {
         if (range.Count() == 0)
             return;
-        this.Type2DbSet(range.First()).AddRange(range);
+        this.Type2DbSet(range.First()!).AddRange(range);
         this.SaveChanges();
         this.ChangeTracker.Clear();
     }

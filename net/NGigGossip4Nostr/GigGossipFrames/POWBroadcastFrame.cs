@@ -11,19 +11,19 @@ public class POWBroadcastFrame
     /// <summary>
     /// Gets or sets the unique identifier (AskId) for the broadcast frame.
     /// </summary>
-    public Guid AskId { get; set; }
+    public required Guid AskId { get; set; }
 
     /// <summary>
     /// Gets or sets the payload information for the broadcast frame.
     /// </summary>
     /// <see cref="BroadcastPayload"/>
-    public BroadcastPayload BroadcastPayload { get; set; }
+    public required BroadcastPayload BroadcastPayload { get; set; }
 
     /// <summary>
     /// Gets or sets the ProofOfWork object associated with this broadcast frame.
     /// </summary>
     /// <see cref="ProofOfWork"/>
-    public ProofOfWork ProofOfWork { get; set; }
+    public required ProofOfWork ProofOfWork { get; set; }
 
     /// <summary>
     /// Verifies the integrity of the broadcast payload and the proof of work within the broadcast frame.

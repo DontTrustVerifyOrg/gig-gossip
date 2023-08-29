@@ -10,21 +10,21 @@ public class POWBroadcastConditionsFrame
     /// <summary>
     /// Gets or sets the unique identifier (AskId) of the broadcast condition.
     /// </summary>
-    public Guid AskId { get; set; }
+    public required Guid AskId { get; set; }
 
     /// <summary>
     /// Gets or sets the validity period of the broadcast condition.
     /// </summary>
-    public DateTime ValidTill { get; set; }
+    public required DateTime ValidTill { get; set; }
 
     /// <summary>
     /// Gets or sets the work request associated with this broadcast condition.
     /// </summary>
     /// <see cref="WorkRequest"/>
-    public WorkRequest WorkRequest { get; set; }
+    public required WorkRequest WorkRequest { get; set; }
 
     /// <summary>
     /// Gets or sets the timestamp tolerance for this broadcast condition.
     /// </summary>
-    public TimeSpan TimestampTolerance { get; set; }
+    public required TimeSpan TimestampTolerance { get; set; }
 }

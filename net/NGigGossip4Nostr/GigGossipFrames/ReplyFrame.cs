@@ -12,24 +12,24 @@ public class ReplyFrame
     /// <summary>
     /// Gets or sets the encrypted reply payload.
     /// </summary>
-    public byte[] EncryptedReplyPayload { get; set; }
+    public required byte[] EncryptedReplyPayload { get; set; }
 
     /// <summary>
     /// Gets or sets the signed settlement promise.
     /// </summary>
     /// <see cref="SettlementPromise"/>
-    public SettlementPromise SignedSettlementPromise { get; set; }
+    public required SettlementPromise SignedSettlementPromise { get; set; }
 
     /// <summary>
     /// Gets or sets the forward onion route.
     /// </summary>
     /// <see cref="OnionRoute"/>
-    public OnionRoute ForwardOnion { get; set; }
+    public required OnionRoute ForwardOnion { get; set; }
 
     /// <summary>
     /// Gets or sets the network invoice.
     /// </summary>
-    public string NetworkInvoice { get; set; }
+    public required string NetworkInvoice { get; set; }
 
     /// <summary>
     /// Decrypts and verifies the encrypted reply payload.
@@ -43,14 +43,10 @@ public class ReplyFrame
         ReplyPayload replyPayload = Crypto.DecryptObject<ReplyPayload>(this.EncryptedReplyPayload, privKey,pubKey);
 
         if (!replyPayload.ReplierCertificate.Verify(caAccessor))
-        {
-            return null;
-        }
+            throw new InvalidOperationException();
 
         if (!replyPayload.Verify(caAccessor))
-        {
-            return null;
-        }
+            throw new InvalidOperationException();
 
         return replyPayload;
     }

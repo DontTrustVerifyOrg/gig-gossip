@@ -161,11 +161,11 @@ foreach (var chanx in channels21.Channels)
 
 public class LndNodesSettings
 {
-    public string NodeSections { get; set; }
+    public required string NodeSections { get; set; }
     public List<LndSettings> GetNodesConfiguration(IConfigurationRoot config)
     {
         var lndConf = new List<LndSettings>();
-        var sections = (from s in JsonArray.Parse(NodeSections).AsArray() select s.GetValue<string>()).ToList();
+        var sections = (from s in JsonArray.Parse(NodeSections)!.AsArray() select s.GetValue<string>()).ToList();
         foreach (var sec in sections)
         {
             var sti = config.GetSection(sec).Get<LndSettings>();
@@ -177,7 +177,7 @@ public class LndNodesSettings
 
 public class LndSettings: NodeSettings
 {
-    public long MaxSatoshisPerChannel { get; set; }
+    public required long MaxSatoshisPerChannel { get; set; }
 }
 
 public class BitcoinSettings

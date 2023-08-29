@@ -31,32 +31,32 @@ public class Certificate : SignableObject
    /// <summary>
    /// The Uri of the Certification Authority service
    /// </summary>
-   public Uri ServiceUri { get; set; }
+   public required Uri ServiceUri { get; set; }
    
    /// <summary>
    /// Serial number of the certificate
    /// </summary>
-   public Guid Id { get; set; }
+   public required Guid Id { get; set; }
 
    /// <summary>
    /// hex-encoded string representation of the public key of the Subject
    /// </summary>
-   public string PublicKey { get; set; }
+   public required string PublicKey { get; set; }
 
    /// <summary>
    /// Collection of certified properties of the Subject
    /// </summary>
-   public Dictionary<string, byte[]> Properties { get; set; }
+   public required Dictionary<string, byte[]> Properties { get; set; }
 
    /// <summary>
    /// Date and Time when the Certificate will no longer be valid
    /// </summary>
-   public DateTime NotValidAfter { get; set; }
+   public required DateTime NotValidAfter { get; set; }
 
    /// <summary>
    /// Date and Time before which the Certificate is not yet valid
    /// </summary>
-   public DateTime NotValidBefore { get; set; }
+   public required DateTime NotValidBefore { get; set; }
 
    /// <summary>
    /// Verifies the certificate with the Certification Authority public key.

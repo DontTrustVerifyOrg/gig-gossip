@@ -12,12 +12,12 @@ public class OnionLayer
     /// <summary>
     /// Gets or sets the public key associated with this layer of the onion route.
     /// </summary>
-    public string PublicKey { get; set; }
+    public required string PublicKey { get; set; }
 
     /// <summary>
     /// Gets or sets the encrypted core of the onion layer.
     /// </summary>
-    public byte[] Core { get; set; }
+    public required byte[] Core { get; set; }
 }
 
 /// <summary>
@@ -52,8 +52,14 @@ public class OnionRoute
     /// <returns>A new OnionRoute object with added layer.</returns>
     public OnionRoute Grow(string otherPublicKey, ECXOnlyPubKey pubKey)
     {
-        var newOnion = new OnionRoute();
-        newOnion.Onion = Crypto.EncryptObject(new OnionLayer() { PublicKey = otherPublicKey, Core = Onion }, pubKey, null);
+        var newOnion = new OnionRoute()
+        {
+            Onion = Crypto.EncryptObject(new OnionLayer()
+            {
+                PublicKey = otherPublicKey,
+                Core = Onion
+            }, pubKey, null)
+        };
         return newOnion;
     }
 

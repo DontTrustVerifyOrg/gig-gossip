@@ -11,7 +11,7 @@ public class TaxiTopic
 {
     public required string FromGeohash { get; set; }
     public required string ToGeohash { get; set; }
-    public DateTime PickupAfter { get; set; }
-    public DateTime DropoffBefore { get; set; }
+    public required DateTime PickupAfter { get; set; }
+    public required DateTime DropoffBefore { get; set; }
 }
 

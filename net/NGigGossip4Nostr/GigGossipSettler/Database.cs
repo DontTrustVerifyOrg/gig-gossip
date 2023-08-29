@@ -16,32 +16,32 @@ public class UserProperty
     /// The unique identifier of the property.
     /// </summary>
     [Key]
-    public Guid PropertyId { get; set; }
+    public required Guid PropertyId { get; set; }
 
     /// <summary>
     /// The public key of the subject.
     /// </summary>
-    public string PublicKey { get; set; }
+    public required string PublicKey { get; set; }
 
     /// <summary>
     /// The name of the property.
     /// </summary>
-    public string Name { get; set; }
+    public required string Name { get; set; }
 
     /// <summary>
     /// The value of the property.
     /// </summary>
-    public byte[] Value { get; set; }
+    public required byte[] Value { get; set; }
 
     /// <summary>
     /// The validity till date of the property.
     /// </summary>
-    public DateTime ValidTill { get; set; }
+    public required DateTime ValidTill { get; set; }
 
     /// <summary>
     /// Represents whether the property is revoked.
     /// </summary>
-    public bool IsRevoked { get; set; }
+    public required bool IsRevoked { get; set; }
 }
 
 /// <summary>
@@ -53,12 +53,12 @@ public class CertificateProperty
     /// The unique identidier of the certificate.
     /// </summary>
     [Key]
-    public Guid CertificateId { get; set; }
+    public required Guid CertificateId { get; set; }
 
     /// <summary>
     /// The unique identifier of the property.
     /// </summary>
-    public Guid PropertyId { get; set; }
+    public required Guid PropertyId { get; set; }
 }
 
 /// <summary>
@@ -70,7 +70,7 @@ public class UserCertificate
     /// The unique identifier of the certificate.
     /// </summary>
     [Key]
-    public Guid CertificateId { get; set; }
+    public required Guid CertificateId { get; set; }
  
      /// <summary>
     /// The public ke of the subject.
@@ -84,7 +84,7 @@ public class UserCertificate
     /// <summary>
     /// Represent whether the certificate is revoked.
     /// </summary>
-    public bool IsRevoked { get; set; }
+    public required bool IsRevoked { get; set; }
 }
 
 /// <summary>
@@ -101,7 +101,7 @@ public class InvoicePreimage
     /// <summary>
     /// The PayloadID of the gig-job.
     /// </summary>
-    public Guid GigId { get; set; }
+    public required Guid GigId { get; set; }
 
     /// <summary>
     /// The public key of the replier.
@@ -121,7 +121,7 @@ public class InvoicePreimage
     /// <summary>
     /// Represents whether the preimage is revealed and can be returned to the subject.
     /// </summary>
-    public bool IsRevealed { get; set; }
+    public required bool IsRevealed { get; set; }
 }
 
 /// <summary>
@@ -146,7 +146,7 @@ public class Gig
     /// The PayloadId of the gig.
     /// </summary>
     [Column(Order = 1)]
-    public Guid GigId { get; set; }
+    public required Guid GigId { get; set; }
 
     /// <summary>
     /// The public key of the replier.
@@ -177,12 +177,12 @@ public class Gig
     /// <summary>
     /// The status of the gig.
     /// </summary>
-    public GigStatus Status { get; set; }
+    public required GigStatus Status { get; set; }
 
     /// <summary>
     /// The dispute deadline for the gig.
     /// </summary>
-    public DateTime DisputeDeadline { get; set; }
+    public required DateTime DisputeDeadline { get; set; }
 }
 
 /// <summary>
@@ -194,7 +194,7 @@ public class Token
     /// The ID of the token.
     /// </summary>
     [Key]
-    public Guid TokenId { get; set; }
+    public required Guid TokenId { get; set; }
 
     /// <summary>
     /// The public key of the subject.
@@ -261,7 +261,10 @@ public class SettlerContext : DbContext
 
     dynamic Type2DbSet(object obj)
     {
-        if(obj is Token)
+        if (obj == null)
+            throw new ArgumentNullException();
+
+        if (obj is Token)
             return this.Tokens;
         else if (obj is InvoicePreimage)
             return this.Preimages;
@@ -278,7 +281,7 @@ public class SettlerContext : DbContext
 
     public void SaveObject<T>(T obj)
     {
-        this.Type2DbSet(obj).Update(obj);
+        this.Type2DbSet(obj!).Update(obj!);
         this.SaveChanges();
         this.ChangeTracker.Clear();
     }
@@ -287,14 +290,14 @@ public class SettlerContext : DbContext
     {
         if (range.Count() == 0)
             return;
-        this.Type2DbSet(range.First()).UpdateRange(range);
+        this.Type2DbSet(range.First()!).UpdateRange(range);
         this.SaveChanges();
         this.ChangeTracker.Clear();
     }
 
     public void AddObject<T>(T obj)
     {
-        this.Type2DbSet(obj).Add(obj);
+        this.Type2DbSet(obj!).Add(obj);
         this.SaveChanges();
         this.ChangeTracker.Clear();
     }
@@ -303,7 +306,7 @@ public class SettlerContext : DbContext
     {
         if (range.Count() == 0)
             return;
-        this.Type2DbSet(range.First()).AddRange(range);
+        this.Type2DbSet(range.First()!).AddRange(range);
         this.SaveChanges();
         this.ChangeTracker.Clear();
     }

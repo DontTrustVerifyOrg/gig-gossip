@@ -68,9 +68,9 @@ Console.WriteLine("Wallet ballance: " + wallet.GetBalance(6, true).ToString());
 
 public class BitcoinSettings
 {
-    public string AuthenticationString { get; set; }
-    public string HostOrUri { get; set; }
-    public string Network { get; set; }
+    public required string AuthenticationString { get; set; }
+    public required string HostOrUri { get; set; }
+    public required string Network { get; set; }
 
     /// <summary>
     /// Retrieves the appropriate NBitcoin.Network object based on the network name provided.
@@ -100,5 +100,5 @@ public class BitcoinSettings
 
 public class UserSettings
 {
-    public string WalletName { get; set; }
+    public required string WalletName { get; set; }
 }

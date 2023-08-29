@@ -47,6 +47,6 @@ using (var httpClient = new HttpClient())
 
 public class UserSettings
 {
-    public string GigWalletOpenApi { get; set; }
-    public string UserPrivateKey { get; set; }
+    public required string GigWalletOpenApi { get; set; }
+    public required string UserPrivateKey { get; set; }
 }

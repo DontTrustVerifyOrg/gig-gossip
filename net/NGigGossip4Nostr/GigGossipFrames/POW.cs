@@ -45,17 +45,17 @@ public class ProofOfWork
     /// <summary>
     /// Gets or sets the proof of work scheme.
     /// </summary>
-    public string PowScheme { get; set; }
+    public required string PowScheme { get; set; }
 
     /// <summary>
     /// Gets or sets the proof of work target.
     /// </summary>
-    public BigInteger PowTarget { get; set; }
+    public required BigInteger PowTarget { get; set; }
 
     /// <summary>
     /// Gets or sets the nuance used in the proof of work computation.
     /// </summary>
-    public int Nuance { get; set; }
+    public required int Nuance { get; set; }
 
     /// <summary>
     /// Validates the proof of work.
@@ -100,12 +100,12 @@ public class WorkRequest
     /// <summary>
     /// Gets or sets the proof of work scheme.
     /// </summary>
-    public string PowScheme { get; set; }
+    public required string PowScheme { get; set; }
 
     /// <summary>
     /// Gets or sets the proof of work target. Currently only `sha256` is supported.
     /// </summary>
-    public BigInteger PowTarget { get; set; }
+    public required BigInteger PowTarget { get; set; }
 
     /// <summary>
     /// Computes a proof of work based on the specified object.

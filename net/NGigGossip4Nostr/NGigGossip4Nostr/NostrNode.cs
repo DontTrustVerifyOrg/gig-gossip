@@ -17,7 +17,7 @@ public abstract class NostrNode
     public string PublicKey;
     private int chunkSize;
 
-    public NostrNode(ECPrivKey privateKey, string[] nostrRelays,int chunkSize)
+    public NostrNode(ECPrivKey privateKey, string[] nostrRelays, int chunkSize)
     {
         this.privateKey = privateKey;
         this.publicKey = privateKey.CreateXOnlyPubKey();
@@ -32,7 +32,7 @@ public abstract class NostrNode
         public required object Frame;
     }
 
-    protected void PublishContactList(Dictionary<string,NostrContact> contactList)
+    protected void PublishContactList(Dictionary<string, NostrContact> contactList)
     {
         List<NostrEventTag> tags;
         lock (contactList)
@@ -106,12 +106,12 @@ public abstract class NostrNode
             }, false, subscribeForEventsTokenSource.Token);
 
             try
-            { 
-            await foreach (var nostrEvent in q)
-                if (nostrEvent.Kind == 3)
-                    ProcessContactList(nostrEvent);
-                else
-                    ProcessNewMessage(nostrEvent);
+            {
+                await foreach (var nostrEvent in q)
+                    if (nostrEvent.Kind == 3)
+                        ProcessContactList(nostrEvent);
+                    else
+                        ProcessNewMessage(nostrEvent);
             }
             catch (Exception e)
             {
@@ -146,12 +146,12 @@ public abstract class NostrNode
                 int parti = int.Parse(tagDic["i"][0]);
                 int partNum = int.Parse(tagDic["n"][0]);
                 string idx = tagDic["x"][0];
-                var msg =  nostrEvent.DecryptNip04EventAsync(this.privateKey).Result;
+                var msg = nostrEvent.DecryptNip04EventAsync(this.privateKey).Result;
                 if (partNum == 1)
                 {
                     var type = tagDic["t"][0];
                     var t = System.Reflection.Assembly.Load("GigGossipFrames").GetType("NGigGossip4Nostr." + type);
-                    var frame = Crypto.DeserializeObject(Convert.FromBase64String(msg),t);
+                    var frame = Crypto.DeserializeObject(Convert.FromBase64String(msg), t);
                     this.OnMessage(idx, nostrEvent.PublicKey, frame);
                 }
                 else
@@ -183,7 +183,7 @@ public abstract class NostrNode
         foreach (var tag in nostrEvent.Tags)
         {
             if (tag.TagIdentifier == "p")
-                newCL[tag.Data[0]] = new NostrContact() { PublicKey = tag.Data[0], Relay = tag.Data[1], Petname = tag.Data[2] };
+                newCL[tag.Data[0]] = new NostrContact() { PublicKey = this.PublicKey, ContactPublicKey = tag.Data[0], Relay = tag.Data[1], Petname = tag.Data[2] };
         }
         OnContactList(nostrEvent.Id, newCL);
     }

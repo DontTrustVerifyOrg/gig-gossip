@@ -12,10 +12,10 @@ public static class LND
 
     public class NodeSettings
     {
-        public string MacaroonFile { get; set; }
-        public string TlsCertFile { get; set; }
-        public string RpcHost { get; set; }
-        public string ListenHost { get; set; }
+        public required string MacaroonFile { get; set; }
+        public required string TlsCertFile { get; set; }
+        public required string RpcHost { get; set; }
+        public required string ListenHost { get; set; }
     }
 
 

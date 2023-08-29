@@ -13,17 +13,17 @@ public class RequestPayload : SignableObject
     /// <summary>
     /// Gets or sets the identifier of the payload.
     /// </summary>
-    public Guid PayloadId { get; set; }
+    public required Guid PayloadId { get; set; }
 
     /// <summary>
     /// Gets or sets the topic of the payload.
     /// </summary>
-    public byte[] Topic { get; set; }
+    public required byte[] Topic { get; set; }
 
     /// <summary>
     /// Gets or sets the certificate of the sender.
     /// </summary>
-    public Certificate SenderCertificate { get; set; }
+    public required Certificate SenderCertificate { get; set; }
 
     /// <summary>
     /// Signs the request payload using a given private key.

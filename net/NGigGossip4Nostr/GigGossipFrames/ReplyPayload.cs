@@ -13,22 +13,22 @@ public class ReplyPayload
     /// <summary>
     /// Gets or sets the certificate of the replier.
     /// </summary>
-    public Certificate ReplierCertificate { get; set; }
+    public required Certificate ReplierCertificate { get; set; }
 
     /// <summary>
     /// Gets or sets the signed request payload.
     /// </summary>
-    public RequestPayload SignedRequestPayload { get; set; }
+    public required RequestPayload SignedRequestPayload { get; set; }
 
     /// <summary>
     /// Gets or sets the encrypted reply message.
     /// </summary>
-    public byte[] EncryptedReplyMessage { get; set; }
+    public required byte[] EncryptedReplyMessage { get; set; }
 
     /// <summary>
     /// Gets or sets the reply invoice.
     /// </summary>
-    public string ReplyInvoice { get; set; }
+    public required string ReplyInvoice { get; set; }
 
     /// <summary>
     /// Verifies the validity of the reply payload.

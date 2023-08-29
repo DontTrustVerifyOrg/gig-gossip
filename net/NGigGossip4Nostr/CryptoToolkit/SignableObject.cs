@@ -11,7 +11,7 @@ public class SignableObject
     /// <summary>
     /// the signature of the object. The signature is created using a private key.
     /// </summary>
-    public byte[] Signature { get; set; }
+    public byte[]? Signature { get; set; }
 
     /// <summary>
     /// Sign the current instance of <see cref="SignableObject"/> with a given private key.
@@ -32,7 +32,9 @@ public class SignableObject
     /// </returns>
     protected bool Verify(ECXOnlyPubKey publicKey)
     {
-        var signature = Signature;
+        if (Signature == null)
+            throw new InvalidOperationException("SignableObject was not signed yet.");
+        var signature = Signature!;
         Signature = null;
         var result = Crypto.VerifyObject(this, signature, publicKey);
         Signature = signature;

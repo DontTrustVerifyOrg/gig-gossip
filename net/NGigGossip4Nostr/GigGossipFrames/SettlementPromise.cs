@@ -13,22 +13,22 @@ public class SettlementPromise : SignableObject
     /// <summary>
     /// Gets or sets the service URI of the Settler.
     /// </summary>
-    public Uri ServiceUri { get; set; }
+    public required Uri ServiceUri { get; set; }
 
     /// <summary>
     /// Gets or sets the network payment hash.
     /// </summary>
-    public byte[] NetworkPaymentHash { get; set; }
+    public required byte[] NetworkPaymentHash { get; set; }
 
     /// <summary>
     /// Gets or sets the hash of encrypted reply payload.
     /// </summary>
-    public byte[] HashOfEncryptedReplyPayload { get; set; }
+    public required byte[] HashOfEncryptedReplyPayload { get; set; }
 
     /// <summary>
     /// Gets or sets the reply payment amount.
     /// </summary>
-    public long ReplyPaymentAmount { get; set; }
+    public required long ReplyPaymentAmount { get; set; }
 
     /// <summary>
     /// Verifies the settlement promise.
@@ -36,7 +36,7 @@ public class SettlementPromise : SignableObject
     /// <param name="encryptedSignedReplyPayload">The encrypted signed reply payload.</param>
     /// <param name="caAccessor">The certification authority accessor.</param>
     /// <returns><c>true</c> if the verification was successful; otherwise, <c>false</c>.</returns>
-    public new bool Verify(byte[] encryptedSignedReplyPayload, ICertificationAuthorityAccessor caAccessor)
+    public bool Verify(byte[] encryptedSignedReplyPayload, ICertificationAuthorityAccessor caAccessor)
     {
         if (!base.Verify(caAccessor.GetPubKey(ServiceUri)))
             return false;
@@ -66,13 +66,15 @@ public class SettlementPromise : SignableObject
     /// <returns>A deep copy of this instance.</returns>
     public SettlementPromise DeepCopy()
     {
+        if (this.Signature == null)
+            throw new InvalidOperationException("Object must be signed but the signature is null.");
         return new SettlementPromise()
         {
             ServiceUri = this.ServiceUri,
             NetworkPaymentHash = this.NetworkPaymentHash.ToArray(),
             HashOfEncryptedReplyPayload = this.HashOfEncryptedReplyPayload.ToArray(),
             ReplyPaymentAmount = this.ReplyPaymentAmount,
-            Signature = this.Signature.ToArray()
+            Signature = this.Signature!.ToArray()
         };
     }
 }

@@ -11,7 +11,7 @@ public class AskForBroadcastFrame
     /// Gets or sets the unique identifier for the `AskForBroadcastFrame`.
     /// This is used to track individual ask for broadcast requests.
     /// </summary>
-    public Guid AskId { get; set; }
+    public required Guid AskId { get; set; }
 
     /// <summary>
     /// Gets or sets the signed payload for the request. This contains the necessary data for processing the request.
