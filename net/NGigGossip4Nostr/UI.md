@@ -112,6 +112,7 @@ A quick scan secures your login.
 ```
 
 ## Trust Enforcers: Verification
+You can skip this step if you only want to earn Bitcoin on message routing. If you want to order a ride or you are a driver this step is obligatory.
 
 The app is using a network of Trust Enforcers that manage the trust and safty of the network. Trust Enforcers add an extra layer of security within the app's network. To be validated by one or more preferred Trust Enforcer, you need to go through a basic verification process involving mobile phone validation through SMS. Having mobile phone verification adds an extra layer of security.
 
@@ -129,7 +130,7 @@ The app is using a network of Trust Enforcers that manage the trust and safty of
 |                                |
 |  [+.....][..................]  |
 |                                |
-|                    [ Add ➕ ]  |
+|         [Skip]     [ Add ➕ ]  |
 |                                |
 +--------------------------------+
 ```
@@ -163,14 +164,79 @@ Below is the list of validated Trust Enforcers where you can manage your list.
 +---------------------------------------+
 |       Trust Enforcer Management       |
 |                                       |
-|  Trust Enforcer 1 [🗑️ Delete]          |
-|  Trust Enforcer 2 [🗑️ Delete]          |
-|  Trust Enforcer 3 [🗑️ Delete]          |
+|  Trust Enforcer 1 (Default)           |
+|                [🗑️ Delete]            |
+|                                       |
+|  Trust Enforcer 2                     |
+|  [Make Default] [🗑️ Delete]           |
+|                                       |
+|  Trust Enforcer 3                     |
+|  [Make Default] [🗑️ Delete]           |
+|                                       |
 |----------------------------------------|
 |         [ 🟢 Add New Trust Enforcer ]  |
 +----------------------------------------+
 ```
 
-- You can select `Delete` indicated by the trash bin symbol (`🗑️`) to remove a specific Trust Enforcer from the list.
-- To add new one, you can click on `Add New Trust Enforcer`, at bottom of the screen.
+Having multiple trust enforcers require you to set one as the default one.
+
+## Setting up Lightning Wallet
+Every node needs to have the lightning wallet set up. Fill out information about your lightning wallet to send payments/earn money. Without this setup, you won't be able to create new invoices.
+
+```
++--------------------------------+
+| ⚡️ Add Lightning Wallet         |
+|                                |
+|  Enter domain name your LND    |
+|  wallet provider:              |
+|                                |
+|  [.........................]   |
+|                                |
+|                    [ Add ➕ ]  |
+|                                |
++--------------------------------+
+```
+
+Your wallet provider will use your PublicKey to set up your account, which is why it's important to have the PrivateKey recovery set handy. This will be the only way to access your Bitcoin locked on the wallet provider account. Many trust Enforcers provide the LND wallet services as well.
+
+## Deposit Information
+
+There's a prompt encouraging the user to deposit Bitcoin into their wallet. There's a line of text: 'To deposit Bitcoin to your wallet, send it to the following address:'.
+
+Below the prompt, there's a Bitcoin address where users can send their Bitcoins to. It's a long string of alphanumeric characters, representing the public key associated with your wallet.
+
+Underneath your Bitcoin address, there's a placeholder for a QR Code. The QR Code is usually scanned by another device to automatically input your Bitcoin address. 
+
+```
++--------------------------------------------+
+| ⚡️ Your Lightning Wallet                    |
+|                                            |
+|💰 0.00000000 BTC                           |
+|                                            |
+| To deposit Bitcoin to your wallet,         |
+| send it to the following address:          |
+|                                            |
+| bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh |
+|                                            |
+        ▄▄▄▄▄▄▄ ▄ ▄ ▄▄  ▄▄ ▄▄ ▄▄▄▄▄▄▄  
+        █ ▄▄▄ █ ▄██▀▀▄▀▄▄▀▄▄▀ █ ▄▄▄ █  
+        █ ███ █ █▀▀▄██▀▄▄█▄▄█ █ ███ █  
+        █▄▄▄▄▄█ ▄ █▀▄▀▄ █▀▄▀▄ █▄▄▄▄▄█  
+        ▄▄▄▄  ▄ ▄ █▄█ ▀▀██▄▀ ▄  ▄▄▄ ▄  
+        ▀██▀ █▄ █▄█▄█ █ █ █▀█▀█▀█▄▄▄▀  
+        ▀▀  ▄█▄ ███ ▄█▄▀▀▄▄ ▄  ▀ ▄▄█▀  
+        ▄▀█▀▄▀▄▄█ ▄█▀ ▄▀▀█▀██▀█▄ ▄ ▀█  
+        █ ██ ▀▄█▀▀▄▀▄▄▀▄  ▀  █▀ ▄█  ▀  
+        ▄ █▄▀ ▄█ █▀   ▄█▄ ▀ ▀█ ▀▄█▀    
+            ▄▀▄██▄ ▄  ▀  █▀ █ ▀███▄▄ █ 
+        ▄▄▄▄▄▄▄ ▀▄▄  ▀▄  █ ██ ▄ █  █▀  
+        █ ▄▄▄ █  ▀ █▀▀  █▄█ █▄▄▄█ ▄▄▄  
+        █ ███ █ █ ▀▀▄▀█▀▄█▀ ▀█ █▀ ▄ █  
+        █▄▄▄▄▄█ █▄▀▄▀▀ ▀▄ ▄███ ▀ ▀ █   
+
+|                                            |
+|   [Copy Address]     [Share QR code]       |
+|                                            |
++--------------------------------------------+
+```
 
