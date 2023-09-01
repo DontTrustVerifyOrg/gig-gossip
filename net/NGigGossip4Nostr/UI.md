@@ -265,7 +265,7 @@ If you need to withdraw Bitcoin from your wallet, follow the steps outlined belo
 There's also an option to scan a QR code for quick and error-free input of the desired recipient's address. Make sure your device camera is enabled for this feature.
 ```
 +--------------------------------------------+
-| 📸 Scan Recipient's QR Code                |
+| 📸 Scan Bitcoin Address from QR Code       |
 |                                            |
 | Point your camera at the QR code.          |
 |                                            |
@@ -282,5 +282,58 @@ There's also an option to scan a QR code for quick and error-free input of the d
 
 After you've scanned the QR code or entered the Bitcoin address manually, verify the details before confirming the transaction. 
 
-Remember: transactions cannot be reversed once they're sent out!
+Remember: transactions cannot be reversed once they're sent out so be carefull where you are sending your Bitcoin!
+
+# Request Ride
+
+In order to request a ride, start by entering your pickup and destination addresses. You have the option to pinpoint your location on the map as well.
+
+```
++--------------------------------------------+
+| 🚖  Request a Ride                          |
+|                                            |
+|   Choose Pickup Location:                  |
+|                                            |
+| [.........................]                |
+|    [📍 Pick on Map]                        |
+|                                            |
+|   Choose Destination Location:             |
+|                                            |
+| [.........................]                |
+|    [📍 Pick on Map]                        |
+|                                            |
+|          [⛔ Cancel]     [✅ Request]      |
+|                                            |
++--------------------------------------------+
+```
+
+If you want to select your location through the map instead of typing in your address, you can tap on `[📍 Pick on Map]`. This will transition to a different interface where you can drag and drop a pin to specify your exact location.
+
+```
++--------------------------------------------+
+| 🗺  Pick Location on Map                   |
+|                                            |
+                _,__        .:
+         Darwin <*  /        | \
+            .-./     |.     :  :,
+           /           '-._/     \_
+          /                '       \
+        .'                         *: Brisbane
+     .-'                             ;
+     |                               |
+     \                              /
+      |                           🔵  Sydney
+Perth  \*        __.--._      [DROP PIN]
+        \     _.'       \:.       |
+        >__,-'             \_/*_.-'
+                              Melbourne
+                             :--,
+                              '/
+                              
+|                                            |
+|          [⛔ Cancel]     [✅ Confirm]       |
+|                                            |
++--------------------------------------------+
+```
+After you set your locations, tap on `Request`. Your request will be sent to the drivers near your area, and you'll get notified once a driver accepts your request.
 
