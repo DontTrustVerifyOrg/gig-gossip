@@ -475,3 +475,65 @@ You have two options at this point:
 * `Cancel Ride` - if you no longer need the ride you can cancel but the cancellation fee will be applied.
 * `Continue` - to keep tracking the driver.
 
+# Driver arrived
+```
++--------------------------------------------+
+| 🗺  Your Driver Has Arrived                |
+|                                            |
+                _,__        .:
+         Darwin <*  /        | \
+            .-./     |.     :  :,
+           /           '-._/     \_
+          /                '       \
+        .'                         *: Brisbane
+     .-'                             ;
+     |                               |
+     \                              /
+      |                           🚖  Sydney
+Perth  \*        __.--._      [YOU ARE HERE]
+        \     _.'       \:.       |
+        >__,-'             \_/*_.-'
+                              Melbourne
+                             :--,
+                              '/ 
+|                                            |
+|    👤 Driver: Driver B                     |
+|    🔒 Trust Enforcer: Trust Enforcer 2     |
+|                                            |
+|       [⚖️ Start Dispute]                   | 
+|                                            |
++--------------------------------------------+
+```
+
+The icon (🚖) on the map now reflects that your driver is already at your location in Sydney, waiting for you.
+
+* `Start Dispute` - If there's a problem with your ride – like the driver didn't arrive, or there's an quality issue you can start a dispute here. The dispute will be resolved by the associated Trust Enforcer, which for this ride is Trust Enforcer 2.
+
+## Ride Completed
+
+Once the ride is completed successfully, you will see the following screen:
+
+```
++--------------------------------------------+
+| 🚖  Ride Completed                         |
+|                                            |
+|   Your ride with Driver B has been         |
+|   completed.                               |
+|                                            |
+|   Please take a moment to rate your ride.  |
+|                                            |
+|                                            |
+|    [⭐] [⭐] [⭐] [⭐] [  ]                |
+|                                            |
+|    [Submit Rating]                         |
+|                                            |
+|    [⚖️ Start Dispute]                       | 
+|                                            |
++--------------------------------------------+
+```
+
+On this screen, you'll have the option to:
+
+* Rate your driver by selecting between 1 (poor) and 5 (excellent) stars. After making your selection, tap `Submit Rating`. Providing feedback after each ride helps Trust Enforcers to ensure the quality of service. Honest ratings help other riders when choosing their drivers in future trips!
+
+* Alternatively, if there were any issues during the ride, you can start a dispute by tapping on `Start Dispute`. This will notify your Trust Enforcer (in this case, Trust Enforcer 2), who will work towards resolving the dispute as quickly as possible. Your money will be unlocked after the timeout if this was the driver fault.
