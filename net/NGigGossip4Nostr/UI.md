@@ -537,3 +537,136 @@ On this screen, you'll have the option to:
 * Rate your driver by selecting between 1 (poor) and 5 (excellent) stars. After making your selection, tap `Submit Rating`. Providing feedback after each ride helps Trust Enforcers to ensure the quality of service. Honest ratings help other riders when choosing their drivers in future trips!
 
 * Alternatively, if there were any issues during the ride, you can start a dispute by tapping on `Start Dispute`. This will notify your Trust Enforcer (in this case, Trust Enforcer 2), who will work towards resolving the dispute as quickly as possible. Your money will be unlocked after the timeout if this was the driver fault.
+
+# Driver perspecive
+
+
+## Driver parameters setup
+Here is the screen where drivers can set their prices based on Door Closing, Per Kilometer, and ETA (Estimated Time of Arrival).
+
+```markdown
++--------------------------------------------+
+| 🚖  Set Your Pricing                       |
+|                                            |
+|   Door Closing Fee:                        |
+| [.........................] BTC            |
+|                                            |
+|   Price Per Kilometer:                     |
+| [.........................] BTC            |
+|                                            |
+|   ETA Premium (for quick arrivals):        |
+| [.........................] BTC            |
+|                                            |
+|            [⛔ Cancel]                     |
+|         [✔️ Save Pricing Info]             |
++--------------------------------------------+
+```
+
+In this screen:
+
+- Drivers have an option to set a `Door Closing Fee`.
+- They can specify the price per kilometer under `Price Per Kilometer`.
+- Drivers can also add an additional fee for quick arrivals in the `ETA Premium`.
+
+Word of caution: always align your pricing with market rates to increase the chances of getting selected by riders.
+
+## New Ride Request Notification
+
+Drivers will receive requests for new rides. The notification will include basic information about the requested ride.
+
+```
++--------------------------------------------+
+| 🚖  New Ride Request                        |
+|                                            |
+|   Rider: Rider A     | Phone Number Verified by Trust Enforcer 1                      |
+|                                            |
+|   Pickup Location:                         |
+|   Sydney CBD                               |
+|                                            |
+|   Destination Location:                    |
+|   Sydney Airport                           |
+|                                            |
+|   Estimated Distance: 15 KM                |
+|                                            |
+|   Your Price (based on your settings):     |
+|        0.00006 BTC  [Modify]               |
+|                                            |
+|                  [Ignore ⛔]               |
+|               [Accept Ride ✔️]              |
++--------------------------------------------+
+```
+
+## Price bet modification
+
+```markdown
++--------------------------------------------+
+| 🚖  Set Your Price                         |
+|                                            |
+|   Rider: Rider A  | Phone Number Verified by Trust Enforcer 1                      |
+|                                            |
+|   Pickup Location:                         |
+|   Sydney CBD                               |
+|                                            |
+|   Destination Location:                    |
+|   Sydney Airport                           |
+|                                            |
+|   Estimated Distance: 15 KM                |
+|                                            |
+|   Current Price (based on your settings):  |
+|        0.00006 BTC                         |
+|                                            |
+|      New Price:                            |
+| [.........................]                |
+|                                            |
+|            [⛔ Cancel]                     |
+|     [✔️ Confirm New Price]                 |
++--------------------------------------------+
+```
+- Drivers are displayed their current price and have an option to set a new price.
+- To do this, they need to enter the new price in the provided input field and then select `Confirm New Price`.
+- If the driver changes their mind and does not want to change the price, they simply press `Cancel` to go back to the previous screen.
+
+## Waiting for riders approval (locking their money)
+
+```markdown
++--------------------------------------------------+
+| 🚖  Awaiting Rider Approval                       |
+|                                                  |
+|                         ⌛                        |
+|            Your ride request is pending...       |
+| Please wait while we get the rider's approval.   |
+|                                                  |
+| You will be notified once the rider has accepted |
+| or declined your request. Please stay on this    |
+| screen until we update you.                      |
+|                                                  |
+|                 [Cancel Request]                 |
++--------------------------------------------------+
+```
+
+In this screen:
+
+- The hourglass emoji represents the waiting process.
+- There's a message informing the driver that their ride request is pending and they need to wait for the rider's approval.
+- It mentions that the driver will be notified once the rider accepts or declines the request, and advises them to stay on this screen until this happens.
+- If the driver wants to cancel the request for any reason, they can simply click on the `Cancel Request` button.
+
+## Ride approved
+Here's a simple representation of the "Navigation Screen" after the rider has approved the ride:
+
+```markdown
++--------------------------------------------------+
+| 🚖  Ride Approved - Start the Journey!            |
+|                                                  |
+| Rider: John Doe      Destination: Central Park   |
+|                                                  |
+|           🧭 Navigation Guidance 🧭              |
+|                                                  |
+| ↗️  Drive straight for 2.0 km                    |
+| ↘️  Turn right onto Main St                      |
+| ↙️  Merge left into Highway Rd                   |
+| ↖️  Take exit 43 for Central Park                |
+|                                                  |
+| [End Navigation]   [Contact Rider]  [Start Dispute]             |
++--------------------------------------------------+
+```
