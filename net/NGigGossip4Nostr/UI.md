@@ -329,11 +329,149 @@ Perth  \*        __.--._      [DROP PIN]
                               Melbourne
                              :--,
                               '/
-                              
 |                                            |
-|          [⛔ Cancel]     [✅ Confirm]       |
+|          [⛔ Cancel]     [✅ Confirm]      | 
 |                                            |
 +--------------------------------------------+
 ```
 After you set your locations, tap on `Request`. Your request will be sent to the drivers near your area, and you'll get notified once a driver accepts your request.
+
+## Looking For A Driver
+
+Once your ride request is sent, the app will start searching for a driver near your location. 
+
+You'll see the following screen while the app is finding a driver:
+
+```
++--------------------------------------------+
+| 🚖  Requesting a Ride                      |
+|                                            |
+|    Please wait...                          |
+|                                            |
+|   [🔄..........................]           |
+|       Searching for driver                 |
+|                                            |
+|      [Cancel Ride Request ⛔]               |
+|                                            |
++--------------------------------------------+
+```
+
+This process may take several minutes depending on the availability of drivers in your area.
+
+If you wish to cancel the ride request for any reason, simply tap on `Cancel Ride Request`. In that case, the app will stop searching for a driver and you will return to the main screen.
+ 
+
+## Choose Your Driver
+
+Once multiple drivers accept your request, you can choose the best suited driver for your journey. Here's how the screen will look like:
+
+```
++--------------------------------------------+
+| 🚖  Select Your Ride                       |
+|                                            |
+| Sorted by: Lowest Price                    |
+| [Change Sort ▾]                            |
+|                                            |
+|         NAME       |   TRUST ENFORCER      |
+|       PRICE        |     ETA               |
+|--------------------------------------------|
+| Driver A           | Trust Enforcer 1      |
+| 0.00003 BTC        | 5 min                 |
+|      [Select 🚙]                           |
+|--------------------------------------------|
+| Driver B           | Trust Enforcer 2      |
+| 0.00004 BTC        | 3 min                 |
+|      [Select 🚙]                           |
+|--------------------------------------------|
+| Driver C           | Trust Enforcer 3      |
+| 0.00005 BTC        | 6 min                 |
+|      [Select 🚙]                           |
+|                                            |
++--------------------------------------------+
+```
+
+In this screen, you'll see a list of drivers sorted by price from lowest to highest. Besides each driver’s name, you'll see their associated Trust Enforcer and the price they are asking for the ride. You'll also see their estimated time of arrival (ETA) at your pickup point.
+
+To choose a driver, simply tap on `Select` next to the driver’s details. This will confirm your ride details and the selected driver will be notified.
+
+You have the option to sort the list in different ways by tapping on `Change Sort`, such as by ETA or Trust Enforcer.
+
+This selection process empowers you with choice allowing you to opt for the most affordable, fastest or most trusted ride based on your personal preferences.
+
+## Confirm Your Ride
+
+Now that you have selected "Driver B", the screen will look like this:
+
+```
++--------------------------------------------+
+| 🚖  Confirm Your Ride                      |
+|                                            |
+|        Driver: Driver B                    |
+|   Trust Enforcer: Trust Enforcer 2         |
+|          Price: 0.00004 BTC                |
+|            ETA: 3 min                      |
+|                                            |
+| To confirm this ride, your payment will be |
+| LOCKED with Trust Enforcer 2. Please make  |
+| sure that you want to proceed before       |
+| accepting.                                 |
+|                                            |
+|    ❗WARNING❗                              |
+| Accepting this ride will lock your payment |
+| with Trust Enforcer 2 until the ride       |
+| is completed. This action cannot be undone.|
+| Afer confirming, the cancellation fee      |
+| will be applied.                           |  
+|                                            |
+|               [Back 🔙]                    |
+|               [Confirm ✔️]                  |
+|                                            |
++--------------------------------------------+
+```
+
+In this screen,
+
+* You are about to confirm a ride with "Driver B". 
+* The price of the ride and its ETA is displayed.
+* There's a warning message that your payment will be locked by "Trust Enforcer 2" upon confirmation.
+* Two options are provided at the bottom of the screen
+  * `Back` - to go back to the list of drivers.
+  * `Confirm` - to finalize the ride and lock your payment.
+
+> Please note: it is important to read the warning message before confirming. 
+
+## Tracking your driver
+
+Here's a map showing how your driver is approaching:
+
+```
++--------------------------------------------+
+| 🗺  Track Your Driver                      |
+|                                            |
+                _,__        .:
+         Darwin <*  /        | \
+            .-./     |.     :  :,
+           /  🚖         '-._/     \_
+          /    |            '       \
+        .'     |                    *: Brisbane
+     .-'       |                     ;
+     |         +--------+            |
+     \                  |            /
+      |                 +--------- 🔵  Sydney
+Perth  \*        __.--._      [YOU ARE HERE]
+        \     _.'       \:.       |
+        >__,-'             \_/*_.-'
+                              Melbourne
+                             :--,
+                              '/ 
+|                                            |
+|       [⛔ Cancel Ride]                     | 
+|                                            |
++--------------------------------------------+
+```
+In addition to showing your location, this screen also displays the moving position of your Driver as an icon (🚖) on the map. The driver is currently near Darwin and is on their way to your pinned location in Sydney.
+
+You have two options at this point:
+* `Cancel Ride` - if you no longer need the ride you can cancel but the cancellation fee will be applied.
+* `Continue` - to keep tracking the driver.
 
