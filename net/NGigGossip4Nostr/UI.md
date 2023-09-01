@@ -240,3 +240,47 @@ Underneath your Bitcoin address, there's a placeholder for a QR Code. The QR Cod
 +--------------------------------------------+
 ```
 
+## Withdraw Bitcoin
+
+If you need to withdraw Bitcoin from your wallet, follow the steps outlined below. You also have the option of scanning a QR code instead of manually typing in the recipient's address.
+
+```
++--------------------------------------------+
+| ⚡️ Your Lightning Wallet                    |
+|                                            |
+|💰 0.32120000 BTC                           |
+|                                            |
+| Enter address to send Bitcoin:             |
+|                                            |
+| [.........................] [Scan QRcode]  |
+|                                            |
+| Enter amount (In BTC):                     |
+|                                            |
+| [............]                             |
+|                                            |
+|        [⛔ Cancel]       [✅ Confirm]       |
+|                                            |
++--------------------------------------------+
+```
+There's also an option to scan a QR code for quick and error-free input of the desired recipient's address. Make sure your device camera is enabled for this feature.
+```
++--------------------------------------------+
+| 📸 Scan Recipient's QR Code                |
+|                                            |
+| Point your camera at the QR code.          |
+|                                            |
+|              +------+                      |
+|              |      |                      |
+|              |  🎯  |                      |
+|              |      |                      |
+|              +------+                      |
+|                                            |
+|        [⛔ Cancel]       [🆗 Continue]      |
+|                                            |
++--------------------------------------------+
+```
+
+After you've scanned the QR code or entered the Bitcoin address manually, verify the details before confirming the transaction. 
+
+Remember: transactions cannot be reversed once they're sent out!
+
