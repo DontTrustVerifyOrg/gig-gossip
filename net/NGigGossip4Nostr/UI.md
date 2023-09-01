@@ -12,7 +12,7 @@ Once you install and launch the app, choose the login option:
 |                                |
 |  [ Login With Your PrivKey 🔑] |
 |  [ Create New Profile 📝 ]     |
-|  [ Recover Existing Profile]   | 
+|  [ Recover Existing Profile ]  | 
 |                                |
 +--------------------------------+
 ```
@@ -110,3 +110,67 @@ A quick scan secures your login.
 |                                |
 +--------------------------------+
 ```
+
+## Trust Enforcers: Verification
+
+The app is using a network of Trust Enforcers that manage the trust and safty of the network. Trust Enforcers add an extra layer of security within the app's network. To be validated by one or more preferred Trust Enforcer, you need to go through a basic verification process involving mobile phone validation through SMS. Having mobile phone verification adds an extra layer of security.
+
+```
++--------------------------------+
+|   🛡️ Add Trust Enforcer        |
+|                                |
+|  Enter domain name of new      |
+|  Trust Enforcer:               |
+|                                |
+|  [.........................]   |
+|                                |
+|  Enter your mobile number for  |
+|  verification:                 |
+|                                |
+|  [+.....][..................]  |
+|                                |
+|                    [ Add ➕ ]  |
+|                                |
++--------------------------------+
+```
+
+In this interface, you need to provide two pieces of information:
+1. **Domain name** of the new Trust Enforcer.
+2. Your **mobile phone number**.
+
+After entering these details, tap on `Add`. The Trust Enforcer will verify your mobile number as part of their validation process. Remember, providing accurate details ensures a smooth and secure experience.
+
+
+You need to input the code that you received via SMS from the Trust Enforcer. After entering these details, tap on `Submit`. The Trust Enforcer will verify your code and if it is correct, you will be able to use it.
+
+```
++--------------------------------------+
+|        🛡️ Add Trust Enforcer         |
+|                                      |
+|   Enter the 6-digit SMS code sent    |
+|   to your mobile number:             |
+|                                      |
+|         [.][.][.][.][.][.]           |
+|                                      |
+|                         [Submit]     |
+|                                      |
++--------------------------------------+
+```
+
+Below is the list of validated Trust Enforcers where you can manage your list.
+
+```
++---------------------------------------+
+|       Trust Enforcer Management       |
+|                                       |
+|  Trust Enforcer 1 [🗑️ Delete]          |
+|  Trust Enforcer 2 [🗑️ Delete]          |
+|  Trust Enforcer 3 [🗑️ Delete]          |
+|----------------------------------------|
+|         [ 🟢 Add New Trust Enforcer ]  |
++----------------------------------------+
+```
+
+- You can select `Delete` indicated by the trash bin symbol (`🗑️`) to remove a specific Trust Enforcer from the list.
+- To add new one, you can click on `Add New Trust Enforcer`, at bottom of the screen.
+
