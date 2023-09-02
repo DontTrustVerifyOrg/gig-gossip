@@ -670,6 +670,7 @@ graph BT
     NSTR(NostrRelay)
     CUST --- NSTR
     WORK --- NSTR
+    CUST <-.-> WORK
 ```
 
 The configuration file is the following:
@@ -716,4 +717,97 @@ BroadcastConditionsPowComplexity=0
 TimestampToleranceMs=1000000
 InvoicePaymentTimeoutSec=1000
 ChunkSize=2048
+```
+
+
+Running the MediumTest
+=======
+
+Medium test runs the following gig-gossip setup.
+
+```mermaid
+graph BT
+    LND2 --- WLT2(Wallet2API)
+    WLT2 -- LND Wallet Account --- SAPI(Settler API)
+    WLT2 -- LND Wallet Account --- CUST(Customer)
+    WLT2 -- LND Wallet Account --- WORK(GigWorker)
+    WLT2 -- LND Wallet Account --- GOS1(Gossiper1)
+    WLT2 -- LND Wallet Account --- GOS2(Gossiper2)
+    WLT2 -- LND Wallet Account --- GOS3(Gossiper3)
+    CUST --- SAPI
+    WORK --- SAPI
+    NSTR(NostrRelay)
+    CUST --- NSTR
+    GOS1 --- NSTR
+    GOS2 --- NSTR
+    GOS3 --- NSTR
+    WORK --- NSTR
+    CUST <-.-> GOS1
+    GOS1 <-.-> GOS2
+    GOS2 <-.-> GOS3
+    GOS1 <-.-> GOS3
+    GOS3 <-.-> WORK
+```
+
+The configuration file is the following:
+```ini
+[Bitcoin]
+AuthenticationString="lnd:lightning"
+HostOrUri="127.0.0.1:18332"
+Network="RegTest"
+WalletName = "testwallet"
+
+[SettlerAdmin]
+SettlerOpenApi="https://localhost:7189/"
+PrivateKey="7f4c11a9742721d66e40e321ca70b682c27f7402190c84a187525e69e6038362"
+
+[Application]
+FlowLoggerPath="$HOME/work/locallnd/.giggossip/giggossipdata/mediumtest.md"
+NumberOfGossipers=3
+
+[GigWorker]
+GigWalletOpenApi="https://localhost:7101/"
+ConnectionString="Data Source=$HOME/work/locallnd/.giggossip/giggossipdata/mediumtest.db"
+Fanout = 2
+NostrRelays = ["ws://127.0.0.1:6969"]
+PrivateKey="7f4c11a9742721d66e40e321ca70b682c27f7402190c84a187525e69e6038369"
+SettlerOpenApi="https://localhost:7189/"
+PriceAmountForRouting=1000
+BroadcastConditionsTimeoutMs=1000000
+BroadcastConditionsPowScheme="sha256"
+BroadcastConditionsPowComplexity=0
+TimestampToleranceMs=1000000
+InvoicePaymentTimeoutSec=1000
+ChunkSize=2048
+
+[Customer]
+GigWalletOpenApi="https://localhost:7101/"
+ConnectionString="Data Source=$HOME/work/locallnd/.giggossip/giggossipdata/mediumtest.db"
+Fanout = 2
+NostrRelays = ["ws://127.0.0.1:6969"]
+PrivateKey="7f4c11a9742721d66e40e321ca70b632c27f7422190c84a187525e69e6038369"
+SettlerOpenApi="https://localhost:7189/"
+PriceAmountForRouting=1000
+BroadcastConditionsTimeoutMs=1000000
+BroadcastConditionsPowScheme="sha256"
+BroadcastConditionsPowComplexity=0
+TimestampToleranceMs=1000000
+InvoicePaymentTimeoutSec=1000
+ChunkSize=2048
+
+[Gossiper]
+GigWalletOpenApi="https://localhost:7101/"
+ConnectionString="Data Source=$HOME/work/locallnd/.giggossip/giggossipdata/mediumtest.db"
+Fanout = 2
+NostrRelays = ["ws://127.0.0.1:6969"]
+PrivateKey=""
+SettlerOpenApi="https://localhost:7189/"
+PriceAmountForRouting=1000
+BroadcastConditionsTimeoutMs=1000000
+BroadcastConditionsPowScheme="sha256"
+BroadcastConditionsPowComplexity=0
+TimestampToleranceMs=1000000
+InvoicePaymentTimeoutSec=1000
+ChunkSize=2048
+
 ```
