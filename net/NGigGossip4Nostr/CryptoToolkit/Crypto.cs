@@ -120,6 +120,16 @@ public static class Crypto
         public byte[] IV;
     }
 
+    public static string GenerateMnemonic()
+    {
+        return string.Join(" ",new Mnemonic(Wordlist.English, WordCount.Twelve).Words);
+    }
+
+    public static ECPrivKey DeriveECPrivKeyFromMnemonic(string mnemonic)
+    {
+        return ECPrivKey.Create(new Mnemonic(mnemonic).DeriveExtKey().PrivateKey.ToBytes());
+    }
+
     /// <summary>
     /// Generates a random ECDSA private key.
     /// </summary>

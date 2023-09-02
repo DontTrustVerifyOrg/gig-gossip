@@ -16,6 +16,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Runtime.ConstrainedExecution;
 using GigLNDWalletAPIClient;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Xml.Linq;
 
 public interface IGigGossipNodeEvents
 {
@@ -354,6 +355,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                     ProofOfWork = pow
                 };
                 SendMessage(peerPublicKey, powBroadcastFrame);
+                FlowLogger.NewMessage(this.PublicKey, peerPublicKey, "broadcast");
             }
         }
         MarkMessageAsDone(messageId);
@@ -482,6 +484,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         var decodedNetworkInvoice = LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), responseFrame.NetworkInvoice).Result;
         if (responseFrame.ForwardOnion.IsEmpty())
         {
+            FlowLogger.NewMessage(peerPublicKey, this.PublicKey, "reply");
             ReplyPayload replyPayload = responseFrame.DecryptAndVerify(privateKey, SettlerSelector.GetPubKey(responseFrame.SignedSettlementPromise.ServiceUri), this.SettlerSelector);
             if (replyPayload == null)
             {
@@ -513,6 +516,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         }
         else
         {
+            FlowLogger.NewReply(peerPublicKey, this.PublicKey, "reply");
             var topLayerPublicKey = responseFrame.ForwardOnion.Peel(privateKey);
             if (this.GetContacts().Contains(topLayerPublicKey))
             {
@@ -595,7 +599,8 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         }
         catch(Exception ex)
         {//invoice was not accepted or was cancelled
-            Trace.TraceError(ex.ToString());
+         //            Trace.TraceError(ex.ToString());
+            Trace.TraceInformation("Invoice cannot be settled");
         }
     }
 

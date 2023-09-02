@@ -684,6 +684,9 @@ WalletName = "testwallet"
 SettlerOpenApi="https://localhost:7189/"
 PrivateKey="7f4c11a9742721d66e40e321ca70b682c27f7402190c84a187525e69e6038362"
 
+[Application]
+FlowLoggerPath="$HOME/work/locallnd/.giggossip/giggossipdata/basictest.md"
+
 [GigWorker]
 GigWalletOpenApi="https://localhost:7101/"
 ConnectionString="Data Source=$HOME/work/locallnd/.giggossip/giggossipdata/basictest.db"

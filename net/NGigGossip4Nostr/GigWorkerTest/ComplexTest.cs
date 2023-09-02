@@ -55,10 +55,11 @@ public class ComplexTest
     HttpClient httpClient = new HttpClient();
     SimpleSettlerSelector settlerSelector = new SimpleSettlerSelector();
 
-    public bool IsRunning { get; set; } = true;
+    public long waitCnt;
 
     public void Run()
     {
+        FlowLogger.Start(applicationSettings.FlowLoggerPath.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
 
         var bitcoinClient = bitcoinSettings.NewRPCClient();
 
@@ -91,7 +92,8 @@ public class ComplexTest
         var things = new Dictionary<string, GigGossipNode>();
         foreach (var nod_idx in gridShapeIter.MultiCartesian())
         {
-            things[nod_name_f(nod_idx)] = new GigGossipNode(
+            var nn = nod_name_f(nod_idx);
+            things[nn] = new GigGossipNode(
                 gridNodeSettings.ConnectionString,
                 Crypto.GeneratECPrivKey(),
                 gridNodeSettings.GetNostrRelays(),
@@ -121,11 +123,12 @@ public class ComplexTest
         }
 
         var rnd = new Random();
-        var thingsList = new Queue<GigGossipNode>(things.Values.OrderBy(a => rnd.Next()));
+        var thingsList = new Queue<KeyValuePair<string,GigGossipNode>>(things.ToList().OrderBy(a => rnd.Next()));
 
         for (int i = 0; i < applicationSettings.NumMessages; i++)
         {
-            var gigWorker = thingsList.Dequeue();
+            var kv = thingsList.Dequeue();
+            var gigWorker = kv.Value;
             settlerClient.GiveUserPropertyAsync(
                     token, gigWorker.PublicKey,
                     "drive", val,
@@ -149,12 +152,14 @@ public class ComplexTest
 
             gigWorker.Start(new GigWorkerGossipNodeEvents(gridNodeSettings.SettlerOpenApi, gigWorkerCert));
 
+            FlowLogger.SetupParticipant(gigWorker.PublicKey, kv.Key+":GigWorker", true);
         }
 
         var customers = new List<Tuple<GigGossipNode, Certificate>>();
         for (int i = 0; i < applicationSettings.NumMessages; i++)
         {
-            var customer = thingsList.Dequeue();
+            var kv = thingsList.Dequeue();
+            var customer = kv.Value;
             settlerClient.GiveUserPropertyAsync(
                 token, customer.PublicKey,
                 "ride", val,
@@ -178,10 +183,12 @@ public class ComplexTest
             //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
             customer.Start(new CustomerGossipNodeEvents(this));
             customers.Add(Tuple.Create(customer, customerCert));
+
+            FlowLogger.SetupParticipant(customer.PublicKey, kv.Key + ":Customer", true);
         }
         foreach (var node in thingsList)
         {
-            node.Init(
+            node.Value.Init(
                 gridNodeSettings.Fanout,
                 gridNodeSettings.PriceAmountForRouting,
                 TimeSpan.FromMilliseconds(gridNodeSettings.BroadcastConditionsTimeoutMs),
@@ -192,8 +199,10 @@ public class ComplexTest
                 gridNodeSettings.GetLndWalletClient(httpClient),
                 settlerSelector);
             //await node.LoadCertificates(gigWorkerSettings.SettlerOpenApi);        
-            node.Start(new NetworkEarnerNodeEvents());
+            node.Value.Start(new NetworkEarnerNodeEvents());
+            FlowLogger.SetupParticipant(node.Value.PublicKey, node.Key, true);
         }
+
 
         void TopupNode(GigGossipNode node, long minAmout,long topUpAmount)
         {
@@ -228,6 +237,8 @@ public class ComplexTest
             break;
         } while (true);
 
+        waitCnt = customers.Count;
+
         foreach (var customercert in customers)
         {
             var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);
@@ -244,7 +255,7 @@ public class ComplexTest
 
         }
 
-        while (this.IsRunning)
+        while (Interlocked.Read(ref this.waitCnt)>0)
         {
             lock(this)
             {
@@ -257,6 +268,7 @@ public class ComplexTest
             things[node_name].Stop();
         }
 
+        FlowLogger.Stop();
     }
 }
 
@@ -374,7 +386,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         Trace.TraceInformation(Encoding.Default.GetString(message));
         lock(test)
         {
-            test.IsRunning = false;
+            Interlocked.Decrement(ref test.waitCnt);
             Monitor.PulseAll(test);
         }
     }
@@ -388,6 +400,7 @@ public class SettlerAdminSettings
 
 public class ApplicationSettings
 {
+    public required string FlowLoggerPath { get; set; }
     public required string GridShape { get; set; }
     public required int NumMessages { get; set; }
     public int[] GetGridShape()

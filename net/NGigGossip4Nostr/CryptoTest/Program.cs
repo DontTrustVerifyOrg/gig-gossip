@@ -5,6 +5,15 @@ using NBitcoin;
 using NBitcoin.Secp256k1;
 using NGigGossip4Nostr;
 
+
+
+var mnemonic = Crypto.GenerateMnemonic();
+Console.WriteLine(mnemonic);
+var privkey = Crypto.DeriveECPrivKeyFromMnemonic(mnemonic);
+Console.WriteLine(privkey.AsHex());
+var privkey2 = Crypto.DeriveECPrivKeyFromMnemonic(mnemonic);
+Console.WriteLine(privkey2.AsHex());
+
 var hash = Crypto.ComputeSha256(new List<byte[]> { Encoding.ASCII.GetBytes("A"), Encoding.ASCII.GetBytes("B") });
 
 Console.WriteLine(hash.AsHex());

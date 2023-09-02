@@ -38,6 +38,7 @@ public class BasicTest
     NodeSettings gigWorkerSettings, customerSettings;
     SettlerAdminSettings settlerAdminSettings;
     BitcoinSettings bitcoinSettings;
+    ApplicationSettings applicationSettings;
 
     public BasicTest(string[] args)
     {
@@ -47,6 +48,7 @@ public class BasicTest
         customerSettings = config.GetSection("customer").Get<NodeSettings>();
         settlerAdminSettings = config.GetSection("settleradmin").Get<SettlerAdminSettings>();
         bitcoinSettings = config.GetSection("bitcoin").Get<BitcoinSettings>();
+        applicationSettings = config.GetSection("application").Get<ApplicationSettings>();
     }
 
 
@@ -57,7 +59,7 @@ public class BasicTest
 
     public void Run()
     {
-
+        FlowLogger.Start(applicationSettings.FlowLoggerPath.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
         var bitcoinClient = bitcoinSettings.NewRPCClient();
 
         // load bitcoin node wallet
@@ -88,6 +90,8 @@ public class BasicTest
             gigWorkerSettings.ChunkSize
             );
 
+        FlowLogger.SetupParticipant(gigWorker.PublicKey, "GigWorker", true);
+
         settlerClient.GiveUserPropertyAsync(
                 token, gigWorker.PublicKey,
                 "drive", val,
@@ -104,6 +108,8 @@ public class BasicTest
             customerSettings.GetNostrRelays(),
             customerSettings.ChunkSize
             );
+
+        FlowLogger.SetupParticipant(customer.PublicKey, "Customer", true);
 
         settlerClient.GiveUserPropertyAsync(
             token, customer.PublicKey,
@@ -195,6 +201,8 @@ public class BasicTest
 
         gigWorker.Stop();
         customer.Stop();
+
+        FlowLogger.Stop();
     }
 }
 
@@ -264,6 +272,11 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
             Monitor.PulseAll(basicTest);
         }
     }
+}
+
+public class ApplicationSettings
+{
+    public required string FlowLoggerPath { get; set; }
 }
 
 public class SettlerAdminSettings

@@ -60,6 +60,7 @@ public class MediumTest
 
     public void Run()
     {
+        FlowLogger.Start(applicationSettings.FlowLoggerPath.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
 
         var bitcoinClient = bitcoinSettings.NewRPCClient();
 
@@ -91,6 +92,8 @@ public class MediumTest
             gigWorkerSettings.ChunkSize
             );
 
+        FlowLogger.SetupParticipant(gigWorker.PublicKey, "GigWorker", true);
+
         settlerClient.GiveUserPropertyAsync(
                 token, gigWorker.PublicKey,
                 "drive", val,
@@ -104,13 +107,16 @@ public class MediumTest
 
         var gossipers = new List<GigGossipNode>();
         for (int i = 0; i < applicationSettings.NumberOfGossipers; i++)
-            gossipers.Add(new GigGossipNode(
+        {
+            var gossiper = new GigGossipNode(
                 gossiperSettings.ConnectionString,
                 Crypto.GeneratECPrivKey(),
                 gossiperSettings.GetNostrRelays(),
                 gossiperSettings.ChunkSize
-                ));
-
+                );
+            gossipers.Add(gossiper);
+            FlowLogger.SetupParticipant(gossiper.PublicKey, "Gossiper" + i.ToString(), true);
+        }
 
         var customer = new GigGossipNode(
             customerSettings.ConnectionString,
@@ -118,6 +124,8 @@ public class MediumTest
             customerSettings.GetNostrRelays(),
             customerSettings.ChunkSize
             );
+
+        FlowLogger.SetupParticipant(customer.PublicKey, "Customer", true);
 
         settlerClient.GiveUserPropertyAsync(
             token, customer.PublicKey,
@@ -249,6 +257,8 @@ public class MediumTest
         foreach (var node in gossipers)
             node.Stop();
         customer.Stop();
+
+        FlowLogger.Stop();
     }
 }
 
@@ -380,8 +390,10 @@ public class SettlerAdminSettings
 
 public class ApplicationSettings
 {
+    public required string FlowLoggerPath { get; set; }
     public required int NumberOfGossipers { get; set; }
 }
+
 public class NodeSettings
 {
     public required string ConnectionString { get; set; }
