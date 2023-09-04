@@ -493,7 +493,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                 return;
             }
             var payloadId = replyPayload.SignedRequestPayload.PayloadId;
-            
+
             settlerMonitor.MonitorSymmetricKey(responseFrame.SignedSettlementPromise.ServiceUri, payloadId, replyPayload.ReplierCertificate.PublicKey, Crypto.SerializeObject(replyPayload));
 
             var decodedReplyInvoice = LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), replyPayload.ReplyInvoice).Result;
@@ -518,41 +518,47 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         {
             FlowLogger.NewReply(peerPublicKey, this.PublicKey, "reply");
             var topLayerPublicKey = responseFrame.ForwardOnion.Peel(privateKey);
-            if (this.GetContacts().Contains(topLayerPublicKey))
+            if (!responseFrame.SignedSettlementPromise.Verify(responseFrame.EncryptedReplyPayload, this.SettlerSelector))
             {
-                if (!responseFrame.SignedSettlementPromise.Verify(responseFrame.EncryptedReplyPayload, this.SettlerSelector))
+                if (messageId != null) MarkMessageAsDone(messageId);
+                return;
+            }
+            if (!newResponse)
+            {
+                var settlerClient = this.SettlerSelector.GetSettlerClient(responseFrame.SignedSettlementPromise.ServiceUri);
+                var settok = MakeSettlerAuthTokenAsync(responseFrame.SignedSettlementPromise.ServiceUri).Result;
+
+                if (!settlerClient.ValidateRelatedPaymentHashesAsync(settok,
+                    responseFrame.SignedSettlementPromise.NetworkPaymentHash.AsHex(),
+                    decodedNetworkInvoice.PaymentHash).Result)
                 {
                     if (messageId != null) MarkMessageAsDone(messageId);
                     return;
                 }
-                if (!newResponse)
-                {
-                    var settlerClient = this.SettlerSelector.GetSettlerClient(responseFrame.SignedSettlementPromise.ServiceUri);
-                    var relatedNetworkPaymentHash = settlerClient.GenerateRelatedPreimageAsync(MakeSettlerAuthTokenAsync(responseFrame.SignedSettlementPromise.ServiceUri).Result, decodedNetworkInvoice.PaymentHash).Result;
-                    var networkInvoice = LNDWalletClient.AddHodlInvoiceAsync(
-                        this.MakeWalletAuthToken(),
-                        decodedNetworkInvoice.NumSatoshis + this.priceAmountForRouting,
-                        relatedNetworkPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds).Result;
-                    this.lndWalletMonitor.MonitorInvoice(
-                        relatedNetworkPaymentHash,
-                        Crypto.SerializeObject(new InvoiceAcceptedData()
-                        {
-                            NetworkInvoice = responseFrame.NetworkInvoice,
-                            NetworkInvoicePaymentHash = decodedNetworkInvoice.PaymentHash,
-                            TotalSeconds = (int)invoicePaymentTimeout.TotalSeconds
-                        }));
-                    this.settlerMonitor.MonitorPreimage(
-                        responseFrame.SignedSettlementPromise.ServiceUri,
-                        relatedNetworkPaymentHash);
-                    responseFrame = responseFrame.DeepCopy();
-                    responseFrame.NetworkInvoice = networkInvoice.PaymentRequest;
-                }
-                SendMessage(topLayerPublicKey, responseFrame);
-            }
-            else
-            {
 
+                var relatedNetworkPaymentHash = settlerClient.GenerateRelatedPreimageAsync(
+                    settok,
+                    decodedNetworkInvoice.PaymentHash).Result;
+
+                var networkInvoice = LNDWalletClient.AddHodlInvoiceAsync(
+                    this.MakeWalletAuthToken(),
+                    decodedNetworkInvoice.NumSatoshis + this.priceAmountForRouting,
+                    relatedNetworkPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds).Result;
+                this.lndWalletMonitor.MonitorInvoice(
+                    relatedNetworkPaymentHash,
+                    Crypto.SerializeObject(new InvoiceAcceptedData()
+                    {
+                        NetworkInvoice = responseFrame.NetworkInvoice,
+                        NetworkInvoicePaymentHash = decodedNetworkInvoice.PaymentHash,
+                        TotalSeconds = (int)invoicePaymentTimeout.TotalSeconds
+                    }));
+                this.settlerMonitor.MonitorPreimage(
+                    responseFrame.SignedSettlementPromise.ServiceUri,
+                    relatedNetworkPaymentHash);
+                responseFrame = responseFrame.DeepCopy();
+                responseFrame.NetworkInvoice = networkInvoice.PaymentRequest;
             }
+            SendMessage(topLayerPublicKey, responseFrame);
         }
         if (messageId != null) MarkMessageAsDone(messageId);
     }

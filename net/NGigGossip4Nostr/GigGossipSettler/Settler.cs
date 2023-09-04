@@ -166,6 +166,17 @@ public class Settler : CertificationAuthority
         return newPaymentHash;
     }
 
+    public bool ValidateRelatedPaymentHashes(string pubkey, string paymentHash1, string paymentHash2)
+    {
+        var pix1 = (from pi in settlerContext.Value.Preimages where pi.PaymentHash == paymentHash1 select pi).FirstOrDefault();
+        if (pix1 == null)
+            return false;
+        var pix2 = (from pi in settlerContext.Value.Preimages where pi.PaymentHash == paymentHash2 select pi).FirstOrDefault();
+        if (pix2 == null)
+            return false;
+        return pix1.GigId == pix2.GigId;
+    }
+
     public string RevealPreimage(string pubkey, string paymentHash)
     {
         var preimage = (from pi in settlerContext.Value.Preimages where pi.PublicKey == pubkey && pi.PaymentHash == paymentHash && pi.IsRevealed select pi).FirstOrDefault();

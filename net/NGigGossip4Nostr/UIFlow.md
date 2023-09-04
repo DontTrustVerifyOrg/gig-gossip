@@ -10,7 +10,10 @@ flowchart TD
     CNP(Create New Profile)
     REP(Recover Existing Profile)
     AFID(Allow FaceID)
-    UPKSET[/User PrivKey On/]
+    subgraph " "
+        UPKSET[Setting Up Trust Enforcer]
+        ADDTE(Add Trust Enforcer)
+    end
     APPL-->LWYPK
     APPL-->CNP
     APPL-->REP
@@ -19,9 +22,11 @@ flowchart TD
     REP-->AFID
     AFID-->UPKSET
     FACEID-->UPKSET
-    ADDTE(Add Trust Enforcer)
-    ADDLW(Add Lightning Wallet)
-    DEPBTC(Deposit Bitcoin)
+    subgraph " "
+        C3[Setting Up Lightning Wallet]
+        ADDLW(Add Lightning Wallet)
+        DEPBTC(Deposit Bitcoin)
+    end
     REQRD(Request Ride)
     LFDR(Looking For A Driver)
     CYDR(Choose Your Driver)
@@ -29,13 +34,10 @@ flowchart TD
     TYDR(Tracking your driver)
     DRAR(Driver arrived)
     RDCO(Ride Completed)
-    C2{ }
-    C3{ }
-    UPKSET-->C2
-    C2-->ADDTE
+    UPKSET-->ADDTE
     ADDTE-->C3
     C3-->ADDLW
-    C2-->C3
+    UPKSET-->C3
     ADDLW-->DEPBTC
     DEPBTC-->REQRD
     C3-->REQRD
