@@ -181,7 +181,9 @@ Below is the list of validated Trust Enforcers where you can manage your list.
 Having multiple trust enforcers require you to set one as the default one.
 
 ## Setting up Lightning Wallet
-Every node needs to have the lightning wallet set up. Fill out information about your lightning wallet to send payments/earn money. Without this setup, you won't be able to create new invoices.
+For Rider that is only willing to order the ride this step is optional. You can use the Lightning Network wallet of your choise to pay the invoices but you will not be able to earn money for gossiping because to do it your app needs to be able to issue HODL invoices automatically.
+
+If you are the driver or want to earn money for gossiping this step is obligatory. fill out information about your lightning wallet to send payments/earn money. Without this setup, you won't be able to create new invoices.
 
 ```
 +--------------------------------+
