@@ -1,0 +1,71 @@
+version: "3"
+
+services:
+
+  bitcoin:
+    image: awazcognitum/gig-gossip-base:0.1
+
+    container_name: giggossip_bitcoin
+    restart: on-failure
+    # command: ["sleep","infinity"]
+    # command: ["/work/bitcoin/src/bitcoind","-datadir=/work/locallnd/.bitcoin"]
+    command: bash -c "
+        /work/bitcoin/src/bitcoind -datadir=/work/locallnd/.bitcoin
+        && sleep infinity"
+    ports:
+      - 18332:18332
+      - 28332:28332
+      - 28333:28333
+    volumes:
+      - ./work/locallnd/.bitcoin:/work/locallnd/.bitcoin:Z
+
+
+
+  lightning_node_1:
+    image: awazcognitum/gig-gossip-base:0.1
+
+    container_name: giggossip_lightning_node_1
+    restart: on-failure
+    command: /work/lnd/lnd-debug --lnddir=/work/locallnd/.lnd
+    ports:
+      - 9735:9735
+      - 10009:10009
+      - 8080:8080
+    volumes:
+      - ./work/locallnd/.lnd:/work/locallnd/.lnd:Z
+    depends_on:
+      - bitcoin
+
+
+
+  lightning_node_2:
+    image: awazcognitum/gig-gossip-base:0.1
+
+    container_name: giggossip_lightning_node_2
+    restart: on-failure
+    command: /work/lnd/lnd-debug --lnddir=/work/locallnd/.lnd
+    ports:
+      - 9734:9734
+      - 11009:11009
+      - 8180:8180
+    volumes:
+      - ./work/locallnd/.lnd2:/work/locallnd/.lnd:Z
+    depends_on:
+      - bitcoin
+
+
+
+  lightning_node_3:
+    image: awazcognitum/gig-gossip-base:0.1
+
+    container_name: giggossip_lightning_node_3
+    restart: on-failure
+    command: /work/lnd/lnd-debug --lnddir=/work/locallnd/.lnd
+    ports:
+      - 9736:9736
+      - 11010:11010
+      - 8181:8181
+    volumes:
+      - ./work/locallnd/.lnd3:/work/locallnd/.lnd:Z
+    depends_on:
+      - bitcoin

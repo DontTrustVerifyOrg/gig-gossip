@@ -1,0 +1,17 @@
+
+
+export BITCOIN_LOCAL_DIR="/work/locallnd/.bitcoin"
+
+alias bitcoin-local-cli="docker exec -it giggossip_bitcoin /work/bitcoin/src/bitcoin-cli -datadir=$BITCOIN_LOCAL_DIR"
+
+
+
+export LND_DIR="/work/locallnd/.lnd"
+
+alias lnd1="docker exec -it giggossip_lightning_node_1 /work/lnd/lnd-debug --lnddir=$LND_DIR"
+alias lnd2="docker exec -it giggossip_lightning_node_2 /work/lnd/lnd-debug --lnddir=$LND_DIR"
+alias lnd3="docker exec -it giggossip_lightning_node_3 /work/lnd/lnd-debug --lnddir=$LND_DIR"
+
+alias lncli1="docker exec -it giggossip_lightning_node_1 /work/lnd/lncli-debug -n regtest --lnddir=$LND_DIR --rpcserver=localhost:10009"
+alias lncli2="docker exec -it giggossip_lightning_node_2 /work/lnd/lncli-debug -n regtest --lnddir=$LND_DIR --rpcserver=localhost:11009"
+alias lncli3="docker exec -it giggossip_lightning_node_3 /work/lnd/lncli-debug -n regtest --lnddir=$LND_DIR --rpcserver=localhost:11010"
