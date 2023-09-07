@@ -136,6 +136,13 @@ public enum GigStatus
     Completed = 4,
 }
 
+public enum GigSubStatus
+{
+    None = 0,
+    AcceptedByNetwork = 1,
+    AcceptedByReply = 2,
+}
+
 /// <summary>
 /// A gig job
 /// </summary>
@@ -178,6 +185,11 @@ public class Gig
     /// The status of the gig.
     /// </summary>
     public required GigStatus Status { get; set; }
+
+    /// <summary>
+    /// The sub status of the gig.
+    /// </summary>
+    public required GigSubStatus SubStatus { get; set; }
 
     /// <summary>
     /// The dispute deadline for the gig.

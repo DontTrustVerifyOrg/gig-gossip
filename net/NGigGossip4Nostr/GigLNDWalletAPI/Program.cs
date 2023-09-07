@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json.Nodes;
 using System.Threading;
 using CryptoToolkit;
+using GigLNDWalletAPI;
 using LNDClient;
 using LNDWallet;
 using Swashbuckle.AspNetCore.Annotations;
@@ -62,14 +63,14 @@ while (true)
 }
 
 
-LNDWalletManager walletManager = new LNDWalletManager(
+Singlethon.LNDWalletManager = new LNDWalletManager(
     walletSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)),
     lndConf,
     deleteDb: false);
-walletManager.Start();
+Singlethon.LNDWalletManager.Start();
 
 LNDChannelManager channelManager = new LNDChannelManager(
-    walletManager,
+    Singlethon.LNDWalletManager,
     lndConf.GetFriendNodes(),
     lndConf.MaxSatoshisPerChannel,
     walletSettings.EstimatedTxFee);
@@ -77,7 +78,7 @@ channelManager.Start();
 
 app.MapGet("/gettoken",(string pubkey) =>
 {
-    return walletManager.GetTokenGuid(pubkey);
+    return Singlethon.LNDWalletManager.GetTokenGuid(pubkey);
 })
 .WithName("GetToken")
 .WithSummary("Creates authorisation token guid")
@@ -90,7 +91,7 @@ app.MapGet("/gettoken",(string pubkey) =>
 
 app.MapGet("/getbalance",(string authToken) =>
 {
-    return walletManager.ValidateAuthTokenAndGetAccount(authToken).GetAccountBallance();
+    return Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetAccountBallance();
 })
 .WithName("GetBalance")
 .WithSummary("Balance of the account")
@@ -103,7 +104,7 @@ app.MapGet("/getbalance",(string authToken) =>
 
 app.MapGet("/newaddress", (string authToken) =>
 {
-    return walletManager.ValidateAuthTokenAndGetAccount(authToken).NewAddress(walletSettings.NewAddressTxFee);
+    return Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).NewAddress(walletSettings.NewAddressTxFee);
 })
 .WithName("NewAddress")
 .WithSummary("New topup Bitcoin address")
@@ -117,7 +118,7 @@ app.MapGet("/newaddress", (string authToken) =>
 
 app.MapGet("/addinvoice", (string authToken, long satoshis, string memo, long expiry) =>
 {
-    var acc = walletManager.ValidateAuthTokenAndGetAccount(authToken);
+    var acc = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
     var ph = acc.AddInvoice(satoshis, memo, walletSettings.AddInvoiceTxFee, expiry).PaymentRequest;
     var pa = acc.DecodeInvoice(ph);
     return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
@@ -137,7 +138,7 @@ app.MapGet("/addinvoice", (string authToken, long satoshis, string memo, long ex
 app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, string memo, long expiry) =>
 {
     var hashb = hash.AsBytes();
-    var acc = walletManager.ValidateAuthTokenAndGetAccount(authToken);
+    var acc = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
     var ph = acc.AddHodlInvoice(satoshis, memo, hashb, walletSettings.AddInvoiceTxFee, expiry).PaymentRequest;
     var pa = acc.DecodeInvoice(ph);
     return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
@@ -157,7 +158,7 @@ app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, str
 
 app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
 {
-    return walletManager.ValidateAuthTokenAndGetAccount(authToken).DecodeInvoice(paymentRequest);
+    return Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).DecodeInvoice(paymentRequest);
 })
 .WithName("DecodeInvoice")
 .WithSummary("Decodes the given payment request and returns its details")
@@ -172,7 +173,7 @@ app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
 
 app.MapGet("/sendpayment", (string authToken, string paymentrequest, int timeout) =>
 {
-    walletManager.ValidateAuthTokenAndGetAccount(authToken).SendPayment(paymentrequest, timeout, walletSettings.SendPaymentTxFee, walletSettings.FeeLimit);
+    Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SendPayment(paymentrequest, timeout, walletSettings.SendPaymentTxFee, walletSettings.FeeLimit);
 })
 .WithName("SendPayment")
 .WithSummary("Sends a payment via lightning network for the given payment request")
@@ -187,7 +188,7 @@ app.MapGet("/sendpayment", (string authToken, string paymentrequest, int timeout
 
 app.MapGet("/settleinvoice", (string authToken, string preimage) =>
 {
-    walletManager.ValidateAuthTokenAndGetAccount(authToken).SettleInvoice(preimage.AsBytes());
+    Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SettleInvoice(preimage.AsBytes());
 })
 .WithName("SettleInvoice")
 .WithSummary("SettleInvoice settles an accepted invoice.")
@@ -201,7 +202,7 @@ app.MapGet("/settleinvoice", (string authToken, string preimage) =>
 
 app.MapGet("/cancelinvoice", (string authToken, string paymenthash) =>
 {
-    walletManager.ValidateAuthTokenAndGetAccount(authToken).CancelInvoice(paymenthash);
+    Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CancelInvoice(paymenthash);
 })
 .WithName("CancelInvoice")
 .WithSummary("Cancels the invoice identified by the given payment hash")
@@ -215,7 +216,7 @@ app.MapGet("/cancelinvoice", (string authToken, string paymenthash) =>
 
 app.MapGet("/getinvoicestate", (string authToken, string paymenthash) =>
 {
-    return walletManager.ValidateAuthTokenAndGetAccount(authToken).GetInvoiceState(paymenthash).ToString();
+    return Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetInvoiceState(paymenthash).ToString();
 })
 .WithName("GetInvoiceState")
 .WithSummary("Returns a state of the invoice identified by the given payment hash")
@@ -229,7 +230,7 @@ app.MapGet("/getinvoicestate", (string authToken, string paymenthash) =>
 
 app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
 {
-    return walletManager.ValidateAuthTokenAndGetAccount(authToken).GetPaymentStatus(paymenthash).ToString();
+    return Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetPaymentStatus(paymenthash).ToString();
 })
 .WithName("GetPaymentStatus")
 .WithSummary("Returns a status of the payment identified by the given payment hash")
@@ -241,7 +242,11 @@ app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
     return g;
 });
 
-//app.MapHub<InvoiceStatusHub>("/invoicestatusupdates/{authtoken}");
+app.MapHub<InvoiceStateUpdatesHub>("/invoicestateupdates");
+app.MapHub<PaymentStatusUpdatesHub>("/paymentstatusupdates");
+
+//app.MapHub<InvoiceStateUpdatesHub>("/invoicestateupdates/{authtoken}");
+//app.MapHub<PaymentStatusUpdatesHub>("/paymentstatusupdates/{authtoken}");
 
 app.Run(walletSettings.ServiceUri.AbsoluteUri);
 

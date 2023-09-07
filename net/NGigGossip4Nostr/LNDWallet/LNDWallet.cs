@@ -270,7 +270,7 @@ public class LNDAccountManager
             if (iv != null)
                 return iv.State;
             else
-            throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
+                throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
     }
 
     public long GetAccountBallance()
@@ -290,6 +290,20 @@ public class LNDAccountManager
     }
 
 }
+
+public class InvoiceStateChangedEventArgs : EventArgs
+{
+    public required string PaymentHash { get; set; }
+    public required InvoiceState NewState { get; set; }
+}
+public delegate void InvoiceStateChangedEventHandler(object sender, InvoiceStateChangedEventArgs e);
+
+public class PaymentStatusChangedEventArgs : EventArgs
+{
+    public required string PaymentHash { get; set; }
+    public required PaymentStatus NewStatus { get; set; }
+}
+public delegate void PaymentStatusChangedEventHandler(object sender, PaymentStatusChangedEventArgs e);
 
 public class LNDWalletManager
 {
@@ -321,6 +335,9 @@ public class LNDWalletManager
         var pr = friend.Split('@');
         LND.Connect(conf, pr[1], pr[0]);
     }
+
+    public event InvoiceStateChangedEventHandler OnInvoiceStateChanged;
+    public event PaymentStatusChangedEventHandler OnPaymentStatusChanged;
 
     public void Start()
     {
@@ -377,6 +394,12 @@ public class LNDWalletManager
                         i => i
                         .SetProperty(a => a.State, a => (InvoiceState)inv.State)
                         .SetProperty(a => a.Preimage, a => inv.State == Lnrpc.Invoice.Types.InvoiceState.Settled ? inv.RPreimage.ToArray() : a.Preimage));
+                    if (OnInvoiceStateChanged != null)
+                        OnInvoiceStateChanged.Invoke(this, new InvoiceStateChangedEventArgs()
+                        {
+                            PaymentHash = inv.RHash.ToArray().AsHex(),
+                            NewState = (InvoiceState)inv.State
+                        });
                 }
             }
             catch (RpcException e) when (e.Status.StatusCode == StatusCode.Cancelled)
@@ -402,6 +425,12 @@ public class LNDWalletManager
                      .ExecuteUpdate(i => i
                      .SetProperty(a => a.Status, a => (PaymentStatus)pm.Status)
                      .SetProperty(a => a.PaymentFee, a => pm.Status == Lnrpc.Payment.Types.PaymentStatus.Succeeded ? (long)pm.FeeSat : a.PaymentFee));
+                    if (OnPaymentStatusChanged != null)
+                        OnPaymentStatusChanged.Invoke(this, new PaymentStatusChangedEventArgs()
+                        {
+                            PaymentHash = pm.PaymentHash,
+                            NewStatus = (PaymentStatus)pm.Status
+                        });
                 }
             }
             catch (RpcException e) when (e.Status.StatusCode == StatusCode.Cancelled)
