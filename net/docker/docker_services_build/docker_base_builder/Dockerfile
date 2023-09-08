@@ -17,10 +17,6 @@ RUN git clone https://github.com/DontTrustVerifyOrg/gig-gossip.git
 RUN git clone https://github.com/bitcoin/bitcoin.git
 RUN git clone https://github.com/lightningnetwork/lnd.git
 
-#compile gig-gossip examples
-WORKDIR /work/gig-gossip/net/NGigGossip4Nostr/BTCTest
-RUN dotnet build
-
 # compile bitcoin
 WORKDIR /work/bitcoin
 RUN ./autogen.sh
@@ -32,6 +28,13 @@ RUN make install
 WORKDIR /work/lnd
 RUN make tags="signrpc walletrpc routerrpc invoicesrpc chainrpc"
 RUN make install
+
+#compile gig-gossip examples
+WORKDIR /work/gig-gossip/net/NGigGossip4Nostr/BTCTest
+RUN dotnet build
+WORKDIR /work/gig-gossip/net/NGigGossip4Nostr/LNDTest
+RUN dotnet build
+
 
 WORKDIR /work
 

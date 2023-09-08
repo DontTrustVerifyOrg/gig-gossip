@@ -1,4 +1,7 @@
 
+export GIGGOSSIP_BASE_IMAGE="awazcognitum/gig-gossip-base:0.1"
+
+
 
 # bitcoin
 
@@ -26,5 +29,7 @@ alias lncli3="docker exec -it giggossip_lightning_node_3 /work/lnd/lncli-debug -
 
 export GIG_GOSSIP_DIR="/work/locallnd/.giggossip"
 
-alias btc-test="docker run -it -v ./work/locallnd/.giggossip:/work/locallnd/.giggossip --network=giggossip awazcognitum/gig-gossip-base:0.1 dotnet /work/gig-gossip/net/NGigGossip4Nostr/BTCTest/bin/Debug/net7.0/BTCTest.dll --basedir=$GIG_GOSSIP_DIR"
+alias btc-test="docker run -it -v ./work/locallnd/.giggossip:/work/locallnd/.giggossip:ro --network=giggossip $GIGGOSSIP_BASE_IMAGE dotnet /work/gig-gossip/net/NGigGossip4Nostr/BTCTest/bin/Debug/net7.0/BTCTest.dll --basedir=$GIG_GOSSIP_DIR"
+
+alias lnd-test="docker run -it -v ./work/locallnd/.giggossip:/work/locallnd/.giggossip:ro -v ./work/locallnd/.lnd:/work/locallnd/.lnd:ro -v ./work/locallnd/.lnd2:/work/locallnd/.lnd2:ro -v ./work/locallnd/.lnd3:/work/locallnd/.lnd3:ro --network=giggossip $GIGGOSSIP_BASE_IMAGE dotnet /work/gig-gossip/net/NGigGossip4Nostr/LNDTest/bin/Debug/net7.0/LNDTest.dll --basedir=$GIG_GOSSIP_DIR"
 
