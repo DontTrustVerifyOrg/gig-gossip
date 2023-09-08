@@ -8,16 +8,17 @@ services:
     container_name: giggossip_bitcoin
     restart: on-failure
     # command: ["sleep","infinity"]
-    # command: ["/work/bitcoin/src/bitcoind","-datadir=/work/locallnd/.bitcoin"]
-    command: bash -c "
-        /work/bitcoin/src/bitcoind -datadir=/work/locallnd/.bitcoin
-        && sleep infinity"
+    command: ["/work/bitcoin/src/bitcoind","-datadir=/work/locallnd/.bitcoin","-printtoconsole","-debug"]
+    # command: bash -c "
+    #     /work/bitcoin/src/bitcoind -datadir=/work/locallnd/.bitcoin
+    #     && sleep infinity"
     ports:
       - 18332:18332
       - 28332:28332
       - 28333:28333
     volumes:
       - ./work/locallnd/.bitcoin:/work/locallnd/.bitcoin:Z
+      # - ./work/locallnd/.giggossip:/work/locallnd/.giggossip:Z
 
 
 
@@ -69,3 +70,9 @@ services:
       - ./work/locallnd/.lnd3:/work/locallnd/.lnd:Z
     depends_on:
       - bitcoin
+
+
+networks:
+  default:
+    name: giggossip
+    driver: bridge
