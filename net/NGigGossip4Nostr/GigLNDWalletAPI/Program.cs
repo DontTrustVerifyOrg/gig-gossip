@@ -245,9 +245,6 @@ app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
 app.MapHub<InvoiceStateUpdatesHub>("/invoicestateupdates");
 app.MapHub<PaymentStatusUpdatesHub>("/paymentstatusupdates");
 
-//app.MapHub<InvoiceStateUpdatesHub>("/invoicestateupdates/{authtoken}");
-//app.MapHub<PaymentStatusUpdatesHub>("/paymentstatusupdates/{authtoken}");
-
 app.Run(walletSettings.ServiceUri.AbsoluteUri);
 
 public record InvoiceRet

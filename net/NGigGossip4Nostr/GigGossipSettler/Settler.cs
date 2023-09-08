@@ -4,6 +4,7 @@ using System.Runtime.ConstrainedExecution;
 using System.Xml.Linq;
 using CryptoToolkit;
 using GigLNDWalletAPIClient;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
 using NBitcoin;
@@ -25,6 +26,7 @@ public class Settler : CertificationAuthority
     private Guid walletTokenGuid;
     private ThreadLocal<SettlerContext> settlerContext;
     private IScheduler scheduler;
+    private InvoiceStateUpdatesClient invoiceStateUpdatesClient;
 
     public Settler(Uri serviceUri, ECPrivKey settlerPrivateKey, long priceAmountForSettlement, TimeSpan invoicePaymentTimeout) : base(serviceUri, settlerPrivateKey)
     {
@@ -46,7 +48,7 @@ public class Settler : CertificationAuthority
         scheduler.Context.Put("me", this);
     }
 
-    protected string MakeAuthToken()
+    public string MakeAuthToken()
     {
         return Crypto.MakeSignedTimedToken(this._CaPrivateKey, DateTime.Now, this.walletTokenGuid);
     }
@@ -250,6 +252,10 @@ public class Settler : CertificationAuthority
         };
         signedSettlementPromise.Sign(_CaPrivateKey);
 
+        var tok = MakeAuthToken();
+        invoiceStateUpdatesClient.Monitor(tok, networkInvoicePaymentHash);
+        invoiceStateUpdatesClient.Monitor(tok, decodedInv.PaymentHash);
+
         return new SettlementTrust()
         {
             SettlementPromise = signedSettlementPromise,
@@ -319,8 +325,11 @@ public class Settler : CertificationAuthority
         scheduler.DeleteJob(new JobKey(gig.GigId.ToString())).Wait();
     }
 
-    public void Start(IAsyncEnumerable<string> invoiceStateUpdates)
+    public void Start()
     {
+        invoiceStateUpdatesClient = new InvoiceStateUpdatesClient(this.lndWalletClient);
+        invoiceStateUpdatesClient.Connect(MakeAuthToken());
+
         invoiceTrackerThread = new Thread( async () =>
         {
             {
@@ -371,7 +380,7 @@ public class Settler : CertificationAuthority
                 }
 
                 {
-                    await foreach (var invstateupd in invoiceStateUpdates)
+                    await foreach (var invstateupd in invoiceStateUpdatesClient.StreamAsync(MakeAuthToken(),CancellationTokenSource.Token))
                     {
                         var invp = invstateupd.Split('|');
                         var payhash = invp[0];
@@ -384,12 +393,12 @@ public class Settler : CertificationAuthority
                                         select g).FirstOrDefault();
                             if (gig != null)
                             {
-                                if (gig.NetworkPaymentHash == payhash && gig.Status == GigStatus.Open)
+                                if (gig.SubStatus == GigSubStatus.None && gig.NetworkPaymentHash == payhash && gig.Status == GigStatus.Open)
                                 {
                                     gig.SubStatus = GigSubStatus.AcceptedByNetwork;
                                     settlerContext.Value.SaveObject(gig);
                                 }
-                                else if (gig.PaymentHash == payhash && gig.Status == GigStatus.Open)
+                                else if (gig.SubStatus == GigSubStatus.None && gig.PaymentHash == payhash && gig.Status == GigStatus.Open)
                                 {
                                     gig.SubStatus = GigSubStatus.AcceptedByReply;
                                     settlerContext.Value.SaveObject(gig);
