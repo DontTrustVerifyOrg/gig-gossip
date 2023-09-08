@@ -9,16 +9,22 @@ Initialization and first start
 
 1. Initialize local setup and starts the stack (sometimes sudo is required in order to clean previously generated data):
 
-    `$ ./re_init.sh`
+    ```
+    $ ./re_init.sh
+    ```
 
 2. Run basic tests to make sure system runs smothly
     1. Source *bash_aliases*
 
-        `$ source ./bash_aliases`
+        ```
+        $ source ./bash_aliases
+        ```
 
     2. Bitcoin network test
 
-        `$ btc-test`
+        ```
+        $ btc-test
+        ```
 
 
 CLI scripts
@@ -26,7 +32,9 @@ CLI scripts
 
 1. Source commands (only needed for configuration purposes when using cli)
 
-    `$ source ./bash_aliases`
+    ```
+    $ source ./bash_aliases
+    ```
 
 2. Start using bitcoin local network or lightning network as described in <https://github.com/DontTrustVerifyOrg/gig-gossip/tree/main/net/NGigGossip4Nostr>
 
@@ -47,14 +55,20 @@ Standard usage
 
 - Run all services using docker compose:
 
-   ` $ docker compose up -d`
+    ```
+    $ docker compose up -d
+    ```
 
 - Stop all services
 
-    `$ docker compose down`
+    ```
+    $ docker compose down
+    ```
 
 - Check logs
 
-    `$ docker compose logs -f`
+    ```
+    $ docker compose logs -f
+    ```
 
 
