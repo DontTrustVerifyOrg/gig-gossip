@@ -47,7 +47,7 @@ Initialization and first start
         $ docker run -it -v ./work/locallnd/.lnd3:$LND_DIR:ro --network=giggossip $GIGGOSSIP_BASE_IMAGE /work/lnd/lncli-debug -n regtest --lnddir=$LND_DIR --rpcserver=lightning_node_3:11010 getinfo
         ```
 
-    Above tests could be simplified by using aliases. In section [CLI scripts](#cli_scripts) you will find more details.
+    Above tests could be simplified by using aliases. In section [CLI scripts](#cli-scripts) you will find more details.
 
 Standard usage
 -----
@@ -72,7 +72,7 @@ Standard usage
 
 
 
-CLI scripts {#cli_scripts}
+CLI scripts
 -----
 
 1. Source commands (only needed for configuration purposes when using cli)
