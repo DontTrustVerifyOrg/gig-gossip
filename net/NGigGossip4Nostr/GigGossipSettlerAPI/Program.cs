@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
 using Microsoft.AspNetCore.SignalR.Client;
 using GigGossipSettler;
+using GigGossipSettlerAPI;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +19,7 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.EnableAnnotations();
 });
+builder.Services.AddSignalR();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -293,6 +295,9 @@ app.MapGet("/managedispute", (string authToken, Guid gigId, string repliperPubKe
     g.Parameters[3].Description = "True to open/False to close dispute.";
     return g;
 });
+
+app.MapHub<PreimageRevealHub>("/preimagereveal");
+app.MapHub<SymmetricKeyRevealHub>("/symmetrickeyreveal");
 
 app.Run(settlerSettings.ServiceUri.AbsoluteUri);
 

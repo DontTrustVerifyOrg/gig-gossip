@@ -17,6 +17,7 @@ using System.Runtime.ConstrainedExecution;
 using GigLNDWalletAPIClient;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Xml.Linq;
+using GigGossipSettlerAPIClient;
 
 public interface IGigGossipNodeEvents
 {
@@ -38,7 +39,7 @@ public interface ISettlerSelector : ICertificationAuthorityAccessor
     GigGossipSettlerAPIClient.swaggerClient GetSettlerClient(Uri ServiceUri);
 }
 
-public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitorEvents
+public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitorEvents, ISimpleSettlerAttacher
 {
     protected long priceAmountForRouting;
     protected TimeSpan broadcastConditionsTimeout;
@@ -49,6 +50,8 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
     protected int fanout;
 
     public GigLNDWalletAPIClient.swaggerClient LNDWalletClient;
+    Dictionary<Uri, SymmetricKeyRevealClient> settlerSymmetricKeyRevelClients = new();
+    Dictionary<Uri, PreimageRevealClient> settlerPreimageRevelClients = new();
     protected Guid _walletToken;
     protected Dictionary<Uri, Guid> _settlerToken;
 
@@ -60,6 +63,9 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
     internal ThreadLocal<GigGossipNodeContext> nodeContext;
 
+    public InvoiceStateUpdatesClient InvoiceStateUpdatesClient;
+    public PaymentStatusUpdatesClient PaymentStatusUpdatesClient;
+
     public GigGossipNode(string connectionString, ECPrivKey privKey, string[] nostrRelays, int chunkSize, bool deleteDb = false) : base(privKey, nostrRelays, chunkSize)
     {
         this.nodeContext = new ThreadLocal<GigGossipNodeContext>(() => new GigGossipNodeContext(connectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))));
@@ -70,7 +76,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
     public void Init(int fanout, long priceAmountForRouting, TimeSpan broadcastConditionsTimeout, string broadcastConditionsPowScheme,
                            int broadcastConditionsPowComplexity, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
-                           GigLNDWalletAPIClient.swaggerClient lndWalletClient, ISettlerSelector settlerClientSelector)
+                           GigLNDWalletAPIClient.swaggerClient lndWalletClient)
     {
         this.fanout = fanout;
         this.priceAmountForRouting = priceAmountForRouting;
@@ -82,8 +88,10 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
         this.LNDWalletClient = lndWalletClient;
         this._walletToken = lndWalletClient.GetTokenAsync(this.PublicKey).Result;
-        this.SettlerSelector = settlerClientSelector;
+
+        this.SettlerSelector = new SimpleSettlerSelector(this);
         this._settlerToken = new();
+        
         this.lndWalletMonitor = new LNDWalletMonitor(this);
         this.settlerMonitor = new SettlerMonitor(this);
         this.LoadContactList();
@@ -92,9 +100,17 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
     public void Start(IGigGossipNodeEvents gigGossipNodeEvents)
     {
         this.gigGossipNodeEvents = gigGossipNodeEvents;
-        base.Start();
+        InvoiceStateUpdatesClient = new InvoiceStateUpdatesClient(this.LNDWalletClient);
+        InvoiceStateUpdatesClient.Connect(MakeWalletAuthToken());
+        PaymentStatusUpdatesClient = new PaymentStatusUpdatesClient(this.LNDWalletClient);
+        PaymentStatusUpdatesClient.Connect(MakeWalletAuthToken());
         this.lndWalletMonitor.Start();
-        this.settlerMonitor.Start();
+        base.Start();
+    }
+
+    public void Attaching(Uri ServiceUri)
+    {
+        this.settlerMonitor.Attach(ServiceUri);
     }
 
     public override void Stop()
@@ -221,6 +237,32 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             }
         }
         return Crypto.MakeSignedTimedToken(this.privateKey, DateTime.Now, token.Value);
+    }
+
+    public SymmetricKeyRevealClient GetSymmetricKeyRevealClient(Uri serviceUri)
+    {
+        lock (settlerSymmetricKeyRevelClients)
+        {
+            if (!settlerSymmetricKeyRevelClients.ContainsKey(serviceUri))
+            {
+                settlerSymmetricKeyRevelClients[serviceUri] = new SymmetricKeyRevealClient(SettlerSelector.GetSettlerClient(serviceUri));
+                settlerSymmetricKeyRevelClients[serviceUri].Connect(MakeSettlerAuthTokenAsync(serviceUri).Result);
+            }
+            return settlerSymmetricKeyRevelClients[serviceUri];
+        }
+    }
+
+    public PreimageRevealClient GetPreimageRevealClient(Uri serviceUri)
+    {
+        lock (settlerPreimageRevelClients)
+        {
+            if (!settlerPreimageRevelClients.ContainsKey(serviceUri))
+            {
+                settlerPreimageRevelClients[serviceUri] = new PreimageRevealClient(SettlerSelector.GetSettlerClient(serviceUri));
+                settlerPreimageRevelClients[serviceUri].Connect(MakeSettlerAuthTokenAsync(serviceUri).Result);
+            }
+            return settlerPreimageRevelClients[serviceUri];
+        }
     }
 
     public bool IncrementBroadcasted(Guid payloadId)
@@ -583,10 +625,10 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             var iac = Crypto.DeserializeObject<InvoiceAcceptedData>(data);
             if (lndWalletMonitor.IsPaymentMonitored(iac.NetworkInvoicePaymentHash))
                 return;
+            lndWalletMonitor.MonitorPayment(iac.NetworkInvoicePaymentHash, new byte[] { });
             LNDWalletClient.SendPaymentAsync(
                 MakeWalletAuthToken(), iac.NetworkInvoice, iac.TotalSeconds
                 ).Wait();
-            lndWalletMonitor.MonitorPayment(iac.NetworkInvoicePaymentHash, new byte[] { });
         }
     }
 
@@ -620,14 +662,14 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
     {
         if (!lndWalletMonitor.IsPaymentMonitored(decodedNetworkInvoice.PaymentHash))
         {
-            LNDWalletClient.SendPaymentAsync(MakeWalletAuthToken(), networkInvoice, (int)this.invoicePaymentTimeout.TotalSeconds).Wait();
             lndWalletMonitor.MonitorPayment(decodedNetworkInvoice.PaymentHash, new byte[] { });
+            LNDWalletClient.SendPaymentAsync(MakeWalletAuthToken(), networkInvoice, (int)this.invoicePaymentTimeout.TotalSeconds).Wait();
         }
 
         if (!lndWalletMonitor.IsPaymentMonitored(decodedReplyInvoice.PaymentHash))
         {
-            LNDWalletClient.SendPaymentAsync(MakeWalletAuthToken(), replyInvoice, (int)this.invoicePaymentTimeout.TotalSeconds).Wait();
             lndWalletMonitor.MonitorPayment(decodedReplyInvoice.PaymentHash, new byte[] { });
+            LNDWalletClient.SendPaymentAsync(MakeWalletAuthToken(), replyInvoice, (int)this.invoicePaymentTimeout.TotalSeconds).Wait();
         }
     }
 

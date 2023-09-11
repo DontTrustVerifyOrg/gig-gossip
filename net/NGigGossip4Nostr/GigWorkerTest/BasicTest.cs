@@ -53,7 +53,6 @@ public class BasicTest
 
 
     HttpClient httpClient = new HttpClient();
-    SimpleSettlerSelector settlerSelector = new SimpleSettlerSelector();
 
     public bool IsRunning { get; set; } = true;
 
@@ -78,6 +77,7 @@ public class BasicTest
 
         var settlerPrivKey = settlerAdminSettings.PrivateKey.AsECPrivKey();
         var settlerPubKey = settlerPrivKey.CreateXOnlyPubKey();
+        var settlerSelector = new SimpleSettlerSelector();
         var settlerClient = settlerSelector.GetSettlerClient(settlerAdminSettings.SettlerOpenApi);
         var gtok = settlerClient.GetTokenAsync(settlerPubKey.AsHex()).Result;
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.Now, gtok);
@@ -130,8 +130,7 @@ public class BasicTest
             gigWorkerSettings.BroadcastConditionsPowComplexity,
             TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(gigWorkerSettings.InvoicePaymentTimeoutSec),
-            gigWorkerSettings.GetLndWalletClient(httpClient),
-            settlerSelector);
+            gigWorkerSettings.GetLndWalletClient(httpClient));
         //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
 
         customer.Init(
@@ -142,8 +141,7 @@ public class BasicTest
             customerSettings.BroadcastConditionsPowComplexity,
             TimeSpan.FromMilliseconds(customerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(customerSettings.InvoicePaymentTimeoutSec),
-            customerSettings.GetLndWalletClient(httpClient),
-            settlerSelector);
+            customerSettings.GetLndWalletClient(httpClient));
 
         //await customer.LoadCertificates(customerSettings.SettlerOpenApi);
 

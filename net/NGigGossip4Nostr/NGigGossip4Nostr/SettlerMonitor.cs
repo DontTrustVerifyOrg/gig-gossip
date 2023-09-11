@@ -18,9 +18,6 @@ namespace NGigGossip4Nostr
 
     public class SettlerMonitor
 	{
-		Dictionary<Tuple<Uri, string>, string> monitoredPreimages = new();
-		Dictionary<Tuple<Uri, Guid>, string> monitoredKeys = new();
-		Dictionary<Guid, byte[]> monitoredKeysActions = new();
 		GigGossipNode gigGossipNode;
 
 		public SettlerMonitor(GigGossipNode gigGossipNode)
@@ -43,7 +40,8 @@ namespace NGigGossip4Nostr
                     PaymentHash = phash,
 					Preimage =null
                 });
-			return true;
+            this.gigGossipNode.GetPreimageRevealClient(serviceUri).Monitor(this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri).Result, phash);
+            return true;
 		}
 
 		public bool MonitorSymmetricKey(Uri serviceUri, Guid tid, string replierPublicKey, byte[] data)
@@ -63,69 +61,93 @@ namespace NGigGossip4Nostr
 					Data = data,
 					SymmetricKey = null
                 });
-			return true; 
+            this.gigGossipNode.GetSymmetricKeyRevealClient(serviceUri).Monitor(this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri).Result, tid);
+            return true; 
         }
 
+        CancellationTokenSource CancellationTokenSource = new();
 
-		Thread monitorThread;
-        long _monitorThreadStop;
+        List<Thread> monitoringThreads = new List<Thread>();
 
-        public void Start()
-		{
-            _monitorThreadStop = 0;
-            monitorThread = new Thread(async () =>
-			{
-				while (Interlocked.Read(ref _monitorThreadStop) == 0)
-				{
-					{
+        public void Attach(Uri settlerUri)
+        {
+            var preimthread = new Thread(async () =>
+            {
+                try
+                {
+                    await foreach (var preimupd in this.gigGossipNode.GetPreimageRevealClient(settlerUri).StreamAsync(this.gigGossipNode.MakeSettlerAuthTokenAsync(settlerUri).Result, CancellationTokenSource.Token))
+                    {
+                        var pp = preimupd.Split('|');
+                        var payhash = pp[0];
+                        var preimage = pp[1];
+
                         var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
-                                        where i.PublicKey == this.gigGossipNode.PublicKey 
-                                        && i.Preimage == null
-                                        select i).ToList();
+                                      where i.PublicKey == this.gigGossipNode.PublicKey
+                                      && i.PaymentHash == payhash
+                                      && i.Preimage == null
+                                      select i).FirstOrDefault();
+                        if (pToMon != null)
+                        {
+                            gigGossipNode.OnPreimageRevealed(preimage);
+                            pToMon.Preimage = preimage;
+                            gigGossipNode.nodeContext.Value.SaveObject(pToMon);
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    //stream closed
+                }
+            });
 
-						foreach (var kv in pToMon)
-						{
-							var serviceUri = kv.ServiceUri;
-							var phash = kv.PaymentHash;
-							var preimage = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash);
-                            if (!string.IsNullOrWhiteSpace(preimage))
-                            {
-                                gigGossipNode.OnPreimageRevealed(preimage);
-                                kv.Preimage = preimage;
-                                gigGossipNode.nodeContext.Value.SaveObject(kv);
-                            }
-						}
-					}
-					{
+            var symkeythread = new Thread(async () =>
+            {
+
+                try
+                {
+                    await foreach (var symkeyupd in this.gigGossipNode.GetSymmetricKeyRevealClient(settlerUri).StreamAsync(this.gigGossipNode.MakeSettlerAuthTokenAsync(settlerUri).Result, CancellationTokenSource.Token))
+                    {
+                        var pp = symkeyupd.Split('|');
+                        var gigId = Guid.Parse(pp[0]);
+                        var symkey = pp[1];
                         var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
                                       where i.PublicKey == this.gigGossipNode.PublicKey
+                                      && i.PayloadId == gigId
                                       && i.SymmetricKey == null
-                                      select i).ToList();
+                                      select i).FirstOrDefault();
 
-						foreach (var kv in kToMon)
-						{
-							var serviceUri = kv.ServiceUri;
-							var tid = kv.PayloadId;
-							var key = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), tid.ToString(), kv.ReplierPublicKey);
-							if (!string.IsNullOrWhiteSpace(key))
-							{
-                                gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
-                                kv.SymmetricKey = key;
-								gigGossipNode.nodeContext.Value.SaveObject(kv);
-							}
-						}
-					}
+                        if (kToMon != null)
+                        {
+                            gigGossipNode.OnSymmetricKeyRevealed(kToMon.Data, symkey);
+                            kToMon.SymmetricKey = symkey;
+                            gigGossipNode.nodeContext.Value.SaveObject(kToMon);
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    //stream closed
+                }
 
-					Thread.Sleep(1000);
-				}
-			});
-			monitorThread.Start();
-		}
+            });
+
+            lock (monitoringThreads)
+            {
+                monitoringThreads.Add(preimthread);
+                monitoringThreads.Add(symkeythread);
+            }
+            preimthread.Start();
+            symkeythread.Start();
+        }
 
         public void Stop()
         {
-            Interlocked.Add(ref _monitorThreadStop, 1);
-            monitorThread.Join();
+            CancellationTokenSource.Cancel();
+            lock (monitoringThreads)
+            {
+                foreach (var thread in monitoringThreads)
+                    thread.Join();
+            }
         }
     }
 }

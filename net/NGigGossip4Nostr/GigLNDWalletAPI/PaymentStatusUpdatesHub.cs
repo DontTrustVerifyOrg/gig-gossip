@@ -11,8 +11,15 @@ public class PaymentStatusUpdatesHub : Hub
     Queue<PaymentStatusChangedEventArgs> paymentChangeQueue = new();
     public PaymentStatusUpdatesHub()
     {
-        Singlethon.LNDWalletManager.OnPaymentStatusChanged += LNDWalletManager_OnPaymentStatusChanged;
         asyncPaymentMonitor = new AsyncMonitor();
+        Singlethon.LNDWalletManager.OnPaymentStatusChanged += LNDWalletManager_OnPaymentStatusChanged;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+            Singlethon.LNDWalletManager.OnPaymentStatusChanged -= LNDWalletManager_OnPaymentStatusChanged;
+        base.Dispose(disposing);
     }
 
     private void LNDWalletManager_OnPaymentStatusChanged(object sender, PaymentStatusChangedEventArgs e)
@@ -27,24 +34,26 @@ public class PaymentStatusUpdatesHub : Hub
     public override async Task OnConnectedAsync()
     {
         var authToken = Context?.GetHttpContext()?.Request.Query["authtoken"].First();
-        Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
+        var account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
+        Context.Items["publicKey"] = account.PublicKey;
         await base.OnConnectedAsync();
     }
 
-    public async Task Monitor(string authToken, string paymentHash, CancellationToken cancellationToken)
+    public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var publicKey = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).PublicKey;
-        lock (Singlethon.PaymentHashes4UserPublicKey)
-        {
-            if (!Singlethon.PaymentHashes4UserPublicKey.ContainsKey(publicKey))
-                Singlethon.PaymentHashes4UserPublicKey[publicKey] = new();
-            Singlethon.PaymentHashes4UserPublicKey[publicKey].Add(paymentHash);
-        }
+        Singlethon.PaymentHashes4ConnectionId.RemoveConnection((string)Context.Items["publicKey"]);
+        await base.OnDisconnectedAsync(exception);
+    }
+
+    public async Task Monitor(string authToken, string paymentHash)
+    {
+        var account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
+        Singlethon.PaymentHashes4ConnectionId.AddItem(account.PublicKey, paymentHash);
     }
 
     public async IAsyncEnumerable<string> Streaming(string authToken, CancellationToken cancellationToken)
     {
-        var publicKey = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).PublicKey;
+        var account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
         while (true)
         {
             using (await asyncPaymentMonitor.EnterAsync(cancellationToken))
@@ -53,15 +62,10 @@ public class PaymentStatusUpdatesHub : Hub
                 while (paymentChangeQueue.Count > 0)
                 {
                     var ic = paymentChangeQueue.Dequeue();
-                    lock (Singlethon.InvoiceHashes4UserPublicKey)
-                    {
-                        if (Singlethon.InvoiceHashes4UserPublicKey.ContainsKey(publicKey))
-                            if (Singlethon.InvoiceHashes4UserPublicKey[publicKey].Contains(ic.PaymentHash))
-                                yield return ic.PaymentHash + "|" + ic.NewStatus.ToString();
-                    }
+                    if (Singlethon.PaymentHashes4ConnectionId.ContainsItem(account.PublicKey, ic.PaymentHash))
+                        yield return ic.PaymentHash + "|" + ic.NewStatus.ToString();
                 }
             }
         }
     }
 }
-

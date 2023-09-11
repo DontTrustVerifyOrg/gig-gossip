@@ -18,8 +18,47 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace GigGossipSettler;
 
+public class PreimageRevealEventArgs : EventArgs
+{
+    public required string PaymentHash { get; set; }
+    public required string Preimage { get; set; }
+}
+public delegate void PreimageRevealEventHandler(object sender, PreimageRevealEventArgs e);
+
+
+public class SymmetricKeyRevealEventArgs : EventArgs
+{
+    public required Guid GigId { get; set; }
+    public required string SymmetricKey { get; set; }
+}
+public delegate void SymmetricKeyRevealEventHandler(object sender, SymmetricKeyRevealEventArgs e);
+
 public class Settler : CertificationAuthority
 {
+    public event SymmetricKeyRevealEventHandler OnSymmetricKeyReveal;
+
+    public void FireOnSymmetricKeyReveal(Guid gidId, string symmetricKey)
+    {
+        if (OnSymmetricKeyReveal != null)
+            OnSymmetricKeyReveal.Invoke(this, new SymmetricKeyRevealEventArgs()
+            {
+                SymmetricKey = symmetricKey,
+                GigId = gidId,
+            });;
+    }
+
+    public event PreimageRevealEventHandler OnPreimageReveal;
+
+    public void FireOnPreimageReveal(string paymentHash , string preimage)
+    {
+        if (OnPreimageReveal != null)
+            OnPreimageReveal.Invoke(this, new PreimageRevealEventArgs()
+            {
+                PaymentHash = paymentHash,
+                Preimage = preimage,
+            }); ;
+    }
+
     private TimeSpan invoicePaymentTimeout;
     private long priceAmountForSettlement;
     private swaggerClient lndWalletClient;
@@ -291,16 +330,19 @@ public class Settler : CertificationAuthority
                        where g.GigId == gigid
                        select g).FirstOrDefault();
             if (gig != null)
-                me.AcceptGig(gig);
+                me.SettleGig(gig);
         }
     }
 
-    public void AcceptGig(Gig gig)
+    public void SettleGig(Gig gig)
     {
         var preims = (from pi in this.settlerContext.Value.Preimages where pi.ReplierPublicKey == gig.ReplierPublicKey && pi.GigId == gig.GigId select pi).ToList();
         foreach (var pi in preims)
             pi.IsRevealed = true;
         this.settlerContext.Value.SaveObjectRange(preims);
+        foreach (var pi in preims)
+            this.FireOnPreimageReveal(pi.PaymentHash, pi.Preimage);
+
         gig.Status = GigStatus.Completed;
         gig.SubStatus = GigSubStatus.None;
         this.settlerContext.Value.SaveObject(gig);
@@ -368,9 +410,10 @@ public class Settler : CertificationAuthority
                     }
                     else if (gig.Status == GigStatus.Accepted)
                     {
+                        FireOnSymmetricKeyReveal(gig.GigId,gig.SymmetricKey);
                         if (DateTime.Now >= gig.DisputeDeadline)
                         {
-                            AcceptGig(gig);
+                            SettleGig(gig);
                         }
                         else
                         {
@@ -379,7 +422,7 @@ public class Settler : CertificationAuthority
                     }
                 }
 
-                {
+                try{
                     await foreach (var invstateupd in invoiceStateUpdatesClient.StreamAsync(MakeAuthToken(),CancellationTokenSource.Token))
                     {
                         var invp = invstateupd.Split('|');
@@ -409,6 +452,7 @@ public class Settler : CertificationAuthority
                                     gig.Status = GigStatus.Accepted;
                                     gig.SubStatus = GigSubStatus.None;
                                     settlerContext.Value.SaveObject(gig);
+                                    FireOnSymmetricKeyReveal(gig.GigId, gig.SymmetricKey);
                                     ScheduleGig(gig);
                                 }
                             }
@@ -433,6 +477,10 @@ public class Settler : CertificationAuthority
                             }
                         }
                     }
+                }
+                catch(OperationCanceledException)
+                {
+                    //stream closed
                 }
             }
         });

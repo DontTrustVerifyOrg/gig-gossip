@@ -53,7 +53,6 @@ public class ComplexTest
 
 
     HttpClient httpClient = new HttpClient();
-    SimpleSettlerSelector settlerSelector = new SimpleSettlerSelector();
 
     public long waitCnt;
 
@@ -76,7 +75,7 @@ public class ComplexTest
 
         bitcoinWalletClient.Generate(10); // generate some blocks
 
-
+        var settlerSelector = new SimpleSettlerSelector();
         var settlerPrivKey = settlerAdminSettings.PrivateKey.AsECPrivKey();
         var settlerPubKey = settlerPrivKey.CreateXOnlyPubKey();
         var settlerClient = settlerSelector.GetSettlerClient(settlerAdminSettings.SettlerOpenApi);
@@ -146,8 +145,7 @@ public class ComplexTest
                 gridNodeSettings.BroadcastConditionsPowComplexity,
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
-                gridNodeSettings.GetLndWalletClient(httpClient),
-                settlerSelector);
+                gridNodeSettings.GetLndWalletClient(httpClient));
             //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
 
             gigWorker.Start(new GigWorkerGossipNodeEvents(gridNodeSettings.SettlerOpenApi, gigWorkerCert));
@@ -178,8 +176,7 @@ public class ComplexTest
                 gridNodeSettings.BroadcastConditionsPowComplexity,
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
-                gridNodeSettings.GetLndWalletClient(httpClient),
-                settlerSelector);
+                gridNodeSettings.GetLndWalletClient(httpClient));
             //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
             customer.Start(new CustomerGossipNodeEvents(this));
             customers.Add(Tuple.Create(customer, customerCert));
@@ -196,8 +193,7 @@ public class ComplexTest
                 gridNodeSettings.BroadcastConditionsPowComplexity,
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
-                gridNodeSettings.GetLndWalletClient(httpClient),
-                settlerSelector);
+                gridNodeSettings.GetLndWalletClient(httpClient));
             //await node.LoadCertificates(gigWorkerSettings.SettlerOpenApi);        
             node.Value.Start(new NetworkEarnerNodeEvents());
             FlowLogger.SetupParticipant(node.Value.PublicKey, node.Key, true);

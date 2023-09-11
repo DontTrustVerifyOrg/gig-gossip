@@ -37,6 +37,7 @@ namespace NGigGossip4Nostr
 					InvoiceState = "Unknown",
 					Data = data,
 				});
+            this.gigGossipNode.InvoiceStateUpdatesClient.Monitor(gigGossipNode.MakeWalletAuthToken(), phash);
 		}
 
 		public bool IsPaymentMonitored(string phash)
@@ -61,66 +62,87 @@ namespace NGigGossip4Nostr
                     PaymentStatus = "Unknown",
                     Data = data,
                 });
+
+            this.gigGossipNode.PaymentStatusUpdatesClient.Monitor(gigGossipNode.MakeWalletAuthToken(), phash);
         }
 
-        Thread monitorThread;
-		long _monitorThreadStop;
+        Thread invoiceMonitorThread;
+        Thread paymentMonitorThread;
+		CancellationTokenSource CancellationTokenSource = new();
 
-		public void Start()
+        public void Start()
 		{
-			_monitorThreadStop = 0;
-			monitorThread = new Thread(async () =>
+			invoiceMonitorThread = new Thread(async () =>
 			{
-				while (Interlocked.Read(ref _monitorThreadStop) == 0)
+				try
 				{
+					await foreach (var invstateupd in this.gigGossipNode.InvoiceStateUpdatesClient.StreamAsync(this.gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token))
 					{
-						var invToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredInvoices
-										where i.PublicKey == this.gigGossipNode.PublicKey
-										&& i.InvoiceState != "Settled" && i.InvoiceState != "Cancelled"
-										select i).ToList();
-
-						foreach (var inv in invToMon)
-						{
-							var state = await gigGossipNode.LNDWalletClient.GetInvoiceStateAsync(gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash);
+						var invp = invstateupd.Split('|');
+						var payhash = invp[0];
+						var state = invp[1];
+						var inv = (from i in gigGossipNode.nodeContext.Value.MonitoredInvoices
+								   where i.PublicKey == this.gigGossipNode.PublicKey
+								   && i.InvoiceState != "Settled" && i.InvoiceState != "Cancelled"
+								   && i.PaymentHash == payhash
+								   select i).FirstOrDefault();
+						if (inv != null)
 							if (state != inv.InvoiceState)
 							{
 								gigGossipNode.OnInvoiceStateChange(state, inv.Data);
 								inv.InvoiceState = state;
 								gigGossipNode.nodeContext.Value.SaveObject(inv);
 							}
-						}
 					}
-
-                    {
-                        var payToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPayments
-                                        where i.PublicKey == this.gigGossipNode.PublicKey
-                                        && i.PaymentStatus != "Succeeded" && i.PaymentStatus != "Failed"
-                                        select i).ToList();
-
-                        foreach (var pay in payToMon)
-                        {
-                            var status = await gigGossipNode.LNDWalletClient.GetPaymentStatusAsync(gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash);
-                            if (status != pay.PaymentStatus)
-                            {
-                                gigGossipNode.OnPaymentStatusChange(status, pay.Data);
-                                pay.PaymentStatus = status;
-                                gigGossipNode.nodeContext.Value.SaveObject(pay);
-                            }
-                        }
-                    }
-
-					Thread.Sleep(1000);
 				}
-			});
-			monitorThread.Start();
+                catch (OperationCanceledException)
+                {
+                    //stream closed
+                }
+
+            });
+
+			paymentMonitorThread = new Thread(async () =>
+			{
+				try
+				{
+					await foreach (var paystateupd in this.gigGossipNode.PaymentStatusUpdatesClient.StreamAsync(this.gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token))
+					{
+						var invp = paystateupd.Split('|');
+						var payhash = invp[0];
+						var status = invp[1];
+						var pay = (from i in gigGossipNode.nodeContext.Value.MonitoredPayments
+								   where i.PublicKey == this.gigGossipNode.PublicKey
+								   && i.PaymentStatus != "Succeeded" && i.PaymentStatus != "Failed"
+								   && i.PaymentHash == payhash
+								   select i).FirstOrDefault();
+						if (pay != null)
+							if (status != pay.PaymentStatus)
+							{
+								gigGossipNode.OnPaymentStatusChange(status, pay.Data);
+								pay.PaymentStatus = status;
+								gigGossipNode.nodeContext.Value.SaveObject(pay);
+							}
+					}
+				}
+                catch (OperationCanceledException)
+                {
+                    //stream closed
+                }
+            });
+
+			invoiceMonitorThread.Start();
+			paymentMonitorThread.Start();
+
 		}
 
 		public void Stop()
 		{
-			Interlocked.Add(ref _monitorThreadStop, 1);
-			monitorThread.Join();
-		}
+			CancellationTokenSource.Cancel();
+            invoiceMonitorThread.Join();
+            paymentMonitorThread.Join();
+        }
 
-	}
+    }
 }
 
