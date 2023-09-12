@@ -18,9 +18,9 @@ namespace GigGossipSettlerAPIClient
             connection.StartAsync().Wait();
         }
 
-        public void Monitor(string authToken, Guid gigId)
+        public void Monitor(string authToken, Guid gigId, string replierPublicKey)
         {
-            connection.SendAsync("Monitor", authToken, gigId).Wait();
+            connection.SendAsync("Monitor", authToken, gigId, replierPublicKey).Wait();
         }
 
         public IAsyncEnumerable<string> StreamAsync(string authToken, CancellationToken cancellationToken)

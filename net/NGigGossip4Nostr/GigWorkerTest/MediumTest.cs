@@ -84,6 +84,8 @@ public class MediumTest
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.Now, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
+        FlowLogger.SetupParticipantWithAutoAlias(Encoding.Default.GetBytes(settlerAdminSettings.SettlerOpenApi.AbsoluteUri).AsHex(), "settler", false);
+
         var gigWorker = new GigGossipNode(
             gigWorkerSettings.ConnectionString,
             gigWorkerSettings.PrivateKey.AsECPrivKey(),
@@ -301,14 +303,15 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
         if (taxiTopic != null)
         {
-            me.AcceptBraodcast( peerPublicKey, broadcastFrame,
+            me.AcceptBroadcast( peerPublicKey, broadcastFrame,
                 new AcceptBroadcastResponse()
                 {
-                    Message = Encoding.Default.GetBytes($"mynameis={me.PublicKey}"),
+                    Message = Encoding.Default.GetBytes(me.PublicKey),
                     Fee = 4321,
                     SettlerServiceUri = settlerUri,
                     MyCertificate = selectedCertificate
                 });
+            FlowLogger.NewEvent(me.PublicKey, "AcceptBraodcast");
         }
     }
 
@@ -342,6 +345,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         {
             if (timer == null)
                 timer = new Timer((o) => {
+                    timer.Change(Timeout.Infinite, Timeout.Infinite);
                     var new_cnt = me.GetReplyPayloads(replyPayload.SignedRequestPayload.PayloadId).Count();
                     if (new_cnt == old_cnt)
                     {
@@ -354,6 +358,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                             Crypto.DeserializeObject<PayReq>(win.DecodedReplyInvoice),
                             win.NetworkInvoice,
                             Crypto.DeserializeObject<PayReq>(win.DecodedNetworkInvoice));
+                        FlowLogger.NewEvent(me.PublicKey, "AcceptResponse");
                     }
                     else
                     {
@@ -366,11 +371,13 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)
     {
-        var message = Crypto.SymmetricDecrypt<byte[]>(
+        var message = Encoding.Default.GetString(Crypto.SymmetricDecrypt<byte[]>(
             key.AsBytes(),
-            replyPayload.EncryptedReplyMessage);
-        Trace.TraceInformation(Encoding.Default.GetString(message));
-        lock(test)
+            replyPayload.EncryptedReplyMessage));
+        Trace.TraceInformation(message);
+        FlowLogger.NewEvent(me.PublicKey, "OnResponseReady");
+        FlowLogger.NewConnected(message, me.PublicKey, "connected");
+        lock (test)
         {
             test.IsRunning = false;
             Monitor.PulseAll(test);

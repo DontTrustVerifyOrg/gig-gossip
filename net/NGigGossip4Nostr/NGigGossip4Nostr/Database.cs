@@ -62,8 +62,8 @@ public class POWBroadcastConditionsFrameRow
     public required byte[] ThePOWBroadcastConditionsFrame { get; set; }
 }
 
-[PrimaryKey(nameof(PublicKey), nameof(PayloadId))]
-public class BroadcastCounterRow
+[PrimaryKey(nameof(PublicKey), nameof(PayloadId), nameof(ContactPublicKey))]
+public class BroadcastHistoryRow
 {
     /// <summary>
     /// The public key of the subject.
@@ -74,7 +74,8 @@ public class BroadcastCounterRow
     [Column(Order = 2)]
     public required Guid PayloadId { get; set; }
 
-    public required int Counter { get; set; }
+    [Column(Order = 3)]
+    public required string ContactPublicKey { get; set; }
 }
 
 
@@ -241,7 +242,7 @@ public class GigGossipNodeContext : DbContext
     public DbSet<UserCertificate> UserCertificates { get; set; }
     public DbSet<BroadcastPayloadRow> BroadcastPayloadsByAskId { get; set; }
     public DbSet<POWBroadcastConditionsFrameRow> POWBroadcastConditionsFrameRowByAskId { get; set; }
-    public DbSet<BroadcastCounterRow> BroadcastCounters { get; set; }
+    public DbSet<BroadcastHistoryRow> BroadcastHistory { get; set; }
     public DbSet<ReplyPayloadRow> ReplyPayloads { get; set; }
     public DbSet<AcceptedBroadcastRow> AcceptedBroadcasts { get; set; }
     public DbSet<MonitoredInvoiceRow> MonitoredInvoices { get; set; }
@@ -271,8 +272,8 @@ public class GigGossipNodeContext : DbContext
             return this.BroadcastPayloadsByAskId;
         else if (obj is POWBroadcastConditionsFrameRow)
             return this.POWBroadcastConditionsFrameRowByAskId;
-        else if (obj is BroadcastCounterRow)
-            return this.BroadcastCounters;
+        else if (obj is BroadcastHistoryRow)
+            return this.BroadcastHistory;
         else if (obj is ReplyPayloadRow)
             return this.ReplyPayloads;
         else if (obj is AcceptedBroadcastRow)

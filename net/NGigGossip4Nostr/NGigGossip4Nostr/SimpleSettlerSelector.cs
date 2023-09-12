@@ -7,17 +7,6 @@ using System.Threading.Tasks;
 
 namespace NGigGossip4Nostr
 {
-    public interface ISimpleSettlerAttacher
-    {
-        public void Attaching(Uri ServiceUri);
-    }
-
-    public class EmptySimpleSettlerAttacher : ISimpleSettlerAttacher
-    {
-        public void Attaching(Uri ServiceUri)
-        {
-        }
-    }
 
     public class SimpleSettlerSelector : ISettlerSelector
     {
@@ -25,11 +14,9 @@ namespace NGigGossip4Nostr
         HashSet<Guid> revokedCertificates = new();
 
         HttpClient httpClient = new HttpClient();
-        ISimpleSettlerAttacher simpleSettlerAttacher;
 
-        public SimpleSettlerSelector(ISimpleSettlerAttacher? simpleSettlerAttacher = null)
+        public SimpleSettlerSelector()
         {
-            this.simpleSettlerAttacher = simpleSettlerAttacher ?? new EmptySimpleSettlerAttacher();
         }
 
         public ECXOnlyPubKey GetPubKey(Uri serviceUri)
@@ -42,10 +29,7 @@ namespace NGigGossip4Nostr
             lock (swaggerClients)
             {
                 if (!swaggerClients.ContainsKey(serviceUri))
-                {
                     swaggerClients[serviceUri] = new GigGossipSettlerAPIClient.swaggerClient(serviceUri.AbsoluteUri, httpClient);
-                    simpleSettlerAttacher.Attaching(serviceUri);
-                }
                 return swaggerClients[serviceUri];
             }
         }

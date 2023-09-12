@@ -1,4 +1,6 @@
 ﻿using System;
+using CryptoToolkit;
+
 namespace NGigGossip4Nostr
 {
     public static class FlowLogger
@@ -34,6 +36,7 @@ namespace NGigGossip4Nostr
             thefileName = fileName;
             WriteLine("```mermaid");
             WriteLine("sequenceDiagram");
+            WriteLine("\tautonumber");
         }
 
         public static void Stop()
@@ -45,6 +48,29 @@ namespace NGigGossip4Nostr
         static Dictionary<string, string> participantAliases = new();
         static string thefileName = null;
 
+        static Dictionary<string, int> autoAliasClassCounters = new();
+        static Dictionary<string, string> autoAlias = new();
+
+        public static string AutoAlias(string id,string cls)
+        {
+            lock(autoAliasClassCounters)
+            {
+                if (!autoAlias.ContainsKey(id))
+                {
+                    if(!autoAliasClassCounters.ContainsKey(cls))
+                        autoAliasClassCounters[cls] = 1;
+                    else
+                        autoAliasClassCounters[cls] += 1;
+                    autoAlias[id] = cls + "" + autoAliasClassCounters[cls];
+                }
+                return autoAlias[id];
+            }
+        }
+
+        public static void SetupParticipantWithAutoAlias(string id, string cls, bool isActor)
+        {
+            SetupParticipant(id, AutoAlias(id, cls), isActor);
+        }
 
         public static void SetupParticipant(string id, string alias, bool isActor )
         {
@@ -80,6 +106,25 @@ namespace NGigGossip4Nostr
             if (!participantAliases.ContainsKey(b))
                 return;
             WriteLine("\t" + a + "-->>" + b + ": " + message);
+        }
+
+        public static void NewConnected(string a, string b, string message)
+        {
+            if (thefileName == null)
+                return;
+            if (!participantAliases.ContainsKey(a))
+                return;
+            if (!participantAliases.ContainsKey(b))
+                return;
+            WriteLine("\t" + a + "--)" + b + ": " + message);
+        }
+        public static void NewEvent(string a,string message)
+        {
+            if (thefileName == null)
+                return;
+            if (!participantAliases.ContainsKey(a))
+                return;
+            WriteLine("\t Note over " + a + ": " + message);
         }
 
     }

@@ -221,7 +221,7 @@ public class LNDAccountManager
     public void SendPayment(string paymentRequest, int timeout, long txfee, long feelimit)
     {
         var decinv = LND.DecodeInvoice(conf, paymentRequest);
-            if ((long)decinv.NumSatoshis > GetAccountBallance() - (long)txfee)
+            if (decinv.NumSatoshis > GetAccountBallance() - txfee)
                 throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds);
 
         var selfInvQuery = (from inv in walletContext.Value.Invoices

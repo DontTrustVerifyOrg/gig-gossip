@@ -83,6 +83,8 @@ public class BasicTest
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.Now, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
+        FlowLogger.SetupParticipantWithAutoAlias(Encoding.Default.GetBytes(settlerAdminSettings.SettlerOpenApi.AbsoluteUri).AsHex(), "settler", false);
+
         var gigWorker = new GigGossipNode(
             gigWorkerSettings.ConnectionString,
             gigWorkerSettings.PrivateKey.AsECPrivKey(),
@@ -221,14 +223,15 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
         if (taxiTopic != null)
         {
-            me.AcceptBraodcast( peerPublicKey, broadcastFrame,
+            me.AcceptBroadcast( peerPublicKey, broadcastFrame,
                 new AcceptBroadcastResponse()
                 {
-                    Message = Encoding.Default.GetBytes($"mynameis={me.PublicKey}"),
+                    Message = Encoding.Default.GetBytes(me.PublicKey),
                     Fee = 4321,
                     SettlerServiceUri = settlerUri,
                     MyCertificate = selectedCertificate
                 });
+            FlowLogger.NewEvent(me.PublicKey, "AcceptBraodcast");
         }
     }
 
@@ -255,16 +258,19 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
+        FlowLogger.NewEvent(me.PublicKey, "AcceptResponse");
         me.AcceptResponse(replyPayload, replyInvoice,decodedReplyInvoice,networkInvoice,decodedNetworkInvoice);
     }
 
     public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)
     {
-        var message = Crypto.SymmetricDecrypt<byte[]>(
+        var message = Encoding.Default.GetString(Crypto.SymmetricDecrypt<byte[]>(
             key.AsBytes(),
-            replyPayload.EncryptedReplyMessage);
-        Trace.TraceInformation(Encoding.Default.GetString(message));
-        lock(basicTest)
+            replyPayload.EncryptedReplyMessage));
+        Trace.TraceInformation(message);
+        FlowLogger.NewEvent(me.PublicKey, "OnResponseReady");
+        FlowLogger.NewConnected(message, me.PublicKey, "connected");
+        lock (basicTest)
         {
             basicTest.IsRunning = false;
             Monitor.PulseAll(basicTest);

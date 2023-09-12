@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.ConstrainedExecution;
 using System.Xml.Linq;
@@ -29,6 +30,7 @@ public delegate void PreimageRevealEventHandler(object sender, PreimageRevealEve
 public class SymmetricKeyRevealEventArgs : EventArgs
 {
     public required Guid GigId { get; set; }
+    public required string ReplierPublicKey { get; set; }
     public required string SymmetricKey { get; set; }
 }
 public delegate void SymmetricKeyRevealEventHandler(object sender, SymmetricKeyRevealEventArgs e);
@@ -37,13 +39,14 @@ public class Settler : CertificationAuthority
 {
     public event SymmetricKeyRevealEventHandler OnSymmetricKeyReveal;
 
-    public void FireOnSymmetricKeyReveal(Guid gidId, string symmetricKey)
+    public void FireOnSymmetricKeyReveal(Guid gidId, string replierPublicKey, string symmetricKey)
     {
         if (OnSymmetricKeyReveal != null)
             OnSymmetricKeyReveal.Invoke(this, new SymmetricKeyRevealEventArgs()
             {
                 SymmetricKey = symmetricKey,
                 GigId = gidId,
+                ReplierPublicKey = replierPublicKey,
             });;
     }
 
@@ -410,7 +413,7 @@ public class Settler : CertificationAuthority
                     }
                     else if (gig.Status == GigStatus.Accepted)
                     {
-                        FireOnSymmetricKeyReveal(gig.GigId,gig.SymmetricKey);
+                        FireOnSymmetricKeyReveal(gig.GigId, gig.ReplierPublicKey, gig.SymmetricKey);
                         if (DateTime.Now >= gig.DisputeDeadline)
                         {
                             SettleGig(gig);
@@ -422,65 +425,75 @@ public class Settler : CertificationAuthority
                     }
                 }
 
-                try{
-                    await foreach (var invstateupd in invoiceStateUpdatesClient.StreamAsync(MakeAuthToken(),CancellationTokenSource.Token))
+                while (true)
+                {
+                    try
                     {
-                        var invp = invstateupd.Split('|');
-                        var payhash = invp[0];
-                        var state = invp[1];
-
-                        if (state == "Accepted")
+                        await foreach (var invstateupd in invoiceStateUpdatesClient.StreamAsync(MakeAuthToken(), CancellationTokenSource.Token))
                         {
-                            var gig = (from g in settlerContext.Value.Gigs
-                                        where (g.NetworkPaymentHash == payhash)||(g.PaymentHash == payhash)
-                                        select g).FirstOrDefault();
-                            if (gig != null)
+                            var invp = invstateupd.Split('|');
+                            var payhash = invp[0];
+                            var state = invp[1];
+
+                            if (state == "Accepted")
                             {
-                                if (gig.SubStatus == GigSubStatus.None && gig.NetworkPaymentHash == payhash && gig.Status == GigStatus.Open)
+                                var gig = (from g in settlerContext.Value.Gigs
+                                           where (g.NetworkPaymentHash == payhash) || (g.PaymentHash == payhash)
+                                           select g).FirstOrDefault();
+                                if (gig != null)
                                 {
-                                    gig.SubStatus = GigSubStatus.AcceptedByNetwork;
-                                    settlerContext.Value.SaveObject(gig);
-                                }
-                                else if (gig.SubStatus == GigSubStatus.None && gig.PaymentHash == payhash && gig.Status == GigStatus.Open)
-                                {
-                                    gig.SubStatus = GigSubStatus.AcceptedByReply;
-                                    settlerContext.Value.SaveObject(gig);
-                                }
-                                else if ((gig.NetworkPaymentHash == payhash && gig.SubStatus== GigSubStatus.AcceptedByReply)
-                                || (gig.PaymentHash == payhash && gig.SubStatus == GigSubStatus.AcceptedByNetwork))
-                                {
-                                    gig.Status = GigStatus.Accepted;
-                                    gig.SubStatus = GigSubStatus.None;
-                                    settlerContext.Value.SaveObject(gig);
-                                    FireOnSymmetricKeyReveal(gig.GigId, gig.SymmetricKey);
-                                    ScheduleGig(gig);
+                                    if (gig.SubStatus == GigSubStatus.None && gig.NetworkPaymentHash == payhash && gig.Status == GigStatus.Open)
+                                    {
+                                        gig.SubStatus = GigSubStatus.AcceptedByNetwork;
+                                        settlerContext.Value.SaveObject(gig);
+                                    }
+                                    else if (gig.SubStatus == GigSubStatus.None && gig.PaymentHash == payhash && gig.Status == GigStatus.Open)
+                                    {
+                                        gig.SubStatus = GigSubStatus.AcceptedByReply;
+                                        settlerContext.Value.SaveObject(gig);
+                                    }
+                                    else if ((gig.NetworkPaymentHash == payhash && gig.SubStatus == GigSubStatus.AcceptedByReply)
+                                    || (gig.PaymentHash == payhash && gig.SubStatus == GigSubStatus.AcceptedByNetwork))
+                                    {
+                                        gig.Status = GigStatus.Accepted;
+                                        gig.SubStatus = GigSubStatus.None;
+                                        settlerContext.Value.SaveObject(gig);
+                                        FireOnSymmetricKeyReveal(gig.GigId, gig.ReplierPublicKey, gig.SymmetricKey);
+                                        ScheduleGig(gig);
+                                    }
                                 }
                             }
-                        }
-                        else if(state=="Cancelled")
-                        {
-                            var gig = (from g in settlerContext.Value.Gigs
-                                        where (g.NetworkPaymentHash == payhash) || (g.PaymentHash == payhash)
-                                        select g).FirstOrDefault();
-                            if (gig != null)
+                            else if (state == "Cancelled")
                             {
-                                if(gig.Status == GigStatus.Accepted)
+                                var gig = (from g in settlerContext.Value.Gigs
+                                           where (g.NetworkPaymentHash == payhash) || (g.PaymentHash == payhash)
+                                           select g).FirstOrDefault();
+                                if (gig != null)
                                 {
-                                    CancelGig(gig);
-                                }
-                                if (gig.Status != GigStatus.Cancelled)
-                                {
-                                    gig.Status = GigStatus.Cancelled;
-                                    gig.SubStatus = GigSubStatus.None;
-                                    settlerContext.Value.SaveObject(gig);
+                                    if (gig.Status == GigStatus.Accepted)
+                                    {
+                                        CancelGig(gig);
+                                    }
+                                    if (gig.Status != GigStatus.Cancelled)
+                                    {
+                                        gig.Status = GigStatus.Cancelled;
+                                        gig.SubStatus = GigSubStatus.None;
+                                        settlerContext.Value.SaveObject(gig);
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                catch(OperationCanceledException)
-                {
-                    //stream closed
+                    catch (OperationCanceledException)
+                    {
+                        //stream closed
+                        return;
+                    }
+                    catch (TimeoutException)
+                    {
+                        Trace.TraceWarning("Timeout on " + lndWalletClient.BaseUrl + "/invoicestateupdates, reconnecting");
+                        //reconnect
+                    }
                 }
             }
         });

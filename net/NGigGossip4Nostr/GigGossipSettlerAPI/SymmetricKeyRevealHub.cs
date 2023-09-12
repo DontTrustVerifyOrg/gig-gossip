@@ -45,10 +45,10 @@ public class SymmetricKeyRevealHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public async Task Monitor(string authToken, Guid gigId)
+    public async Task Monitor(string authToken, Guid gigId, string replierPublicKey)
     {
         var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
-        Singlethon.SymmetricKeys4UserPublicKey.AddItem(publicKey, gigId);
+        Singlethon.SymmetricKeys4UserPublicKey.AddItem(publicKey, Tuple.Create(gigId,replierPublicKey));
     }
 
     public async IAsyncEnumerable<string> Streaming(string authToken, CancellationToken cancellationToken)
@@ -62,8 +62,8 @@ public class SymmetricKeyRevealHub : Hub
                 while (revealQueue.Count > 0)
                 {
                     var ic = revealQueue.Dequeue();
-                    if (Singlethon.SymmetricKeys4UserPublicKey.ContainsItem(publicKey, ic.GigId))
-                        yield return ic.GigId.ToString() + "|" + ic.SymmetricKey;
+                    if (Singlethon.SymmetricKeys4UserPublicKey.ContainsItem(publicKey, Tuple.Create(ic.GigId,ic.ReplierPublicKey) ))
+                        yield return ic.GigId.ToString() +"|"+ ic.ReplierPublicKey + "|" + ic.SymmetricKey;
                 }
             }
         }
