@@ -14,7 +14,7 @@ namespace NGigGossip4Nostr
 {
     public interface ISettlerMonitorEvents
     {
-        public void OnPreimageRevealed(string preimage);
+        public void OnPreimageRevealed(Uri settlerUri, string paymentHash, string preimage);
         public void OnSymmetricKeyRevealed(byte[] data, string key);
     }
 
@@ -102,7 +102,7 @@ namespace NGigGossip4Nostr
                     var preimage = gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri).Result, phash).Result;
                     if (!string.IsNullOrWhiteSpace(preimage))
                     {
-                        gigGossipNode.OnPreimageRevealed(preimage);
+                        gigGossipNode.OnPreimageRevealed(serviceUri, phash, preimage);
                         kv.Preimage = preimage;
                         gigGossipNode.nodeContext.Value.SaveObject(kv);
                     }
@@ -150,7 +150,7 @@ namespace NGigGossip4Nostr
                                           select i).FirstOrDefault();
                             if (pToMon != null)
                             {
-                                gigGossipNode.OnPreimageRevealed(preimage);
+                                gigGossipNode.OnPreimageRevealed(pToMon.ServiceUri,pToMon.PaymentHash, preimage);
                                 pToMon.Preimage = preimage;
                                 gigGossipNode.nodeContext.Value.SaveObject(pToMon);
                             }

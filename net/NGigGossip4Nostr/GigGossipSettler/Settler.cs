@@ -63,6 +63,7 @@ public class Settler : CertificationAuthority
     }
 
     private TimeSpan invoicePaymentTimeout;
+    private TimeSpan disputeTimeout;
     private long priceAmountForSettlement;
     private swaggerClient lndWalletClient;
     private Guid walletTokenGuid;
@@ -70,10 +71,11 @@ public class Settler : CertificationAuthority
     private IScheduler scheduler;
     private InvoiceStateUpdatesClient invoiceStateUpdatesClient;
 
-    public Settler(Uri serviceUri, ECPrivKey settlerPrivateKey, long priceAmountForSettlement, TimeSpan invoicePaymentTimeout) : base(serviceUri, settlerPrivateKey)
+    public Settler(Uri serviceUri, ECPrivKey settlerPrivateKey, long priceAmountForSettlement, TimeSpan invoicePaymentTimeout, TimeSpan disputeTimeout) : base(serviceUri, settlerPrivateKey)
     {
         this.priceAmountForSettlement = priceAmountForSettlement;
         this.invoicePaymentTimeout = invoicePaymentTimeout;
+        this.disputeTimeout = disputeTimeout;
     }
 
     public void Init(swaggerClient lndWalletClient, string connectionString, bool deleteDb = false)
@@ -364,8 +366,6 @@ public class Settler : CertificationAuthority
 
     public void CancelGig(Gig gig)
     {
-        IJobDetail job = JobBuilder.Create<GigAcceptedJob>().UsingJobData("GigId", gig.GigId).WithIdentity(gig.GigId.ToString()).Build();
-        ITrigger trigger = TriggerBuilder.Create().StartAt(gig.DisputeDeadline).Build();
         scheduler.Interrupt(new JobKey(gig.GigId.ToString())).Wait();
         scheduler.DeleteJob(new JobKey(gig.GigId.ToString())).Wait();
     }
@@ -390,7 +390,7 @@ public class Settler : CertificationAuthority
                         {
                             gig.Status = GigStatus.Accepted;
                             gig.SubStatus = GigSubStatus.None;
-                            gig.DisputeDeadline = DateTime.Now + TimeSpan.FromSeconds(10);
+                            gig.DisputeDeadline = DateTime.Now+ this.disputeTimeout;
                             settlerContext.Value.SaveObject(gig);
                             ScheduleGig(gig);
                         }
@@ -457,6 +457,7 @@ public class Settler : CertificationAuthority
                                     {
                                         gig.Status = GigStatus.Accepted;
                                         gig.SubStatus = GigSubStatus.None;
+                                        gig.DisputeDeadline = DateTime.Now + this.disputeTimeout;
                                         settlerContext.Value.SaveObject(gig);
                                         FireOnSymmetricKeyReveal(gig.GigId, gig.ReplierPublicKey, gig.SymmetricKey);
                                         ScheduleGig(gig);

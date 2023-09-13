@@ -14,6 +14,12 @@ using GigLNDWalletAPIClient;
 
 namespace GigWorkerMediumTest;
 
+public static class MainThreadControl
+{
+    public static int Counter { get; set; } = 0;
+    public static object Ctrl = new object();
+}
+
 public class MediumTest
 {
     string[] args;
@@ -54,8 +60,6 @@ public class MediumTest
 
 
     HttpClient httpClient = new HttpClient();
-
-    public bool IsRunning { get; set; } = true;
 
     public void Run()
     {
@@ -210,9 +214,14 @@ public class MediumTest
         } while (true);
 
         gigWorker.Start(new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi, gigWorkerCert));
+        gigWorker.ClearContacts();
         foreach (var node in gossipers)
+        {
             node.Start(new NetworkEarnerNodeEvents());
+            node.ClearContacts();
+        }
         customer.Start(new CustomerGossipNodeEvents(this));
+        customer.ClearContacts();
 
         gigWorker.AddContact( gossipers[0].PublicKey, "Gossiper0");
         gossipers[0].AddContact( gigWorker.PublicKey, "GigWorker");
@@ -243,12 +252,15 @@ public class MediumTest
 
         }
 
-        while (this.IsRunning)
+        while (MainThreadControl.Counter == 0)
         {
-            lock(this)
-            {
-                Monitor.Wait(this);
-            }
+            lock (MainThreadControl.Ctrl)
+                Monitor.Wait(MainThreadControl.Ctrl);
+        }
+        while (MainThreadControl.Counter > 0)
+        {
+            lock (MainThreadControl.Ctrl)
+                Monitor.Wait(MainThreadControl.Ctrl);
         }
 
         gigWorker.Stop();
@@ -284,6 +296,30 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
     public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)
     {
     }
+
+    public void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)
+    {
+        me.PayNetworkInvoice(iac);
+        lock (MainThreadControl.Ctrl)
+        {
+            MainThreadControl.Counter++;
+            Monitor.PulseAll(MainThreadControl.Ctrl);
+        }
+    }
+
+    public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
+    {
+        FlowLogger.NewMessage(me.PublicKey, paymentHash, "InvoiceSettled");
+        lock (MainThreadControl.Ctrl)
+        {
+            MainThreadControl.Counter--;
+            Monitor.PulseAll(MainThreadControl.Ctrl);
+        }
+    }
+
+    public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
+    {
+    }
 }
 
 public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
@@ -315,7 +351,31 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
+    public void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)
+    {
+        me.PayNetworkInvoice(iac);
+        lock (MainThreadControl.Ctrl)
+        {
+            MainThreadControl.Counter++;
+            Monitor.PulseAll(MainThreadControl.Ctrl);
+        }
+    }
+
+    public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
+    {
+        FlowLogger.NewMessage(me.PublicKey, paymentHash, "InvoiceSettled");
+        lock (MainThreadControl.Ctrl)
+        {
+            MainThreadControl.Counter--;
+            Monitor.PulseAll(MainThreadControl.Ctrl);
+        }
+    }
+
     public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    {
+    }
+
+    public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
     {
     }
 
@@ -377,11 +437,22 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         Trace.TraceInformation(message);
         FlowLogger.NewEvent(me.PublicKey, "OnResponseReady");
         FlowLogger.NewConnected(message, me.PublicKey, "connected");
-        lock (test)
-        {
-            test.IsRunning = false;
-            Monitor.PulseAll(test);
-        }
+    }
+
+    public void OnReplyInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
+    {
+    }
+
+    public void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)
+    {
+    }
+
+    public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
+    {
+    }
+
+    public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
+    {
     }
 }
 

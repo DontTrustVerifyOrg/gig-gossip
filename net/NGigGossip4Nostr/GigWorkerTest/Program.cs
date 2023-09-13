@@ -13,7 +13,7 @@ internal class Program
 
     static void Main(string[] args)
     {
-          //    new GigWorkerBasicTest.BasicTest(args).Run();
+         //     new GigWorkerBasicTest.BasicTest(args).Run();
          //new GigWorkerMediumTest.MediumTest(args).Run();
          new GigWorkerComplexTest.ComplexTest(args).Run();
     }

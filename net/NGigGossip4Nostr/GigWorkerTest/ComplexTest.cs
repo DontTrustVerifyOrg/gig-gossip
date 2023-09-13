@@ -12,8 +12,15 @@ using NGeoHash;
 using NBitcoin.RPC;
 using GigLNDWalletAPIClient;
 using GigWorkerTest;
+using NBitcoin.Protocol;
 
 namespace GigWorkerComplexTest;
+
+public static class MainThreadControl
+{
+    public static int Counter { get; set; } = 0;
+    public static object Ctrl = new object();
+}
 
 public class ComplexTest
 {
@@ -53,8 +60,6 @@ public class ComplexTest
 
 
     HttpClient httpClient = new HttpClient();
-
-    public long waitCnt;
 
     public void Run()
     {
@@ -100,6 +105,7 @@ public class ComplexTest
                 gridNodeSettings.GetNostrRelays(),
                 gridNodeSettings.ChunkSize
             );
+            things[nn].ClearContacts();
         }
 
         var already = new HashSet<string>();
@@ -149,8 +155,7 @@ public class ComplexTest
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
                 gridNodeSettings.GetLndWalletClient(httpClient));
             //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
-
-            gigWorker.Start(new GigWorkerGossipNodeEvents(gridNodeSettings.SettlerOpenApi, gigWorkerCert));
+            gigWorker.Start (new GigWorkerGossipNodeEvents(gridNodeSettings.SettlerOpenApi, gigWorkerCert));
 
             FlowLogger.SetupParticipant(gigWorker.PublicKey, kv.Key+":GigWorker", true);
         }
@@ -180,7 +185,7 @@ public class ComplexTest
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
                 gridNodeSettings.GetLndWalletClient(httpClient));
             //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
-            customer.Start(new CustomerGossipNodeEvents(this));
+            customer.Start(new CustomerGossipNodeEvents());
             customers.Add(Tuple.Create(customer, customerCert));
 
             FlowLogger.SetupParticipant(customer.PublicKey, kv.Key + ":Customer", true);
@@ -235,8 +240,6 @@ public class ComplexTest
             break;
         } while (true);
 
-        waitCnt = customers.Count;
-
         foreach (var customercert in customers)
         {
             var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);
@@ -253,13 +256,17 @@ public class ComplexTest
 
         }
 
-        while (Interlocked.Read(ref this.waitCnt)>0)
+        while (MainThreadControl.Counter == 0)
         {
-            lock(this)
-            {
-                Monitor.Wait(this);
-            }
+            lock (MainThreadControl.Ctrl)
+                Monitor.Wait(MainThreadControl.Ctrl);
         }
+        while (MainThreadControl.Counter > 0)
+        {
+            lock (MainThreadControl.Ctrl)
+                Monitor.Wait(MainThreadControl.Ctrl);
+        }
+
         foreach (var nod_idx in gridShapeIter.MultiCartesian())
         {
             var node_name = nod_name_f(nod_idx);
@@ -288,7 +295,31 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
         }
     }
 
+    public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
+    {
+        FlowLogger.NewMessage(me.PublicKey, paymentHash, "InvoiceSettled");
+        lock (MainThreadControl.Ctrl)
+        {
+            MainThreadControl.Counter--;
+            Monitor.PulseAll(MainThreadControl.Ctrl);
+        }
+    }
+
+    public void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)
+    {
+        me.PayNetworkInvoice(iac);
+        lock (MainThreadControl.Ctrl)
+        {
+            MainThreadControl.Counter++;
+            Monitor.PulseAll(MainThreadControl.Ctrl);
+        }
+    }
+
     public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    {
+    }
+
+    public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
     {
     }
 
@@ -326,7 +357,30 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
+    public void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)
+    {
+        me.PayNetworkInvoice(iac);
+        lock (MainThreadControl.Ctrl)
+        {
+            MainThreadControl.Counter++;
+            Monitor.PulseAll(MainThreadControl.Ctrl);
+        }
+    }
+
+    public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
+    {
+        FlowLogger.NewMessage(me.PublicKey, paymentHash, "InvoiceSettled");
+        lock (MainThreadControl.Ctrl)
+        {
+            MainThreadControl.Counter--;
+            Monitor.PulseAll(MainThreadControl.Ctrl);
+        }
+    }
     public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    {
+    }
+
+    public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
     {
     }
 
@@ -337,17 +391,15 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
 public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 {
-    ComplexTest test;
-    public CustomerGossipNodeEvents(ComplexTest test)
+    public CustomerGossipNodeEvents()
     {
-        this.test = test;
     }
 
     public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
     {
     }
 
-    Timer timer=null;
+    Timer timer = null;
     int old_cnt = 0;
 
     public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
@@ -355,7 +407,9 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         lock (this)
         {
             if (timer == null)
-                timer = new Timer((o) => {
+                timer = new Timer((o) =>
+                {
+                    timer.Change(Timeout.Infinite, Timeout.Infinite);
                     var new_cnt = me.GetReplyPayloads(replyPayload.SignedRequestPayload.PayloadId).Count();
                     if (new_cnt == old_cnt)
                     {
@@ -375,7 +429,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                         old_cnt = new_cnt;
                         timer.Change(5000, Timeout.Infinite);
                     }
-                },null,5000, Timeout.Infinite);
+                }, null, 5000, Timeout.Infinite);
         }
     }
 
@@ -387,11 +441,18 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         Trace.TraceInformation(message);
         FlowLogger.NewEvent(me.PublicKey, "OnResponseReady");
         FlowLogger.NewConnected(message, me.PublicKey, "connected");
-        lock (test)
-        {
-            Interlocked.Decrement(ref test.waitCnt);
-            Monitor.PulseAll(test);
-        }
+    }
+
+    public void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)
+    {
+    }
+
+    public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
+    {
+    }
+
+    public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
+    {
     }
 }
 

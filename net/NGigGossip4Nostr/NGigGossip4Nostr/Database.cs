@@ -310,6 +310,15 @@ public class GigGossipNodeContext : DbContext
         this.ChangeTracker.Clear();
     }
 
+    public void DeleteObjectRange<T>(IEnumerable<T> range)
+    {
+        if (range.Count() == 0)
+            return;
+        this.Type2DbSet(range.First()!).RemoveRange(range);
+        this.SaveChanges();
+        this.ChangeTracker.Clear();
+    }
+
     public void AddObject<T>(T obj)
     {
         this.Type2DbSet(obj!).Add(obj);

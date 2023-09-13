@@ -46,10 +46,10 @@ public abstract class NostrNode
             Tags = tags,
         };
         newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false).Wait();
-        nostrClient.SendEventsAndWaitUntilReceived(new[] { newEvent }, CancellationToken.None).Wait();
+        nostrClient.PublishEvent(newEvent, CancellationToken.None).Wait();
     }
 
-    public string SendMessage(string targetPublicKey, object frame)
+    public string SendMessage(string targetPublicKey, object frame, bool ephemeral, DateTime? expiration = null)
     {
         var message = Convert.ToBase64String(Crypto.SerializeObject(frame));
         var evid = Guid.NewGuid().ToString();
@@ -61,7 +61,7 @@ public abstract class NostrNode
             var part = ((idx + 1) * chunkSize < message.Length) ? message.Substring(idx * chunkSize, chunkSize) : message.Substring(idx * chunkSize);
             var newEvent = new NostrEvent()
             {
-                Kind = 4,
+                Kind = ephemeral ? 20004 : 4,
                 Content = part,
                 Tags = {
                     new NostrEventTag(){ TagIdentifier ="p", Data = { targetPublicKey } },
@@ -71,12 +71,21 @@ public abstract class NostrNode
                     new NostrEventTag(){ TagIdentifier ="n", Data = { numOfParts.ToString() } }
                 }
             };
+            if (expiration != null)
+                newEvent.Tags.Add(
+                    new NostrEventTag()
+                    {
+                        TagIdentifier = "expiration",
+                        Data = { ((DateTimeOffset)expiration.Value).ToUnixTimeSeconds().ToString() }
+                    });
+
 
             newEvent.EncryptNip04EventAsync(this.privateKey).AsTask().Wait();
             newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false).Wait();
             events.Add(newEvent);
         }
-        nostrClient.SendEventsAndWaitUntilReceived(events.ToArray(), CancellationToken.None).Wait();
+        foreach (var e in events)
+            nostrClient.PublishEvent(e, CancellationToken.None);
         return evid;
     }
 
@@ -89,10 +98,7 @@ public abstract class NostrNode
     protected void Start()
     {
         nostrClient.ConnectAndWaitUntilConnected().Wait();
-        mainThread = new Thread(async () =>
-        {
-
-            var q = nostrClient.SubscribeForEvents(new[]{
+        var q = nostrClient.SubscribeForEvents(new[]{
                 new NostrSubscriptionFilter()
                 {
                     Kinds = new []{3},
@@ -102,8 +108,16 @@ public abstract class NostrNode
                 {
                     Kinds = new []{4},
                     ReferencedPublicKeys = new []{ publicKey.ToHex() }
+                },
+                new NostrSubscriptionFilter()
+                {
+                    Kinds = new []{20004},
+                    ReferencedPublicKeys = new []{ publicKey.ToHex() }
                 }
             }, false, subscribeForEventsTokenSource.Token);
+
+        mainThread = new Thread(async () =>
+        {
 
             try
             {

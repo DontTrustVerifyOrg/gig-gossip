@@ -58,7 +58,7 @@ var caPrivateKey = settlerSettings.SettlerPrivateKey.AsECPrivKey();
 var httpClient = new HttpClient();
 var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.AbsoluteUri, httpClient);
 
-Singlethon.Settler = new Settler(settlerSettings.ServiceUri, caPrivateKey, settlerSettings.PriceAmountForSettlement, TimeSpan.FromSeconds(settlerSettings.InvoicePaymentTimeoutSec));
+Singlethon.Settler = new Settler(settlerSettings.ServiceUri, caPrivateKey, settlerSettings.PriceAmountForSettlement, TimeSpan.FromSeconds(settlerSettings.InvoicePaymentTimeoutSec),TimeSpan.FromSeconds(settlerSettings.DisputeTimeoutSec));
 Singlethon.Settler.Init(lndWalletClient, settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)), false);
 
 Singlethon.Settler.Start();
@@ -309,4 +309,5 @@ public class SettlerSettings
     public string ConnectionString { get; set; }
     public string SettlerPrivateKey { get; set; }
     public long InvoicePaymentTimeoutSec { get; set; }
+    public long DisputeTimeoutSec { get; set; }
 }
