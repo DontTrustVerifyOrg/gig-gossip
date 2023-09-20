@@ -37,6 +37,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GigLNDWalletApiClientCLI", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NNostr.Client", "..\..\..\NNostr\NNostr.Client\NNostr.Client.csproj", "{A4CE8E0D-5129-407A-AEF3-A3BE02ED4393}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OSRMTest", "OSRMTest\OSRMTest.csproj", "{BAD744B3-3AF4-4F2D-A3F8-F96E85884942}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -111,6 +113,10 @@ Global
 		{A4CE8E0D-5129-407A-AEF3-A3BE02ED4393}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A4CE8E0D-5129-407A-AEF3-A3BE02ED4393}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A4CE8E0D-5129-407A-AEF3-A3BE02ED4393}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BAD744B3-3AF4-4F2D-A3F8-F96E85884942}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BAD744B3-3AF4-4F2D-A3F8-F96E85884942}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BAD744B3-3AF4-4F2D-A3F8-F96E85884942}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BAD744B3-3AF4-4F2D-A3F8-F96E85884942}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
