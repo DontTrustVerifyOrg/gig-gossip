@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<base:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:base="clr-namespace:GigMobile.Pages"
+               xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Ride.Customer"
+               x:DataType="viewModel:ChooseDriverViewModel"
+               x:TypeArguments="viewModel:ChooseDriverViewModel"
+               x:Class="GigMobile.Pages.Ride.Customer.ChooseDriverPage"
+               Title=" 🚖  Select Your Ride">
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="12">
+        <StackLayout Orientation="Horizontal">
+            <Label Text="Sorted by:" HorizontalOptions="Start" VerticalOptions="Center"/>
+            <Picker SelectedIndex="0" HorizontalOptions="StartAndExpand" VerticalOptions="Center" TextColor="White">
+                <Picker.ItemsSource>
+                    <x:Array Type="{x:Type x:String}">
+                      <x:String>Lowest Price</x:String>
+                      <x:String>ETA</x:String>
+                      <x:String>Trust Enforcer</x:String>
+                    </x:Array>
+                </Picker.ItemsSource>
+            </Picker>
+        </StackLayout>
+        <Grid RowDefinitions="Auto, Auto" ColumnDefinitions="*, *" RowSpacing="4" ColumnSpacing="4">
+            <Label Grid.Column="0" Grid.Row="0" Text="NAME" HorizontalOptions="Center"/>
+            <Label Grid.Column="1" Grid.Row="0" Text="TRUST ENFORCER" HorizontalOptions="Center"/>
+            <Label Grid.Column="0" Grid.Row="1" Text="PRICE" HorizontalOptions="Center"/>
+            <Label Grid.Column="1" Grid.Row="1" Text="ETA" HorizontalOptions="Center"/>
+        </Grid>
+        <CollectionView ItemsSource="{Binding DriversProposals}"
+            ItemsLayout="VerticalGrid, 2">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="viewModel:DriverProposal">
+                    <Grid Padding="10" RowDefinitions="Auto, Auto, Auto" ColumnDefinitions="*, *">
+                        <Label Grid.Column="0" Grid.Row="0" Text="{Binding DriverName}" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Grid.Row="0" Text="{Binding TrustEnforcerName}" HorizontalOptions="Center"/>
+                        <Label Grid.Column="0" Grid.Row="1" Text="{Binding Price, StringFormat='{0} BTC'}" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Grid.Row="1" Text="{Binding Time, StringFormat='{0} min'}" HorizontalOptions="Center"/>
+                        <Button Grid.ColumnSpan="2" Grid.Row="2" Text="[Select 🚙]" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+        <Button Text="[Cancel]" Command="{Binding CancelRequestCommand}" VerticalOptions="EndAndExpand"/>
+    </StackLayout>
+</base:BasePage>

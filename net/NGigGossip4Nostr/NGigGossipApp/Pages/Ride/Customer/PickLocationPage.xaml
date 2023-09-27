@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<base:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:base="clr-namespace:GigMobile.Pages"
+               xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Ride.Customer"
+               x:DataType="viewModel:PickLocationViewModel"
+               x:TypeArguments="viewModel:PickLocationViewModel"
+               x:Class="GigMobile.Pages.Ride.Customer.PickLocationPage"
+               Title=" 🗺  Pick Location on Map">
+    <StackLayout>
+        <Grid VerticalOptions="StartAndExpand" HorizontalOptions="StartAndExpand">
+            <ContentView x:Name="_mapView" VerticalOptions="FillAndExpand" HorizontalOptions="FillAndExpand"/>
+            <Ellipse HeightRequest="25" WidthRequest="25" Fill="Black" Stroke="Gray" StrokeThickness="4" VerticalOptions="Center" HorizontalOptions="Center"/>
+        </Grid>
+        <StackLayout Orientation="Horizontal" BackgroundColor="Black" VerticalOptions="End" Padding="12">
+            <Label Text="{Binding TargetCoordinate}"
+                   VerticalOptions="Center" HorizontalOptions="FillAndExpand"
+                   TextColor="White"/>
+            <Button Command="{Binding PickCommand}"
+                    Text="Pick" BackgroundColor="White" TextColor="Black"
+                    VerticalOptions="Center" HorizontalOptions="End" Padding="8"/>
+        </StackLayout>
+    </StackLayout>
+</base:BasePage>

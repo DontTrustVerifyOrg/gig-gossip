@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<base:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:base="clr-namespace:GigMobile.Pages"
+               xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Profile"
+               x:Class="GigMobile.Pages.Profile.ProfileSetupPage"
+               x:DataType="viewModel:ProfileSetupViewModel"
+               x:TypeArguments="viewModel:ProfileSetupViewModel"
+               NavigationPage.HasNavigationBar="False">
+    <VerticalStackLayout VerticalOptions="Center" Spacing="4">
+        <Label Text="🎉 Setup Your Profile" FontSize="Title"
+               HorizontalOptions="Center" HorizontalTextAlignment="Center" Margin="24"/>
+        <Button Text="[ Login With Your PrivKey 🔑 ]" HorizontalOptions="Center"
+                Command="{Binding LoginCommand}"/>
+        <Button Text="[ Create New Profile 📝 ]" HorizontalOptions="Center"
+                Command="{Binding CreateCommand}"/>
+        <Button Text="[ Recover Existing Profile ]" HorizontalOptions="Center"
+                Command="{Binding RecoverCommand}"/>
+    </VerticalStackLayout>
+</base:BasePage>

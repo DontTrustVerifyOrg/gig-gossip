@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<base:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:base="clr-namespace:GigMobile.Pages"
+               xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Profile"
+               x:Class="GigMobile.Pages.Profile.CreateProfilePage"
+               x:DataType="viewModel:CreateProfileViewModel"
+               x:TypeArguments="viewModel:CreateProfileViewModel"
+               Title=" 💼 Create New Profile">
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
+        <Label Text="Your recovery mnemonic:" HorizontalOptions="Start" VerticalOptions="Start"/>
+        <Grid RowDefinitions="*, *, *, *" ColumnDefinitions="*, *, *" RowSpacing="12" ColumnSpacing="12">
+            <Label Grid.Column="0" Grid.Row="0" Text="{Binding Mnemonic[0]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+            <Label Grid.Column="1" Grid.Row="0" Text="{Binding Mnemonic[1]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+            <Label Grid.Column="2" Grid.Row="0" Text="{Binding Mnemonic[2]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+            <Label Grid.Column="0" Grid.Row="1" Text="{Binding Mnemonic[3]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+            <Label Grid.Column="1" Grid.Row="1" Text="{Binding Mnemonic[4]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+            <Label Grid.Column="2" Grid.Row="1" Text="{Binding Mnemonic[5]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+            <Label Grid.Column="0" Grid.Row="2" Text="{Binding Mnemonic[6]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+            <Label Grid.Column="1" Grid.Row="2" Text="{Binding Mnemonic[7]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+            <Label Grid.Column="2" Grid.Row="2" Text="{Binding Mnemonic[8]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+            <Label Grid.Column="0" Grid.Row="3" Text="{Binding Mnemonic[9]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+            <Label Grid.Column="1" Grid.Row="3" Text="{Binding Mnemonic[10]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+            <Label Grid.Column="2" Grid.Row="3" Text="{Binding Mnemonic[11]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+        </Grid>
+        <Label Text=" Write them down now notepad!" HorizontalOptions="Start" VerticalOptions="Start"/>
+        <Button Text="[ Next ➡️ ]" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
+    </StackLayout>
+</base:BasePage>

@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<base:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:base="clr-namespace:GigMobile.Pages"
+               xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Wallet"
+               x:Class="GigMobile.Pages.Wallet.AddWalletPage"
+               x:DataType="viewModel:AddWalletViewModel"
+               x:TypeArguments="viewModel:AddWalletViewModel"
+               Title=" ⚡️ Add Lightning Wallet">
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
+        <Label Text="Enter domain name your LND wallet provider:" HorizontalOptions="Start" VerticalOptions="Start"/>
+        <Entry Placeholder="LND wallet's domain" HorizontalOptions="FillAndExpand" />
+        <Button Text="[ Add ➕ ]" Command="{Binding AddWalletCommand}" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
+    </StackLayout>
+</base:BasePage>

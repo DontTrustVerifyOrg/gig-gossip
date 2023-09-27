@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<base:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:base="clr-namespace:GigMobile.Pages"
+               xmlns:viewModel="clr-namespace:GigMobile.ViewModels.TrustEnforcers"
+               x:Class="GigMobile.Pages.TrustEnforces.AddTrEnfPage"
+               x:DataType="viewModel:AddTrEnfViewModel"
+               x:TypeArguments="viewModel:AddTrEnfViewModel"
+               Title=" 🛡️ Add Trust Enforcer">
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
+        <Label Text="Enter domain name of new Trust Enforcer:" HorizontalOptions="Start" VerticalOptions="Start"/>
+        <Entry Placeholder="Trust Enforcer's domain" HorizontalOptions="FillAndExpand" />
+        <Label Text="Enter your mobile number for verification:" HorizontalOptions="Start" VerticalOptions="Start"/>
+        <StackLayout Spacing="12" Orientation="Horizontal">
+            <Label Text="+" HorizontalOptions="Start" VerticalOptions="Center"/>
+            <Entry Placeholder="code" MaxLength="2" HorizontalOptions="Start" VerticalOptions="Center"/>
+            <Entry Placeholder="number" HorizontalOptions="FillAndExpand" VerticalOptions="Center"/>
+        </StackLayout>
+        <Grid ColumnDefinitions="3*, *" VerticalOptions="EndAndExpand">
+            <Button Grid.Column="0" Text="[Skip]" Command="{Binding SkipCommand}" VerticalOptions="End" HorizontalOptions="Center"/>
+            <Button Grid.Column="1" Text="[ Add ➕ ]" Command="{Binding AddTrEnfCommand}" VerticalOptions="End" HorizontalOptions="End"/>
+        </Grid>
+    </StackLayout>
+</base:BasePage>

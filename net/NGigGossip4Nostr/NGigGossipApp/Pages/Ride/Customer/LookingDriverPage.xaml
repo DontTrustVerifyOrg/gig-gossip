@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<base:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:base="clr-namespace:GigMobile.Pages"
+               xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Ride.Customer"
+               x:DataType="viewModel:LookingDriverViewModel"
+               x:TypeArguments="viewModel:LookingDriverViewModel"
+               x:Class="GigMobile.Pages.Ride.Customer.LookingDriverPage"
+               Title=" 🚖  Requesting a Ride">
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
+        <Label Text="Please wait..." HorizontalOptions="Center" VerticalOptions="CenterAndExpand" HorizontalTextAlignment="End"/>
+        <ActivityIndicator IsRunning="True" VerticalOptions="CenterAndExpand"/>
+        <Label Text="Searching for driver " HorizontalOptions="Center" VerticalOptions="CenterAndExpand" HorizontalTextAlignment="Start"/>
+        <Button VerticalOptions="End"
+                Text="[Cancel Ride Request ⛔]"
+                Command="{Binding CancelRequestCommand}"/>
+    </StackLayout>
+</base:BasePage>

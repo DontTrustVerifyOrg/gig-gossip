@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<base:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:base="clr-namespace:GigMobile.Pages"
+               xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Profile"
+               x:Class="GigMobile.Pages.Profile.LoginPrKeyPage"
+               x:DataType="viewModel:LoginPrKeyViewModel"
+               x:TypeArguments="viewModel:LoginPrKeyViewModel"
+               Title=" 🔒 Login With Your PrivKey">
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
+        <Label Text="Enter your PrivKey:" HorizontalOptions="Start" VerticalOptions="Start"/>
+        <Entry Placeholder="PrivKey" HorizontalOptions="FillAndExpand" />
+        <Button Text="[ Next ➡️ ]" Command="{Binding LoginCommand}" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
+    </StackLayout>
+</base:BasePage>

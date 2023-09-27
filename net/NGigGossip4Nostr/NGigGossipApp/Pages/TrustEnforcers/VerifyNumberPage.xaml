@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<base:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:base="clr-namespace:GigMobile.Pages"
+               xmlns:viewModel="clr-namespace:GigMobile.ViewModels.TrustEnforcers"
+               x:Class="GigMobile.Pages.TrustEnforcers.VerifyNumberPage"
+               x:DataType="viewModel:VerifyNumberViewModel"
+               x:TypeArguments="viewModel:VerifyNumberViewModel"
+               Title=" 🛡️ Add Trust Enforcer">
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
+        <Label Text="Enter the 6-digit SMS code sent to your mobile number: " HorizontalOptions="Start" VerticalOptions="Start"/>
+        <StackLayout Orientation="Horizontal" Spacing="12" VerticalOptions="CenterAndExpand" HorizontalOptions="Center">
+            <Entry HorizontalOptions="Center"/>
+            <Entry HorizontalOptions="Center"/>
+            <Entry HorizontalOptions="Center"/>
+            <Entry HorizontalOptions="Center"/>
+            <Entry HorizontalOptions="Center"/>
+            <Entry HorizontalOptions="Center"/>
+        </StackLayout>
+        <Button Text="[Submit]" Command="{Binding SubmitCommand}" VerticalOptions="End" HorizontalOptions="End"/>
+    </StackLayout>
+</base:BasePage>

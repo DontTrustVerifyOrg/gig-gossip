@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<base:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:base="clr-namespace:GigMobile.Pages"
+               xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Wallet"
+               xmlns:zxing="clr-namespace:ZXing.Net.Maui.Controls;assembly=ZXing.Net.MAUI.Controls"
+               x:Class="GigMobile.Pages.Wallet.WalletDetailsPage"
+               x:DataType="viewModel:WalletDetailsViewModel"
+               x:TypeArguments="viewModel:WalletDetailsViewModel"
+               Title=" ⚡️ Your Lightning Wallet">
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
+        <Label Text="{Binding BitcoinBallance , StringFormat='💰 {0} BTC'}" HorizontalOptions="Start" VerticalOptions="Start"/>
+        <Label Text="To deposit Bitcoin to your wallet, send it to the following address:" HorizontalOptions="Start" VerticalOptions="Start"/>
+        <Label Text="{Binding WalletAddress}" HorizontalOptions="Start" VerticalOptions="Start"/>
+        <zxing:BarcodeGeneratorView HeightRequest="250"
+                                    WidthRequest="250"
+                                    BackgroundColor="Transparent"
+                                    ForegroundColor="White"
+                                    Value="{Binding WalletAddress}"
+                                    VerticalOptions="CenterAndExpand"
+                                    Format="QrCode" />
+        <StackLayout Orientation="Horizontal" VerticalOptions="End" Spacing="24">
+            <Button Text="[Copy Address]" VerticalOptions="End" HorizontalOptions="Start"/>
+            <Button Text="[Withdraw Bitcoin]" Command="{Binding WithdrawBitcoinCommand}" VerticalOptions="End" HorizontalOptions="EndAndExpand"/>
+        </StackLayout>
+    </StackLayout>
+</base:BasePage>

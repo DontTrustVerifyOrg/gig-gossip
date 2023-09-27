@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<base:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:base="clr-namespace:GigMobile.Pages"
+               xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Profile"
+               x:Class="GigMobile.Pages.Profile.AllowBiometricPage"
+               x:DataType="viewModel:AllowBiometricViewModel"
+               x:TypeArguments="viewModel:AllowBiometricViewModel"
+               Title=" 👤 Allow FaceID">
+    <ContentPage.Resources>
+        <ResourceDictionary>
+                <x:Boolean x:Key="True">True</x:Boolean>
+                <x:Boolean x:Key="False">False</x:Boolean>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+    <StackLayout VerticalOptions="CenterAndExpand" Padding="24" Spacing="48">
+        <Label Text="Would you like to enable FaceID for this app?  " HorizontalOptions="Center" VerticalOptions="Center"/>
+        <StackLayout Orientation="Horizontal" VerticalOptions="Center" HorizontalOptions="Center" Spacing="48">
+            <Button Text="[ No ❌ ]" Command="{Binding AnswerCommand}" CommandParameter="{StaticResource False}" HorizontalOptions="Center"/>
+            <Button Text="[ Yes ✔️ ]" Command="{Binding AnswerCommand}" CommandParameter="{StaticResource True}" HorizontalOptions="Center"/>
+        </StackLayout>
+    </StackLayout>
+</base:BasePage>

@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<base:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:base="clr-namespace:GigMobile.Pages"
+               xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Ride.Driver"
+               x:DataType="viewModel:WaitingApprovalViewModel"
+               x:TypeArguments="viewModel:WaitingApprovalViewModel"
+               x:Class="GigMobile.Pages.Ride.Driver.WaitingApprovalPage"
+               Title=" 🚖  Awaiting Rider Approval">
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
+        <ActivityIndicator IsRunning="True" VerticalOptions="CenterAndExpand" HorizontalOptions="CenterAndExpand"/>
+        <Label Text="Your ride request is pending..." HorizontalOptions="Center"/>
+        <Label Text="Please wait while we get the rider's approval."/>
+        <Label Text="You will be notified once the rider has accepted or declined your request. Please stay on this screen until we update you."/>
+        <Button Text="[Cancel Request]" VerticalOptions="EndAndExpand" HorizontalOptions="Center"
+                Command="{Binding CancelRequestCommand}"/>
+    </StackLayout>
+</base:BasePage>

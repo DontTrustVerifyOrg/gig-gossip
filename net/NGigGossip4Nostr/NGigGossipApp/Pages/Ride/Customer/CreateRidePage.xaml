@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<base:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:base="clr-namespace:GigMobile.Pages"
+               xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Ride.Customer"
+               x:DataType="viewModel:CreateRideViewModel"
+               x:TypeArguments="viewModel:CreateRideViewModel"
+               x:Class="GigMobile.Pages.Ride.Customer.CreateRidePage"
+               Title=" 🚖  Request a Ride ">
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
+        <Label Text="Choose Pickup Location:" HorizontalOptions="Start" VerticalOptions="Start"/>
+        <Entry Placeholder="Pickup Location" HorizontalOptions="FillAndExpand" />
+        <Button Text="[📍 Pick on Map]" Command="{Binding PickToCommand}" HorizontalOptions="End"/>
+        <Label Text="Choose Destination Location:" HorizontalOptions="Start" VerticalOptions="Start"/>
+        <Entry Placeholder="Destination Location" HorizontalOptions="FillAndExpand" />
+        <Button Text="[📍 Pick on Map]" Command="{Binding PickFromCommand}" HorizontalOptions="End"/>
+        <Grid ColumnDefinitions="*, *" VerticalOptions="EndAndExpand">
+            <Button Grid.Column="0" Text="[⛔ Cancel]" VerticalOptions="End" HorizontalOptions="Center"/>
+            <Button Grid.Column="1" Text="[✅ Request]" Command="{Binding RequestCommand}" VerticalOptions="End" HorizontalOptions="Center"/>
+        </Grid>
+    </StackLayout>
+</base:BasePage>
