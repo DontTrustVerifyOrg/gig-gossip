@@ -1,0 +1,1 @@
+The app is using a custom lib for MVVP Mapping. This lib has been added to mobile project root folder under BindedMvvm.1.0.1.nupkg. To use this package please add a new nugget packages source with location "{your path}/gig-gossip/net/NGigGossip4Nostr"
