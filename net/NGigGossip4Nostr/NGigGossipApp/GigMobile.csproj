@@ -102,4 +102,7 @@
 	  <Folder Include="Pages\Ride\Driver\" />
 	  <Folder Include="Services\" />
 	</ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
+	</ItemGroup>
 </Project>
