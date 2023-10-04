@@ -14,7 +14,10 @@ namespace GigLNDWalletAPIClient
 
 		public void Connect(string authToken)
 		{
-            connection = new HubConnectionBuilder().WithUrl(swaggerClient.BaseUrl + "paymentstatusupdates?authtoken=" + Uri.EscapeDataString(authToken)).Build();
+            connection = new HubConnectionBuilder()
+                .WithUrl(swaggerClient.BaseUrl + "paymentstatusupdates?authtoken=" + Uri.EscapeDataString(authToken))
+                .WithAutomaticReconnect()
+                .Build();
             connection.StartAsync().Wait();
         }
 

@@ -80,7 +80,7 @@ public abstract class NostrNode
                     });
 
 
-            newEvent.EncryptNip04EventAsync(this.privateKey).AsTask().Wait();
+            newEvent.EncryptNip04EventAsync(this.privateKey, skipKindVerification: true).AsTask().Wait();
             newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false).Wait();
             events.Add(newEvent);
         }
@@ -160,7 +160,7 @@ public abstract class NostrNode
                 int parti = int.Parse(tagDic["i"][0]);
                 int partNum = int.Parse(tagDic["n"][0]);
                 string idx = tagDic["x"][0];
-                var msg = nostrEvent.DecryptNip04EventAsync(this.privateKey).Result;
+                var msg = nostrEvent.DecryptNip04EventAsync(this.privateKey, skipKindVerification: true).Result;
                 if (partNum == 1)
                 {
                     var type = tagDic["t"][0];

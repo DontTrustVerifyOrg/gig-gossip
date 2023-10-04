@@ -14,7 +14,10 @@ namespace GigGossipSettlerAPIClient
 
 		public void Connect(string authToken)
 		{
-            connection = new HubConnectionBuilder().WithUrl(swaggerClient.BaseUrl + "preimagereveal?authtoken=" + Uri.EscapeDataString(authToken)).Build();
+            connection = new HubConnectionBuilder()
+                .WithUrl(swaggerClient.BaseUrl + "preimagereveal?authtoken=" + Uri.EscapeDataString(authToken))
+                .WithAutomaticReconnect()
+                .Build();
             connection.StartAsync().Wait();
         }
 
