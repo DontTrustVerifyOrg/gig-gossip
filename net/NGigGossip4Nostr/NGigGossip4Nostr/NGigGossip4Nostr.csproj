@@ -8,10 +8,11 @@
 
   <ItemGroup>
     <PackageReference Include="NBitcoin.Secp256k1" Version="3.1.1" />
-    <PackageReference Include="NBitcoin" Version="7.0.30" />
+    <PackageReference Include="NBitcoin" Version="7.0.31" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="7.0.11" />
+    <PackageReference Include="NNostr.Client" Version="0.0.37" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="Tester.cs" />
@@ -21,6 +22,5 @@
     <ProjectReference Include="..\GigLNDWalletAPIClient\GigLNDWalletAPIClient.csproj" />
     <ProjectReference Include="..\GigGossipFrames\GigGossipFrames.csproj" />
     <ProjectReference Include="..\GigGossipSettlerAPIClient\GigGossipSettlerAPIClient.csproj" />
-    <ProjectReference Include="..\..\..\..\NNostr\NNostr.Client\NNostr.Client.csproj" />
   </ItemGroup>
 </Project>
