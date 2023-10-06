@@ -1,14 +1,20 @@
 ﻿using System.Windows.Input;
+using GigMobile.Services;
 
 namespace GigMobile.ViewModels.TrustEnforcers
 {
 	public class TrustEnforcersViewModel : BaseViewModel
     {
-        public string TrustEnforcer { get; set; } = "www.stripe.com";
-        public string[] TrustEnforcers { get; set; } = new string[3] { "www.trust-me.com", "www.stripe.com", "www.gig-trust.com" };
+        public string[] TrustEnforcers { get; set; }
 
         private ICommand _addTrEnfCommand;
         public ICommand AddTrEnfCommand => _addTrEnfCommand ??= new Command(() => { NavigationService.NavigateAsync<AddTrEnfViewModel>(animated: true); });
+
+        public async override Task Initialize()
+        {
+            await base.Initialize();
+            TrustEnforcers = await SecureDatabase.GetTrustEnforcersAsync();
+        }
     }
 }
 

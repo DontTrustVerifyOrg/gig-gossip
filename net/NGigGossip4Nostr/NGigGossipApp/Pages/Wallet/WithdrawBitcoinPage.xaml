@@ -11,14 +11,14 @@
         <Label Text="{Binding BitcoinBallance , StringFormat='💰 {0} BTC'}" HorizontalOptions="Start" VerticalOptions="Start"/>
         <Label Text="Enter address to send Bitcoin:" HorizontalOptions="Start" VerticalOptions="Start"/>
         <StackLayout Orientation="Horizontal" Spacing="24" HorizontalOptions="FillAndExpand">
-            <Entry Placeholder="Bitcoin Address" VerticalOptions="Center" HorizontalOptions="FillAndExpand"/>
+            <Entry Text="{Binding SenderAddress}" Placeholder="Bitcoin Address" VerticalOptions="Center" HorizontalOptions="FillAndExpand"/>
             <Button Text="[Scan QRcode]" Command="{Binding ScanWalletCommand}"  VerticalOptions="Center" HorizontalOptions="End"/>
         </StackLayout>
         <Label Text="Enter amount (In BTC): " HorizontalOptions="Start" VerticalOptions="Start"/>
-        <Entry Placeholder="Amount" Keyboard="Numeric" VerticalOptions="Center" HorizontalOptions="Start"/>
+        <Entry Text="{Binding Amount}" Placeholder="Amount" Keyboard="Numeric" VerticalOptions="Center" HorizontalOptions="Start"/>
         <StackLayout Orientation="Horizontal" VerticalOptions="EndAndExpand" HorizontalOptions="Center" Spacing="48">
             <Button Text="[⛔ Cancel]" Command="{Binding CancelWalletCommand}" HorizontalOptions="Center"/>
-            <Button Text="[✅ Confirm]" HorizontalOptions="Center"/>
+            <Button Text="[✅ Confirm]" Command="{Binding SendCommand}" HorizontalOptions="Center"/>
         </StackLayout>
     </StackLayout>
 </base:BasePage>

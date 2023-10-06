@@ -2,10 +2,11 @@
 
 namespace GigMobile.ViewModels.Profile
 {
+    [BindedMvvm.Attributes.CleanHistory]
 	public class ProfileSetupViewModel : BaseViewModel
 	{
 		private ICommand _loginCommand;
-		public ICommand LoginCommand => _loginCommand ??= new Command(() => { NavigationService.NavigateAsync<LoginPrKeyViewModel>(animated: true); });
+		public ICommand LoginCommand => _loginCommand ??= new Command(() => { NavigationService.NavigateAsync<LoginPrKeyViewModel, string>(null, animated: true); });
 
         private ICommand _createCommand;
         public ICommand CreateCommand => _createCommand ??= new Command(() => { NavigationService.NavigateAsync<CreateProfileViewModel>(animated: true); });

@@ -1,15 +1,26 @@
 ﻿using System;
 using System.Windows.Input;
+using GigMobile.Services;
+using CryptoToolkit;
 
 namespace GigMobile.ViewModels.Wallet
 {
 	public class WalletDetailsViewModel : BaseViewModel
 	{
-		public decimal BitcoinBallance { get; set; } = 0.00000025m;
-        public string WalletAddress { get; set; } = "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
+        public decimal BitcoinBallance { get; private set; }
+        public string WalletAddress { get; private set; }
 
         private ICommand _withdrawBitcoinCommand;
-        public ICommand WithdrawBitcoinCommand => _withdrawBitcoinCommand ??= new Command(() => { NavigationService.NavigateAsync<WithdrawBitcoinViewModel>(); });
+        public ICommand WithdrawBitcoinCommand => _withdrawBitcoinCommand ??= new Command(() => { NavigationService.NavigateAsync<WithdrawBitcoinViewModel, decimal>(BitcoinBallance); });
+
+        public override async Task Initialize()
+        {
+            var privateKey = await SecureDatabase.GetPrivateKeyAsync();
+            //TODO
+            //BitcoinBallance = PAWEL_API.GetBallance(privateKey);
+            //WalletAddress = PAWEL_API.GetWalletAddress(privateKey); //For QR Code
+            await base.Initialize();
+        }
     }
 }
 

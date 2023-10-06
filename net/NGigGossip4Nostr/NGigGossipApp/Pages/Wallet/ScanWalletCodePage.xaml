@@ -12,7 +12,7 @@
     <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
         <Label Text="Point your camera at the QR code.  " HorizontalOptions="Start" VerticalOptions="Start"/>
         <Frame Margin="8" BorderColor="White" CornerRadius="0" Padding="4" InputTransparent="True" VerticalOptions="FillAndExpand">
-            <zxing:CameraBarcodeReaderView VerticalOptions="FillAndExpand" HorizontalOptions="FillAndExpand">
+            <zxing:CameraBarcodeReaderView VerticalOptions="FillAndExpand" HorizontalOptions="FillAndExpand" BarcodesDetected="CameraBarcodeReaderView_BarcodesDetected">
                 <zxing:CameraBarcodeReaderView.Options>
                     <maui:BarcodeReaderOptions Formats="QrCode"/>
                 </zxing:CameraBarcodeReaderView.Options>

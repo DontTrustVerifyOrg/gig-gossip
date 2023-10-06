@@ -9,7 +9,7 @@
                Title=" 🔒 Login With Your PrivKey">
     <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
         <Label Text="Enter your PrivKey:" HorizontalOptions="Start" VerticalOptions="Start"/>
-        <Entry Placeholder="PrivKey" HorizontalOptions="FillAndExpand" />
+        <Entry Placeholder="PrivKey" Text="{Binding PrivateKey}" HorizontalOptions="FillAndExpand" />
         <Button Text="[ Next ➡️ ]" Command="{Binding LoginCommand}" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
     </StackLayout>
 </base:BasePage>

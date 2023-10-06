@@ -9,12 +9,12 @@
                Title=" 🛡️ Add Trust Enforcer">
     <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
         <Label Text="Enter domain name of new Trust Enforcer:" HorizontalOptions="Start" VerticalOptions="Start"/>
-        <Entry Placeholder="Trust Enforcer's domain" HorizontalOptions="FillAndExpand" />
+        <Entry Text="{Binding Url}" Placeholder="Trust Enforcer's domain" HorizontalOptions="FillAndExpand" />
         <Label Text="Enter your mobile number for verification:" HorizontalOptions="Start" VerticalOptions="Start"/>
         <StackLayout Spacing="12" Orientation="Horizontal">
             <Label Text="+" HorizontalOptions="Start" VerticalOptions="Center"/>
-            <Entry Placeholder="code" MaxLength="2" HorizontalOptions="Start" VerticalOptions="Center"/>
-            <Entry Placeholder="number" HorizontalOptions="FillAndExpand" VerticalOptions="Center"/>
+            <Entry Text="{Binding PhoneCode}" Placeholder="code" MaxLength="2" HorizontalOptions="Start" VerticalOptions="Center"/>
+            <Entry Text="{Binding PhoneNumber}" Placeholder="number" HorizontalOptions="FillAndExpand" VerticalOptions="Center"/>
         </StackLayout>
         <Grid ColumnDefinitions="3*, *" VerticalOptions="EndAndExpand">
             <Button Grid.Column="0" Text="[Skip]" Command="{Binding SkipCommand}" VerticalOptions="End" HorizontalOptions="Center"/>

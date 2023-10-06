@@ -10,12 +10,23 @@
     <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
         <Label Text="Enter the 6-digit SMS code sent to your mobile number: " HorizontalOptions="Start" VerticalOptions="Start"/>
         <StackLayout Orientation="Horizontal" Spacing="12" VerticalOptions="CenterAndExpand" HorizontalOptions="Center">
-            <Entry HorizontalOptions="Center"/>
-            <Entry HorizontalOptions="Center"/>
-            <Entry HorizontalOptions="Center"/>
-            <Entry HorizontalOptions="Center"/>
-            <Entry HorizontalOptions="Center"/>
-            <Entry HorizontalOptions="Center"/>
+            <Entry HorizontalOptions="Center" MaxLength="1"
+                   Keyboard="Numeric" Text="{Binding Code}"/>
+            <Entry HorizontalOptions="Center" MaxLength="1"
+                   Keyboard="Numeric" Text="{Binding Code}"
+                   x:Name="Entry2"/>
+            <Entry HorizontalOptions="Center" MaxLength="1"
+                   Keyboard="Numeric" Text="{Binding Code}"
+                   x:Name="Entry3"/>
+            <Entry HorizontalOptions="Center" MaxLength="1"
+                   Keyboard="Numeric" Text="{Binding Code}"
+                   x:Name="Entry4"/>
+            <Entry HorizontalOptions="Center" MaxLength="1"
+                   Keyboard="Numeric" Text="{Binding Code}"
+                   x:Name="Entry5"/>
+            <Entry HorizontalOptions="Center" MaxLength="1"
+                   Keyboard="Numeric" Text="{Binding Code}"
+                   x:Name="Entry6"/>
         </StackLayout>
         <Button Text="[Submit]" Command="{Binding SubmitCommand}" VerticalOptions="End" HorizontalOptions="End"/>
     </StackLayout>

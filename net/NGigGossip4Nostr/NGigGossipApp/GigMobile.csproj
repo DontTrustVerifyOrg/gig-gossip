@@ -11,6 +11,8 @@
 		<SingleProject>true</SingleProject>
 		<ImplicitUsings>enable</ImplicitUsings>
 
+		<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+
 		<!-- Display name -->
 		<ApplicationTitle>GigMobile</ApplicationTitle>
 
@@ -35,6 +37,9 @@
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net7.0-ios|AnyCPU'">
 	  <CreatePackage>false</CreatePackage>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net7.0-android|AnyCPU'">
+	  <AndroidDexTool>dx</AndroidDexTool>
 	</PropertyGroup>
 	<ItemGroup>
 		<!-- App Icon -->
@@ -64,6 +69,7 @@
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		  <PrivateAssets>all</PrivateAssets>
 		</PackageReference>
+		<PackageReference Include="Plugin.Fingerprint" Version="2.1.5" />
 	</ItemGroup>
 
 	<ItemGroup>

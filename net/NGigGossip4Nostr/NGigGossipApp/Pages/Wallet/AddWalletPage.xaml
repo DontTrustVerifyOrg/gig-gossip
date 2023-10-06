@@ -9,7 +9,7 @@
                Title=" ⚡️ Add Lightning Wallet">
     <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
         <Label Text="Enter domain name your LND wallet provider:" HorizontalOptions="Start" VerticalOptions="Start"/>
-        <Entry Placeholder="LND wallet's domain" HorizontalOptions="FillAndExpand" />
+        <Entry Text="{Binding AddWalletCommand}" Placeholder="LND wallet's domain" HorizontalOptions="FillAndExpand" />
         <Button Text="[ Add ➕ ]" Command="{Binding AddWalletCommand}" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
     </StackLayout>
 </base:BasePage>

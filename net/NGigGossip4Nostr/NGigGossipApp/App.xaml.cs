@@ -1,5 +1,4 @@
 ﻿using BindedMvvm;
-using GigMobile.ViewModels.Ride.Customer;
 
 namespace GigMobile;
 
@@ -9,9 +8,7 @@ public partial class App : Application
 	{
 		InitializeComponent();
 
-		MainPage = new NavigationPage(new MainPage());
-
-		navigationService.NavigateAsync<CreateRideViewModel>(animated: true);
+		MainPage = new NavigationPage(new MainPage(navigationService));
 	}
 }
 
