@@ -16,8 +16,8 @@ namespace GigMobile.ViewModels.Wallet
         public override async Task Initialize()
         {
             var privateKey = await SecureDatabase.GetPrivateKeyAsync();
-            //TODO
-            //BitcoinBallance = PAWEL_API.GetBallance(privateKey);
+            var BitcoinBallance = GigGossipNodeService.WalletClient.Value.GetBalanceAsync(GigGossipNodeService.GigGossipNode.Value.MakeWalletAuthToken()).Result;            //TODO
+            // = PAWEL_API.GetBallance(privateKey);
             //WalletAddress = PAWEL_API.GetWalletAddress(privateKey); //For QR Code
             await base.Initialize();
         }
