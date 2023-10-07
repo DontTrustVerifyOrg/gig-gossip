@@ -110,5 +110,8 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
+	  <ProjectReference Include="..\GigGossipSettlerAPIClient\GigGossipSettlerAPIClient.csproj" />
+	  <ProjectReference Include="..\NGigGossip4Nostr\NGigGossip4Nostr.csproj" />
+	  <ProjectReference Include="..\GigLNDWalletAPIClient\GigLNDWalletAPIClient.csproj" />
 	</ItemGroup>
 </Project>
