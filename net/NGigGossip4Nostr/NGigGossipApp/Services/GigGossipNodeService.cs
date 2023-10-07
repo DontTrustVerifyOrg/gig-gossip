@@ -10,7 +10,7 @@ namespace GigMobile.Services
             return new GigGossipNode(
                 Path.Combine(FileSystem.AppDataDirectory, "GigGossip.db3"),
                 SecureDatabase.GetPrivateKeyAsync().Result.AsECPrivKey(),
-                [""],
+                new string[] { ""},
                 2048
             );
         }
