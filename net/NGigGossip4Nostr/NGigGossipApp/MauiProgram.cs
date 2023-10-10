@@ -1,7 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using SkiaSharp.Views.Maui.Controls.Hosting;
 using ZXing.Net.Maui.Controls;
-using SkiaSharp.Views.Maui.Controls.Hosting;
+using GigMobile.Services;
+using CryptoToolkit;
 
 namespace GigMobile;
 
@@ -50,6 +51,37 @@ public static class MauiProgram
     public static void RegisterServices(this IServiceCollection serviceDescriptors)
     {
         serviceDescriptors.AddSingleton<BindedMvvm.INavigationService, BindedMvvm.NavigationService>();
+        serviceDescriptors.AddTransient(implementationFactory: WalletClientFactoryImplementation);
+        serviceDescriptors.AddSingleton(implementationFactory: NodeFactoryImplementation);
+    }
+
+    private static GigLNDWalletAPIClient.swaggerClient WalletClientFactoryImplementation(IServiceProvider provider)
+    {
+        return new GigLNDWalletAPIClient.swaggerClient(GigGossipNodeConfig.GigWalletOpenApi, new HttpClient());
+    }
+
+    private static GigGossipNode NodeFactoryImplementation(IServiceProvider provider)
+    {
+        var node = new GigGossipNode(
+            $"Filename={Path.Combine(FileSystem.AppDataDirectory, GigGossipNodeConfig.DatabaseFile)}",
+            SecureDatabase.PrivateKey.AsECPrivKey(),
+            GigGossipNodeConfig.NostrRelays,
+            GigGossipNodeConfig.ChunkSize
+        );
+
+        var walletClient = provider.GetService<GigLNDWalletAPIClient.swaggerClient>();
+
+        node.Init(
+            GigGossipNodeConfig.Fanout,
+            GigGossipNodeConfig.PriceAmountForRouting,
+            TimeSpan.FromMilliseconds(GigGossipNodeConfig.BroadcastConditionsTimeoutMs),
+            GigGossipNodeConfig.BroadcastConditionsPowScheme,
+            GigGossipNodeConfig.BroadcastConditionsPowComplexity,
+            TimeSpan.FromMilliseconds(GigGossipNodeConfig.TimestampToleranceMs),
+            TimeSpan.FromSeconds(GigGossipNodeConfig.InvoicePaymentTimeoutSec),
+            walletClient);
+
+        return node;
     }
 }
 

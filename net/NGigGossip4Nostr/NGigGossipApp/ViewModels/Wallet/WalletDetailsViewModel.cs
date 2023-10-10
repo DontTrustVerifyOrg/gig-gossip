@@ -1,25 +1,31 @@
-﻿using System;
-using System.Windows.Input;
-using GigMobile.Services;
-using CryptoToolkit;
+﻿using System.Windows.Input;
+using GigLNDWalletAPIClient;
 
 namespace GigMobile.ViewModels.Wallet
 {
 	public class WalletDetailsViewModel : BaseViewModel
-	{
+    {
+        private readonly GigGossipNode _gigGossipNode;
+        private readonly swaggerClient _walletClient;
+
         public decimal BitcoinBallance { get; private set; }
         public string WalletAddress { get; private set; }
 
         private ICommand _withdrawBitcoinCommand;
         public ICommand WithdrawBitcoinCommand => _withdrawBitcoinCommand ??= new Command(() => { NavigationService.NavigateAsync<WithdrawBitcoinViewModel, decimal>(BitcoinBallance); });
 
+        public WalletDetailsViewModel(GigGossipNode gigGossipNode, GigLNDWalletAPIClient.swaggerClient walletClient)
+        {
+            _gigGossipNode = gigGossipNode;
+            _walletClient = walletClient;
+        }
+
         public override async Task Initialize()
         {
-            var privateKey = await SecureDatabase.GetPrivateKeyAsync();
-            var BitcoinBallance = GigGossipNodeService.WalletClient.Value.GetBalanceAsync(GigGossipNodeService.GigGossipNode.Value.MakeWalletAuthToken()).Result;            //TODO
-            // = PAWEL_API.GetBallance(privateKey);
-            //WalletAddress = PAWEL_API.GetWalletAddress(privateKey); //For QR Code
             await base.Initialize();
+
+            var token = _gigGossipNode.MakeWalletAuthToken();
+            BitcoinBallance = await _walletClient.GetBalanceAsync(token);
         }
     }
 }

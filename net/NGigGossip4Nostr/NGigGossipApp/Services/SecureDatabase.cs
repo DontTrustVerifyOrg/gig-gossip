@@ -11,16 +11,20 @@ namespace GigMobile.Services
         const string TEN = "TR_EN";
 
         const string ISP = "IS_STP";
+
         public enum SetupStatus { Finished = 256, Enforcer = 0, Wallet, }
 
+        public static string PrivateKey { get; private set; }
 
         public static async Task<string> GetPrivateKeyAsync()
 		{
-            return await SecureStorage.Default.GetAsync(PRK);
+            PrivateKey = await SecureStorage.Default.GetAsync(PRK);
+            return PrivateKey;
         }
 
         public static async Task SetPrivateKeyAsync(string key)
         {
+            PrivateKey = key;
             await SecureStorage.SetAsync(PRK, key);
         }
 
