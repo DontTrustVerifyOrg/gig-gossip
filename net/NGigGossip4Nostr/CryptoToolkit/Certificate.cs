@@ -46,7 +46,7 @@ public class Certificate : SignableObject
    /// <summary>
    /// Collection of certified properties of the Subject
    /// </summary>
-   public required Dictionary<string, byte[]> Properties { get; set; }
+   public required string[] Properties { get; set; }
 
    /// <summary>
    /// Date and Time when the Certificate will no longer be valid
@@ -122,7 +122,7 @@ public class CertificationAuthority
    /// <param name="notValidAfter">The date after which the certificate is not valid.</param>
    /// <param name="notValidBefore">The date before which the certificate is not valid.</param>
    /// <returns>A new certificate signed and issued by the Certification Authority for the Subject.</returns>
-   public Certificate IssueCertificate(ECXOnlyPubKey ecxOnlypublicKey, Dictionary<string, byte[]> properties, DateTime notValidAfter, DateTime notValidBefore)
+   public Certificate IssueCertificate(ECXOnlyPubKey ecxOnlypublicKey, string[] properties, DateTime notValidAfter, DateTime notValidBefore)
    {
        var certificate = new Certificate
        {

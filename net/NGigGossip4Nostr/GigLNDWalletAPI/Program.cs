@@ -115,6 +115,21 @@ app.MapGet("/newaddress", (string authToken) =>
     return g;
 });
 
+app.MapGet("/registerpayout", (string authToken,long satoshis,string btcAddress,long txfee) =>
+{
+    return Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).RegisterPayout(satoshis, btcAddress, txfee);
+})
+.WithName("RegisterPayout")
+.WithSummary("Register for payout to Chain")
+.WithDescription("Creates new request for payout from wallet to the chain")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "authorisation token for the communication";
+    g.Parameters[1].Description = "amount in satoshis";
+    g.Parameters[2].Description = "bitcoin address";
+    g.Parameters[3].Description = "transaction fee";
+    return g;
+});
 
 app.MapGet("/addinvoice", (string authToken, long satoshis, string memo, long expiry) =>
 {

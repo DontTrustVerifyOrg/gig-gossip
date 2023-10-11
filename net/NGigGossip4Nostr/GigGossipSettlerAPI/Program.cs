@@ -9,6 +9,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.SignalR.Client;
 using GigGossipSettler;
 using GigGossipSettlerAPI;
+using System.Xml.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -115,6 +116,24 @@ app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, s
     g.Parameters[2].Description = "Name of the property.";
     g.Parameters[3].Description = "Value of the property.";
     g.Parameters[4].Description = "Date and time after which the property will not be valid anymore";
+    return g;
+});
+
+app.MapGet("/verifychannel", (string authToken, string pubkey, string name, string method, string value) =>
+{
+    Singlethon.Settler.ValidateAuthToken(authToken);
+    Singlethon.Settler.GiveUserProperty(pubkey, name, Convert.FromBase64String(method+":"+value), DateTime.MaxValue);
+})
+.WithName("VerifyChannel")
+.WithSummary("Verifies specific channel.")
+.WithDescription("Verifies specific channel.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Public key of the subject.";
+    g.Parameters[2].Description = "Channel name (phone,email,...)";
+    g.Parameters[3].Description = "Method (sms,call,message)";
+    g.Parameters[4].Description = "Value of Channel for the method (phone number, email address).";
     return g;
 });
 

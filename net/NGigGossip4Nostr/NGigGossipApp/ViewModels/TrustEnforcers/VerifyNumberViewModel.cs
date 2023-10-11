@@ -11,6 +11,8 @@ namespace GigMobile.ViewModels.TrustEnforcers
 
     public class VerifyNumberViewModel : BaseViewModel<NewTrustEnforcer>
     {
+        private readonly GigGossipNode _gigGossipNode;
+
         private NewTrustEnforcer _newTrustEnforcer;
 
         private ICommand _submitCommand;
@@ -23,10 +25,17 @@ namespace GigMobile.ViewModels.TrustEnforcers
             _newTrustEnforcer = data;
         }
 
-        public override Task Initialize()
+        public VerifyNumberViewModel(GigGossipNode gigGossipNode)
         {
-            return base.Initialize();
-            //TODO PAWEL_API.SendSmsCode to phone (_newTrustEnforcer.PhoneNumber);
+            _gigGossipNode = gigGossipNode;
+        }
+
+        public async override Task Initialize()
+        {
+            await base.Initialize();
+
+            var settlerToken = await _gigGossipNode.MakeSettlerAuthTokenAsync(GigGossipNodeConfig.SettlerOpenApi);
+            await _gigGossipNode.SettlerSelector.GetSettlerClient(GigGossipNodeConfig.SettlerOpenApi).VerifyChannelAsync(settlerToken, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", _newTrustEnforcer.PhoneNumber);
         }
 
 

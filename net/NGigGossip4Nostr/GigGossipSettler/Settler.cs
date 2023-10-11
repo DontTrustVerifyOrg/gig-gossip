@@ -172,7 +172,7 @@ public class Settler : CertificationAuthority
         if (!hasprops.SetEquals((from p in props select p.Name)))
             throw new SettlerException(SettlerErrorCode.PropertyNotGranted);
         var minDate = (from p in props select p.ValidTill).Min();
-        var prp = new Dictionary<string, byte[]>((from p in props select KeyValuePair.Create<string, byte[]>(p.Name, p.Value)));
+        var prp = (from p in props select p.Name).ToArray();
         var cert = base.IssueCertificate(pubkey.AsECXOnlyPubKey(), prp, minDate, DateTime.Now);
         var certProps = (from p in props select new CertificateProperty() { CertificateId = cert.Id, PropertyId = p.PropertyId }).ToArray();
         settlerContext.Value.AddObjectRange(certProps);

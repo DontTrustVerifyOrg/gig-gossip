@@ -2,8 +2,10 @@
 
 namespace GigMobile.ViewModels.Wallet
 {
-	public class WithdrawBitcoinViewModel : BaseViewModel<decimal>
+	public class WithdrawBitcoinViewModel : BaseViewModel
     {
+        private readonly GigGossipNode _gigGossipNode;
+
         public decimal BitcoinBallance { get; set; }
 
         private ICommand _cancelWalletCommand;
@@ -15,25 +17,32 @@ namespace GigMobile.ViewModels.Wallet
         private ICommand _sendCommand;
         public ICommand SendCommand => _sendCommand ??= new Command(async () => await SendAsync());
 
-        public string SenderAddress { get; set; }
+        public string OnchainAddress { get; set; }
 
-        public decimal Amount { get; set; }
+        public long Amount { get; set; }
 
-        public override void Prepare(decimal data)
+        public override async Task Initialize()
         {
-            BitcoinBallance = data;
+            await base.Initialize();
+
+            var token = _gigGossipNode.MakeWalletAuthToken();
+            BitcoinBallance = await _gigGossipNode.LNDWalletClient.GetBalanceAsync(token);
         }
 
         private void OnCodeDetected(object code)
         {
-            SenderAddress = code.ToString();
+            OnchainAddress = code.ToString();
+        }
+
+        public WithdrawBitcoinViewModel(GigGossipNode gigGossipNode)
+        {
+            _gigGossipNode = gigGossipNode;
         }
 
         private async Task SendAsync()
         {
-            //TODO 
-            /* var privateKey = await SecureDatabase.GetPrivateKeyAsync();
-             * await PAWEL_API.SendMoney(privateKey, SenderAddress, Amount);*/
+            var token = _gigGossipNode.MakeWalletAuthToken();
+            var payoutId = await _gigGossipNode.LNDWalletClient.RegisterPayoutAsync(token, Amount, OnchainAddress, 100);
             await NavigationService.NavigateBackAsync();
         }
     }

@@ -109,6 +109,73 @@
         }
       }
     },
+    "/registerpayout": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Register for payout to Chain",
+        "description": "Creates new request for payout from wallet to the chain",
+        "operationId": "RegisterPayout",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "authorisation token for the communication",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "satoshis",
+            "in": "query",
+            "description": "amount in satoshis",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "btcAddress",
+            "in": "query",
+            "description": "bitcoin address",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "txfee",
+            "in": "query",
+            "description": "transaction fee",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/addinvoice": {
       "get": {
         "tags": [

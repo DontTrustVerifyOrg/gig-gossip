@@ -18,11 +18,10 @@ namespace GigMobile.ViewModels.Wallet
             {
                 var privateKeyString = await SecureDatabase.GetPrivateKeyAsync();
                 var privateKey = privateKeyString.AsECPrivKey();
-                //TODO
-                /*
-                 * var wallet = PAWEL_API.CreateWallet(privateKey);
-                 * await SecureDatabase.SetSetSetupStatusAsync(SecureDatabase.SetupStatus.Finished);
-                 */
+
+                WalletDomain = GigGossipNodeConfig.GigWalletOpenApi;
+                await SecureDatabase.SetSetSetupStatusAsync(SecureDatabase.SetupStatus.Finished);
+
                 await NavigationService.NavigateAsync<WalletDetailsViewModel>();
             }
         }
