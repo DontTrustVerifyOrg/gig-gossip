@@ -11,6 +11,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Grpc.Core" Version="2.46.6" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.57.0" />
     <PackageReference Include="Google.Protobuf" Version="3.24.4" />
     <PackageReference Include="NBitcoin" Version="7.0.31" />
   </ItemGroup>
