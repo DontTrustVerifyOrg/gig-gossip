@@ -1,4 +1,5 @@
 ﻿using System.Windows.Input;
+using CryptoToolkit;
 using GigMobile.Services;
 
 namespace GigMobile.ViewModels.TrustEnforcers
@@ -34,8 +35,16 @@ namespace GigMobile.ViewModels.TrustEnforcers
         {
             await base.Initialize();
 
-            var settlerToken = await _gigGossipNode.MakeSettlerAuthTokenAsync(GigGossipNodeConfig.SettlerOpenApi);
-            await _gigGossipNode.SettlerSelector.GetSettlerClient(GigGossipNodeConfig.SettlerOpenApi).VerifyChannelAsync(settlerToken, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", _newTrustEnforcer.PhoneNumber);
+            var token = await _gigGossipNode.MakeSettlerAuthTokenAsync(GigGossipNodeConfig.SettlerOpenApi);
+            var settlerClient = _gigGossipNode.SettlerSelector.GetSettlerClient(GigGossipNodeConfig.SettlerOpenApi);
+            await settlerClient.VerifyChannelAsync(token, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", _newTrustEnforcer.PhoneNumber);
+
+            var certificate = Crypto.DeserializeObject<Certificate>(
+                 settlerClient.IssueCertificateAsync(
+                    token, _gigGossipNode.PublicKey, new List<string> { "PhoneNumber" }).Result);
+
+            //save certificate for later => LookingDriverViewModel
+
         }
 
 
