@@ -1,5 +1,5 @@
 ﻿using System;
-namespace GigMobile.ViewModels.Ride;
+namespace GigMobile;
 
 
 [Serializable]

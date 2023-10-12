@@ -55,7 +55,9 @@ public static class LND
 
     static T Client<T>(NodeSettings conf) where T : ClientBase<T>
     {
-        var channel = GrpcChannel.ForAddress(conf.RpcHost, new GrpcChannelOptions { HttpClient = GetSSLHttpClient(conf.TlsCertFile.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))) });
+        var channel = GrpcChannel.ForAddress(conf.RpcHost,
+            new GrpcChannelOptions {
+                HttpClient = GetSSLHttpClient(conf.TlsCertFile.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))) });
 
         var ctors = typeof(T).GetConstructors();
         var ctor = ctors.First(x => x.GetParameters().Length == 1 && x.GetParameters().Single().Name == "channel");
