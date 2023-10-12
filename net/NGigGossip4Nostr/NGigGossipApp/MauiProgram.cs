@@ -54,13 +54,7 @@ public static class MauiProgram
     public static void RegisterServices(this IServiceCollection serviceDescriptors)
     {
         serviceDescriptors.AddSingleton<BindedMvvm.INavigationService, BindedMvvm.NavigationService>();
-        serviceDescriptors.AddTransient(implementationFactory: WalletClientFactoryImplementation);
         serviceDescriptors.AddSingleton(implementationFactory: NodeFactoryImplementation);
-    }
-
-    private static GigLNDWalletAPIClient.swaggerClient WalletClientFactoryImplementation(IServiceProvider provider)
-    {
-        return new GigLNDWalletAPIClient.swaggerClient(GigGossipNodeConfig.GigWalletOpenApi, new HttpClient());
     }
 
     private static GigGossipNode NodeFactoryImplementation(IServiceProvider provider)
@@ -71,8 +65,13 @@ public static class MauiProgram
             GigGossipNodeConfig.NostrRelays,
             GigGossipNodeConfig.ChunkSize
         );
+        var address = GigGossipNodeConfig.GigWalletOpenApi;
 
-        var walletClient = provider.GetService<GigLNDWalletAPIClient.swaggerClient>();
+
+        if (DeviceInfo.Platform == DevicePlatform.Android)
+            address = address.Replace("localhost", "10.0.2.2");
+
+        var walletClient = new GigLNDWalletAPIClient.swaggerClient(address, new HttpClient(HttpsClientHandlerService.GetPlatformMessageHandler()));
 
         node.Init(
             GigGossipNodeConfig.Fanout,

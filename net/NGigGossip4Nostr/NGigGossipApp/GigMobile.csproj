@@ -34,12 +34,20 @@
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net7.0-ios|AnyCPU'">
 	  <CreatePackage>false</CreatePackage>
+	  <CodesignKey>iPhone Developer</CodesignKey>
+	  <CodesignEntitlements>Platforms\iOS\Entitlements.plist</CodesignEntitlements>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net7.0-ios|AnyCPU'">
 	  <CreatePackage>false</CreatePackage>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net7.0-android|AnyCPU'">
 	  <AndroidDexTool>dx</AndroidDexTool>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net7.0-maccatalyst|AnyCPU'">
+	  <CreatePackage>false</CreatePackage>
+	  <CodesignKey>Mac Developer</CodesignKey>
+	  <PackageSigningKey>3rd Party Mac Developer Installer</PackageSigningKey>
+	  <CodesignEntitlements>Platforms\MacCatalyst\Entitlements.plist</CodesignEntitlements>
 	</PropertyGroup>
 	<ItemGroup>
 		<!-- App Icon -->
@@ -91,6 +99,7 @@
 	  <None Remove="ViewModels\Ride\Driver\" />
 	  <None Remove="Pages\Ride\Driver\" />
 	  <None Remove="Services\" />
+	  <None Remove="Platforms\Android\Resources\xml\" />
 	</ItemGroup>
 	<ItemGroup>
 	  <Folder Include="ViewModels\" />
@@ -109,11 +118,18 @@
 	  <Folder Include="ViewModels\Ride\Driver\" />
 	  <Folder Include="Pages\Ride\Driver\" />
 	  <Folder Include="Services\" />
+	  <Folder Include="Platforms\Android\Resources\xml\" />
 	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
 	  <ProjectReference Include="..\GigGossipSettlerAPIClient\GigGossipSettlerAPIClient.csproj" />
 	  <ProjectReference Include="..\NGigGossip4Nostr\NGigGossip4Nostr.csproj" />
 	  <ProjectReference Include="..\GigLNDWalletAPIClient\GigLNDWalletAPIClient.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+	  <AndroidResource Update="Platforms\Android\Resources\xml\network_security_config.xml">
+	    <SubType></SubType>
+	    <Generator></Generator>
+	  </AndroidResource>
 	</ItemGroup>
 </Project>

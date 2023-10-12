@@ -39,7 +39,7 @@ namespace GigMobile.ViewModels.Profile
                                 case SecureDatabase.SetupStatus.Enforcer: await NavigationService.NavigateAsync<TrustEnforcers.AddTrEnfViewModel, bool>(true); break;
                                 case SecureDatabase.SetupStatus.Wallet: await NavigationService.NavigateAsync<Wallet.AddWalletViewModel>(); break;
                                 default:
-                                    await NavigationService.NavigateAsync<Ride.Customer.CreateRideViewModel>(); break;
+                                    await NavigationService.NavigateAsync<Wallet.WalletDetailsViewModel>(); break;
                             }
                             
                         }
