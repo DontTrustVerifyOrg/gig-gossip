@@ -145,7 +145,7 @@ public class ComplexTest
                 await settlerClient.IssueCertificateAsync(
                      token, gigWorker.PublicKey, new List<string> { "drive" }));
 
-            await gigWorker.InitAsync(
+            gigWorker.Init(
                 gridNodeSettings.Fanout,
                 gridNodeSettings.PriceAmountForRouting,
                 TimeSpan.FromMilliseconds(gridNodeSettings.BroadcastConditionsTimeoutMs),
@@ -175,7 +175,7 @@ public class ComplexTest
                  await settlerClient.IssueCertificateAsync(
                     token, customer.PublicKey, new List<string> { "ride" }));
 
-            await customer.InitAsync(
+            customer.Init(
                 gridNodeSettings.Fanout,
                 gridNodeSettings.PriceAmountForRouting,
                 TimeSpan.FromMilliseconds(gridNodeSettings.BroadcastConditionsTimeoutMs),
@@ -192,7 +192,7 @@ public class ComplexTest
         }
         foreach (var node in thingsList)
         {
-            await node.Value.InitAsync(
+            node.Value.Init(
                 gridNodeSettings.Fanout,
                 gridNodeSettings.PriceAmountForRouting,
                 TimeSpan.FromMilliseconds(gridNodeSettings.BroadcastConditionsTimeoutMs),

@@ -5,19 +5,25 @@ namespace GigLNDWalletAPIClient
 	public class PaymentStatusUpdatesClient
 	{
         swaggerClient swaggerClient;
+        private readonly HttpMessageHandler? httpMessageHandler;
         HubConnection connection;
 
-        public PaymentStatusUpdatesClient(swaggerClient swaggerClient)
+        public PaymentStatusUpdatesClient(swaggerClient swaggerClient, HttpMessageHandler? httpMessageHandler = null)
 		{
             this.swaggerClient = swaggerClient;
+            this.httpMessageHandler = httpMessageHandler;
         }
 
 		public async Task ConnectAsync(string authToken)
 		{
-            connection = new HubConnectionBuilder()
-                .WithUrl(swaggerClient.BaseUrl + "paymentstatusupdates?authtoken=" + Uri.EscapeDataString(authToken))
-                .WithAutomaticReconnect()
-                .Build();
+            var builder = new HubConnectionBuilder().WithAutomaticReconnect();
+
+            if (httpMessageHandler != null)
+                builder.WithUrl(swaggerClient.BaseUrl + "paymentstatusupdates?authtoken=" + Uri.EscapeDataString(authToken), (options) => { options.HttpMessageHandlerFactory = (messageHndl) => { return httpMessageHandler; }; });
+            else
+                builder.WithUrl(swaggerClient.BaseUrl + "paymentstatusupdates?authtoken=" + Uri.EscapeDataString(authToken));
+
+            connection = builder.Build();
             await connection.StartAsync();
         }
 

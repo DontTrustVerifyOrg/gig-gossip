@@ -24,6 +24,10 @@ public static class MauiProgram
             .UseSkiaSharp(true)
             .UseBarcodeReader();
 
+#if ANDROID && DEBUG
+        Platforms.Android.DangerousAndroidMessageHandlerEmitter.Register();
+        Platforms.Android.DangerousTrustProvider.Register();
+#endif
 #if DEBUG
         builder.Logging.AddDebug();
 #endif
@@ -57,7 +61,7 @@ public static class MauiProgram
         serviceDescriptors.AddSingleton(implementationFactory: NodeFactoryImplementation);
     }
 
-    private static async Task<GigGossipNode> NodeFactoryImplementation(IServiceProvider provider)
+    private static GigGossipNode NodeFactoryImplementation(IServiceProvider provider)
     {
         var node = new GigGossipNode(
             $"Filename={Path.Combine(FileSystem.AppDataDirectory, GigGossipNodeConfig.DatabaseFile)}",
@@ -65,15 +69,21 @@ public static class MauiProgram
             GigGossipNodeConfig.NostrRelays,
             GigGossipNodeConfig.ChunkSize
         );
-        var address = GigGossipNodeConfig.GigWalletOpenApi;
-        
 
+        var address = GigGossipNodeConfig.GigWalletOpenApi;
+
+#if DEBUG
         if (DeviceInfo.Platform == DevicePlatform.Android)
             address = address.Replace("localhost", "10.0.2.2");
 
-        var walletClient = new GigLNDWalletAPIClient.swaggerClient(address, new HttpClient(HttpsClientHandlerService.GetPlatformMessageHandler()));
+        HttpClient client = new(HttpsClientHandlerService.GetPlatformMessageHandler());
+#else
+        HttpClient client = new HttpClient();
+#endif
 
-        await node.InitAsync(
+        var walletClient = new GigLNDWalletAPIClient.swaggerClient(address, client);
+
+        node.Init(
             GigGossipNodeConfig.Fanout,
             GigGossipNodeConfig.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(GigGossipNodeConfig.BroadcastConditionsTimeoutMs),
@@ -83,8 +93,6 @@ public static class MauiProgram
             TimeSpan.FromSeconds(GigGossipNodeConfig.InvoicePaymentTimeoutSec),
             walletClient);
 
-        await node.StartAsync(new GigGossipNodeEvents());
-        
         return node;
     }
 }

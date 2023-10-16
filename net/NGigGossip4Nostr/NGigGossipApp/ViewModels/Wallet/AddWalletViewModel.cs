@@ -14,12 +14,14 @@ namespace GigMobile.ViewModels.Wallet
 
         private async Task AddWalletAsync()
         {
+#if DEBUG
+            WalletDomain = GigGossipNodeConfig.GigWalletOpenApi;
+#endif
             if (!string.IsNullOrEmpty(WalletDomain))
             {
                 var privateKeyString = await SecureDatabase.GetPrivateKeyAsync();
                 var privateKey = privateKeyString.AsECPrivKey();
 
-                WalletDomain = GigGossipNodeConfig.GigWalletOpenApi;
                 await SecureDatabase.SetSetSetupStatusAsync(SecureDatabase.SetupStatus.Finished);
 
                 await NavigationService.NavigateAsync<WalletDetailsViewModel>();

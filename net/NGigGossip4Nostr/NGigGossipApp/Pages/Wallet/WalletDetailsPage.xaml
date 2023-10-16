@@ -10,8 +10,9 @@
                Title=" ⚡️ Your Lightning Wallet">
     <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
         <Label Text="{Binding BitcoinBallance , StringFormat='💰 {0} BTC'}" HorizontalOptions="Start" VerticalOptions="Start"/>
-        <Label Text="To deposit Bitcoin to your wallet, send it to the following address:" HorizontalOptions="Start" VerticalOptions="Start"/>
-        <Label Text="{Binding WalletAddress}" HorizontalOptions="Start" VerticalOptions="Start"/>
+        <Label Text="To deposit Bitcoin to your wallet, " HorizontalOptions="Start" VerticalOptions="Start" Margin="0, 0, 0, -24"/>
+        <Label Text="send it to the following address:" HorizontalOptions="EndAndExpand" VerticalOptions="Start"/>
+        <Label Text="{Binding WalletAddress}" HorizontalOptions="Center" VerticalOptions="Start"/>
         <zxing:BarcodeGeneratorView HeightRequest="250"
                                     WidthRequest="250"
                                     BackgroundColor="Transparent"

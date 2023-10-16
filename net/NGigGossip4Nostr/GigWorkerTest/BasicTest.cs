@@ -128,7 +128,7 @@ public class BasicTest
                 token, customer.PublicKey, new List<string> { "ride" }));
 
 
-        await gigWorker.InitAsync(
+        gigWorker.Init(
             gigWorkerSettings.Fanout,
             gigWorkerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(gigWorkerSettings.BroadcastConditionsTimeoutMs),
@@ -139,7 +139,7 @@ public class BasicTest
             gigWorkerSettings.GetLndWalletClient(httpClient));
         //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
 
-        await customer.InitAsync(
+        customer.Init(
             customerSettings.Fanout,
             customerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(customerSettings.BroadcastConditionsTimeoutMs),

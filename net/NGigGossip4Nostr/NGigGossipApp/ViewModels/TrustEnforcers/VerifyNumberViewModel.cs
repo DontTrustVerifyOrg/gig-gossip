@@ -1,4 +1,5 @@
-﻿using System.Windows.Input;
+﻿using System.Collections.Generic;
+using System.Windows.Input;
 using CryptoToolkit;
 using GigMobile.Services;
 
@@ -19,7 +20,12 @@ namespace GigMobile.ViewModels.TrustEnforcers
         private ICommand _submitCommand;
         public ICommand SubmitCommand => _submitCommand ??= new Command(async () => await SubmitAsync());
 
-        public short[] Code { get; set; } = new short[6];
+        public short? Code0 { get; set; }
+        public short? Code1 { get; set; }
+        public short? Code2 { get; set; }
+        public short? Code3 { get; set; }
+        public short? Code4 { get; set; }
+        public short? Code5 { get; set; }
 
         public override void Prepare(NewTrustEnforcer data)
         {
@@ -35,16 +41,21 @@ namespace GigMobile.ViewModels.TrustEnforcers
         {
             await base.Initialize();
 
-            var token = await _gigGossipNode.MakeSettlerAuthTokenAsync(GigGossipNodeConfig.SettlerOpenApi);
-            var settlerClient = _gigGossipNode.SettlerSelector.GetSettlerClient(GigGossipNodeConfig.SettlerOpenApi);
-            await settlerClient.VerifyChannelAsync(token, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", _newTrustEnforcer.PhoneNumber);
+            try
+            {
+                var token = await _gigGossipNode.MakeSettlerAuthTokenAsync(GigGossipNodeConfig.SettlerOpenApi);
+                var settlerClient = _gigGossipNode.SettlerSelector.GetSettlerClient(GigGossipNodeConfig.SettlerOpenApi);
+                await settlerClient.VerifyChannelAsync(token, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", _newTrustEnforcer.PhoneNumber);
 
-            var certificate = Crypto.DeserializeObject<Certificate>(
-                 await settlerClient.IssueCertificateAsync(
-                    token, _gigGossipNode.PublicKey, new List<string> { "PhoneNumber" }));
+                var settletCert = await settlerClient.IssueCertificateAsync(token, _gigGossipNode.PublicKey, new List<string> { "PhoneNumber" });
+                var certificate = Crypto.DeserializeObject<Certificate>(settletCert);
 
-            //save certificate for later => LookingDriverViewModel
-
+                //save certificate for later => LookingDriverViewModel
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
         }
 
 

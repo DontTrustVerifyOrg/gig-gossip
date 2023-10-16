@@ -1,5 +1,4 @@
 ﻿using System.Windows.Input;
-using GigLNDWalletAPIClient;
 
 namespace GigMobile.ViewModels.Wallet
 {
@@ -22,8 +21,8 @@ namespace GigMobile.ViewModels.Wallet
         {
             await base.Initialize();
             var token = _gigGossipNode.MakeWalletAuthToken();
-            BitcoinBallance = await _gigGossipNode.LNDWalletClient.GetBalanceAsync(token);
             WalletAddress = await _gigGossipNode.LNDWalletClient.NewAddressAsync(token);
+            BitcoinBallance = await _gigGossipNode.LNDWalletClient.GetBalanceAsync(token);
         }
     }
 }

@@ -17,7 +17,8 @@
 		<ApplicationTitle>GigMobile</ApplicationTitle>
 
 		<!-- App Identifier -->
-		<ApplicationId>org.gig-gossip.gigmobile.</ApplicationId>
+		<ApplicationId>org.gig-gossip.mobile</ApplicationId>
+
 		<ApplicationIdGuid>a6b5eb6e-f0e2-4126-a307-6af71a6bf111</ApplicationIdGuid>
 
 		<!-- Versions -->
@@ -44,11 +45,14 @@
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net7.0-android|AnyCPU'">
 	  <AndroidDexTool>dx</AndroidDexTool>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net7.0-android|AnyCPU'">
+		<AndroidHttpClientHandlerType>DangerousAndroidMessageHandler, DangerousAndroidMessageHandler</AndroidHttpClientHandlerType>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net7.0-maccatalyst|AnyCPU'">
 	  <CreatePackage>false</CreatePackage>
 	  <CodesignKey>Mac Developer</CodesignKey>
 	  <PackageSigningKey>3rd Party Mac Developer Installer</PackageSigningKey>
-	  <CodesignEntitlements>Platforms\MacCatalyst\Entitlements.plist</CodesignEntitlements>
+	  <CodesignEntitlements>Entitlements.plist</CodesignEntitlements>
 	</PropertyGroup>
 	<ItemGroup>
 		<!-- App Icon -->
@@ -71,7 +75,6 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="7.0.0" />
-		<PackageReference Include="BindedMvvm" Version="1.0.1" />
 		<PackageReference Include="ZXing.Net.Maui.Controls" Version="0.3.0-preview.1" />
 		<PackageReference Include="Mapsui.Maui" Version="4.1.0" />
 		<PackageReference Include="PropertyChanged.Fody" Version="4.1.0" />
@@ -79,7 +82,7 @@
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		  <PrivateAssets>all</PrivateAssets>
 		</PackageReference>
-		<PackageReference Include="Plugin.Fingerprint" Version="2.1.5" />
+		<PackageReference Include="Plugin.Fingerprint" Version="3.0.0-beta.1" />
 		<PackageReference Include="NGeoHash" Version="1.2.0" />
 	</ItemGroup>
 
@@ -101,6 +104,7 @@
 	  <None Remove="Pages\Ride\Driver\" />
 	  <None Remove="Services\" />
 	  <None Remove="Platforms\Android\Resources\xml\" />
+	  <None Remove="BindedMvvm\" />
 	</ItemGroup>
 	<ItemGroup>
 	  <Folder Include="ViewModels\" />
@@ -120,6 +124,7 @@
 	  <Folder Include="Pages\Ride\Driver\" />
 	  <Folder Include="Services\" />
 	  <Folder Include="Platforms\Android\Resources\xml\" />
+	  <Folder Include="BindedMvvm\" />
 	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />

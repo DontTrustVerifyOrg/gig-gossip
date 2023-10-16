@@ -7,9 +7,16 @@ namespace GigMobile.ViewModels.Profile
 	public class LoginPrKeyViewModel : BaseViewModel<string>
     {
         private ICommand _loginCommand;
+        private readonly IServiceProvider _serviceProvider;
+
         public ICommand LoginCommand => _loginCommand ??= new Command(async () => await LoginAsync());
 
         public string PrivateKey { get; set; }
+
+        public LoginPrKeyViewModel(IServiceProvider serviceProvider)
+        {
+            _serviceProvider = serviceProvider;
+        }
 
         public override void Prepare(string data)
         {
@@ -27,7 +34,20 @@ namespace GigMobile.ViewModels.Profile
                     if (key != null)
                     {
                         await SecureDatabase.SetPrivateKeyAsync(PrivateKey);
-                        
+                        var node = _serviceProvider.GetService<GigGossipNode>();
+                        try
+                        {
+#if DEBUG
+                            await node.StartAsync(new GigGossipNodeEvents(), HttpsClientHandlerService.GetPlatformMessageHandler());
+#else
+                            await node.StartAsync(new GigGossipNodeEvents());;
+#endif
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                        }
+
                         var usBiometric = await SecureDatabase.GetUseBiometricAsync();
                         if (!usBiometric)
                             await NavigationService.NavigateAsync<Profile.AllowBiometricViewModel>();

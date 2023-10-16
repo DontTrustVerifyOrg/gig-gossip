@@ -81,7 +81,12 @@ public class Settler : CertificationAuthority
     public async Task InitAsync(swaggerClient lndWalletClient, string connectionString, bool deleteDb = false)
     {
         this.lndWalletClient = lndWalletClient;
+
+#if DEBUG
+        await Task.Delay(5000);
+#endif
         this.walletTokenGuid = await lndWalletClient.GetTokenAsync(this.CaXOnlyPublicKey.AsHex());
+
         settlerContext = new ThreadLocal<SettlerContext>(() => new SettlerContext(connectionString));
         if (deleteDb)
             settlerContext.Value.Database.EnsureDeleted();

@@ -143,7 +143,7 @@ public class MediumTest
                 token, customer.PublicKey, new List<string> { "ride" }));
 
 
-        await gigWorker.InitAsync(
+        gigWorker.Init(
             gigWorkerSettings.Fanout,
             gigWorkerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(gigWorkerSettings.BroadcastConditionsTimeoutMs),
@@ -157,7 +157,7 @@ public class MediumTest
 
         foreach(var node in gossipers)
         {
-            await node.InitAsync(
+            node.Init(
             gossiperSettings.Fanout,
             gossiperSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(gossiperSettings.BroadcastConditionsTimeoutMs),
@@ -168,7 +168,7 @@ public class MediumTest
             gossiperSettings.GetLndWalletClient(httpClient));
         }
 
-        await customer.InitAsync(
+        customer.Init(
             customerSettings.Fanout,
             customerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(customerSettings.BroadcastConditionsTimeoutMs),
