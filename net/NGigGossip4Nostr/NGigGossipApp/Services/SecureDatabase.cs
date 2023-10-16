@@ -2,24 +2,6 @@
 
 namespace GigMobile.Services
 {
-    class SecureStorage
-    {
-        Dictionary<string, string> keyValuePairs = new();
-        public async Task<string> GetAsync(string key)
-        {
-            if(keyValuePairs.ContainsKey(key))
-                return keyValuePairs[key];
-            return null;
-        }
-
-        public async Task SetAsync(string key, string value)
-        {
-            keyValuePairs[key] = value;
-        }
-
-        public static SecureStorage Default = new SecureStorage();
-    }
-
 	public class SecureDatabase
     {
         const string PRK = "WL_PR_K";

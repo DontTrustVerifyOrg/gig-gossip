@@ -121,6 +121,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
     {
         this.gigGossipNodeEvents = gigGossipNodeEvents;
 
+        _walletToken = await LNDWalletClient.GetTokenAsync(this.PublicKey);
         var token = MakeWalletAuthToken();
 
         InvoiceStateUpdatesClient = new InvoiceStateUpdatesClient(this.LNDWalletClient, httpMessageHandler);
@@ -129,7 +130,6 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         PaymentStatusUpdatesClient = new PaymentStatusUpdatesClient(this.LNDWalletClient, httpMessageHandler);
         await PaymentStatusUpdatesClient.ConnectAsync(token);
 
-        _walletToken = await LNDWalletClient.GetTokenAsync(this.PublicKey);
         await _lndWalletMonitor.StartAsync();
 
         _settlerToken = new();

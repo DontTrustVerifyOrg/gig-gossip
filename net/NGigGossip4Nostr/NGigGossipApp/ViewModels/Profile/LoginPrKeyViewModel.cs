@@ -1,6 +1,8 @@
 ﻿using System.Windows.Input;
 using CryptoToolkit;
 using GigMobile.Services;
+using Plugin.Fingerprint;
+using Plugin.Fingerprint.Abstractions;
 
 namespace GigMobile.ViewModels.Profile
 {
@@ -22,6 +24,42 @@ namespace GigMobile.ViewModels.Profile
         {
             if (!string.IsNullOrEmpty(data))
                 PrivateKey = data;
+        }
+
+        public async override void OnAppearing()
+        {
+            base.OnAppearing();
+
+            if (string.IsNullOrEmpty(PrivateKey))
+            {
+                var useBiometric = await SecureDatabase.GetUseBiometricAsync();
+                if (useBiometric)
+                {
+                    var key = await SecureDatabase.GetPrivateKeyAsync();
+
+                    if (key != null)
+                    {
+                        var isAvailable = await CrossFingerprint.Current.IsAvailableAsync(allowAlternativeAuthentication: true);
+
+                        if (isAvailable)
+                        {
+                            var request = new AuthenticationRequestConfiguration("Login using biometrics", "Confirm login with your biometrics")
+                            {
+                                FallbackTitle = "Use PIN",
+                                AllowAlternativeAuthentication = true,
+                            };
+
+                            var result = await CrossFingerprint.Current.AuthenticateAsync(request);
+
+                            if (result.Authenticated)
+                            {
+                                PrivateKey = key;
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         private async Task LoginAsync()

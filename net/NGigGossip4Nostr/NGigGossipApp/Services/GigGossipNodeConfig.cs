@@ -3,11 +3,11 @@ namespace GigMobile.Services
 {
     public static class GigGossipNodeConfig
     {
-        public const string GigWalletOpenApi = "http://localhost:7101/";
+        public const string GigWalletOpenApi = "https://localhost:7101/";
         public const string DatabaseFile = "GigGossip.db3";
         public const int Fanout = 2;
         public static string[] NostrRelays = new string[] { "ws://localhost:6969" };
-        public static Uri SettlerOpenApi = new Uri("http://localhost:7189/");
+        public static Uri SettlerOpenApi = new Uri("https://localhost:7189/");
         public const long PriceAmountForRouting = 1000;
         public const int BroadcastConditionsTimeoutMs = 1000000;
         public const string BroadcastConditionsPowScheme = "sha256";
