@@ -28,7 +28,7 @@ namespace GigGossipSettlerAPIClient
 
         public IAsyncEnumerable<string> StreamAsync(string authToken, CancellationToken cancellationToken)
         {
-            return connection.StreamAsync<string>("Streaming", authToken, cancellationToken);
+            return connection.StreamAsync<string>("StreamAsync", authToken, cancellationToken);
         }
     }
 }
