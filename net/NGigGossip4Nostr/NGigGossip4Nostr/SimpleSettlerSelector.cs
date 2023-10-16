@@ -19,9 +19,9 @@ namespace NGigGossip4Nostr
         {
         }
 
-        public ECXOnlyPubKey GetPubKey(Uri serviceUri)
+        public async Task<ECXOnlyPubKey> GetPubKeyAsync(Uri serviceUri)
         {
-            return GetSettlerClient(serviceUri).GetCaPublicKeyAsync().Result.AsECXOnlyPubKey();
+            return (await GetSettlerClient(serviceUri).GetCaPublicKeyAsync()).AsECXOnlyPubKey();
         }
 
         public GigGossipSettlerAPIClient.swaggerClient GetSettlerClient(Uri serviceUri)
@@ -34,14 +34,14 @@ namespace NGigGossip4Nostr
             }
         }
 
-        public bool IsRevoked(Certificate certificate)
+        public async Task<bool> IsRevokedAsync(Certificate certificate)
         {
             lock (revokedCertificates)
             {
                 if (revokedCertificates.Contains(certificate.Id))
                     return true;
             }
-            if (GetSettlerClient(certificate.ServiceUri).IsCertificateRevokedAsync(certificate.Id.ToString()).Result)
+            if (await GetSettlerClient(certificate.ServiceUri).IsCertificateRevokedAsync(certificate.Id.ToString()))
             {
                 lock (revokedCertificates)
                 {

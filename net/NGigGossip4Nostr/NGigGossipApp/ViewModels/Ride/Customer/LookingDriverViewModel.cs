@@ -24,7 +24,7 @@ namespace GigMobile.ViewModels.Ride.Customer
 
             var certificate = Crypto.DeserializeObject<Certificate>(new byte[] { });//need to load proper certificate
 
-            _gigGossipNode.BroadcastTopic(new TaxiTopic()
+            _gigGossipNode.BroadcastTopicAsync(new TaxiTopic()
             {
                 FromGeohash = fromGh,
                 ToGeohash = toGh,

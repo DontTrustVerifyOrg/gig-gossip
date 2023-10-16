@@ -61,7 +61,7 @@ public class MediumTest
 
     HttpClient httpClient = new HttpClient();
 
-    public void Run()
+    public async Task RunAsync()
     {
         FlowLogger.Start(applicationSettings.FlowLoggerPath.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
 
@@ -84,7 +84,7 @@ public class MediumTest
         var settlerPrivKey = settlerAdminSettings.PrivateKey.AsECPrivKey();
         var settlerPubKey = settlerPrivKey.CreateXOnlyPubKey();
         var settlerClient = settlerSelector.GetSettlerClient(settlerAdminSettings.SettlerOpenApi);
-        var gtok = settlerClient.GetTokenAsync(settlerPubKey.AsHex()).Result;
+        var gtok = await settlerClient.GetTokenAsync(settlerPubKey.AsHex());
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.Now, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
@@ -99,15 +99,15 @@ public class MediumTest
 
         FlowLogger.SetupParticipant(gigWorker.PublicKey, "GigWorker", true);
 
-        settlerClient.GiveUserPropertyAsync(
+        await settlerClient.GiveUserPropertyAsync(
                 token, gigWorker.PublicKey,
                 "drive", val,
                 (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
-             ).Wait();
+             );
 
         var gigWorkerCert = Crypto.DeserializeObject<Certificate>(
-            settlerClient.IssueCertificateAsync(
-                 token, gigWorker.PublicKey, new List<string> { "drive" }).Result);
+            await settlerClient.IssueCertificateAsync(
+                 token, gigWorker.PublicKey, new List<string> { "drive" }));
 
 
         var gossipers = new List<GigGossipNode>();
@@ -132,18 +132,18 @@ public class MediumTest
 
         FlowLogger.SetupParticipant(customer.PublicKey, "Customer", true);
 
-        settlerClient.GiveUserPropertyAsync(
+        await settlerClient.GiveUserPropertyAsync(
             token, customer.PublicKey,
             "ride", val,
             (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
-         ).Wait();
+         );
 
         var customerCert = Crypto.DeserializeObject<Certificate>(
-             settlerClient.IssueCertificateAsync(
-                token, customer.PublicKey, new List<string> { "ride" }).Result);
+             await settlerClient.IssueCertificateAsync(
+                token, customer.PublicKey, new List<string> { "ride" }));
 
 
-        gigWorker.Init(
+        await gigWorker.InitAsync(
             gigWorkerSettings.Fanout,
             gigWorkerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(gigWorkerSettings.BroadcastConditionsTimeoutMs),
@@ -157,7 +157,7 @@ public class MediumTest
 
         foreach(var node in gossipers)
         {
-            node.Init(
+            await node.InitAsync(
             gossiperSettings.Fanout,
             gossiperSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(gossiperSettings.BroadcastConditionsTimeoutMs),
@@ -168,7 +168,7 @@ public class MediumTest
             gossiperSettings.GetLndWalletClient(httpClient));
         }
 
-        customer.Init(
+        await customer.InitAsync(
             customerSettings.Fanout,
             customerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(customerSettings.BroadcastConditionsTimeoutMs),
@@ -180,12 +180,12 @@ public class MediumTest
 
         //await customer.LoadCertificates(customerSettings.SettlerOpenApi);
 
-        void TopupNode(GigGossipNode node, long minAmout,long topUpAmount)
+        async void TopupNode(GigGossipNode node, long minAmout,long topUpAmount)
         {
-            var ballanceOfCustomer = node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken()).Result;
+            var ballanceOfCustomer = await node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken());
             if (ballanceOfCustomer < minAmout)
             {
-                var newBitcoinAddressOfCustomer = node.LNDWalletClient.NewAddressAsync(node.MakeWalletAuthToken()).Result;
+                var newBitcoinAddressOfCustomer = await node.LNDWalletClient.NewAddressAsync(node.MakeWalletAuthToken());
                 bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, bitcoinSettings.GetNetwork()), new NBitcoin.Money(topUpAmount));
             }
         }
@@ -200,11 +200,11 @@ public class MediumTest
 
         do
         {
-            if (customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()).Result >= minAmount)
+            if (await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()) >= minAmount)
             {
             outer:
                 foreach (var node in gossipers)
-                    if (node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken()).Result < minAmount)
+                    if (await node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken()) < minAmount)
                     {
                         Thread.Sleep(1000);
                         goto outer;
@@ -213,14 +213,14 @@ public class MediumTest
             }
         } while (true);
 
-        gigWorker.Start(new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi, gigWorkerCert));
+        await gigWorker.StartAsync(new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi, gigWorkerCert));
         gigWorker.ClearContacts();
         foreach (var node in gossipers)
         {
-            node.Start(new NetworkEarnerNodeEvents());
+            await node.StartAsync(new NetworkEarnerNodeEvents());
             node.ClearContacts();
         }
-        customer.Start(new CustomerGossipNodeEvents(this));
+        await customer.StartAsync(new CustomerGossipNodeEvents(this));
         customer.ClearContacts();
 
         gigWorker.AddContact( gossipers[0].PublicKey, "Gossiper0");
@@ -241,7 +241,7 @@ public class MediumTest
             var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);
             var toGh = GeoHash.Encode(latitude: 42.5, longitude: -5.6, numberOfChars: 7);
 
-            customer.BroadcastTopic(new TaxiTopic()
+            await customer.BroadcastTopicAsync(new TaxiTopic()
             {
                 FromGeohash = fromGh,
                 ToGeohash = toGh,
@@ -284,7 +284,7 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
                    taxiTopic.ToGeohash.Length >= 7 &&
                    taxiTopic.DropoffBefore >= DateTime.Now)
             {
-                me.BroadcastToPeers(peerPublicKey, broadcastFrame);
+                me.BroadcastToPeersAsync(peerPublicKey, broadcastFrame);
             }
         }
     }
@@ -297,9 +297,9 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
     {
     }
 
-    public void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)
+    public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)
     {
-        me.PayNetworkInvoice(iac);
+        await me.PayNetworkInvoiceAsync(iac);
         lock (MainThreadControl.Ctrl)
         {
             MainThreadControl.Counter++;
@@ -332,14 +332,14 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         this.selectedCertificate = selectedCertificate;
     }
 
-    public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
+    public async void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
     {
         var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(
             broadcastFrame.BroadcastPayload.SignedRequestPayload.Topic);
 
         if (taxiTopic != null)
         {
-            me.AcceptBroadcast( peerPublicKey, broadcastFrame,
+            await me.AcceptBroadcastAsync( peerPublicKey, broadcastFrame,
                 new AcceptBroadcastResponse()
                 {
                     Message = Encoding.Default.GetBytes(me.PublicKey),
@@ -351,9 +351,9 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)
+    public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)
     {
-        me.PayNetworkInvoice(iac);
+        await me.PayNetworkInvoiceAsync(iac);
         lock (MainThreadControl.Ctrl)
         {
             MainThreadControl.Counter++;
@@ -412,7 +412,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                         var resps = me.GetReplyPayloads(replyPayload.SignedRequestPayload.PayloadId).ToList();
                         resps.Sort((a, b) => (int)(Crypto.DeserializeObject<PayReq>(a.DecodedNetworkInvoice).NumSatoshis - Crypto.DeserializeObject<PayReq>(b.DecodedNetworkInvoice).NumSatoshis));
                         var win = resps[0];
-                        me.AcceptResponse(
+                        me.AcceptResponseAsync(
                             Crypto.DeserializeObject<ReplyPayload>(win.TheReplyPayload),
                             win.ReplyInvoice,
                             Crypto.DeserializeObject<PayReq>(win.DecodedReplyInvoice),

@@ -2,6 +2,24 @@
 
 namespace GigMobile.Services
 {
+    class SecureStorage
+    {
+        Dictionary<string, string> keyValuePairs = new();
+        public async Task<string> GetAsync(string key)
+        {
+            if(keyValuePairs.ContainsKey(key))
+                return keyValuePairs[key];
+            return null;
+        }
+
+        public async Task SetAsync(string key, string value)
+        {
+            keyValuePairs[key] = value;
+        }
+
+        public static SecureStorage Default = new SecureStorage();
+    }
+
 	public class SecureDatabase
     {
         const string PRK = "WL_PR_K";
@@ -25,7 +43,7 @@ namespace GigMobile.Services
         public static async Task SetPrivateKeyAsync(string key)
         {
             PrivateKey = key;
-            await SecureStorage.SetAsync(PRK, key);
+            await SecureStorage.Default.SetAsync(PRK, key);
         }
 
         public static async Task<bool> GetUseBiometricAsync()
@@ -53,7 +71,7 @@ namespace GigMobile.Services
                 dc = new Dictionary<string, bool> { { key, false } };
             dc[key] = value;
 
-            await SecureStorage.SetAsync(UBM, JsonConvert.SerializeObject(dc));
+            await SecureStorage.Default.SetAsync(UBM, JsonConvert.SerializeObject(dc));
         }
 
         public static async Task<string[]> GetTrustEnforcersAsync()
@@ -87,7 +105,7 @@ namespace GigMobile.Services
             newValue.Add(value);
             dc[key] = newValue.ToArray();
 
-            await SecureStorage.SetAsync(TEN, JsonConvert.SerializeObject(dc));
+            await SecureStorage.Default.SetAsync(TEN, JsonConvert.SerializeObject(dc));
         }
 
         public static async Task<SetupStatus> GetGetSetupStatusAsync()
@@ -115,7 +133,7 @@ namespace GigMobile.Services
                 dc = new Dictionary<string, SetupStatus> { { key, 0 } };
             dc[key] = value;
 
-            await SecureStorage.SetAsync(ISP, JsonConvert.SerializeObject(dc));
+            await SecureStorage.Default.SetAsync(ISP, JsonConvert.SerializeObject(dc));
         }
     }
 }

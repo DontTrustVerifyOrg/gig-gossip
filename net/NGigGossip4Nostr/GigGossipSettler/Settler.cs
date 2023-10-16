@@ -78,17 +78,17 @@ public class Settler : CertificationAuthority
         this.disputeTimeout = disputeTimeout;
     }
 
-    public void Init(swaggerClient lndWalletClient, string connectionString, bool deleteDb = false)
+    public async Task InitAsync(swaggerClient lndWalletClient, string connectionString, bool deleteDb = false)
     {
         this.lndWalletClient = lndWalletClient;
-        this.walletTokenGuid = lndWalletClient.GetTokenAsync(this.CaXOnlyPublicKey.AsHex()).Result;
+        this.walletTokenGuid = await lndWalletClient.GetTokenAsync(this.CaXOnlyPublicKey.AsHex());
         settlerContext = new ThreadLocal<SettlerContext>(() => new SettlerContext(connectionString));
         if (deleteDb)
             settlerContext.Value.Database.EnsureDeleted();
         settlerContext.Value.Database.EnsureCreated();
 
-        scheduler = new StdSchedulerFactory().GetScheduler().Result;
-        scheduler.Start().Wait();
+        scheduler = await new StdSchedulerFactory().GetScheduler();
+        await scheduler.Start();
         scheduler.Context.Put("me", this);
     }
 
@@ -297,8 +297,8 @@ public class Settler : CertificationAuthority
         signedSettlementPromise.Sign(_CaPrivateKey);
 
         var tok = MakeAuthToken();
-        invoiceStateUpdatesClient.Monitor(tok, networkInvoicePaymentHash);
-        invoiceStateUpdatesClient.Monitor(tok, decodedInv.PaymentHash);
+        await invoiceStateUpdatesClient.MonitorAsync(tok, networkInvoicePaymentHash);
+        await invoiceStateUpdatesClient.MonitorAsync(tok, decodedInv.PaymentHash);
 
         return new SettlementTrust()
         {
@@ -308,17 +308,17 @@ public class Settler : CertificationAuthority
         };
     }
 
-    public void ManageDispute(Guid tid, string replierpubkey, bool open)
+    public async Task ManageDisputeAsync(Guid tid, string replierpubkey, bool open)
     {
         var gig = (from g in settlerContext.Value.Gigs where g.GigId == tid && g.ReplierPublicKey == replierpubkey && g.Status == GigStatus.Accepted select g).FirstOrDefault();
         if (gig != null)
         {
             if (open)
-                CancelGig(gig);
+                await CancelGigAsync(gig);
             gig.Status = open ? GigStatus.Disuputed : GigStatus.Accepted;
             settlerContext.Value.SaveObject(gig);
             if (!open)
-                ScheduleGig(gig);
+                await ScheduleGigAsync(gig);
         }
     }
 
@@ -335,11 +335,11 @@ public class Settler : CertificationAuthority
                        where g.GigId == gigid
                        select g).FirstOrDefault();
             if (gig != null)
-                me.SettleGig(gig);
+                await me.SettleGigAsync(gig);
         }
     }
 
-    public void SettleGig(Gig gig)
+    public async Task SettleGigAsync(Gig gig)
     {
         var preims = (from pi in this.settlerContext.Value.Preimages where pi.ReplierPublicKey == gig.ReplierPublicKey && pi.GigId == gig.GigId select pi).ToList();
         foreach (var pi in preims)
@@ -354,26 +354,26 @@ public class Settler : CertificationAuthority
         var settletPi = (from pi in preims where pi.PublicKey == this.CaXOnlyPublicKey.AsHex() select pi).FirstOrDefault();
         if (settletPi == null)
             throw new SettlerException(SettlerErrorCode.UnknownPreimage);
-        this.lndWalletClient.SettleInvoiceAsync(this.MakeAuthToken(), settletPi.Preimage).Wait(); // settle settlers network invoice
+        await this.lndWalletClient.SettleInvoiceAsync(this.MakeAuthToken(), settletPi.Preimage); // settle settlers network invoice
     }
 
-    public void ScheduleGig(Gig gig)
+    public async Task ScheduleGigAsync(Gig gig)
     {
         IJobDetail job = JobBuilder.Create<GigAcceptedJob>().UsingJobData("GigId", gig.GigId).WithIdentity(gig.GigId.ToString()).Build();
         ITrigger trigger = TriggerBuilder.Create().StartAt(gig.DisputeDeadline).Build();
-        scheduler.ScheduleJob(job, trigger).Wait();
+        await scheduler.ScheduleJob(job, trigger);
     }
 
-    public void CancelGig(Gig gig)
+    public async Task CancelGigAsync(Gig gig)
     {
-        scheduler.Interrupt(new JobKey(gig.GigId.ToString())).Wait();
-        scheduler.DeleteJob(new JobKey(gig.GigId.ToString())).Wait();
+        await scheduler.Interrupt(new JobKey(gig.GigId.ToString()));
+        await scheduler.DeleteJob(new JobKey(gig.GigId.ToString()));
     }
 
-    public void Start()
+    public async Task StartAsync()
     {
         invoiceStateUpdatesClient = new InvoiceStateUpdatesClient(this.lndWalletClient);
-        invoiceStateUpdatesClient.Connect(MakeAuthToken());
+        await invoiceStateUpdatesClient.ConnectAsync(MakeAuthToken());
 
         invoiceTrackerThread = new Thread( async () =>
         {
@@ -392,7 +392,7 @@ public class Settler : CertificationAuthority
                             gig.SubStatus = GigSubStatus.None;
                             gig.DisputeDeadline = DateTime.Now+ this.disputeTimeout;
                             settlerContext.Value.SaveObject(gig);
-                            ScheduleGig(gig);
+                            await ScheduleGigAsync(gig);
                         }
                         else if (network_state == "Accepted")
                         {
@@ -416,11 +416,11 @@ public class Settler : CertificationAuthority
                         FireOnSymmetricKeyReveal(gig.GigId, gig.ReplierPublicKey, gig.SymmetricKey);
                         if (DateTime.Now >= gig.DisputeDeadline)
                         {
-                            SettleGig(gig);
+                            await SettleGigAsync(gig);
                         }
                         else
                         {
-                            ScheduleGig(gig);
+                            await ScheduleGigAsync(gig);
                         }
                     }
                 }
@@ -460,7 +460,7 @@ public class Settler : CertificationAuthority
                                         gig.DisputeDeadline = DateTime.Now + this.disputeTimeout;
                                         settlerContext.Value.SaveObject(gig);
                                         FireOnSymmetricKeyReveal(gig.GigId, gig.ReplierPublicKey, gig.SymmetricKey);
-                                        ScheduleGig(gig);
+                                        await ScheduleGigAsync(gig);
                                     }
                                 }
                             }
@@ -473,7 +473,7 @@ public class Settler : CertificationAuthority
                                 {
                                     if (gig.Status == GigStatus.Accepted)
                                     {
-                                        CancelGig(gig);
+                                        await CancelGigAsync(gig);
                                     }
                                     if (gig.Status != GigStatus.Cancelled)
                                     {

@@ -57,7 +57,7 @@ public static class MauiProgram
         serviceDescriptors.AddSingleton(implementationFactory: NodeFactoryImplementation);
     }
 
-    private static GigGossipNode NodeFactoryImplementation(IServiceProvider provider)
+    private static async Task<GigGossipNode> NodeFactoryImplementation(IServiceProvider provider)
     {
         var node = new GigGossipNode(
             $"Filename={Path.Combine(FileSystem.AppDataDirectory, GigGossipNodeConfig.DatabaseFile)}",
@@ -66,14 +66,14 @@ public static class MauiProgram
             GigGossipNodeConfig.ChunkSize
         );
         var address = GigGossipNodeConfig.GigWalletOpenApi;
-
+        
 
         if (DeviceInfo.Platform == DevicePlatform.Android)
             address = address.Replace("localhost", "10.0.2.2");
 
         var walletClient = new GigLNDWalletAPIClient.swaggerClient(address, new HttpClient(HttpsClientHandlerService.GetPlatformMessageHandler()));
 
-        node.Init(
+        await node.InitAsync(
             GigGossipNodeConfig.Fanout,
             GigGossipNodeConfig.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(GigGossipNodeConfig.BroadcastConditionsTimeoutMs),
@@ -83,8 +83,8 @@ public static class MauiProgram
             TimeSpan.FromSeconds(GigGossipNodeConfig.InvoicePaymentTimeoutSec),
             walletClient);
 
-        node.Start(new GigGossipNodeEvents());
-
+        await node.StartAsync(new GigGossipNodeEvents());
+        
         return node;
     }
 }
@@ -115,18 +115,18 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)
+    public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)
     {
-        me.PayNetworkInvoice(iac);
+        await me.PayNetworkInvoiceAsync(iac);
     }
 
     public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
     {
     }
 
-    public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    public async void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
-        me.AcceptResponse(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
+        await me.AcceptResponseAsync(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
     }
 
     public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)

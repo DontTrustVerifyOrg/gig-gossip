@@ -14,7 +14,7 @@ namespace NGigGossip4Nostr
 {
     public interface ISettlerMonitorEvents
     {
-        public void OnPreimageRevealed(Uri settlerUri, string paymentHash, string preimage);
+        public Task OnPreimageRevealedAsync(Uri settlerUri, string paymentHash, string preimage);
         public void OnSymmetricKeyRevealed(byte[] data, string key);
     }
 
@@ -29,7 +29,7 @@ namespace NGigGossip4Nostr
             this.gigGossipNode = gigGossipNode;
         }
 
-        public bool MonitorPreimage(Uri serviceUri, string phash)
+        public async Task<bool> MonitorPreimageAsync(Uri serviceUri, string phash)
         {
             if ((from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
                  where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
@@ -51,11 +51,11 @@ namespace NGigGossip4Nostr
                     PaymentHash = phash,
                     Preimage = null
                 });
-            this.gigGossipNode.GetPreimageRevealClient(serviceUri).Monitor(this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri).Result, phash);
+            (await this.gigGossipNode.GetPreimageRevealClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash);
             return true;
         }
 
-        public bool MonitorSymmetricKey(Uri serviceUri, Guid tid, string replierPublicKey, byte[] data)
+        public async Task<bool> MonitorSymmetricKeyAsync(Uri serviceUri, Guid tid, string replierPublicKey, byte[] data)
         {
             if ((from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
                  where i.PayloadId == tid && i.PublicKey == this.gigGossipNode.PublicKey
@@ -79,7 +79,7 @@ namespace NGigGossip4Nostr
                     Data = data,
                     SymmetricKey = null
                 });
-            this.gigGossipNode.GetSymmetricKeyRevealClient(serviceUri).Monitor(this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri).Result, tid, replierPublicKey);
+            await (await this.gigGossipNode.GetSymmetricKeyRevealClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), tid, replierPublicKey);
             return true;
         }
 
@@ -87,7 +87,7 @@ namespace NGigGossip4Nostr
 
         List<Thread> monitoringThreads = new List<Thread>();
 
-        public void Start()
+        public async Task StartAsync()
         {
             {
                 var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
@@ -99,10 +99,10 @@ namespace NGigGossip4Nostr
                 {
                     var serviceUri = kv.ServiceUri;
                     var phash = kv.PaymentHash;
-                    var preimage = gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri).Result, phash).Result;
+                    var preimage = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash);
                     if (!string.IsNullOrWhiteSpace(preimage))
                     {
-                        gigGossipNode.OnPreimageRevealed(serviceUri, phash, preimage);
+                        await gigGossipNode.OnPreimageRevealedAsync(serviceUri, phash, preimage);
                         kv.Preimage = preimage;
                         gigGossipNode.nodeContext.Value.SaveObject(kv);
                     }
@@ -118,7 +118,7 @@ namespace NGigGossip4Nostr
                 {
                     var serviceUri = kv.ServiceUri;
                     var tid = kv.PayloadId;
-                    var key = gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri).Result, tid.ToString(), kv.ReplierPublicKey).Result;
+                    var key = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), tid.ToString(), kv.ReplierPublicKey);
                     if (!string.IsNullOrWhiteSpace(key))
                     {
                         gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
@@ -137,7 +137,7 @@ namespace NGigGossip4Nostr
                 {
                     try
                     {
-                        await foreach (var preimupd in this.gigGossipNode.GetPreimageRevealClient(settlerUri).StreamAsync(this.gigGossipNode.MakeSettlerAuthTokenAsync(settlerUri).Result, CancellationTokenSource.Token))
+                        await foreach (var preimupd in (await this.gigGossipNode.GetPreimageRevealClientAsync(settlerUri)).StreamAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(settlerUri), CancellationTokenSource.Token))
                         {
                             var pp = preimupd.Split('|');
                             var payhash = pp[0];
@@ -150,7 +150,7 @@ namespace NGigGossip4Nostr
                                           select i).FirstOrDefault();
                             if (pToMon != null)
                             {
-                                gigGossipNode.OnPreimageRevealed(pToMon.ServiceUri,pToMon.PaymentHash, preimage);
+                                await gigGossipNode.OnPreimageRevealedAsync(pToMon.ServiceUri,pToMon.PaymentHash, preimage);
                                 pToMon.Preimage = preimage;
                                 gigGossipNode.nodeContext.Value.SaveObject(pToMon);
                             }
@@ -183,7 +183,7 @@ namespace NGigGossip4Nostr
                 {
                     try
                     {
-                        await foreach (var symkeyupd in this.gigGossipNode.GetSymmetricKeyRevealClient(settlerUri).StreamAsync(this.gigGossipNode.MakeSettlerAuthTokenAsync(settlerUri).Result, CancellationTokenSource.Token))
+                        await foreach (var symkeyupd in (await this.gigGossipNode.GetSymmetricKeyRevealClientAsync(settlerUri)).StreamAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(settlerUri), CancellationTokenSource.Token))
                         {
                             var pp = symkeyupd.Split('|');
                             var gigId = Guid.Parse(pp[0]);

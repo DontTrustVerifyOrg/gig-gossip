@@ -32,7 +32,7 @@ public abstract class NostrNode
         public required object Frame;
     }
 
-    protected void PublishContactList(Dictionary<string, NostrContact> contactList)
+    protected async Task PublishContactListAsync(Dictionary<string, NostrContact> contactList)
     {
         List<NostrEventTag> tags;
         lock (contactList)
@@ -45,11 +45,11 @@ public abstract class NostrNode
             Content = "",
             Tags = tags,
         };
-        newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false).Wait();
-        nostrClient.PublishEvent(newEvent, CancellationToken.None).Wait();
+        await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
+        await nostrClient.PublishEvent(newEvent, CancellationToken.None);
     }
 
-    public string SendMessage(string targetPublicKey, object frame, bool ephemeral, DateTime? expiration = null)
+    public async Task<string> SendMessageAsync(string targetPublicKey, object frame, bool ephemeral, DateTime? expiration = null)
     {
         var message = Convert.ToBase64String(Crypto.SerializeObject(frame));
         var evid = Guid.NewGuid().ToString();
@@ -80,24 +80,24 @@ public abstract class NostrNode
                     });
 
 
-            newEvent.EncryptNip04EventAsync(this.privateKey, skipKindVerification: true).AsTask().Wait();
-            newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false).Wait();
+            await newEvent.EncryptNip04EventAsync(this.privateKey, skipKindVerification: true);
+            await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
             events.Add(newEvent);
         }
         foreach (var e in events)
-            nostrClient.PublishEvent(e, CancellationToken.None);
+            await nostrClient.PublishEvent(e, CancellationToken.None);
         return evid;
     }
 
-    public abstract void OnMessage(string eventId, string senderPublicKey, object frame);
+    public abstract Task OnMessageAsync(string eventId, string senderPublicKey, object frame);
     public abstract void OnContactList(string eventId, Dictionary<string, NostrContact> contactList);
 
     Thread mainThread;
     CancellationTokenSource subscribeForEventsTokenSource = new CancellationTokenSource();
 
-    protected void Start()
+    protected async Task StartAsync()
     {
-        nostrClient.ConnectAndWaitUntilConnected().Wait();
+        await nostrClient.ConnectAndWaitUntilConnected();
         var q = nostrClient.SubscribeForEvents(new[]{
                 new NostrSubscriptionFilter()
                 {
@@ -125,7 +125,7 @@ public abstract class NostrNode
                     if (nostrEvent.Kind == 3)
                         ProcessContactList(nostrEvent);
                     else
-                        ProcessNewMessage(nostrEvent);
+                        await ProcessNewMessageAsync(nostrEvent);
             }
             catch (Exception e)
             {
@@ -146,7 +146,7 @@ public abstract class NostrNode
 
     private Dictionary<string, SortedDictionary<int, string>> _partial_messages = new();
 
-    private void ProcessNewMessage(NostrEvent nostrEvent)
+    private async Task ProcessNewMessageAsync(NostrEvent nostrEvent)
     {
         Dictionary<string, List<string>> tagDic = new();
         foreach (var tag in nostrEvent.Tags)
@@ -160,13 +160,13 @@ public abstract class NostrNode
                 int parti = int.Parse(tagDic["i"][0]);
                 int partNum = int.Parse(tagDic["n"][0]);
                 string idx = tagDic["x"][0];
-                var msg = nostrEvent.DecryptNip04EventAsync(this.privateKey, skipKindVerification: true).Result;
+                var msg = await nostrEvent.DecryptNip04EventAsync(this.privateKey, skipKindVerification: true);
                 if (partNum == 1)
                 {
                     var type = tagDic["t"][0];
                     var t = System.Reflection.Assembly.Load("GigGossipFrames").GetType("NGigGossip4Nostr." + type);
                     var frame = Crypto.DeserializeObject(Convert.FromBase64String(msg), t);
-                    this.OnMessage(idx, nostrEvent.PublicKey, frame);
+                    await this.OnMessageAsync(idx, nostrEvent.PublicKey, frame);
                 }
                 else
                 {
@@ -186,7 +186,7 @@ public abstract class NostrNode
                         }
                     }
                     if (frame != null)
-                        this.OnMessage(idx, nostrEvent.PublicKey, frame);
+                        await this.OnMessageAsync(idx, nostrEvent.PublicKey, frame);
                 }
             }
     }

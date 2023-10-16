@@ -62,7 +62,7 @@ public static class Crypto
         public string PublicKey { get; set; }
         public DateTime DateTime { get; set; }
         public Guid Guid { get; set; }
-        public byte[] Signature { get; set; }
+        public byte[]? Signature { get; set; }
     }
 
     /// <summary>
@@ -90,7 +90,7 @@ public static class Crypto
             return null;
         var signature = timedToken.Signature;
         timedToken.Signature = null;
-        if (!VerifyObject(timedToken, signature, ecpub))
+        if (!VerifyObject(timedToken, signature!, ecpub))
             return null;
         return timedToken;
     }
@@ -160,7 +160,7 @@ public static class Crypto
     /// </summary>
     public static byte[] EncryptObject(object obj, ECXOnlyPubKey theirXPublicKey, ECPrivKey? myPrivKey)
     {
-        byte[] attachpubKey = null;
+        byte[]? attachpubKey = null;
         if (myPrivKey == null)
         {
             myPrivKey = GeneratECPrivKey();
@@ -263,7 +263,7 @@ public static class Crypto
 
             sha256.TransformFinalBlock(new byte[0], 0, 0);
 
-            return sha256.Hash;
+            return sha256.Hash!;
         }
     }
 
@@ -281,7 +281,7 @@ public static class Crypto
 
             sha512.TransformFinalBlock(new byte[0], 0, 0);
 
-            return sha512.Hash;
+            return sha512.Hash!;
         }
     }
 
@@ -406,7 +406,7 @@ public static class Crypto
     /// <summary>
     /// Deserializes a byte array into an object of returnType using GZipped Json serialization
     /// </summary>
-    public static object DeserializeObject(byte[] data, Type returnType)
+    public static object? DeserializeObject(byte[] data, Type returnType)
     {
         using (MemoryStream compressedStream = new MemoryStream(data))
         {
@@ -418,7 +418,7 @@ public static class Crypto
     /// <summary>
     /// Deserializes a byte array into an object of type T using GZipped Json serialization
     /// </summary>
-    public static T DeserializeObject<T>(byte[] data)
+    public static T? DeserializeObject<T>(byte[] data)
     {
         using (MemoryStream compressedStream = new MemoryStream(data))
         {

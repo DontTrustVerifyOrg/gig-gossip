@@ -21,7 +21,7 @@
     },
     "https": {
       "commandName": "Project",
-      "commandLineArgs": "--basedir=\"/Users/vkozar/work/locallnd/.giggossip/\"",
+      "commandLineArgs": "--basedir=\"/Users/pawel/work/locallnd/.giggossip/\"",
       "launchBrowser": true,
       "launchUrl": "swagger",
       "applicationUrl": "https://localhost:7101;http://localhost:5017",

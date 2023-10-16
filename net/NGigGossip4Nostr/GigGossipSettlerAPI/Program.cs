@@ -60,10 +60,8 @@ var httpClient = new HttpClient();
 var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.AbsoluteUri, httpClient);
 
 Singlethon.Settler = new Settler(settlerSettings.ServiceUri, caPrivateKey, settlerSettings.PriceAmountForSettlement, TimeSpan.FromSeconds(settlerSettings.InvoicePaymentTimeoutSec),TimeSpan.FromSeconds(settlerSettings.DisputeTimeoutSec));
-Singlethon.Settler.Init(lndWalletClient, settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)), false);
-
-Singlethon.Settler.Start();
-
+await Singlethon.Settler.InitAsync(lndWalletClient, settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)), false);
+await Singlethon.Settler.StartAsync();
 
 app.MapGet("/getcapublickey", () =>
 {
@@ -261,12 +259,12 @@ app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
 });
 
 
-app.MapGet("/generatesettlementtrust", (string authToken, string message, string replyinvoice, string signedRequestPayloadSerialized, string replierCertificateSerialized) =>
+app.MapGet("/generatesettlementtrust", async (string authToken, string message, string replyinvoice, string signedRequestPayloadSerialized, string replierCertificateSerialized) =>
 {
     var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
     var signedRequestPayload = Crypto.DeserializeObject< RequestPayload>(Convert.FromBase64String(signedRequestPayloadSerialized));
     var replierCertificate = Crypto.DeserializeObject< Certificate>(Convert.FromBase64String(replierCertificateSerialized));
-    var st =  Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, Convert.FromBase64String(message), replyinvoice, signedRequestPayload, replierCertificate).Result;
+    var st =  await Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, Convert.FromBase64String(message), replyinvoice, signedRequestPayload, replierCertificate);
     return Convert.ToBase64String(Crypto.SerializeObject(st));
 })
 .WithName("GenerateSettlementTrust")
@@ -298,10 +296,10 @@ app.MapGet("/revealsymmetrickey", (string authToken, Guid gigId, string repliper
     return g;
 });
 
-app.MapGet("/managedispute", (string authToken, Guid gigId, string repliperPubKey, bool open) =>
+app.MapGet("/managedispute", async (string authToken, Guid gigId, string repliperPubKey, bool open) =>
 {
     Singlethon.Settler.ValidateAuthToken(authToken);
-    Singlethon.Settler.ManageDispute(gigId, repliperPubKey, open);
+    await Singlethon.Settler.ManageDisputeAsync(gigId, repliperPubKey, open);
 })
 .WithName("ManageDispute")
 .WithSummary("Allows opening and closing disputes.")
@@ -322,11 +320,11 @@ app.Run(settlerSettings.ServiceUri.AbsoluteUri);
 
 public class SettlerSettings
 {
-    public Uri ServiceUri { get; set; }
-    public Uri GigWalletOpenApi { get; set; }
-    public long PriceAmountForSettlement { get; set; }
-    public string ConnectionString { get; set; }
-    public string SettlerPrivateKey { get; set; }
-    public long InvoicePaymentTimeoutSec { get; set; }
-    public long DisputeTimeoutSec { get; set; }
+    public required Uri ServiceUri { get; set; }
+    public required Uri GigWalletOpenApi { get; set; }
+    public required long PriceAmountForSettlement { get; set; }
+    public required string ConnectionString { get; set; }
+    public required string SettlerPrivateKey { get; set; }
+    public required long InvoicePaymentTimeoutSec { get; set; }
+    public required long DisputeTimeoutSec { get; set; }
 }

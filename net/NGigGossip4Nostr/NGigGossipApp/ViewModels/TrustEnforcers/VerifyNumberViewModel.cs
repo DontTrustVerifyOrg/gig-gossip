@@ -40,8 +40,8 @@ namespace GigMobile.ViewModels.TrustEnforcers
             await settlerClient.VerifyChannelAsync(token, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", _newTrustEnforcer.PhoneNumber);
 
             var certificate = Crypto.DeserializeObject<Certificate>(
-                 settlerClient.IssueCertificateAsync(
-                    token, _gigGossipNode.PublicKey, new List<string> { "PhoneNumber" }).Result);
+                 await settlerClient.IssueCertificateAsync(
+                    token, _gigGossipNode.PublicKey, new List<string> { "PhoneNumber" }));
 
             //save certificate for later => LookingDriverViewModel
 

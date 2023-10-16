@@ -12,18 +12,18 @@ namespace GigGossipSettlerAPIClient
             this.swaggerClient = swaggerClient;
         }
 
-		public void Connect(string authToken)
+		public async Task ConnectAsync(string authToken)
 		{
             connection = new HubConnectionBuilder()
                 .WithUrl(swaggerClient.BaseUrl + "symmetrickeyreveal?authtoken=" + Uri.EscapeDataString(authToken))
                 .WithAutomaticReconnect()
                 .Build();
-            connection.StartAsync().Wait();
+            await connection.StartAsync();
         }
 
-        public void Monitor(string authToken, Guid gigId, string replierPublicKey)
+        public async Task MonitorAsync(string authToken, Guid gigId, string replierPublicKey)
         {
-            connection.SendAsync("Monitor", authToken, gigId, replierPublicKey).Wait();
+            await connection.SendAsync("Monitor", authToken, gigId, replierPublicKey);
         }
 
         public IAsyncEnumerable<string> StreamAsync(string authToken, CancellationToken cancellationToken)

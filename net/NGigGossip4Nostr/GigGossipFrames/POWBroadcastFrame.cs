@@ -30,9 +30,9 @@ public class POWBroadcastFrame
     /// </summary>
     /// <param name="caAccessor">The Certification Authority accessor used to verify the Sender Certificate.</param>
     /// <returns>Returns true if verification is successful, otherwise returns false.</returns>
-    public bool Verify(ICertificationAuthorityAccessor caAccessor)
+    public async Task<bool> VerifyAsync(ICertificationAuthorityAccessor caAccessor)
     {
-        if (!this.BroadcastPayload.SignedRequestPayload.SenderCertificate.Verify(caAccessor))
+        if (!await this.BroadcastPayload.SignedRequestPayload.SenderCertificate.VerifyAsync(caAccessor))
         {
             return false;
         }

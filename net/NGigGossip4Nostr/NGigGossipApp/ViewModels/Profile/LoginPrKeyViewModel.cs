@@ -27,7 +27,7 @@ namespace GigMobile.ViewModels.Profile
                     if (key != null)
                     {
                         await SecureDatabase.SetPrivateKeyAsync(PrivateKey);
-
+                        
                         var usBiometric = await SecureDatabase.GetUseBiometricAsync();
                         if (!usBiometric)
                             await NavigationService.NavigateAsync<Profile.AllowBiometricViewModel>();

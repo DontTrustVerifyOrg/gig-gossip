@@ -17,7 +17,7 @@
 		<ApplicationTitle>GigMobile</ApplicationTitle>
 
 		<!-- App Identifier -->
-		<ApplicationId>com.companyname.gigmobile</ApplicationId>
+		<ApplicationId>org.gig-gossip.gigmobile.</ApplicationId>
 		<ApplicationIdGuid>a6b5eb6e-f0e2-4126-a307-6af71a6bf111</ApplicationIdGuid>
 
 		<!-- Versions -->
@@ -36,6 +36,7 @@
 	  <CreatePackage>false</CreatePackage>
 	  <CodesignKey>iPhone Developer</CodesignKey>
 	  <CodesignEntitlements>Platforms\iOS\Entitlements.plist</CodesignEntitlements>
+	  <CodesignProvision>Automatic</CodesignProvision>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net7.0-ios|AnyCPU'">
 	  <CreatePackage>false</CreatePackage>
@@ -72,7 +73,7 @@
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="7.0.0" />
 		<PackageReference Include="BindedMvvm" Version="1.0.1" />
 		<PackageReference Include="ZXing.Net.Maui.Controls" Version="0.3.0-preview.1" />
-		<PackageReference Include="Mapsui.Maui" Version="4.0.0" />
+		<PackageReference Include="Mapsui.Maui" Version="4.1.0" />
 		<PackageReference Include="PropertyChanged.Fody" Version="4.1.0" />
 		<PackageReference Include="Fody" Version="6.8.0">
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

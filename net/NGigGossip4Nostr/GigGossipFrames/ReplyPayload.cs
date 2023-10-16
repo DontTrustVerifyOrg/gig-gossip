@@ -39,16 +39,16 @@ public class ReplyPayload
     /// <returns>
     /// <c>true</c> if the verification succeeded; otherwise, <c>false</c>.
     /// </returns>
-    /// <see cref="Certificate.Verify(ICertificationAuthorityAccessor)"/>
+    /// <see cref="Certificate.VerifyAsync(ICertificationAuthorityAccessor)"/>
     /// <see cref="RequestPayload.Verify(ECXOnlyPubKey)"/>
-    public bool Verify(ICertificationAuthorityAccessor caAccessor)
+    public async Task<bool> VerifyAsync(ICertificationAuthorityAccessor caAccessor)
     {
-        if (!this.ReplierCertificate.Verify(caAccessor))
+        if (!await this.ReplierCertificate.VerifyAsync(caAccessor))
         {
             return false;
         }
 
-        if (!this.SignedRequestPayload.SenderCertificate.Verify(caAccessor))
+        if (!await this.SignedRequestPayload.SenderCertificate.VerifyAsync(caAccessor))
         {
             return false;
         }

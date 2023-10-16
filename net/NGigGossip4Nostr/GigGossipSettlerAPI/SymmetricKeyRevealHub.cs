@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 using GigGossipSettler;
 using Microsoft.AspNetCore.SignalR;
 using Nito.AsyncEx;
@@ -45,13 +46,13 @@ public class SymmetricKeyRevealHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public async Task Monitor(string authToken, Guid gigId, string replierPublicKey)
+    public void Monitor(string authToken, Guid gigId, string replierPublicKey)
     {
         var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
         Singlethon.SymmetricKeys4UserPublicKey.AddItem(publicKey, Tuple.Create(gigId,replierPublicKey));
     }
 
-    public async IAsyncEnumerable<string> Streaming(string authToken, CancellationToken cancellationToken)
+    public async IAsyncEnumerable<string> StreamAsync(string authToken,[EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
         while (true)

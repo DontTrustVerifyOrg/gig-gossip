@@ -12,18 +12,18 @@ namespace GigLNDWalletAPIClient
             this.swaggerClient = swaggerClient;
         }
 
-		public void Connect(string authToken)
+		public async Task ConnectAsync(string authToken)
 		{
             connection = new HubConnectionBuilder()
                 .WithUrl(swaggerClient.BaseUrl + "invoicestateupdates?authtoken=" + Uri.EscapeDataString(authToken))
                 .WithAutomaticReconnect()
                 .Build();
-            connection.StartAsync().Wait();
+            await connection.StartAsync();
         }
 
-        public void Monitor(string authToken, string paymentHash)
+        public async Task MonitorAsync(string authToken, string paymentHash)
         {
-            connection.SendAsync("Monitor", authToken, paymentHash).Wait();
+            await connection.SendAsync("Monitor", authToken, paymentHash);
         }
 
         public IAsyncEnumerable<string> StreamAsync(string authToken, CancellationToken cancellationToken)
