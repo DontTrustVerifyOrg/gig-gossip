@@ -1,167 +1,18 @@
-    1  ls
-    2  xcode-select 
-    3  sudo apt update
-    4  apt update
-    5  apt install xcode-select 
-    6  apt install xcode
-    7  git clone https://github.com/bitcoin/bitcoin.git
-    8  apt install git
-    9  git clone https://github.com/bitcoin/bitcoin.git
-   10  cd bitcoin/
-   11  ls
-   12  ./autogen.sh 
-   13  apt install autoconf
-   14  ./autogen.sh 
-   15  apt install pkg-config
-   16  ./autogen.sh 
-   17  apt install libtool
-   18  sudo apt-get install build-essential libtool autotools-dev automake pkg-config bsdmainutils python3
-   19  sudo apt-get install libevent-dev libboost-dev
-   20  apt-get install libevent-dev libboost-dev
-   21  sudo 
-   22  apt install libsqlite3-dev
-   23  apt install libminiupnpc-dev libnatpmp-dev
-   24  apt-get install libzmq3-dev
-   25  apt install systemtap-sdt-dev
-   26  ./autogen.sh
-   27  ./configure
-   28  make
-   29  ./configure --without-gui
-   30  make
-   31  make install
-   32  ls
-   33  cd ..
-   34  ls
-   35  ./share/rpcauth/rpcauth.py lnd lightning
-   36  ./bitcoin/share/rpcauth/rpcauth.py lnd lightning
-   37  mkdir work
-   38  cd work/
-   39  ls
-   40  mkdir locallnd
-   41  mkdir locallnd/.bitcoin
-   42  cd locallnd/.bitcoin/
-   43  touch bitcoin.conf
-   44  nano bitcoin.conf 
-   45  apt install nano
-   46  nano bitcoin.conf 
-   47  export BITCOIN_LOCAL_DIR="/work/locallnd/.bitcoin"
-   48  alias bitcoind-local="/bitcoin/src/bitcoind -datadir=$BITCOIN_LOCAL_DIR"
-   49  alias bitcoin-local-cli="/bitcoin/src/bitcoin-cli -datadir=$BITCOIN_LOCAL_DIR"
-   50  source ~/.zshrc
-   51  apt install go
-   52  apt install golang-go
-   53  nano bitcoin.conf 
-   54  bitsteind
-   55  source ~/.bash_profile
-   56  touch ~/.bash_profile
-   57  nano ~/.bash_profile
-   58  source ~/.bash_profile
-   59  bitsteind
-   60  bitcoind-local
-   61  bitcoin-local-cli createwallet "testwallet"
-   62  bitcoin-local-cli loadwallet "testwallet"
-   63  bitcoin-local-cli -generate 101
-   64  bitcoin-local-cli getbalance
-   65  ls
-   66  cd ..
-   67  ls
-   68  mkdir ./giggossip
-   69  cd giggossip/
-   70  ls
-   71  touch btctest.conf
-   72  nano btctest.conf 
-   73  dotnet
-   74  apt-get install -y dotnet-sdk-7.0
-   75  dotnet ~/work/donttrustverify/gig-gossip/net/NGigGossip4Nostr/BTCTest/bin/Debug/net7.0/BTCTest.dll --basedir="/work/locallnd/.giggossip/"
-   76  ls
-   77  cd ..
-   78  rename giggossip/ .giggossip/
-   79  mv giggossip/ .giggossip
-   80  ls
-   81  cd ..
-   82  ls
-   83  cd locallnd/
-   84  ls
-   85  ls ..
-   86  ls /
-   87  ls
-   88  ls -a
-   89  cat .giggossip/btctest.conf 
-   90  cd ..
-   91  ls
-   92  git clone https://github.com/DontTrustVerifyOrg/gig-gossip.git
-   93  dotnet /work/donttrustverify/gig-gossip/net/NGigGossip4Nostr/BTCTest/bin/Debug/net7.0/BTCTest.dll --basedir="/work/locallnd/.giggossip/"
-   94  lks
-   95  ls
-   96  dotnet /work/gig-gossip/net/NGigGossip4Nostr/BTCTest/bin/Debug/net7.0/BTCTest.dll --basedir="/work/locallnd/.giggossip/"
-   97  dotnet
-   98  cd gig-gossip/net/NGigGossip4Nostr/BTCTest/
-   99  ls
-  100  dotnet build
-  101  dotnet /work/gig-gossip/net/NGigGossip4Nostr/BTCTest/bin/Debug/net7.0/BTCTest.dll --basedir="/work/locallnd/.giggossip/"
-  102  cd /work/
-  103  git clone https://github.com/lightningnetwork/lnd
-  104  cd lnd/
-  105  make tags="signrpc walletrpc routerrpc invoicesrpc chainrpc" && make install
-  106  make check
-  107  go version
-  108  apt purge go
-  109  history
-  110  apt purge golang-go
-  111  cd /root/
-  112  mkdir tmp
-  113  cd tmp/
-  114  wget https://dl.google.com/go/go1.21.linux-amd64.tar.gz
-  115  apt install wget
-  116  wget https://dl.google.com/go/go1.21.linux-amd64.tar.gz
-  117  apt install golang
-  118  apt purge golang-go
-  119  apt purge golang
-  120  wget  https://go.dev/dl/go1.20.2.linux-amd64.tar.gz 
-  121  mv go /usr/local  
-  122  ls
-  123  tar -xvf go1.20.2.linux-amd64.tar.gz  
-  124  mv go /usr/local
-  125  export GOROOT=/usr/local/go 
-  126  export PATH=$GOPATH/bin:$GOROOT/bin:$PATH 
-  127  nano /root/.bashrc
-  128  nano /root/.bash_profile 
-  129  go version
-  130  source /root/.bash_profile 
-  131  cd /work/lnd/
-  132  ls
-  133  make tags="signrpc walletrpc routerrpc invoicesrpc chainrpc" && make install
-  134  make check
-  135  cd ..
-  136  cd locallnd/
-  137  ls -a
-  138  mkdir .lnd
-  139  cd .lnd/
-  140  touch lnd.conf
-  141  nano lnd.conf 
-  142  cat lnd.conf 
-  143  cd ..
-  144  mkdir .lnd2
-  145  touch .lnd2/lnd.conf
-  146  nano .lnd/lnd.conf 
-  147  nano .lnd2/lnd.conf 
-  148  mkdir .lnd3
-  149  touch .lnd3/lnd.conf
-  150  nano .lnd3/lnd.conf 
-  151  nano /root/.bash_profile 
-  152  source /root/.bash_profile 
-  153  lnd1
-  154  history
 
-
-
-
-
-# RUN touch /root/.bash_profile
-# RUN printf "export GOROOT=/usr/local/go" >> /root/.bash_profile
-# RUN printf "\nexport PATH=$GOPATH/bin:$GOROOT/bin:$PATH" >> /root/.bash_profile
-# RUN source /root/.bash_profile
-# RUN export GOROOT=/usr/local/go
-# RUN export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
-
-# RUN make check
+giggossip_wallet_api        | Unhandled exception. 
+giggossip_wallet_api        | Microsoft.Data.Sqlite.SqliteException (0x80004005): SQLite Error 14: 'unable to open database file'.
+giggossip_wallet_api        |    at Microsoft.Data.Sqlite.SqliteException.ThrowExceptionForRC(Int32 rc, sqlite3 db)
+giggossip_wallet_api        |    at Microsoft.Data.Sqlite.SqliteConnectionInternal..ctor(SqliteConnectionStringBuilder connectionOptions, SqliteConnectionPool pool)
+giggossip_wallet_api        |    at Microsoft.Data.Sqlite.SqliteConnectionPool.GetConnection()
+giggossip_wallet_api        |    at Microsoft.Data.Sqlite.SqliteConnectionFactory.GetConnection(SqliteConnection outerConnection)
+giggossip_wallet_api        |    at Microsoft.Data.Sqlite.SqliteConnection.Open()
+giggossip_wallet_api        |    at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
+giggossip_wallet_api        |    at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
+giggossip_wallet_api        |    at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
+giggossip_wallet_api        |    at Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal.SqliteDatabaseCreator.Create()
+giggossip_wallet_api        |    at Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator.EnsureCreated()
+giggossip_wallet_api        |    at Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade.EnsureCreated()
+giggossip_wallet_api        |    at LNDWallet.LNDWalletManager..ctor(String connectionString, NodeSettings conf, Boolean deleteDb) in /work/gig-gossip/net/NGigGossip4Nostr/LNDWallet/LNDWallet.cs:line 311
+giggossip_wallet_api        |    at Program.<Main>$(String[] args) in /work/gig-gossip/net/NGigGossip4Nostr/GigLNDWalletAPI/Program.cs:line 65
+giggossip_wallet_api        | Aborted (core dumped)
+giggossip_wallet_api exited with code 0
