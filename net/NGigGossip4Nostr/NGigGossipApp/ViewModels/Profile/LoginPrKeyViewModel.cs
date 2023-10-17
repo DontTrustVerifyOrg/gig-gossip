@@ -10,14 +10,17 @@ namespace GigMobile.ViewModels.Profile
     {
         private ICommand _loginCommand;
         private readonly IServiceProvider _serviceProvider;
+        private readonly IGigGossipNodeEvents _gigGossipNodeEvents;
 
         public ICommand LoginCommand => _loginCommand ??= new Command(async () => await LoginAsync());
 
         public string PrivateKey { get; set; }
 
-        public LoginPrKeyViewModel(IServiceProvider serviceProvider)
+        public LoginPrKeyViewModel(IServiceProvider serviceProvider,
+            IGigGossipNodeEvents gigGossipNodeEvents)
         {
             _serviceProvider = serviceProvider;
+            _gigGossipNodeEvents = gigGossipNodeEvents;
         }
 
         public override void Prepare(string data)
@@ -77,9 +80,9 @@ namespace GigMobile.ViewModels.Profile
                         try
                         {
 #if DEBUG
-                            await node.StartAsync(new GigGossipNodeEvents(), HttpsClientHandlerService.GetPlatformMessageHandler());
+                            await node.StartAsync(_gigGossipNodeEvents, HttpsClientHandlerService.GetPlatformMessageHandler());
 #else
-                            await node.StartAsync(new GigGossipNodeEvents());;
+                            await node.StartAsync(_gigGossipNodeEvents);;
 #endif
                         }
                         catch (Exception ex)

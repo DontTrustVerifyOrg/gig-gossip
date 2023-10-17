@@ -15,7 +15,7 @@
         <Entry Placeholder="Destination Location" Text="{Binding ToAddress}" HorizontalOptions="FillAndExpand" />
         <Button Text="[📍 Pick on Map]" Command="{Binding PickFromCommand}" HorizontalOptions="End"/>
         <Grid ColumnDefinitions="*, *" VerticalOptions="EndAndExpand">
-            <Button Grid.Column="0" Text="[⛔ Cancel]" VerticalOptions="End" HorizontalOptions="Center"/>
+            <Button Grid.Column="0" Text="[⛔ Cancel]" Command="{Binding BackCommand}" VerticalOptions="End" HorizontalOptions="Center"/>
             <Button Grid.Column="1" Text="[✅ Request]" Command="{Binding RequestCommand}" VerticalOptions="End" HorizontalOptions="Center"/>
         </Grid>
     </StackLayout>

@@ -7,6 +7,7 @@ using NGigGossip4Nostr;
 using GigLNDWalletAPIClient;
 using System.Text;
 using Sharpnado.Tabs;
+using System.ComponentModel;
 
 namespace GigMobile;
 
@@ -61,6 +62,7 @@ public static class MauiProgram
     {
         serviceDescriptors.AddSingleton<BindedMvvm.INavigationService, BindedMvvm.NavigationService>();
         serviceDescriptors.AddSingleton(implementationFactory: NodeFactoryImplementation);
+        serviceDescriptors.AddSingleton<IGigGossipNodeEvents, GigGossipNodeEvents>();
     }
 
     private static GigGossipNode NodeFactoryImplementation(IServiceProvider provider)
@@ -101,6 +103,8 @@ public static class MauiProgram
 
 public class GigGossipNodeEvents : IGigGossipNodeEvents
 {
+    public event EventHandler OnNewResponsed;
+
     public GigGossipNodeEvents()
     {
     }
@@ -136,6 +140,7 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
 
     public async void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
+
         await me.AcceptResponseAsync(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
     }
 
