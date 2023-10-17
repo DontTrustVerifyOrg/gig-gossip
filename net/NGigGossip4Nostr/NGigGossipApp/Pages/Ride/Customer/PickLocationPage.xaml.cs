@@ -20,6 +20,8 @@ public partial class PickLocationPage : BasePage<PickLocationViewModel>
         InitializeComponent();
 
         BuildMap();
+
+        Loaded -= BasePage_Loaded;
     }
 
     private void BuildMap()
@@ -53,7 +55,7 @@ public partial class PickLocationPage : BasePage<PickLocationViewModel>
         //else
         //    sphericalMercatorCoordinate = SphericalMercator.FromLonLat(ViewModel.UserCoordinate.Longitude, ViewModel.UserCoordinate.Latitude).ToMPoint();
 
-        _mapControl.Map.Home = n => n.CenterOnAndZoomTo(sphericalMercatorCoordinate, n.Resolutions[15]);
+        _mapControl.Map.Home = n => n.CenterOnAndZoomTo(sphericalMercatorCoordinate, n.Resolutions[18]);
 
         _mapControl.Map.Navigator.ViewportChanged += OnViewPortChanged;
 

@@ -1,15 +1,12 @@
 ﻿using BindedMvvm;
-using GigMobile.Services;
-using Plugin.Fingerprint;
-using Plugin.Fingerprint.Abstractions;
 
 namespace GigMobile;
 
-public partial class MainPage : ContentPage
+public partial class LaunchPage : ContentPage
 {
     private readonly INavigationService _navigationService;
 
-    public MainPage(INavigationService navigationService)
+    public LaunchPage(INavigationService navigationService)
 	{
 		InitializeComponent();
         _navigationService = navigationService;

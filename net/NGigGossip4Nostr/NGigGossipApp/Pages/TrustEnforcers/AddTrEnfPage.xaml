@@ -17,7 +17,7 @@
             <Entry Text="{Binding PhoneNumber}" Placeholder="number" HorizontalOptions="FillAndExpand" VerticalOptions="Center"/>
         </StackLayout>
         <Grid ColumnDefinitions="3*, *" VerticalOptions="EndAndExpand">
-            <Button Grid.Column="0" Text="[Skip]" Command="{Binding SkipCommand}" VerticalOptions="End" HorizontalOptions="Center"/>
+            <Button Grid.Column="0" Text="[Skip]" Command="{Binding SkipCommand}" VerticalOptions="End" HorizontalOptions="Center" IsVisible="{Binding FromSetup}"/>
             <Button Grid.Column="1" Text="[ Add ➕ ]" Command="{Binding AddTrEnfCommand}" VerticalOptions="End" HorizontalOptions="End"/>
         </Grid>
     </StackLayout>

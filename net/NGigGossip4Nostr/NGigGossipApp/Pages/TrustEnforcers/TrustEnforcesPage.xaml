@@ -3,6 +3,7 @@
                xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                xmlns:base="clr-namespace:GigMobile.Pages"
                xmlns:viewModel="clr-namespace:GigMobile.ViewModels.TrustEnforcers"
+               xmlns:models="clr-namespace:GigMobile.Models"
                x:Class="GigMobile.Pages.TrustEnforcers.TrustEnforcersPage"
                x:DataType="viewModel:TrustEnforcersViewModel"
                x:TypeArguments="viewModel:TrustEnforcersViewModel"
@@ -10,10 +11,10 @@
     <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
         <CollectionView ItemsSource="{Binding TrustEnforcers}" VerticalOptions="StartAndExpand">
             <CollectionView.ItemTemplate>
-                <DataTemplate x:DataType="x:String">
+                <DataTemplate x:DataType="models:TrustEnforcer">
                     <Frame Padding="10" Margin="0, 5" CornerRadius="1" BorderColor="White" InputTransparent="True" BackgroundColor="Transparent">
                         <Grid ColumnDefinitions="*, *, *, *" RowDefinitions="Auto, Auto" ColumnSpacing="12" RowSpacing="12">
-                            <Label Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Text="{Binding .}"
+                            <Label Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Text="{Binding Url}"
                                    FontAttributes="Bold" FontSize="16" Padding="12" VerticalOptions="Center"/>
                             <Label Grid.Row="0" Grid.Column="4" Text="(Default)" VerticalOptions="Center"/>
                             <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Text="[Make Default]" HorizontalOptions="Center"/>

@@ -1,4 +1,5 @@
 ﻿using System.Windows.Input;
+using GigMobile.Models;
 using GigMobile.Services;
 
 namespace GigMobile.ViewModels.TrustEnforcers
@@ -35,7 +36,10 @@ namespace GigMobile.ViewModels.TrustEnforcers
         private async Task OpenAddTrEnfAsync()
         {
             if (!string.IsNullOrEmpty(Url) && !string.IsNullOrEmpty(PhoneCode) && !string.IsNullOrEmpty(PhoneNumber))
-                await NavigationService.NavigateAsync<VerifyNumberViewModel, NewTrustEnforcer>(new NewTrustEnforcer { Url = Url, PhoneNumber = $"+{PhoneCode} {PhoneNumber}" }, onClosed: async (x) => await OnAddedClosed());
+            {
+                Url = GigGossipNodeConfig.SettlerOpenApi.ToString();
+                await NavigationService.NavigateAsync<VerifyNumberViewModel, TrustEnforcer>(new TrustEnforcer { Url = Url, PhoneNumber = $"+{PhoneCode} {PhoneNumber}" }, onClosed: async (x) => await OnAddedClosed());
+            }
         }
 
         private async Task OnAddedClosed()
@@ -45,6 +49,8 @@ namespace GigMobile.ViewModels.TrustEnforcers
                 await SecureDatabase.SetSetSetupStatusAsync(SecureDatabase.SetupStatus.Wallet);
                 await NavigationService.NavigateAsync<Wallet.AddWalletViewModel>();
             }
+            else
+                await NavigationService.NavigateBackAsync();
         }
     }
 }

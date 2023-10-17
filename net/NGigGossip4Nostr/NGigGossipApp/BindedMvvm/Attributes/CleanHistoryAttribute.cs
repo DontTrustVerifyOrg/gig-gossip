@@ -2,11 +2,6 @@
 namespace BindedMvvm.Attributes
 {
     [AttributeUsage(AttributeTargets.Class)]
-    public class CleanHistoryAttribute : Attribute
-    {
-		public CleanHistoryAttribute()
-		{
-		}
-	}
+    public class CleanHistoryAttribute : Attribute { }
 }
 

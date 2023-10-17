@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<base:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:base="clr-namespace:GigMobile.Pages"
+               xmlns:viewModel="clr-namespace:GigMobile.ViewModels"
+               x:Class="GigMobile.Pages.MainPage"
+               x:DataType="viewModel:MainViewModel"
+               x:TypeArguments="viewModel:MainViewModel"
+               NavigationPage.HasNavigationBar="False">
+    <ContentPage.Content>
+        <StackLayout Padding="24">
+            <Label Text="Gig-gosip Mobile App"
+                    FontSize="Large"
+                    TextColor="#113946" FontAttributes="Bold"
+                    Margin="0, 0, 0, 24"/>
+            <Frame HasShadow="False" BackgroundColor="#A2B6A6" Padding="16">
+                <StackLayout VerticalOptions="FillAndExpand">
+                    <StackLayout Orientation="Horizontal">
+                        <Label Text="Wallet" TextColor="#2E3424" FontSize="Medium" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
+                        <Button Text="⚙️  Settings" TextColor="#2E3424"
+                                VerticalOptions="Center" BackgroundColor="#B8D1D9" CornerRadius="10" Padding="12"
+                                Command="{Binding EditWalletDomainCommand}" />
+                    </StackLayout>
+                        <Button Text="[Details]" TextColor="#2E3424" VerticalOptions="Center" BackgroundColor="Transparent" BorderWidth="0"
+                                Command="{Binding WalletDetailsCommand}"/>
+                </StackLayout>
+            </Frame>
+            <Button Text="[Trust Enforcers]" Command="{Binding EditTrustEnforcersCommand}" VerticalOptions="End" HorizontalOptions="End"/>
+            <Button Text="[Request Ride]" Command="{Binding RequestRideCommand}" VerticalOptions="End" HorizontalOptions="End"/>
+            <Button Text="[Driver Parameters]" Command="{Binding DriverParametersCommand}" VerticalOptions="End" HorizontalOptions="End"/>
+        </StackLayout>
+    </ContentPage.Content>
+</base:BasePage>

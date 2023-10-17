@@ -8,7 +8,7 @@
                x:Class="GigMobile.Pages.Ride.Customer.PickLocationPage"
                Title=" 🗺  Pick Location on Map">
     <StackLayout>
-        <Grid VerticalOptions="StartAndExpand" HorizontalOptions="StartAndExpand">
+        <Grid VerticalOptions="FillAndExpand" HorizontalOptions="FillAndExpand">
             <ContentView x:Name="_mapView" VerticalOptions="FillAndExpand" HorizontalOptions="FillAndExpand"/>
             <Ellipse HeightRequest="25" WidthRequest="25" Fill="Black" Stroke="Gray" StrokeThickness="4" VerticalOptions="Center" HorizontalOptions="Center"/>
         </Grid>

@@ -6,6 +6,7 @@ using CryptoToolkit;
 using NGigGossip4Nostr;
 using GigLNDWalletAPIClient;
 using System.Text;
+using Sharpnado.Tabs;
 
 namespace GigMobile;
 
@@ -22,6 +23,7 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             })
             .UseSkiaSharp(true)
+            .UseSharpnadoTabs(false)
             .UseBarcodeReader();
 
 #if ANDROID && DEBUG

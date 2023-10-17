@@ -6,7 +6,7 @@
                x:Class="GigMobile.Pages.Profile.ProfileSetupPage"
                x:DataType="viewModel:ProfileSetupViewModel"
                x:TypeArguments="viewModel:ProfileSetupViewModel"
-               NavigationPage.HasNavigationBar="False">
+               HasNavigationBar="False">
     <VerticalStackLayout VerticalOptions="Center" Spacing="4">
         <Label Text="🎉 Setup Your Profile" FontSize="Title"
                HorizontalOptions="Center" HorizontalTextAlignment="Center" Margin="24"/>

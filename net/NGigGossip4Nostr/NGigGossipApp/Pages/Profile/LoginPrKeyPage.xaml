@@ -6,7 +6,8 @@
                x:Class="GigMobile.Pages.Profile.LoginPrKeyPage"
                x:DataType="viewModel:LoginPrKeyViewModel"
                x:TypeArguments="viewModel:LoginPrKeyViewModel"
-               Title=" 🔒 Login With Your PrivKey">
+               Title=" 🔒 Login With Your PrivKey"
+               HasNavigationBar="True">
     <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
         <Label Text="Enter your PrivKey:" HorizontalOptions="Start" VerticalOptions="Start"/>
         <Entry Placeholder="PrivKey" Text="{Binding PrivateKey}" HorizontalOptions="FillAndExpand" />

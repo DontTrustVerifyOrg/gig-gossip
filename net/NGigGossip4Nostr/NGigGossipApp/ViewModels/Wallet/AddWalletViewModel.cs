@@ -5,12 +5,18 @@ using CryptoToolkit;
 
 namespace GigMobile.ViewModels.Wallet
 {
-	public class AddWalletViewModel : BaseViewModel
+	public class AddWalletViewModel : BaseViewModel<bool>
     {
         private ICommand _addWalletCommand;
         public ICommand AddWalletCommand => _addWalletCommand ??= new Command(async () => await AddWalletAsync());
 
         public string WalletDomain { get; set; }
+        public bool FromSetup { get; private set; }
+
+        public override void Prepare(bool data)
+        {
+            FromSetup = data;
+        }
 
         private async Task AddWalletAsync()
         {
@@ -24,7 +30,10 @@ namespace GigMobile.ViewModels.Wallet
 
                 await SecureDatabase.SetSetSetupStatusAsync(SecureDatabase.SetupStatus.Finished);
 
-                await NavigationService.NavigateAsync<WalletDetailsViewModel>();
+                if (FromSetup)
+                    await NavigationService.NavigateAsync<MainViewModel>();
+                else
+                    await NavigationService.NavigateBackAsync();
             }
         }
     }

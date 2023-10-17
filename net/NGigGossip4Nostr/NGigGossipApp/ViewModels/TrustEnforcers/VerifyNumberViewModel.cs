@@ -1,21 +1,15 @@
-﻿using System.Collections.Generic;
-using System.Windows.Input;
+﻿using System.Windows.Input;
 using CryptoToolkit;
+using GigMobile.Models;
 using GigMobile.Services;
 
 namespace GigMobile.ViewModels.TrustEnforcers
 {
-    public class NewTrustEnforcer
-    {
-        public string Url { get; set; }
-        public string PhoneNumber { get; set; }
-    }
-
-    public class VerifyNumberViewModel : BaseViewModel<NewTrustEnforcer>
+    public class VerifyNumberViewModel : BaseViewModel<TrustEnforcer>
     {
         private readonly GigGossipNode _gigGossipNode;
 
-        private NewTrustEnforcer _newTrustEnforcer;
+        private TrustEnforcer _newTrustEnforcer;
 
         private ICommand _submitCommand;
         public ICommand SubmitCommand => _submitCommand ??= new Command(async () => await SubmitAsync());
@@ -27,7 +21,7 @@ namespace GigMobile.ViewModels.TrustEnforcers
         public short? Code4 { get; set; }
         public short? Code5 { get; set; }
 
-        public override void Prepare(NewTrustEnforcer data)
+        public override void Prepare(TrustEnforcer data)
         {
             _newTrustEnforcer = data;
         }
@@ -43,14 +37,14 @@ namespace GigMobile.ViewModels.TrustEnforcers
 
             try
             {
-                var token = await _gigGossipNode.MakeSettlerAuthTokenAsync(GigGossipNodeConfig.SettlerOpenApi);
-                var settlerClient = _gigGossipNode.SettlerSelector.GetSettlerClient(GigGossipNodeConfig.SettlerOpenApi);
+                var token = await _gigGossipNode.MakeSettlerAuthTokenAsync(new Uri(_newTrustEnforcer.Url));
+                var settlerClient = _gigGossipNode.SettlerSelector.GetSettlerClient(new Uri(_newTrustEnforcer.Url));
                 await settlerClient.VerifyChannelAsync(token, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", _newTrustEnforcer.PhoneNumber);
 
                 var settletCert = await settlerClient.IssueCertificateAsync(token, _gigGossipNode.PublicKey, new List<string> { "PhoneNumber" });
-                var certificate = Crypto.DeserializeObject<Certificate>(settletCert);
+                _newTrustEnforcer.Certificate = Crypto.DeserializeObject<Certificate>(settletCert);
 
-                //save certificate for later => LookingDriverViewModel
+                await SecureDatabase.AddTrustEnforcersAsync(_newTrustEnforcer);
             }
             catch (Exception ex)
             {

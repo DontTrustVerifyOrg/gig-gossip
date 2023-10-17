@@ -1,4 +1,6 @@
-﻿using Newtonsoft.Json;
+﻿using GigMobile.Models;
+using GigMobile.ViewModels.TrustEnforcers;
+using Newtonsoft.Json;
 
 namespace GigMobile.Services
 {
@@ -56,38 +58,17 @@ namespace GigMobile.Services
             await SecureStorage.Default.SetAsync(UBM, JsonConvert.SerializeObject(dc));
         }
 
-        public static async Task<string[]> GetTrustEnforcersAsync()
+        public static async Task<TrustEnforcer[]> GetTrustEnforcersAsync()
         {
             var value = await SecureStorage.Default.GetAsync(TEN);
             if (!string.IsNullOrEmpty(value))
             {
                 var key = await GetPrivateKeyAsync();
-                var dc = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(value);
+                var dc = JsonConvert.DeserializeObject<Dictionary<string, TrustEnforcer[]>>(value);
                 if (dc.ContainsKey(key))
                     return dc[key];
             }
             return null;
-        }
-
-        public static async Task AddTrustEnforcersAsync(string value)
-        {
-            var existingValue = await SecureStorage.Default.GetAsync(TEN);
-            var key = await GetPrivateKeyAsync();
-
-            Dictionary<string, string[]> dc;
-            if (!string.IsNullOrEmpty(existingValue))
-                dc = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(existingValue);
-            else
-                dc = new Dictionary<string, string[]> { { key, null } };
-            var oldValue = dc[key];
-            var newValue = new List<string>();
-            if (oldValue != null)
-                foreach (var old in oldValue)
-                    newValue.Add(old);
-            newValue.Add(value);
-            dc[key] = newValue.ToArray();
-
-            await SecureStorage.Default.SetAsync(TEN, JsonConvert.SerializeObject(dc));
         }
 
         public static async Task<SetupStatus> GetGetSetupStatusAsync()
@@ -116,6 +97,27 @@ namespace GigMobile.Services
             dc[key] = value;
 
             await SecureStorage.Default.SetAsync(ISP, JsonConvert.SerializeObject(dc));
+        }
+
+        internal static async Task AddTrustEnforcersAsync(TrustEnforcer newTrustEnforcer)
+        {
+            var existingValue = await SecureStorage.Default.GetAsync(TEN);
+            var key = await GetPrivateKeyAsync();
+
+            Dictionary<string, TrustEnforcer[]> dc;
+            if (!string.IsNullOrEmpty(existingValue))
+                dc = JsonConvert.DeserializeObject<Dictionary<string, TrustEnforcer[]>>(existingValue);
+            else
+                dc = new Dictionary<string, TrustEnforcer[]> { { key, null } };
+            var oldValue = dc[key];
+            var newValue = new List<TrustEnforcer>();
+            if (oldValue != null)
+                foreach (var old in oldValue)
+                    newValue.Add(old);
+            newValue.Add(newTrustEnforcer);
+            dc[key] = newValue.ToArray();
+
+            await SecureStorage.Default.SetAsync(TEN, JsonConvert.SerializeObject(dc));
         }
     }
 }

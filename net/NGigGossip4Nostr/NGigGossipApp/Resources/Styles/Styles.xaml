@@ -5,7 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
     
     <Style TargetType="Label">
-        <Setter Property="TextColor" Value="White" />
+        <Setter Property="TextColor" Value="Black" />
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="FontFamily" Value="OpenSansRegular" />
         <Setter Property="FontSize" Value="14" />
@@ -15,7 +15,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource Gray600}" />
+                            <Setter Property="TextColor" Value="{StaticResource Black}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -24,8 +24,8 @@
     </Style>
 
     <Style TargetType="Entry">
-        <Setter Property="TextColor" Value="White" />
-        <Setter Property="PlaceholderColor" Value="{StaticResource Gray300}" />
+        <Setter Property="TextColor" Value="Black" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource Black}" />
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="FontFamily" Value="OpenSansRegular" />
         <Setter Property="FontSize" Value="14" />
@@ -35,7 +35,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource Gray600}" />
+                            <Setter Property="TextColor" Value="{StaticResource Black}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -44,7 +44,7 @@
     </Style>
 
     <Style TargetType="Button">
-        <Setter Property="TextColor" Value="{StaticResource White}" />
+        <Setter Property="TextColor" Value="{StaticResource Black}" />
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="FontFamily" Value="OpenSansRegular"/>
         <Setter Property="FontSize" Value="14"/>
@@ -58,8 +58,8 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource Gray950}" />
-                            <Setter Property="BackgroundColor" Value="{StaticResource Gray200}" />
+                            <Setter Property="TextColor" Value="{StaticResource Black}" />
+                            <Setter Property="BackgroundColor" Value="{StaticResource Black}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -68,7 +68,7 @@
     </Style>
 
     <Style TargetType="NavigationPage">
-        <Setter Property="BarBackgroundColor" Value="{StaticResource Gray950}" />
+        <Setter Property="BarBackgroundColor" Value="{StaticResource Black}" />
         <Setter Property="BarTextColor" Value="{StaticResource White}" />
         <Setter Property="IconColor" Value="{StaticResource White}" />
     </Style>

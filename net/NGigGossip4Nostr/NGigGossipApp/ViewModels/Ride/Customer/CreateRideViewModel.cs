@@ -17,6 +17,9 @@ namespace GigMobile.ViewModels.Ride.Customer
         private ICommand _pickToCommand;
         public ICommand PickToCommand => _pickToCommand ??= new Command(async () => await PickLocationAsync(false));
 
+        public string FromAddress { get; private set; }
+        public string ToAddress { get; private set; }
+
         private async Task PickLocationAsync(bool isFromLocation)
         {
             //var location = await GeolocationService.GetCachedLocation();
@@ -29,9 +32,17 @@ namespace GigMobile.ViewModels.Ride.Customer
                 return;
 
             if (isFromLocation)
+            {
                 _fromLocation = (Location)location;
+                //TODO
+                //FromAddress = PAWEL_API_GEOLOCATION.GetAddressByCoordinate(_fromLocation);
+            }
             else
+            {
                 _toLocation = (Location)location;
+                //TODO
+                //FromAddress = PAWEL_API_GEOLOCATION.GetAddressByCoordinate(_toLocation);
+            }
         }
     }
 }

@@ -1,11 +1,12 @@
 ﻿using System.Windows.Input;
+using GigMobile.Models;
 using GigMobile.Services;
 
 namespace GigMobile.ViewModels.TrustEnforcers
 {
 	public class TrustEnforcersViewModel : BaseViewModel<bool>
     {
-        public string[] TrustEnforcers { get; set; }
+        public TrustEnforcer[] TrustEnforcers { get; set; }
 
         private ICommand _addTrEnfCommand;
         public ICommand AddTrEnfCommand => _addTrEnfCommand ??= new Command(() => { NavigationService.NavigateAsync<AddTrEnfViewModel, bool>(FromSetup, animated: true); });

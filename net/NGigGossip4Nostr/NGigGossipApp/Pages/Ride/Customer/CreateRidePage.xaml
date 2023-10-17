@@ -9,10 +9,10 @@
                Title=" 🚖  Request a Ride ">
     <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
         <Label Text="Choose Pickup Location:" HorizontalOptions="Start" VerticalOptions="Start"/>
-        <Entry Placeholder="Pickup Location" HorizontalOptions="FillAndExpand" />
+        <Entry Placeholder="Pickup Location" Text="{Binding FromAddress}" HorizontalOptions="FillAndExpand" />
         <Button Text="[📍 Pick on Map]" Command="{Binding PickToCommand}" HorizontalOptions="End"/>
         <Label Text="Choose Destination Location:" HorizontalOptions="Start" VerticalOptions="Start"/>
-        <Entry Placeholder="Destination Location" HorizontalOptions="FillAndExpand" />
+        <Entry Placeholder="Destination Location" Text="{Binding ToAddress}" HorizontalOptions="FillAndExpand" />
         <Button Text="[📍 Pick on Map]" Command="{Binding PickFromCommand}" HorizontalOptions="End"/>
         <Grid ColumnDefinitions="*, *" VerticalOptions="EndAndExpand">
             <Button Grid.Column="0" Text="[⛔ Cancel]" VerticalOptions="End" HorizontalOptions="Center"/>

@@ -66,9 +66,10 @@ namespace GigMobile.ViewModels.Profile
         {
             if (!string.IsNullOrEmpty(PrivateKey))
             {
+                IsBusy = true;
                 try
                 {
-                    var key = PrivateKey.AsECPrivKey();
+                    var key = await PrivateKey.AsECPrivKeyAsync();
                     if (key != null)
                     {
                         await SecureDatabase.SetPrivateKeyAsync(PrivateKey);
@@ -95,9 +96,9 @@ namespace GigMobile.ViewModels.Profile
                             switch (status)
                             {
                                 case SecureDatabase.SetupStatus.Enforcer: await NavigationService.NavigateAsync<TrustEnforcers.AddTrEnfViewModel, bool>(true); break;
-                                case SecureDatabase.SetupStatus.Wallet: await NavigationService.NavigateAsync<Wallet.AddWalletViewModel>(); break;
+                                case SecureDatabase.SetupStatus.Wallet: await NavigationService.NavigateAsync<Wallet.AddWalletViewModel, bool>(true); break;
                                 default:
-                                    await NavigationService.NavigateAsync<Wallet.WalletDetailsViewModel>(); break;
+                                    await NavigationService.NavigateAsync<MainViewModel>(); break;
                             }
                             
                         }
@@ -106,6 +107,10 @@ namespace GigMobile.ViewModels.Profile
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex.Message);
+                }
+                finally
+                {
+                    IsBusy = false;
                 }
             }
         }
