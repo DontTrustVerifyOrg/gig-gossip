@@ -79,6 +79,61 @@ services:
 
 
 
+  nostr:
+    image: python:3.10.13-alpine3.18
+
+    container_name: giggossip_nostr
+    restart: on-failure
+    working_dir: /work/locallnd/.nostr_relay
+    command: sh -c "pip install nostr-relay && nostr-relay -c config.yaml serve"
+    ports:
+      - 6969:6969
+    volumes:
+      - ./work/locallnd/.nostr_relay:/work/locallnd/.nostr_relay:Z
+
+
+
+
+  wallet_api:
+    image: awazcognitum/gig-gossip-base:0.1
+
+    container_name: giggossip_wallet_api
+    restart: on-failure
+    working_dir: /work/gig-gossip/net/NGigGossip4Nostr/GigLNDWalletAPI
+    command: sh -c "dotnet build && dotnet ./bin/Debug/net7.0/GigLNDWalletAPI.dll --basedir=/work/locallnd/.giggossip/"
+    ports:
+      - 7101:7101
+    volumes:
+      - ./work/locallnd/:/work/locallnd/:Z
+    depends_on:
+      - bitcoin
+      - lightning_node_1
+      - lightning_node_2
+      - lightning_node_3
+
+
+
+  settler_api:
+    image: awazcognitum/gig-gossip-base:0.1
+
+    container_name: giggossip_wallet_api
+    restart: on-failure
+    working_dir: /work/gig-gossip/net/NGigGossip4Nostr/GigGossipSettlerAPI
+    command: sh -c "dotnet build && dotnet ./bin/Debug/net7.0/GigGossipSettlerAPI.dll --basedir=/work/locallnd/.giggossip/"
+    ports:
+      - 7189:7189
+    volumes:
+      - ./work/locallnd/:/work/locallnd/:Z
+    depends_on:
+      - bitcoin
+      - lightning_node_1
+      - lightning_node_2
+      - lightning_node_3
+      - wallet_api
+
+
+
+
 networks:
   default:
     name: giggossip
