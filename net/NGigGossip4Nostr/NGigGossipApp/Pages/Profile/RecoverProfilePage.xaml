@@ -5,8 +5,7 @@
                xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Profile"
                x:Class="GigMobile.Pages.Profile.RecoverProfilePage"
                x:DataType="viewModel:RecoverProfileViewModel"
-               x:TypeArguments="viewModel:RecoverProfileViewModel"
-               Title=" ⏪ Recover Existing Profile">
+               x:TypeArguments="viewModel:RecoverProfileViewModel">
     <ContentPage.Resources>
         <ResourceDictionary>
             <Style TargetType="Entry">
@@ -16,22 +15,62 @@
             </Style>
         </ResourceDictionary>
     </ContentPage.Resources>
-    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
-        <Label Text="Enter your recovery mnemonic:" HorizontalOptions="Start" VerticalOptions="Start"/>
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="48">
+        <Label Text="Recover existing profile" FontSize="Title"
+               HorizontalOptions="Center" VerticalOptions="Start"/>
+        <Label Text="Enter your recovery mnemonic:"
+               FontSize="Body"
+               HorizontalOptions="Start" VerticalOptions="Start"/>
         <Grid RowDefinitions="*, *, *, *" ColumnDefinitions="*, *, *" RowSpacing="12" ColumnSpacing="12">
-            <Entry Grid.Column="0" Grid.Row="0" Text="{Binding Mnemonic[0]}" />
-            <Entry Grid.Column="1" Grid.Row="0" Text="{Binding Mnemonic[1]}" />
-            <Entry Grid.Column="2" Grid.Row="0" Text="{Binding Mnemonic[2]}" />
-            <Entry Grid.Column="0" Grid.Row="1" Text="{Binding Mnemonic[3]}" />
-            <Entry Grid.Column="1" Grid.Row="1" Text="{Binding Mnemonic[4]}" />
-            <Entry Grid.Column="2" Grid.Row="1" Text="{Binding Mnemonic[5]}" />
-            <Entry Grid.Column="0" Grid.Row="2" Text="{Binding Mnemonic[6]}" />
-            <Entry Grid.Column="1" Grid.Row="2" Text="{Binding Mnemonic[7]}" />
-            <Entry Grid.Column="2" Grid.Row="2" Text="{Binding Mnemonic[8]}" />
-            <Entry Grid.Column="0" Grid.Row="3" Text="{Binding Mnemonic[9]}" />
-            <Entry Grid.Column="1" Grid.Row="3" Text="{Binding Mnemonic[10]}" />
-            <Entry Grid.Column="2" Grid.Row="3" Text="{Binding Mnemonic[11]}" />
+            <StackLayout Orientation="Horizontal" Grid.Column="0" Grid.Row="0">
+                <Label Text="#1" VerticalOptions="Center" WidthRequest="30" HorizontalTextAlignment="Center"/>
+                <Entry Text="{Binding Mnemonic[0]}" />
+            </StackLayout>
+            <StackLayout Orientation="Horizontal" Grid.Column="1" Grid.Row="0">
+                <Label Text="#2" VerticalOptions="Center" WidthRequest="30" HorizontalTextAlignment="Center"/>
+                <Entry Text="{Binding Mnemonic[1]}" />
+            </StackLayout>
+            <StackLayout Orientation="Horizontal" Grid.Column="2" Grid.Row="0" >
+                <Label Text="#3" VerticalOptions="Center" WidthRequest="30" HorizontalTextAlignment="Center"/>
+                <Entry Text="{Binding Mnemonic[2]}" />
+            </StackLayout>
+            <StackLayout Orientation="Horizontal" Grid.Column="0" Grid.Row="1">
+                <Label Text="#4" VerticalOptions="Center" WidthRequest="30" HorizontalTextAlignment="Center"/>
+                <Entry Text="{Binding Mnemonic[3]}" />
+            </StackLayout>
+            <StackLayout Orientation="Horizontal" Grid.Column="1" Grid.Row="1">
+                <Label Text="#5" VerticalOptions="Center" WidthRequest="30" HorizontalTextAlignment="Center"/>
+                <Entry Text="{Binding Mnemonic[4]}" />
+            </StackLayout>
+            <StackLayout Orientation="Horizontal" Grid.Column="2" Grid.Row="1">
+                <Label Text="#6" VerticalOptions="Center" WidthRequest="30" HorizontalTextAlignment="Center"/>
+                <Entry Text="{Binding Mnemonic[5]}" />
+            </StackLayout>
+            <StackLayout Orientation="Horizontal" Grid.Column="0" Grid.Row="2">
+                <Label Text="#7" VerticalOptions="Center" WidthRequest="30" HorizontalTextAlignment="Center"/>
+                <Entry Text="{Binding Mnemonic[6]}" />
+            </StackLayout>
+            <StackLayout Orientation="Horizontal" Grid.Column="1" Grid.Row="2">
+                <Label Text="#8" VerticalOptions="Center" WidthRequest="30" HorizontalTextAlignment="Center"/>
+                <Entry Text="{Binding Mnemonic[7]}" />
+            </StackLayout>
+            <StackLayout Orientation="Horizontal" Grid.Column="2" Grid.Row="2">
+                <Label Text="#9" VerticalOptions="Center" WidthRequest="30" HorizontalTextAlignment="Center"/>
+                <Entry Text="{Binding Mnemonic[8]}" />
+            </StackLayout>
+            <StackLayout Orientation="Horizontal" Grid.Column="0" Grid.Row="3">
+                <Label Text="#10" VerticalOptions="Center" WidthRequest="30" HorizontalTextAlignment="Center"/>
+                <Entry Text="{Binding Mnemonic[9]}" />
+            </StackLayout>
+            <StackLayout Orientation="Horizontal" Grid.Column="1" Grid.Row="3">
+                <Label Text="#11" VerticalOptions="Center" WidthRequest="30" HorizontalTextAlignment="Center"/>
+                <Entry Text="{Binding Mnemonic[10]}" />
+            </StackLayout>
+            <StackLayout Orientation="Horizontal" Grid.Column="2" Grid.Row="3">
+                <Label Text="#12" VerticalOptions="Center" WidthRequest="30" HorizontalTextAlignment="Center"/>
+                <Entry Text="{Binding Mnemonic[11]}" />
+            </StackLayout>
         </Grid>
-        <Button Text="[ Next ➡️ ]" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
+        <Button Text="Next" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
     </StackLayout>
 </base:BasePage>

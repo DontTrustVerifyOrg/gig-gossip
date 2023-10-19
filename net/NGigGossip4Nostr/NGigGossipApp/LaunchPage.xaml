@@ -1,7 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="GigMobile.LaunchPage">
-        <VerticalStackLayout/>
+             x:Class="GigMobile.LaunchPage"
+             NavigationPage.HasNavigationBar="False"
+             BackgroundColor="#333333">
+        <VerticalStackLayout VerticalOptions="Center" Padding="48">
+            <Image Source="logo_no_background"/>
+        </VerticalStackLayout>
 </ContentPage>
 

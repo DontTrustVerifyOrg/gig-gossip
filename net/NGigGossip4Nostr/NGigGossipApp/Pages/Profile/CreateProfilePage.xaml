@@ -5,25 +5,72 @@
                xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Profile"
                x:Class="GigMobile.Pages.Profile.CreateProfilePage"
                x:DataType="viewModel:CreateProfileViewModel"
-               x:TypeArguments="viewModel:CreateProfileViewModel"
-               Title=" 💼 Create New Profile">
-    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
-        <Label Text="Your recovery mnemonic:" HorizontalOptions="Start" VerticalOptions="Start"/>
-        <Grid RowDefinitions="*, *, *, *" ColumnDefinitions="*, *, *" RowSpacing="12" ColumnSpacing="12">
-            <Label Grid.Column="0" Grid.Row="0" Text="{Binding Mnemonic[0]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
-            <Label Grid.Column="1" Grid.Row="0" Text="{Binding Mnemonic[1]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
-            <Label Grid.Column="2" Grid.Row="0" Text="{Binding Mnemonic[2]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
-            <Label Grid.Column="0" Grid.Row="1" Text="{Binding Mnemonic[3]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
-            <Label Grid.Column="1" Grid.Row="1" Text="{Binding Mnemonic[4]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
-            <Label Grid.Column="2" Grid.Row="1" Text="{Binding Mnemonic[5]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
-            <Label Grid.Column="0" Grid.Row="2" Text="{Binding Mnemonic[6]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
-            <Label Grid.Column="1" Grid.Row="2" Text="{Binding Mnemonic[7]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
-            <Label Grid.Column="2" Grid.Row="2" Text="{Binding Mnemonic[8]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
-            <Label Grid.Column="0" Grid.Row="3" Text="{Binding Mnemonic[9]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
-            <Label Grid.Column="1" Grid.Row="3" Text="{Binding Mnemonic[10]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
-            <Label Grid.Column="2" Grid.Row="3" Text="{Binding Mnemonic[11]}" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
-        </Grid>
-        <Label Text=" Write them down now notepad!" HorizontalOptions="Start" VerticalOptions="Start"/>
-        <Button Text="[ Next ➡️ ]" Command="{Binding NextCommand}" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
+               x:TypeArguments="viewModel:CreateProfileViewModel">
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="48">
+        <Label Text="Create new profile" FontSize="Title" HorizontalOptions="Center" VerticalOptions="Start"/>
+        <StackLayout Spacing="12">
+            <Label Text="Recovery phrases, also known as 'seed words' or 'mnemonic phrases', are ordered lists of 12 words that bring you to specific and unique wallet addresses."
+                   FontSize="Small" HorizontalOptions="Start" VerticalOptions="Start"/>
+            <Label Text="It is important to keep your recovery phrase or private keys safe. Best practices: Write it down on a piece of paper and store it in a safe and secure place. "
+                   FontSize="Small" HorizontalOptions="Start" VerticalOptions="Start"/>
+            <Label Text="Only you alone possess this seed. Keep it private."
+                   FontSize="Small" FontFamily="RobotoBold" HorizontalOptions="Start" VerticalOptions="Start"/>
+        </StackLayout>
+        <Frame HasShadow="False" BackgroundColor="#7FC37E" Padding="16, 28">
+            <StackLayout Spacing="18">
+                <Label Text="KEEP THIS SEED SAFE. DO NOT SHARE." HorizontalOptions="Center" VerticalOptions="Start"/>
+                <Grid RowDefinitions="*, *, *, *" ColumnDefinitions="*, *, *" RowSpacing="12" ColumnSpacing="12">
+                    <StackLayout Orientation="Horizontal" Grid.Column="0" Grid.Row="0" Spacing="12">
+                        <Label Text="#1" WidthRequest="25"/>
+                        <Label Text="{Binding Mnemonic[0]}" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontFamily="RobotoBold"/>
+                    </StackLayout>
+                    <StackLayout Orientation="Horizontal" Grid.Column="1" Grid.Row="0" Spacing="12">
+                        <Label Text="#2" WidthRequest="25"/>
+                        <Label Text="{Binding Mnemonic[1]}" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontFamily="RobotoBold"/>
+                    </StackLayout>
+                    <StackLayout Orientation="Horizontal" Grid.Column="2" Grid.Row="0" Spacing="12">
+                        <Label Text="#3" WidthRequest="25"/>
+                        <Label Text="{Binding Mnemonic[2]}" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontFamily="RobotoBold"/>
+                    </StackLayout>
+                    <StackLayout Orientation="Horizontal" Grid.Column="0" Grid.Row="1" Spacing="12">
+                        <Label Text="#4" WidthRequest="25"/>
+                        <Label Text="{Binding Mnemonic[3]}" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontFamily="RobotoBold"/>
+                    </StackLayout>
+                    <StackLayout Orientation="Horizontal" Grid.Column="1" Grid.Row="1" Spacing="12">
+                        <Label Text="#5" WidthRequest="25"/>
+                        <Label Text="{Binding Mnemonic[4]}" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontFamily="RobotoBold"/>
+                    </StackLayout>
+                    <StackLayout Orientation="Horizontal" Grid.Column="2" Grid.Row="1" Spacing="12">
+                        <Label Text="#6" WidthRequest="25"/>
+                        <Label Text="{Binding Mnemonic[5]}" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontFamily="RobotoBold"/>
+                    </StackLayout>
+                    <StackLayout Orientation="Horizontal" Grid.Column="0" Grid.Row="2" Spacing="12">
+                        <Label Text="#7" WidthRequest="25"/>
+                        <Label Text="{Binding Mnemonic[6]}" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontFamily="RobotoBold"/>
+                    </StackLayout>
+                    <StackLayout Orientation="Horizontal" Grid.Column="1" Grid.Row="2" Spacing="12">
+                        <Label Text="#8" WidthRequest="25"/>
+                        <Label Text="{Binding Mnemonic[7]}" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontFamily="RobotoBold"/>
+                    </StackLayout>
+                    <StackLayout Orientation="Horizontal" Grid.Column="2" Grid.Row="2" Spacing="12">
+                        <Label Text="#9" WidthRequest="25"/>
+                        <Label Text="{Binding Mnemonic[8]}" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontFamily="RobotoBold"/>
+                    </StackLayout>
+                    <StackLayout Orientation="Horizontal" Grid.Column="0" Grid.Row="3" Spacing="12">
+                        <Label Text="#10" WidthRequest="25"/>
+                        <Label Text="{Binding Mnemonic[9]}" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontFamily="RobotoBold"/>
+                    </StackLayout>
+                    <StackLayout Orientation="Horizontal" Grid.Column="1" Grid.Row="3" Spacing="12">
+                        <Label Text="#11" WidthRequest="25"/>
+                        <Label Text="{Binding Mnemonic[10]}" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontFamily="RobotoBold"/>
+                    </StackLayout>
+                    <StackLayout Orientation="Horizontal" Grid.Column="2" Grid.Row="3" Spacing="12">
+                        <Label Text="#12" WidthRequest="25"/>
+                        <Label Text="{Binding Mnemonic[11]}" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontFamily="RobotoBold"/>
+                    </StackLayout>
+                </Grid>
+            </StackLayout>
+        </Frame>
+        <Button Text="Next" Command="{Binding NextCommand}" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
     </StackLayout>
 </base:BasePage>

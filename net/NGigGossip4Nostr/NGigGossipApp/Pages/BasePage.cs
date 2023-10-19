@@ -30,12 +30,13 @@ namespace GigMobile.Pages
             {
                 GradientStops =
                 {
-                    new GradientStop(Color.FromArgb("#FFF2D8"), 0.0f),
-                    new GradientStop(Color.FromArgb("#2F4858"), 1.0f)
+                    new GradientStop(Color.FromArgb("#FFFFFF"), 0.0f),
+                    new GradientStop(Color.FromArgb("#FEFEE2"), 1.0f)
                 }
             };
 
             var actualContent = Content;
+            Content = null;
 
             var background = new StackLayout { BackgroundColor = Colors.Black, Opacity = 0.3f, Margin = new Thickness(-100) };
             background.SetBinding(IsVisibleProperty, new Binding(nameof(ViewModel.IsBusy)));
@@ -50,9 +51,19 @@ namespace GigMobile.Pages
                 rootLayout.RowDefinitions = new RowDefinitionCollection(
                     new RowDefinition[] { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Star) } );
 
+                Grid.SetRowSpan(activityIndicator, 2);
+                Grid.SetRowSpan(background, 2);
                 Grid.SetRow(actualContent, 1);
 
-                var backButton = new Button { Text = "Back", FontSize = 24, HorizontalOptions = LayoutOptions.Start, Margin = new Thickness (16, 0) };
+                var backButton = new ImageButton
+                {
+                    Source = "back_arrow",
+                    BorderWidth = 0,
+                    HeightRequest = 24,
+                    WidthRequest = 24,
+                    HorizontalOptions = LayoutOptions.Start,
+                    Margin = new Thickness (16, 0)
+                };
                 backButton.SetBinding(Button.CommandProperty, new Binding(nameof(ViewModel.BackCommand)));
 
                 rootLayout.Add(new StackLayout { backButton });
@@ -62,15 +73,6 @@ namespace GigMobile.Pages
             rootLayout.Add(background);
 
             Content = rootLayout;
-        }
-
-        protected override void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            base.OnPropertyChanged(propertyName);
-
-            if (propertyName == nameof(IsBusy))
-            {
-            }
         }
     }
 }

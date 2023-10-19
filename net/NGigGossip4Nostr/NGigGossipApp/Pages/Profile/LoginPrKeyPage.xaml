@@ -8,9 +8,15 @@
                x:TypeArguments="viewModel:LoginPrKeyViewModel"
                Title=" 🔒 Login With Your PrivKey"
                HasNavigationBar="True">
-    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
-        <Label Text="Enter your PrivKey:" HorizontalOptions="Start" VerticalOptions="Start"/>
-        <Entry Placeholder="PrivKey" Text="{Binding PrivateKey}" HorizontalOptions="FillAndExpand" />
-        <Button Text="[ Next ➡️ ]" Command="{Binding LoginCommand}" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="48">
+        <Label Text="Login with your key" FontSize="Title" HorizontalOptions="Start" VerticalOptions="Start"/>
+        <StackLayout Spacing="16" VerticalOptions="CenterAndExpand">
+            <Label Text="Enter your private key:" FontSize="Body" HorizontalOptions="Start" VerticalOptions="Start"/>
+            <Entry Placeholder="Private key" Text="{Binding PrivateKey}" HorizontalOptions="FillAndExpand"/>
+            <Button Text="Load private key" Command="{Binding LoadKeyCommand}"
+                    HorizontalOptions="End" BackgroundColor="#333333" TextColor="#FEFEE2"
+                    IsVisible="{Binding IsKeyInStorage}"/>
+        </StackLayout>
+        <Button Text="Next" Command="{Binding LoginCommand}" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
     </StackLayout>
 </base:BasePage>

@@ -6,28 +6,69 @@
                x:Class="GigMobile.Pages.MainPage"
                x:DataType="viewModel:MainViewModel"
                x:TypeArguments="viewModel:MainViewModel"
-               NavigationPage.HasNavigationBar="False">
+               HasNavigationBar="False">
     <ContentPage.Content>
-        <StackLayout Padding="24">
-            <Label Text="Gig-gosip Mobile App"
-                    FontSize="Large"
-                    TextColor="#113946" FontAttributes="Bold"
-                    Margin="0, 0, 0, 24"/>
-            <Frame HasShadow="False" BackgroundColor="#A2B6A6" Padding="16">
-                <StackLayout VerticalOptions="FillAndExpand">
-                    <StackLayout Orientation="Horizontal">
-                        <Label Text="Wallet" TextColor="#2E3424" FontSize="Medium" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
-                        <Button Text="⚙️  Settings" TextColor="#2E3424"
-                                VerticalOptions="Center" BackgroundColor="#B8D1D9" CornerRadius="10" Padding="12"
-                                Command="{Binding EditWalletDomainCommand}" />
-                    </StackLayout>
-                        <Button Text="[Details]" TextColor="#2E3424" VerticalOptions="Center" BackgroundColor="Transparent" BorderWidth="0"
-                                Command="{Binding WalletDetailsCommand}"/>
+        <StackLayout Padding="24" Spacing="24" VerticalOptions="FillAndExpand">
+            <Image Source="logo_no_background" HeightRequest="70"/>
+            <ScrollView VerticalOptions="FillAndExpand">
+                <StackLayout HorizontalOptions="FillAndExpand" Spacing="24">
+                    <Frame HasShadow="False" BackgroundColor="#7FC37E" Padding="16">
+                        <Frame.Background>
+                            <LinearGradientBrush>
+                                <GradientStop Color="#7FC37E" Offset="0.1"/>
+                                <GradientStop Color="#F1F520" Offset="1.0"/>
+                            </LinearGradientBrush>
+                        </Frame.Background>
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding RequestRideCommand}"/>
+                        </Frame.GestureRecognizers>
+                        <StackLayout VerticalOptions="FillAndExpand" Spacing="16" Orientation="Horizontal">
+                            <Label Text="Request Ride" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
+                            <Image Source="way" HeightRequest="25" WidthRequest="25"/>
+                        </StackLayout>
+                    </Frame>
+                    <Frame HasShadow="False" BackgroundColor="#7FC37E" Padding="16">
+                        <StackLayout VerticalOptions="FillAndExpand" Spacing="16">
+                            <StackLayout Orientation="Horizontal" Spacing="12">
+                                <Image Source="wallet" HeightRequest="30" WidthRequest="30"/>
+                                <Label Text="0.0 BTC" FontFamily="RobotoBold" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
+                                <ImageButton Source="setting" HeightRequest="30" WidthRequest="30" VerticalOptions="Center" Command="{Binding EditWalletDomainCommand}" />
+                            </StackLayout>
+                            <StackLayout Orientation="Horizontal" HorizontalOptions="FillAndExpand">
+                                <Label Text="Transfer:" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
+                                <ImageButton Source="send" WidthRequest="50" HeightRequest="50" HorizontalOptions="Start" Command="{Binding WalletDetailsCommand}"/>
+                                <Label Text="/" HorizontalOptions="End" FontSize="Large" VerticalOptions="Center"/>
+                                <ImageButton Source="qr_code" WidthRequest="50" HeightRequest="50" HorizontalOptions="End" Command="{Binding WalletDetailsCommand}"/>
+                            </StackLayout>
+                        </StackLayout>
+                    </Frame>
+                    <Frame HasShadow="False" BackgroundColor="#7FC37E" Padding="16">
+                        <StackLayout VerticalOptions="FillAndExpand" Spacing="16">
+                            <StackLayout Orientation="Horizontal" Spacing="6">
+                                <Image Source="trust" HeightRequest="20" WidthRequest="20"/>
+                                <Label Text="Trust enforcer" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
+                                <ImageButton Source="setting" HeightRequest="30" WidthRequest="30" VerticalOptions="Center" Command="{Binding EditTrustEnforcersCommand}" />
+                            </StackLayout>
+                            <Label Text="GigGossip Enforcer" FontFamily="RobotoBold" FontSize="Body" HorizontalOptions="Start" VerticalOptions="Center"/>
+                        </StackLayout>
+                    </Frame>
+                    <Frame HasShadow="False" BackgroundColor="#7FC37E" Padding="16">
+                        <StackLayout VerticalOptions="FillAndExpand" Spacing="16">
+                            <StackLayout Orientation="Horizontal" Spacing="6">
+                                <Image Source="car" HeightRequest="20" WidthRequest="20"/>
+                                <Label Text="Driver" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
+                                <ImageButton Source="setting" Command="{Binding DriverParametersCommand}" HeightRequest="30" WidthRequest="30" VerticalOptions="Center"/>
+                            </StackLayout>
+                            <StackLayout Orientation="Horizontal" HorizontalOptions="FillAndExpand">
+                                <Label Text="Show me as a driver" FontSize="Small" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
+                                <Switch HorizontalOptions="End" OnColor="#333333"/>
+                            </StackLayout>
+                        </StackLayout>
+                    </Frame>
+                    <Button Text="Logout" Command="{Binding DriverParametersCommand}" VerticalOptions="EndAndExpand" HorizontalOptions="FillAndExpand"
+                            BackgroundColor="Transparent" BorderWidth="2"/>
                 </StackLayout>
-            </Frame>
-            <Button Text="[Trust Enforcers]" Command="{Binding EditTrustEnforcersCommand}" VerticalOptions="End" HorizontalOptions="End"/>
-            <Button Text="[Request Ride]" Command="{Binding RequestRideCommand}" VerticalOptions="End" HorizontalOptions="End"/>
-            <Button Text="[Driver Parameters]" Command="{Binding DriverParametersCommand}" VerticalOptions="End" HorizontalOptions="End"/>
+            </ScrollView>
         </StackLayout>
     </ContentPage.Content>
 </base:BasePage>

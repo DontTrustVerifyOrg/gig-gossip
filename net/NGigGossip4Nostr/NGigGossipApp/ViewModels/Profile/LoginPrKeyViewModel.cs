@@ -8,13 +8,17 @@ namespace GigMobile.ViewModels.Profile
 {
 	public class LoginPrKeyViewModel : BaseViewModel<string>
     {
-        private ICommand _loginCommand;
         private readonly IServiceProvider _serviceProvider;
         private readonly IGigGossipNodeEventSource _gigGossipNodeEventSource;
 
+        private ICommand _loginCommand;
         public ICommand LoginCommand => _loginCommand ??= new Command(async () => await LoginAsync());
 
+        private ICommand _loadKeyCommand;
+        public ICommand LoadKeyCommand => _loadKeyCommand ??= new Command(async () => await LoadKeyFromStorage());
+
         public string PrivateKey { get; set; }
+        public bool IsKeyInStorage { get; set; }
 
         public LoginPrKeyViewModel(IServiceProvider serviceProvider,
             IGigGossipNodeEventSource gigGossipNodeEventSource)
@@ -34,32 +38,31 @@ namespace GigMobile.ViewModels.Profile
             base.OnAppearing();
 
             if (string.IsNullOrEmpty(PrivateKey))
+                IsKeyInStorage = await SecureDatabase.GetUseBiometricAsync();
+        }
+
+        public async Task LoadKeyFromStorage()
+        {
+            if (IsKeyInStorage)
             {
-                var useBiometric = await SecureDatabase.GetUseBiometricAsync();
-                if (useBiometric)
+                var key = await SecureDatabase.GetPrivateKeyAsync();
+
+                if (key != null)
                 {
-                    var key = await SecureDatabase.GetPrivateKeyAsync();
+                    var isAvailable = await CrossFingerprint.Current.IsAvailableAsync(allowAlternativeAuthentication: true);
 
-                    if (key != null)
+                    if (isAvailable)
                     {
-                        var isAvailable = await CrossFingerprint.Current.IsAvailableAsync(allowAlternativeAuthentication: true);
-
-                        if (isAvailable)
+                        var request = new AuthenticationRequestConfiguration("Login using biometrics", "Confirm login with your biometrics")
                         {
-                            var request = new AuthenticationRequestConfiguration("Login using biometrics", "Confirm login with your biometrics")
-                            {
-                                FallbackTitle = "Use PIN",
-                                AllowAlternativeAuthentication = true,
-                            };
+                            FallbackTitle = "Use PIN",
+                            AllowAlternativeAuthentication = true,
+                        };
 
-                            var result = await CrossFingerprint.Current.AuthenticateAsync(request);
+                        var result = await CrossFingerprint.Current.AuthenticateAsync(request);
 
-                            if (result.Authenticated)
-                            {
-                                PrivateKey = key;
-                                return;
-                            }
-                        }
+                        if (result.Authenticated)
+                            PrivateKey = key;
                     }
                 }
             }
