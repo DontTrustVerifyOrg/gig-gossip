@@ -62,7 +62,7 @@ public static class MauiProgram
     {
         serviceDescriptors.AddSingleton<BindedMvvm.INavigationService, BindedMvvm.NavigationService>();
         serviceDescriptors.AddSingleton(implementationFactory: NodeFactoryImplementation);
-        serviceDescriptors.AddSingleton<IGigGossipNodeEvents, GigGossipNodeEvents>();
+        serviceDescriptors.AddSingleton<IGigGossipNodeEventSource, GigGossipNodeEventSource>();
     }
 
     private static GigGossipNode NodeFactoryImplementation(IServiceProvider provider)
@@ -101,12 +101,52 @@ public static class MauiProgram
     }
 }
 
+public class NewResponseEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required ReplyPayload ReplyPayload;
+    public required string ReplyInvoice;
+    public required PayReq DecodedReplyInvoice;
+    public required string NetworkInvoice;
+    public required PayReq DecodedNetworkInvoice;
+};
+
+
+public interface IGigGossipNodeEventSource
+{
+    public event EventHandler<NewResponseEventArgs> OnNewResponse;
+    public IGigGossipNodeEvents GetGigGossipNodeEvents();
+}
+
+public class GigGossipNodeEventSource : IGigGossipNodeEventSource
+{
+    public event EventHandler<NewResponseEventArgs> OnNewResponse;
+
+    GigGossipNodeEvents gigGossipNodeEvents;
+
+    public GigGossipNodeEventSource()
+    {
+        this.gigGossipNodeEvents = new GigGossipNodeEvents(this);
+    }
+
+    public void FireOnNewResponse(NewResponseEventArgs args)
+    {
+        OnNewResponse.Invoke(this,args);
+    }
+
+    public IGigGossipNodeEvents GetGigGossipNodeEvents()
+    {
+        return this.gigGossipNodeEvents;
+    }
+}
+
 public class GigGossipNodeEvents : IGigGossipNodeEvents
 {
-    public event EventHandler OnNewResponsed;
+    GigGossipNodeEventSource gigGossipNodeEventSource;
 
-    public GigGossipNodeEvents()
+    public GigGossipNodeEvents(GigGossipNodeEventSource gigGossipNodeEventSource)
     {
+        this.gigGossipNodeEventSource = gigGossipNodeEventSource;
     }
 
     public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
@@ -138,10 +178,17 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
     {
     }
 
-    public async void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
-
-        await me.AcceptResponseAsync(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
+        gigGossipNodeEventSource.FireOnNewResponse(new NewResponseEventArgs()
+        {
+            GigGossipNode = me,
+            ReplyPayload = replyPayload,
+            ReplyInvoice = replyInvoice,
+            DecodedReplyInvoice = decodedReplyInvoice,
+            NetworkInvoice = networkInvoice,
+            DecodedNetworkInvoice = decodedNetworkInvoice,
+        });
     }
 
     public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)

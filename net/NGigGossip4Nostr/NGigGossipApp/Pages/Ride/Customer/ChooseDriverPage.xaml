@@ -32,9 +32,9 @@
                 <DataTemplate x:DataType="viewModel:DriverProposal">
                     <Grid Padding="10" RowDefinitions="Auto, Auto, Auto" ColumnDefinitions="*, *">
                         <Label Grid.Column="0" Grid.Row="0" Text="{Binding DriverName}" HorizontalOptions="Center"/>
-                        <Label Grid.Column="1" Grid.Row="0" Text="{Binding TrustEnforcerName}" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Grid.Row="0" Text="{Binding SecurityCenterUri}" HorizontalOptions="Center"/>
                         <Label Grid.Column="0" Grid.Row="1" Text="{Binding Price, StringFormat='{0} BTC'}" HorizontalOptions="Center"/>
-                        <Label Grid.Column="1" Grid.Row="1" Text="{Binding Time, StringFormat='{0} min'}" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Grid.Row="1" Text="{Binding WaitTime, StringFormat='{0} min'}" HorizontalOptions="Center"/>
                         <Button Grid.ColumnSpan="2" Grid.Row="2" Text="[Select 🚙]" />
                     </Grid>
                 </DataTemplate>

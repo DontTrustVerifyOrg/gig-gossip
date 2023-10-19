@@ -39,7 +39,6 @@ public class PaymentData
 
 public interface IGigGossipNodeEvents
 {
-    public event EventHandler OnNewResponsed;
     public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice);
     public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key);
     public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame);
