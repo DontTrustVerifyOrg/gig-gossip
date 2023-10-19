@@ -20,6 +20,8 @@ namespace GigMobile.ViewModels.Ride.Customer
 
         public override async Task Initialize()
         {
+            await base.Initialize();
+
             var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);
             var toGh = GeoHash.Encode(latitude: 42.5, longitude: -5.6, numberOfChars: 7);
 
@@ -27,15 +29,13 @@ namespace GigMobile.ViewModels.Ride.Customer
            // trs.Last().Certificate; 
             var certificate = Crypto.DeserializeObject<Certificate>(new byte[] { });//need to load proper certificate
 
-            _gigGossipNode.BroadcastTopicAsync(new TaxiTopic()
+            await _gigGossipNode.BroadcastTopicAsync(new TaxiTopic()
             {
                 FromGeohash = fromGh,
                 ToGeohash = toGh,
                 PickupAfter = DateTime.Now,
                 DropoffBefore = DateTime.Now.AddMinutes(20)
             },certificate);
-
-            base.Initialize();
         }
     }
 }
