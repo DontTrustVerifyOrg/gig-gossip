@@ -74,6 +74,7 @@
 		<PackageReference Include="Plugin.Fingerprint" Version="3.0.0-beta.1" />
 		<PackageReference Include="NGeoHash" Version="1.2.0" />
 		<PackageReference Include="Sharpnado.Tabs.Maui" Version="3.0.1" />
+		<PackageReference Include="Nominatim.API" Version="2.0.0" />
 	</ItemGroup>
 
 	<ItemGroup>

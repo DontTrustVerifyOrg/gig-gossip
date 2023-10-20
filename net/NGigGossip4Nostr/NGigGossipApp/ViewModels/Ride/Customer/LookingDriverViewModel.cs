@@ -6,9 +6,11 @@ using NGeoHash;
 
 namespace GigMobile.ViewModels.Ride.Customer
 {
-	public class LookingDriverViewModel : BaseViewModel
+    public class LookingDriverViewModel : BaseViewModel<Tuple<Location, Location>>
     {
         private GigGossipNode _gigGossipNode;
+        private Location _fromLocation;
+        private Location _toLocation;
 
         private ICommand _cancelRequestCommand;
         public ICommand CancelRequestCommand => _cancelRequestCommand ??= new Command(() => NavigationService.NavigateAsync<ChooseDriverViewModel>());
@@ -18,24 +20,29 @@ namespace GigMobile.ViewModels.Ride.Customer
             _gigGossipNode = gigGossipNode;
         }
 
+        public override void Prepare(Tuple<Location, Location> data)
+        {
+            _fromLocation = data.Item1;
+            _toLocation = data.Item2;
+        }
+
         public override async Task Initialize()
         {
             await base.Initialize();
 
-            var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);
-            var toGh = GeoHash.Encode(latitude: 42.5, longitude: -5.6, numberOfChars: 7);
+            var fromGh = GeoHash.Encode(latitude: _fromLocation.Latitude, longitude: _fromLocation.Longitude, numberOfChars: 7);
+            var toGh = GeoHash.Encode(latitude: _toLocation.Latitude, longitude: _toLocation.Longitude, numberOfChars: 7);
 
-            var trs = await SecureDatabase.GetTrustEnforcersAsync();
-           // trs.Last().Certificate; 
-            var certificate = Crypto.DeserializeObject<Certificate>(new byte[] { });//need to load proper certificate
+            var trustEnforcer = (await SecureDatabase.GetTrustEnforcersAsync()).Last();
+            var certificate = trustEnforcer.Certificate;
 
             await _gigGossipNode.BroadcastTopicAsync(new TaxiTopic()
             {
                 FromGeohash = fromGh,
                 ToGeohash = toGh,
                 PickupAfter = DateTime.Now,
-                DropoffBefore = DateTime.Now.AddMinutes(20)
-            },certificate);
+                DropoffBefore = DateTime.Now.AddHours(3)
+            }, certificate);
         }
     }
 }

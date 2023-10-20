@@ -8,6 +8,11 @@ using GigLNDWalletAPIClient;
 using System.Text;
 using Sharpnado.Tabs;
 using System.ComponentModel;
+using Microsoft.Extensions.DependencyInjection;
+using Nominatim.API.Geocoders;
+using Nominatim.API.Interfaces;
+using Nominatim.API.Web;
+using GigGossipFrames;
 
 namespace GigMobile;
 
@@ -63,6 +68,10 @@ public static class MauiProgram
         serviceDescriptors.AddSingleton<BindedMvvm.INavigationService, BindedMvvm.NavigationService>();
         serviceDescriptors.AddSingleton(implementationFactory: NodeFactoryImplementation);
         serviceDescriptors.AddSingleton<IGigGossipNodeEventSource, GigGossipNodeEventSource>();
+        serviceDescriptors.AddScoped<INominatimWebInterface, NominatimWebInterface>();
+        serviceDescriptors.AddScoped<ForwardGeocoder>();
+        serviceDescriptors.AddScoped<ReverseGeocoder>();
+        serviceDescriptors.AddHttpClient();
     }
 
     private static GigGossipNode NodeFactoryImplementation(IServiceProvider provider)
@@ -111,16 +120,23 @@ public class NewResponseEventArgs : EventArgs
     public required PayReq DecodedNetworkInvoice;
 };
 
+public class ResponseReadyEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required TaxiReply TaxiReply;
+}
 
 public interface IGigGossipNodeEventSource
 {
     public event EventHandler<NewResponseEventArgs> OnNewResponse;
+    public event EventHandler<ResponseReadyEventArgs> OnResponseReady;
     public IGigGossipNodeEvents GetGigGossipNodeEvents();
 }
 
 public class GigGossipNodeEventSource : IGigGossipNodeEventSource
 {
     public event EventHandler<NewResponseEventArgs> OnNewResponse;
+    public event EventHandler<ResponseReadyEventArgs> OnResponseReady;
 
     GigGossipNodeEvents gigGossipNodeEvents;
 
@@ -131,7 +147,14 @@ public class GigGossipNodeEventSource : IGigGossipNodeEventSource
 
     public void FireOnNewResponse(NewResponseEventArgs args)
     {
-        OnNewResponse.Invoke(this,args);
+        if (OnNewResponse != null)
+            OnNewResponse.Invoke(this, args);
+    }
+
+    public void FireOnResponseReady(ResponseReadyEventArgs args)
+    {
+        if (OnResponseReady != null)
+            OnResponseReady.Invoke(this, args);
     }
 
     public IGigGossipNodeEvents GetGigGossipNodeEvents()
@@ -193,9 +216,14 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)
     {
-        var message = Encoding.Default.GetString(Crypto.SymmetricDecrypt<byte[]>(
+        var taxiReply = Crypto.DeserializeObject<TaxiReply>(Crypto.SymmetricDecrypt<byte[]>(
             key.AsBytes(),
             replyPayload.EncryptedReplyMessage));
+        gigGossipNodeEventSource.FireOnResponseReady(new ResponseReadyEventArgs()
+        {
+            GigGossipNode = me,
+            TaxiReply = taxiReply
+        });
     }
 
     public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)

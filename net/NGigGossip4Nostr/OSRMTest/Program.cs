@@ -4,6 +4,11 @@
 using Osrm.Client;
 using Osrm.Client.Models;
 using Osrm.Client.Models.Requests;
+using Nominatim.API.Geocoders;
+using Nominatim.API.Models;
+using Nominatim.API.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
+using Nominatim.API.Web;
 
 using HttpClient client = new HttpClient();
 var osrm5x = new Osrm5x(client, "http://router.project-osrm.org/");
@@ -20,3 +25,28 @@ var result = await osrm5x.Route(new RouteRequest()
 
 foreach(var pt in result.Routes[0].Geometry)
     Console.WriteLine($"{pt.Latitude}, {pt.Longitude}");
+
+
+var serviceCollection = new ServiceCollection();
+serviceCollection.AddScoped<INominatimWebInterface, NominatimWebInterface>();
+serviceCollection.AddScoped<ForwardGeocoder>();
+serviceCollection.AddScoped<ReverseGeocoder>();
+serviceCollection.AddHttpClient();
+var _serviceProvider = serviceCollection.BuildServiceProvider();
+
+var reverseGeocoder = _serviceProvider.GetService<ReverseGeocoder>();
+
+
+var reverseGeocodeRequest = new ReverseGeocodeRequest
+{
+    Longitude = -77.0365298,
+    Latitude = 38.8976763,
+
+    BreakdownAddressElements = true,
+    ShowExtraTags = true,
+    ShowAlternativeNames = true,
+    ShowGeoJSON = true
+};
+
+var r=await reverseGeocoder.ReverseGeocode(reverseGeocodeRequest);
+Console.WriteLine(r.Address.ToString());

@@ -16,12 +16,24 @@ public abstract class NostrNode
     protected ECXOnlyPubKey publicKey;
     public string PublicKey;
     private int chunkSize;
+    public string[] NostrRelays { get; private set; }
 
     public NostrNode(ECPrivKey privateKey, string[] nostrRelays, int chunkSize)
     {
         this.privateKey = privateKey;
         this.publicKey = privateKey.CreateXOnlyPubKey();
         this.PublicKey = this.publicKey.AsHex();
+        NostrRelays = nostrRelays;
+        nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
+        this.chunkSize = chunkSize;
+    }
+
+    public NostrNode(NostrNode me, string[] nostrRelays, int chunkSize)
+    {
+        this.privateKey = me.privateKey;
+        this.publicKey = privateKey.CreateXOnlyPubKey();
+        this.PublicKey = this.publicKey.AsHex();
+        NostrRelays = nostrRelays;
         nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
         this.chunkSize = chunkSize;
     }
