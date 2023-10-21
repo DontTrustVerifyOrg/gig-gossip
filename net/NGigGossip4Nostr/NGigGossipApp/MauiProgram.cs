@@ -138,11 +138,28 @@ public class ResponseReadyEventArgs : EventArgs
     public required TaxiReply TaxiReply;
 }
 
+public class InvoiceSettledEventArgs: EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required Uri ServiceUri;
+    public required string PaymentHash;
+    public required string Preimage;
+}
+
+public class PaymentStatusChangeEventArgs: EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required string Status;
+    public required PaymentData PaymentData;
+}
+
 public interface IGigGossipNodeEventSource
 {
     public event EventHandler<NewResponseEventArgs> OnNewResponse;
     public event EventHandler<ResponseReadyEventArgs> OnResponseReady;
     public event EventHandler<AcceptBroadcastEventArgs> OnAcceptBroadcast;
+    public event EventHandler<InvoiceSettledEventArgs> OnInvoiceSettled;
+    public event EventHandler<PaymentStatusChangeEventArgs> OnPaymentStatusChange;
 
     public IGigGossipNodeEvents GetGigGossipNodeEvents();
 }
@@ -152,6 +169,8 @@ public class GigGossipNodeEventSource : IGigGossipNodeEventSource
     public event EventHandler<NewResponseEventArgs> OnNewResponse;
     public event EventHandler<ResponseReadyEventArgs> OnResponseReady;
     public event EventHandler<AcceptBroadcastEventArgs> OnAcceptBroadcast;
+    public event EventHandler<InvoiceSettledEventArgs> OnInvoiceSettled;
+    public event EventHandler<PaymentStatusChangeEventArgs> OnPaymentStatusChange;
 
     GigGossipNodeEvents gigGossipNodeEvents;
 
@@ -176,6 +195,18 @@ public class GigGossipNodeEventSource : IGigGossipNodeEventSource
     {
         if (OnAcceptBroadcast != null)
             OnAcceptBroadcast.Invoke(this, args);
+    }
+
+    public void FireOnInvoiceSettled(InvoiceSettledEventArgs args)
+    {
+        if (OnInvoiceSettled != null)
+            OnInvoiceSettled.Invoke(this, args);
+    }
+
+    public void FireOnPaymentStatusChange(PaymentStatusChangeEventArgs args)
+    {
+        if (OnPaymentStatusChange != null)
+            OnPaymentStatusChange.Invoke(this, args);
     }
 
     public IGigGossipNodeEvents GetGigGossipNodeEvents()
@@ -210,6 +241,13 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
     {
+        gigGossipNodeEventSource.FireOnInvoiceSettled(new InvoiceSettledEventArgs()
+        {
+            GigGossipNode = me,
+            PaymentHash = paymentHash,
+            Preimage = preimage,
+            ServiceUri = serviceUri
+        });
     }
 
     public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
@@ -239,6 +277,12 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
     {
+        gigGossipNodeEventSource.FireOnPaymentStatusChange(new PaymentStatusChangeEventArgs()
+        {
+            GigGossipNode = me,
+            PaymentData = paydata,
+            Status = status
+        });
     }
 }
 
