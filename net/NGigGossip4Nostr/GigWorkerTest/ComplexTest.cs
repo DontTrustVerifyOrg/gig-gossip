@@ -102,7 +102,6 @@ public class ComplexTest
             things[nn] = new GigGossipNode(
                 gridNodeSettings.ConnectionString,
                 Crypto.GeneratECPrivKey(),
-                gridNodeSettings.GetNostrRelays(),
                 gridNodeSettings.ChunkSize
             );
             things[nn].ClearContacts();
@@ -155,7 +154,7 @@ public class ComplexTest
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
                 gridNodeSettings.GetLndWalletClient(httpClient));
             //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
-            await gigWorker.StartAsync (new GigWorkerGossipNodeEvents(gridNodeSettings.SettlerOpenApi, gigWorkerCert));
+            await gigWorker.StartAsync (gridNodeSettings.GetNostrRelays(), new GigWorkerGossipNodeEvents(gridNodeSettings.SettlerOpenApi, gigWorkerCert));
 
             FlowLogger.SetupParticipant(gigWorker.PublicKey, kv.Key+":GigWorker", true);
         }
@@ -185,7 +184,7 @@ public class ComplexTest
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
                 gridNodeSettings.GetLndWalletClient(httpClient));
             //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
-            await customer.StartAsync(new CustomerGossipNodeEvents());
+            await customer.StartAsync(gridNodeSettings.GetNostrRelays(),new CustomerGossipNodeEvents());
             customers.Add(Tuple.Create(customer, customerCert));
 
             FlowLogger.SetupParticipant(customer.PublicKey, kv.Key + ":Customer", true);
@@ -202,7 +201,7 @@ public class ComplexTest
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
                 gridNodeSettings.GetLndWalletClient(httpClient));
             //await node.LoadCertificates(gigWorkerSettings.SettlerOpenApi);        
-            await node.Value.StartAsync(new NetworkEarnerNodeEvents());
+            await node.Value.StartAsync(gridNodeSettings.GetNostrRelays(),new NetworkEarnerNodeEvents());
             FlowLogger.SetupParticipant(node.Value.PublicKey, node.Key, true);
         }
 

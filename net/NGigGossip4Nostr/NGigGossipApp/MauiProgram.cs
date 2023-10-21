@@ -5,14 +5,10 @@ using GigMobile.Services;
 using CryptoToolkit;
 using NGigGossip4Nostr;
 using GigLNDWalletAPIClient;
-using System.Text;
 using Sharpnado.Tabs;
-using System.ComponentModel;
-using Microsoft.Extensions.DependencyInjection;
 using Nominatim.API.Geocoders;
 using Nominatim.API.Interfaces;
 using Nominatim.API.Web;
-using GigGossipFrames;
 
 namespace GigMobile;
 
@@ -66,7 +62,8 @@ public static class MauiProgram
     public static void RegisterServices(this IServiceCollection serviceDescriptors)
     {
         serviceDescriptors.AddSingleton<BindedMvvm.INavigationService, BindedMvvm.NavigationService>();
-        serviceDescriptors.AddSingleton(implementationFactory: NodeFactoryImplementation);
+        serviceDescriptors.AddSingleton(implementationFactory: GigGossipNodeFactoryImplementation);
+        serviceDescriptors.AddSingleton(implementationFactory: DirectComNodeFactoryImplementation);
         serviceDescriptors.AddSingleton<IGigGossipNodeEventSource, GigGossipNodeEventSource>();
         serviceDescriptors.AddScoped<INominatimWebInterface, NominatimWebInterface>();
         serviceDescriptors.AddScoped<ForwardGeocoder>();
@@ -74,12 +71,19 @@ public static class MauiProgram
         serviceDescriptors.AddHttpClient();
     }
 
-    private static GigGossipNode NodeFactoryImplementation(IServiceProvider provider)
+    private static DirectCom DirectComNodeFactoryImplementation(IServiceProvider provider)
+    {
+        return new DirectCom(
+            SecureDatabase.PrivateKey.AsECPrivKey(),
+            GigGossipNodeConfig.ChunkSize
+        );
+    }
+
+    private static GigGossipNode GigGossipNodeFactoryImplementation(IServiceProvider provider)
     {
         var node = new GigGossipNode(
             $"Filename={Path.Combine(FileSystem.AppDataDirectory, GigGossipNodeConfig.DatabaseFile)}",
             SecureDatabase.PrivateKey.AsECPrivKey(),
-            GigGossipNodeConfig.NostrRelays,
             GigGossipNodeConfig.ChunkSize
         );
 
@@ -110,6 +114,14 @@ public static class MauiProgram
     }
 }
 
+public class AcceptBroadcastEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required string PeerPublicKey;
+    public required POWBroadcastFrame BroadcastFrame;
+
+}
+
 public class NewResponseEventArgs : EventArgs
 {
     public required GigGossipNode GigGossipNode;
@@ -130,6 +142,8 @@ public interface IGigGossipNodeEventSource
 {
     public event EventHandler<NewResponseEventArgs> OnNewResponse;
     public event EventHandler<ResponseReadyEventArgs> OnResponseReady;
+    public event EventHandler<AcceptBroadcastEventArgs> OnAcceptBroadcast;
+
     public IGigGossipNodeEvents GetGigGossipNodeEvents();
 }
 
@@ -137,6 +151,7 @@ public class GigGossipNodeEventSource : IGigGossipNodeEventSource
 {
     public event EventHandler<NewResponseEventArgs> OnNewResponse;
     public event EventHandler<ResponseReadyEventArgs> OnResponseReady;
+    public event EventHandler<AcceptBroadcastEventArgs> OnAcceptBroadcast;
 
     GigGossipNodeEvents gigGossipNodeEvents;
 
@@ -157,6 +172,12 @@ public class GigGossipNodeEventSource : IGigGossipNodeEventSource
             OnResponseReady.Invoke(this, args);
     }
 
+    public void FireOnAcceptBroadcast(AcceptBroadcastEventArgs args)
+    {
+        if (OnAcceptBroadcast != null)
+            OnAcceptBroadcast.Invoke(this, args);
+    }
+
     public IGigGossipNodeEvents GetGigGossipNodeEvents()
     {
         return this.gigGossipNodeEvents;
@@ -174,22 +195,12 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
     {
-        var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(
-            broadcastFrame.BroadcastPayload.SignedRequestPayload.Topic);
-
-        if (taxiTopic != null)
+        gigGossipNodeEventSource.FireOnAcceptBroadcast(new AcceptBroadcastEventArgs()
         {
-            /*
-            me.AcceptBroadcast(peerPublicKey, broadcastFrame,
-                new AcceptBroadcastResponse()
-                {
-                    Message = Encoding.Default.GetBytes(me.PublicKey),
-                    Fee = 4321,
-                    SettlerServiceUri = settlerUri,
-                    MyCertificate = selectedCertificate
-                });
-            */
-        }
+            GigGossipNode = me,
+            PeerPublicKey = peerPublicKey,
+            BroadcastFrame = broadcastFrame,
+        });
     }
 
     public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)

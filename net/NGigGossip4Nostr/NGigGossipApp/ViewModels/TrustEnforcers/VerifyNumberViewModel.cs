@@ -37,8 +37,8 @@ namespace GigMobile.ViewModels.TrustEnforcers
 
             try
             {
-                var token = await _gigGossipNode.MakeSettlerAuthTokenAsync(new Uri(_newTrustEnforcer.Url));
-                var settlerClient = _gigGossipNode.SettlerSelector.GetSettlerClient(new Uri(_newTrustEnforcer.Url));
+                var token = await _gigGossipNode.MakeSettlerAuthTokenAsync(new Uri(_newTrustEnforcer.Uri));
+                var settlerClient = _gigGossipNode.SettlerSelector.GetSettlerClient(new Uri(_newTrustEnforcer.Uri));
                 await settlerClient.VerifyChannelAsync(token, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", _newTrustEnforcer.PhoneNumber);
 
                 var settletCert = await settlerClient.IssueCertificateAsync(token, _gigGossipNode.PublicKey, new List<string> { "PhoneNumber" });

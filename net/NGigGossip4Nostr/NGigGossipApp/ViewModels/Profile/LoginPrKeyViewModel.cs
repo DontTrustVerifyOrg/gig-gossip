@@ -83,9 +83,14 @@ namespace GigMobile.ViewModels.Profile
                         try
                         {
 #if DEBUG
-                            await node.StartAsync(_gigGossipNodeEventSource.GetGigGossipNodeEvents(), HttpsClientHandlerService.GetPlatformMessageHandler());
+                            await node.StartAsync(
+                                GigGossipNodeConfig.NostrRelays,
+                                _gigGossipNodeEventSource.GetGigGossipNodeEvents(),
+                                HttpsClientHandlerService.GetPlatformMessageHandler());
 #else
-                            await node.StartAsync(_gigGossipNodeEventSource.GetGigGossipNodeEvents());
+                            await node.StartAsync(
+                                GigGossipNodeConfig.NostrRelays,
+                                _gigGossipNodeEventSource.GetGigGossipNodeEvents());
 #endif
                         }
                         catch (Exception ex)

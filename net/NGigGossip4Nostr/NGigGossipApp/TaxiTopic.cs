@@ -1,5 +1,4 @@
 ﻿using System;
-using GigGossipFrames;
 
 namespace GigMobile;
 
@@ -13,10 +12,23 @@ public class TaxiTopic
     public required DateTime DropoffBefore { get; set; }
 }
 
+[Serializable]
+public class TaxiReply
+{
+    public required string PublicKey { get; set; }
+    public required string[] Relays { get; set; }
+    public required string Secret { get; set; }
+}
 
 [Serializable]
-public class TaxiReply : DirectMessage
+public class TaxiAckFrame
 {
-    public required string PublicKey;
-    public required string Secret;
+    public required string Secret { get; set; }
+}
+
+[Serializable]
+public class TaxiLocationFrame
+{
+    public required Location Location { get; set; }
+    public required string Message { get; set; }
 }

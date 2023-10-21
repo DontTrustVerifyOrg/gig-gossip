@@ -1,6 +1,5 @@
 ﻿using System.Windows.Input;
 using CryptoToolkit;
-using GigGossipFrames;
 using GigMobile.Services;
 using NGigGossip4Nostr;
 
@@ -10,12 +9,14 @@ namespace GigMobile.ViewModels.Ride.Customer
     {
         private DriverProposal _selectedDriverProposal;
         private IGigGossipNodeEventSource gigGossipNodeEventSource;
+        private DirectCom directCom;
         private ICommand _confirmCommand;
         public ICommand ConfirmCommand => _confirmCommand ??= new Command(() => NavigationService.NavigateAsync<RateDriverViewModel>());
 
-        public ConfirmDriverViewModel(IGigGossipNodeEventSource gigGossipNodeEventSource)
+        public ConfirmDriverViewModel(IGigGossipNodeEventSource gigGossipNodeEventSource, DirectCom directCom)
         {
             this.gigGossipNodeEventSource = gigGossipNodeEventSource;
+            this.directCom = directCom;
         }
 
         async void ConfirmDriver()
@@ -43,13 +44,13 @@ namespace GigMobile.ViewModels.Ride.Customer
 
         private async void GigGossipNodeEventSource_OnResponseReady(object sender, ResponseReadyEventArgs e)
         {
-            var directCom = new DirectCom(e.GigGossipNode, e.TaxiReply.Relays, GigGossipNodeConfig.ChunkSize);
-            await directCom.SendDirectMessage(e.TaxiReply.PublicKey, new DirectMessage()
+            directCom.Stop();
+            directCom.RegisterFrameType<TaxiLocationFrame>();
+            await directCom.StartAsync(e.TaxiReply.Relays);
+            await directCom.SendMessageAsync(e.TaxiReply.PublicKey, new TaxiAckFrame()
             {
-                Relays = e.GigGossipNode.NostrRelays,
-                Kind = "ACK",
-                Data = Crypto.SerializeObject(e.TaxiReply.Secret)
-            });
+                Secret = e.TaxiReply.Secret
+            }, true);
         }
     }
 }

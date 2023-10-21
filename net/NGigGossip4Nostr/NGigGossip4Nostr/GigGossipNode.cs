@@ -87,8 +87,13 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
     public InvoiceStateUpdatesClient InvoiceStateUpdatesClient;
     public PaymentStatusUpdatesClient PaymentStatusUpdatesClient;
 
-    public GigGossipNode(string connectionString, ECPrivKey privKey, string[] nostrRelays, int chunkSize, bool deleteDb = false) : base(privKey, nostrRelays, chunkSize)
+    public GigGossipNode(string connectionString, ECPrivKey privKey, int chunkSize, bool deleteDb = false) : base(privKey, chunkSize)
     {
+        RegisterFrameType<AskForBroadcastFrame>();
+        RegisterFrameType<POWBroadcastConditionsFrame>();
+        RegisterFrameType<POWBroadcastFrame>();
+        RegisterFrameType<ReplyFrame>();
+
         this.nodeContext = new ThreadLocal<GigGossipNodeContext>(() => new GigGossipNodeContext(connectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))));
         if (deleteDb)
             nodeContext.Value.Database.EnsureDeleted();
@@ -117,7 +122,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         LoadContactList();
     }
 
-    public async Task StartAsync(IGigGossipNodeEvents gigGossipNodeEvents, HttpMessageHandler? httpMessageHandler = null)
+    public async Task StartAsync(string[] nostrRelays, IGigGossipNodeEvents gigGossipNodeEvents, HttpMessageHandler? httpMessageHandler = null)
     {
         this.gigGossipNodeEvents = gigGossipNodeEvents;
 
@@ -135,7 +140,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         _settlerToken = new();
         await _settlerMonitor.StartAsync();
 
-        await StartAsync();
+        await base.StartAsync(nostrRelays);
     }
 
     public override void Stop()
@@ -770,7 +775,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         }
         else
         {
-            Trace.TraceError("unknown request: ", senderPublicKey, frame);
+            throw new GigGossipException(GigGossipNodeErrorCode.FrameTypeNotRegistered);
         }
 
     }

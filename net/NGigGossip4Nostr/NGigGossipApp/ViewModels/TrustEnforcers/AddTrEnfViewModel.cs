@@ -38,7 +38,7 @@ namespace GigMobile.ViewModels.TrustEnforcers
             if (!string.IsNullOrEmpty(Url) && !string.IsNullOrEmpty(PhoneCode) && !string.IsNullOrEmpty(PhoneNumber))
             {
                 Url = GigGossipNodeConfig.SettlerOpenApi.ToString();
-                await NavigationService.NavigateAsync<VerifyNumberViewModel, TrustEnforcer>(new TrustEnforcer { Url = Url, PhoneNumber = $"+{PhoneCode} {PhoneNumber}" }, onClosed: async (x) => await OnAddedClosed());
+                await NavigationService.NavigateAsync<VerifyNumberViewModel, TrustEnforcer>(new TrustEnforcer { Uri = Url, PhoneNumber = $"+{PhoneCode} {PhoneNumber}" }, onClosed: async (x) => await OnAddedClosed());
             }
         }
 

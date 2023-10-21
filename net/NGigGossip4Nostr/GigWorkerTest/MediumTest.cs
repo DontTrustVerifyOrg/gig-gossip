@@ -93,7 +93,6 @@ public class MediumTest
         var gigWorker = new GigGossipNode(
             gigWorkerSettings.ConnectionString,
             gigWorkerSettings.PrivateKey.AsECPrivKey(),
-            gigWorkerSettings.GetNostrRelays(),
             gigWorkerSettings.ChunkSize
             );
 
@@ -116,7 +115,6 @@ public class MediumTest
             var gossiper = new GigGossipNode(
                 gossiperSettings.ConnectionString,
                 Crypto.GeneratECPrivKey(),
-                gossiperSettings.GetNostrRelays(),
                 gossiperSettings.ChunkSize
                 );
             gossipers.Add(gossiper);
@@ -126,7 +124,6 @@ public class MediumTest
         var customer = new GigGossipNode(
             customerSettings.ConnectionString,
             customerSettings.PrivateKey.AsECPrivKey(),
-            customerSettings.GetNostrRelays(),
             customerSettings.ChunkSize
             );
 
@@ -213,14 +210,14 @@ public class MediumTest
             }
         } while (true);
 
-        await gigWorker.StartAsync(new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi, gigWorkerCert));
+        await gigWorker.StartAsync(gigWorkerSettings.GetNostrRelays(), new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi, gigWorkerCert));
         gigWorker.ClearContacts();
         foreach (var node in gossipers)
         {
-            await node.StartAsync(new NetworkEarnerNodeEvents());
+            await node.StartAsync(gossiperSettings.GetNostrRelays(),new NetworkEarnerNodeEvents());
             node.ClearContacts();
         }
-        await customer.StartAsync(new CustomerGossipNodeEvents(this));
+        await customer.StartAsync(customerSettings.GetNostrRelays(),new CustomerGossipNodeEvents(this));
         customer.ClearContacts();
 
         gigWorker.AddContact( gossipers[0].PublicKey, "Gossiper0");

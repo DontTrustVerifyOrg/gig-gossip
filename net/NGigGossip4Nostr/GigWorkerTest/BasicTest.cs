@@ -92,7 +92,6 @@ public class BasicTest
         var gigWorker = new GigGossipNode(
             gigWorkerSettings.ConnectionString,
             gigWorkerSettings.PrivateKey.AsECPrivKey(),
-            gigWorkerSettings.GetNostrRelays(),
             gigWorkerSettings.ChunkSize
             );
 
@@ -111,7 +110,6 @@ public class BasicTest
         var customer = new GigGossipNode(
             customerSettings.ConnectionString,
             customerSettings.PrivateKey.AsECPrivKey(),
-            customerSettings.GetNostrRelays(),
             customerSettings.ChunkSize
             );
 
@@ -174,9 +172,9 @@ public class BasicTest
 
 
 
-        await gigWorker.StartAsync(new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi, gigWorkerCert));
+        await gigWorker.StartAsync(gigWorkerSettings.GetNostrRelays(), new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi, gigWorkerCert));
         gigWorker.ClearContacts();
-        await customer.StartAsync(new CustomerGossipNodeEvents());
+        await customer.StartAsync(customerSettings.GetNostrRelays(),new CustomerGossipNodeEvents());
         customer.ClearContacts();
 
         gigWorker.AddContact(customer.PublicKey,"Customer" );

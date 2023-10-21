@@ -17,27 +17,36 @@ public abstract class NostrNode
     public string PublicKey;
     private int chunkSize;
     public string[] NostrRelays { get; private set; }
+    private Dictionary<string, Type> _registeredFrameTypes = new();
 
-    public NostrNode(ECPrivKey privateKey, string[] nostrRelays, int chunkSize)
+    public NostrNode(ECPrivKey privateKey, int chunkSize)
     {
         this.privateKey = privateKey;
         this.publicKey = privateKey.CreateXOnlyPubKey();
         this.PublicKey = this.publicKey.AsHex();
-        NostrRelays = nostrRelays;
-        nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
         this.chunkSize = chunkSize;
     }
 
-    public NostrNode(NostrNode me, string[] nostrRelays, int chunkSize)
+    public NostrNode(NostrNode me, int chunkSize)
     {
         this.privateKey = me.privateKey;
         this.publicKey = privateKey.CreateXOnlyPubKey();
         this.PublicKey = this.publicKey.AsHex();
-        NostrRelays = nostrRelays;
-        nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
         this.chunkSize = chunkSize;
     }
 
+    public void RegisterFrameType<T>()
+    {
+        var t = typeof(T);
+        _registeredFrameTypes[t.Name] = t;
+    }
+
+    private Type? GetFrameType(string name)
+    {
+        if (!_registeredFrameTypes.ContainsKey(name))
+            return null;
+        return _registeredFrameTypes[name];
+    }
     class Message
     {
         public required string SenderPublicKey;
@@ -104,11 +113,16 @@ public abstract class NostrNode
     public abstract Task OnMessageAsync(string eventId, string senderPublicKey, object frame);
     public abstract void OnContactList(string eventId, Dictionary<string, NostrContact> contactList);
 
-    Thread mainThread;
+    Thread? mainThread=null;
     CancellationTokenSource subscribeForEventsTokenSource = new CancellationTokenSource();
 
-    protected async Task StartAsync()
+    protected async Task StartAsync(string[] nostrRelays)
     {
+        if (mainThread != null)
+            throw new InvalidOperationException("Nostr Node already started");
+
+        NostrRelays = nostrRelays;
+        nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
         await nostrClient.ConnectAndWaitUntilConnected();
         var q = nostrClient.SubscribeForEvents(new[]{
                 new NostrSubscriptionFilter()
@@ -150,11 +164,13 @@ public abstract class NostrNode
 
     public virtual void Stop()
     {
-        subscribeForEventsTokenSource.Cancel();
-        mainThread.Join();
+        if (mainThread != null)
+        {
+            subscribeForEventsTokenSource.Cancel();
+            mainThread.Join();
+            mainThread = null;
+        }
     }
-
-
 
     private Dictionary<string, SortedDictionary<int, string>> _partial_messages = new();
 
@@ -175,8 +191,9 @@ public abstract class NostrNode
                 var msg = await nostrEvent.DecryptNip04EventAsync(this.privateKey, skipKindVerification: true);
                 if (partNum == 1)
                 {
-                    var type = tagDic["t"][0];
-                    var t = System.Reflection.Assembly.Load("GigGossipFrames").GetType("NGigGossip4Nostr." + type);
+                    var t = GetFrameType(tagDic["t"][0]);
+                    if (t == null)
+                        return;
                     var frame = Crypto.DeserializeObject(Convert.FromBase64String(msg), t);
                     await this.OnMessageAsync(idx, nostrEvent.PublicKey, frame);
                 }
@@ -191,8 +208,9 @@ public abstract class NostrNode
                         if (_partial_messages[idx].Count == partNum)
                         {
                             var txt = string.Join("", _partial_messages[idx].Values);
-                            var type = tagDic["t"][0];
-                            var t = System.Reflection.Assembly.Load("GigGossipFrames").GetType("NGigGossip4Nostr." + type);
+                            var t = GetFrameType(tagDic["t"][0]);
+                            if (t == null)
+                                return;
                             frame = Crypto.DeserializeObject(Convert.FromBase64String(txt), t);
                             _partial_messages.Remove(idx);
                         }
