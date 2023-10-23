@@ -1,4 +1,6 @@
 ﻿using System;
+using NGeoHash;
+
 namespace BindedMvvm.Abstractions
 {
 	public abstract class BindedPage<TViewModel> : ContentPage where TViewModel : BindedViewModel

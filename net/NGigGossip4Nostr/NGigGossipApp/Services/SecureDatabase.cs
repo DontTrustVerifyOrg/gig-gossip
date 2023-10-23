@@ -1,123 +1,164 @@
-﻿using GigMobile.Models;
-using GigMobile.ViewModels.TrustEnforcers;
+﻿using System.Security.Cryptography;
+using System.Text;
+using GigMobile.Models;
 using Newtonsoft.Json;
 
 namespace GigMobile.Services
 {
-	public class SecureDatabase
+    public enum SetupStatus { Finished = 256, Enforcer = 0, Wallet, }
+
+    public class UserData
     {
-        const string PRK = "WL_PR_K";
+        public UserData(bool useBiometric, string walletDomain, Dictionary<string, TrustEnforcer> trustEnforcers, SetupStatus status)
+        {
+            UseBiometric = useBiometric;
+            WalletDomain = walletDomain;
+            TrustEnforcers = trustEnforcers;
+            Status = status;
+        }
 
-        const string UBM = "US_BM";
+        public bool UseBiometric { get; set; }
+        public string WalletDomain { get; set; }
+        public Dictionary<string, TrustEnforcer> TrustEnforcers { get; set; }
+        public SetupStatus Status { get; set; }
+    }
 
-        const string TEN = "TR_EN";
+    public class SecureDatabase : ISecureDatabase
+    {
+        private const string PRK = "SAVED_USER";
 
-        const string ISP = "IS_STP";
+        private string _secureKey;
 
-        public enum SetupStatus { Finished = 256, Enforcer = 0, Wallet, }
+        public string PrivateKey { get; private set; }
 
-        public static string PrivateKey { get; private set; }
-
-        public static async Task<string> GetPrivateKeyAsync()
-		{
+        public async Task<string> GetPrivateKeyAsync()
+        {
             PrivateKey = await SecureStorage.Default.GetAsync(PRK);
+            _secureKey = GetHashString(PrivateKey);
+
             return PrivateKey;
         }
 
-        public static async Task SetPrivateKeyAsync(string key)
+        public async Task SetPrivateKeyAsync(string key)
         {
             PrivateKey = key;
+            _secureKey = GetHashString(PrivateKey);
+
             await SecureStorage.Default.SetAsync(PRK, key);
         }
 
-        public static async Task<bool> GetUseBiometricAsync()
+        public async Task<bool> GetUseBiometricAsync()
         {
-            var value = await SecureStorage.Default.GetAsync(UBM);
+            var prvKey = await SecureStorage.Default.GetAsync(PRK);
+
+            if (!string.IsNullOrEmpty(prvKey))
+                _secureKey = GetHashString(prvKey);
+            else
+                return false;
+
+            PrivateKey = prvKey;
+
+            var value = await SecureStorage.Default.GetAsync(_secureKey);
             if (!string.IsNullOrEmpty(value))
             {
-                var key = await GetPrivateKeyAsync();
-                var dc = JsonConvert.DeserializeObject<Dictionary<string,bool>>(value);
-                if (dc.ContainsKey(key))
-                    return dc[key];
+                var data = JsonConvert.DeserializeObject<UserData>(value);
+                return data.UseBiometric;
             }
             return false;
         }
 
-        public static async Task SetUseBiometricAsync(bool value)
+        public async Task SetUseBiometricAsync(bool value)
         {
-            var existingValue = await SecureStorage.Default.GetAsync(UBM);
-            var key = await GetPrivateKeyAsync();
-
-            Dictionary<string, bool> dc;
-            if (!string.IsNullOrEmpty(existingValue))
-                dc = JsonConvert.DeserializeObject<Dictionary<string, bool>>(existingValue);
+            var stringData = await SecureStorage.Default.GetAsync(_secureKey);
+            UserData data;
+            if (!string.IsNullOrEmpty(stringData))
+            {
+                data = JsonConvert.DeserializeObject<UserData>(stringData);
+                data.UseBiometric = value;
+            }
             else
-                dc = new Dictionary<string, bool> { { key, false } };
-            dc[key] = value;
+                data = new UserData(value, null, null, SetupStatus.Wallet);
 
-            await SecureStorage.Default.SetAsync(UBM, JsonConvert.SerializeObject(dc));
+            await SecureStorage.Default.SetAsync(_secureKey, JsonConvert.SerializeObject(data));
         }
 
-        public static async Task<TrustEnforcer[]> GetTrustEnforcersAsync()
+
+        public async Task<string> GetWalletDomain()
         {
-            var value = await SecureStorage.Default.GetAsync(TEN);
+            var value = await SecureStorage.Default.GetAsync(_secureKey);
             if (!string.IsNullOrEmpty(value))
             {
-                var key = await GetPrivateKeyAsync();
-                var dc = JsonConvert.DeserializeObject<Dictionary<string, TrustEnforcer[]>>(value);
-                if (dc.ContainsKey(key))
-                    return dc[key];
+                var data = JsonConvert.DeserializeObject<UserData>(value);
+                return data.WalletDomain;
             }
             return null;
         }
 
-        public static async Task<SetupStatus> GetGetSetupStatusAsync()
+        public async Task SetWalletDomain(string value)
         {
-            var value = await SecureStorage.Default.GetAsync(ISP);
+            var stringData = await SecureStorage.Default.GetAsync(_secureKey);
+
+            UserData data = JsonConvert.DeserializeObject<UserData>(stringData);
+
+            data.WalletDomain = value;
+
+            await SecureStorage.Default.SetAsync(_secureKey, JsonConvert.SerializeObject(data));
+        }
+
+        public async Task<Dictionary<string, TrustEnforcer>> GetTrustEnforcersAsync()
+        {
+            var value = await SecureStorage.Default.GetAsync(_secureKey);
             if (!string.IsNullOrEmpty(value))
             {
-                var key = await GetPrivateKeyAsync();
-                var dc = JsonConvert.DeserializeObject<Dictionary<string, SetupStatus>>(value);
-                if (dc.ContainsKey(key))
-                    return dc[key];
+                var data = JsonConvert.DeserializeObject<UserData>(value);
+                return data.TrustEnforcers;
+            }
+            return null;
+        }
+
+        public async Task AddTrustEnforcersAsync(TrustEnforcer newTrustEnforcer)
+        {
+            var stringData = await SecureStorage.Default.GetAsync(_secureKey);
+
+            UserData data = JsonConvert.DeserializeObject<UserData>(stringData);
+
+            data.TrustEnforcers ??= new Dictionary<string, TrustEnforcer>();
+            data.TrustEnforcers.Add(newTrustEnforcer.Uri, newTrustEnforcer);
+
+            await SecureStorage.Default.SetAsync(_secureKey, JsonConvert.SerializeObject(data));
+        }
+
+        public async Task<SetupStatus> GetGetSetupStatusAsync()
+        {
+            var value = await SecureStorage.Default.GetAsync(_secureKey);
+            if (!string.IsNullOrEmpty(value))
+            {
+                var data = JsonConvert.DeserializeObject<UserData>(value);
+                return data.Status;
             }
             return 0;
         }
 
-        public static async Task SetSetSetupStatusAsync(SetupStatus value)
+        public async Task SetSetSetupStatusAsync(SetupStatus value)
         {
-            var existingValue = await SecureStorage.Default.GetAsync(ISP);
-            var key = await GetPrivateKeyAsync();
+            var stringData = await SecureStorage.Default.GetAsync(_secureKey);
 
-            Dictionary<string, SetupStatus> dc;
-            if (!string.IsNullOrEmpty(existingValue))
-                dc = JsonConvert.DeserializeObject<Dictionary<string, SetupStatus>>(existingValue);
-            else
-                dc = new Dictionary<string, SetupStatus> { { key, 0 } };
-            dc[key] = value;
+            UserData data = JsonConvert.DeserializeObject<UserData>(stringData);
 
-            await SecureStorage.Default.SetAsync(ISP, JsonConvert.SerializeObject(dc));
+            data.Status = value;
+
+            await SecureStorage.Default.SetAsync(_secureKey, JsonConvert.SerializeObject(data));
         }
 
-        internal static async Task AddTrustEnforcersAsync(TrustEnforcer newTrustEnforcer)
+
+        public static string GetHashString(string inputString)
         {
-            var existingValue = await SecureStorage.Default.GetAsync(TEN);
-            var key = await GetPrivateKeyAsync();
+            StringBuilder sb = new();
 
-            Dictionary<string, TrustEnforcer[]> dc;
-            if (!string.IsNullOrEmpty(existingValue))
-                dc = JsonConvert.DeserializeObject<Dictionary<string, TrustEnforcer[]>>(existingValue);
-            else
-                dc = new Dictionary<string, TrustEnforcer[]> { { key, null } };
-            var oldValue = dc[key];
-            var newValue = new List<TrustEnforcer>();
-            if (oldValue != null)
-                foreach (var old in oldValue)
-                    newValue.Add(old);
-            newValue.Add(newTrustEnforcer);
-            dc[key] = newValue.ToArray();
+            foreach (byte b in SHA256.HashData(Encoding.UTF8.GetBytes(inputString)))
+                sb.Append(b.ToString("X2"));
 
-            await SecureStorage.Default.SetAsync(TEN, JsonConvert.SerializeObject(dc));
+            return sb.ToString();
         }
     }
 }

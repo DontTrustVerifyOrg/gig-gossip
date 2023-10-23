@@ -5,11 +5,13 @@
                xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Wallet"
                x:Class="GigMobile.Pages.Wallet.AddWalletPage"
                x:DataType="viewModel:AddWalletViewModel"
-               x:TypeArguments="viewModel:AddWalletViewModel"
-               Title=" ⚡️ Add Lightning Wallet">
+               x:TypeArguments="viewModel:AddWalletViewModel">
     <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
-        <Label Text="Enter domain name your LND wallet provider:" HorizontalOptions="Start" VerticalOptions="Start"/>
-        <Entry Text="{Binding WalletDomain}" Placeholder="LND wallet's domain" HorizontalOptions="FillAndExpand" />
-        <Button Text="[ Add ➕ ]" Command="{Binding AddWalletCommand}" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
+        <Label Text="Add Lightning Wallet" FontSize="Title" HorizontalOptions="Center" VerticalOptions="Start"/>
+        <StackLayout VerticalOptions="CenterAndExpand" HorizontalOptions="FillAndExpand" Spacing="24">
+            <Label Text="Enter domain name of your LND wallet provider:" HorizontalOptions="Start" VerticalOptions="Center"/>
+            <Entry Text="{Binding WalletDomain}" Placeholder="LND wallet's domain" VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+            <Button Text="Save domain" Command="{Binding AddWalletCommand}" VerticalOptions="Center" HorizontalOptions="Center"/>
+        </StackLayout>
     </StackLayout>
 </base:BasePage>

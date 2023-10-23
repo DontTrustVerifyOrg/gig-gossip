@@ -1,5 +1,4 @@
-﻿using System;
-using ZXing.Net.Maui;
+﻿using ZXing.Net.Maui;
 
 namespace GigMobile.ViewModels.Wallet
 {

@@ -75,6 +75,7 @@
 		<PackageReference Include="NGeoHash" Version="1.2.0" />
 		<PackageReference Include="Sharpnado.Tabs.Maui" Version="3.0.1" />
 		<PackageReference Include="Nominatim.API" Version="2.0.0" />
+		<PackageReference Include="Osrm.Client.NetCore" Version="3.5.0" />
 	</ItemGroup>
 
 	<ItemGroup>

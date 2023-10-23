@@ -1,5 +1,6 @@
 ﻿using System.Windows.Input;
 using BindedMvvm.Attributes;
+using GigMobile.Services;
 
 namespace GigMobile.ViewModels
 {
@@ -23,7 +24,11 @@ namespace GigMobile.ViewModels
         public ICommand WalletDetailsCommand => _walletDetailsCommand ??= new Command(() => { NavigationService.NavigateAsync<Wallet.WalletDetailsViewModel, string>(WalletAddress, animated: true); });
 
         private ICommand _requestRideCommand;
-        public ICommand RequestRideCommand => _requestRideCommand ??= new Command(() => { NavigationService.NavigateAsync<Ride.Customer.CreateRideViewModel>(animated: true); });
+        public ICommand RequestRideCommand => _requestRideCommand ??= new Command(async () =>
+        {
+            var location = await GeolocationService.GetCachedLocation();
+            await NavigationService.NavigateAsync<Ride.Customer.CreateRideViewModel, Location>(location, animated: true);
+        });
 
         private ICommand _driverParametersCommand;
         public ICommand DriverParametersCommand => _driverParametersCommand ??= new Command(() => { NavigationService.NavigateAsync<Ride.Driver.DriverParametersViewModel>(animated: true); });

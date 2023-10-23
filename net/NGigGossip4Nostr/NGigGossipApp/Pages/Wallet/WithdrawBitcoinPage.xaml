@@ -5,20 +5,31 @@
                xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Wallet"
                x:Class="GigMobile.Pages.Wallet.WithdrawBitcoinPage"
                x:DataType="viewModel:WithdrawBitcoinViewModel"
-               x:TypeArguments="viewModel:WithdrawBitcoinViewModel"
-               Title=" ⚡️ Your Lightning Wallet">
-    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
-        <Label Text="{Binding BitcoinBallance , StringFormat='💰 {0} BTC'}" HorizontalOptions="Start" VerticalOptions="Start"/>
-        <Label Text="Enter address to send Bitcoin:" HorizontalOptions="Start" VerticalOptions="Start"/>
-        <StackLayout Orientation="Horizontal" Spacing="24" HorizontalOptions="FillAndExpand">
-            <Entry Text="{Binding OnchainAddress}" Placeholder="Payout Bitcoin Address" VerticalOptions="Center" HorizontalOptions="FillAndExpand"/>
-            <Button Text="[Scan QRcode]" Command="{Binding ScanWalletCommand}"  VerticalOptions="Center" HorizontalOptions="End"/>
+               x:TypeArguments="viewModel:WithdrawBitcoinViewModel">
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="48">
+        <Label Text="New transfer" FontSize="Title" HorizontalOptions="Center" VerticalOptions="Start"/>
+        <StackLayout Orientation="Horizontal">
+            <Label Text="Your actual balance: " HorizontalOptions="StartAndExpand"/>
+            <Label Text="{Binding BitcoinBallance , StringFormat='{0} BTC'}" FontFamily="Roboto_Bold"/>
         </StackLayout>
-        <Label Text="Enter amount (In BTC): " HorizontalOptions="Start" VerticalOptions="Start"/>
-        <Entry Text="{Binding Amount}" Placeholder="Amount" Keyboard="Numeric" VerticalOptions="Center" HorizontalOptions="Start"/>
-        <StackLayout Orientation="Horizontal" VerticalOptions="EndAndExpand" HorizontalOptions="Center" Spacing="48">
-            <Button Text="[⛔ Cancel]" Command="{Binding CancelWalletCommand}" HorizontalOptions="Center"/>
-            <Button Text="[✅ Confirm]" Command="{Binding SendCommand}" HorizontalOptions="Center"/>
+        <StackLayout Spacing="12">
+            <Label Text="Provide a receiver address" HorizontalOptions="Start" VerticalOptions="Start"/>
+            <StackLayout Orientation="Horizontal" Spacing="12" HorizontalOptions="FillAndExpand">
+                <Entry Text="{Binding OnchainAddress}" Placeholder="Receiver address" HorizontalOptions="FillAndExpand"/>
+                <ImageButton Source="qr_code" HeightRequest="35" WidthRequest="35"
+                             Command="{Binding ScanWalletCommand}"
+                             VerticalOptions="Center" HorizontalOptions="End"/>
+            </StackLayout>
         </StackLayout>
+        <StackLayout Spacing="24">
+            <Label Text="Enter amount (In BTC): " HorizontalOptions="Start" VerticalOptions="Start"/>
+            <Entry Text="{Binding Amount}" Placeholder="Amount"
+                   Keyboard="Numeric" HorizontalTextAlignment="Center"
+                   VerticalOptions="Center" HorizontalOptions="Center"/>
+        </StackLayout>
+        <Grid ColumnDefinitions="*, *" VerticalOptions="EndAndExpand" HorizontalOptions="FillAndExpand">
+            <Button Grid.Column="0" Text="Cancel" Command="{Binding CancelWalletCommand}" HorizontalOptions="Center" BackgroundColor="Transparent"/>
+            <Button Grid.Column="1" Text="Confirm" Command="{Binding SendCommand}" HorizontalOptions="Center"/>
+        </Grid>
     </StackLayout>
 </base:BasePage>

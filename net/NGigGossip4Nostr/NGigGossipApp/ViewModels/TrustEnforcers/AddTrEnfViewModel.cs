@@ -6,6 +6,8 @@ namespace GigMobile.ViewModels.TrustEnforcers
 {
 	public class AddTrEnfViewModel : BaseViewModel<bool>
     {
+        private readonly ISecureDatabase _secureDatabase;
+
         private ICommand _addTrEnfCommand;
         public ICommand AddTrEnfCommand => _addTrEnfCommand ??= new Command(async () => await OpenAddTrEnfAsync());
 
@@ -18,6 +20,11 @@ namespace GigMobile.ViewModels.TrustEnforcers
         public string PhoneCode { get; set; }
         public string PhoneNumber { get; set; }
 
+        public AddTrEnfViewModel(ISecureDatabase secureDatabase)
+        {
+            _secureDatabase = secureDatabase;
+        }
+
         public override void Prepare(bool data)
         {
             FromSetup = data;
@@ -27,7 +34,7 @@ namespace GigMobile.ViewModels.TrustEnforcers
         {
             if (FromSetup)
             {
-                await SecureDatabase.SetSetSetupStatusAsync(SecureDatabase.SetupStatus.Wallet);
+                await _secureDatabase.SetSetSetupStatusAsync(SetupStatus.Wallet);
                 await NavigationService.NavigateAsync<Wallet.AddWalletViewModel>();
             }
             else
@@ -46,7 +53,7 @@ namespace GigMobile.ViewModels.TrustEnforcers
         {
             if (FromSetup)
             {
-                await SecureDatabase.SetSetSetupStatusAsync(SecureDatabase.SetupStatus.Wallet);
+                await _secureDatabase.SetSetSetupStatusAsync(SetupStatus.Wallet);
                 await NavigationService.NavigateAsync<Wallet.AddWalletViewModel>();
             }
             else

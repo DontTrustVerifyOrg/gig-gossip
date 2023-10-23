@@ -32,5 +32,10 @@
 	<string>This app uses barcode scanning to...</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Need your biometric to unlock private wallet</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

@@ -14,10 +14,12 @@ namespace GigMobile.ViewModels.Ride.Driver
         private string secret;
         private string customerPublicKey;
         private DirectCom directCom;
+        private readonly ISecureDatabase _secureDatabase;
 
-        public DriverParametersViewModel(DirectCom directCom)
+        public DriverParametersViewModel(DirectCom directCom, ISecureDatabase secureDatabase)
         {
             this.directCom = directCom;
+            _secureDatabase = secureDatabase;
         }
 
         public async void Accept(AcceptBroadcastEventArgs args, long fee)
@@ -35,7 +37,8 @@ namespace GigMobile.ViewModels.Ride.Driver
                     Secret = secret,
                 };
 
-                var trustEnforcer = (await SecureDatabase.GetTrustEnforcersAsync()).Last();
+                var trustEnforcers = await _secureDatabase.GetTrustEnforcersAsync();
+                var trustEnforcer = trustEnforcers.Last().Value;
                 var certificate = trustEnforcer.Certificate;
 
                 directCom.Stop();

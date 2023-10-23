@@ -9,15 +9,17 @@ namespace GigMobile.ViewModels.Ride.Customer
     public class LookingDriverViewModel : BaseViewModel<Tuple<Location, Location>>
     {
         private GigGossipNode _gigGossipNode;
+        private readonly ISecureDatabase _secureDatabase;
         private Location _fromLocation;
         private Location _toLocation;
 
         private ICommand _cancelRequestCommand;
         public ICommand CancelRequestCommand => _cancelRequestCommand ??= new Command(() => NavigationService.NavigateAsync<ChooseDriverViewModel>());
 
-        public LookingDriverViewModel(GigGossipNode gigGossipNode)
+        public LookingDriverViewModel(GigGossipNode gigGossipNode, ISecureDatabase secureDatabase)
         {
             _gigGossipNode = gigGossipNode;
+            _secureDatabase = secureDatabase;
         }
 
         public override void Prepare(Tuple<Location, Location> data)
@@ -33,7 +35,8 @@ namespace GigMobile.ViewModels.Ride.Customer
             var fromGh = GeoHash.Encode(latitude: _fromLocation.Latitude, longitude: _fromLocation.Longitude, numberOfChars: 7);
             var toGh = GeoHash.Encode(latitude: _toLocation.Latitude, longitude: _toLocation.Longitude, numberOfChars: 7);
 
-            var trustEnforcer = (await SecureDatabase.GetTrustEnforcersAsync()).Last();
+            var trustEnforcers = await _secureDatabase.GetTrustEnforcersAsync();
+            var trustEnforcer = trustEnforcers.Last().Value;
             var certificate = trustEnforcer.Certificate;
 
             await _gigGossipNode.BroadcastTopicAsync(new TaxiTopic()

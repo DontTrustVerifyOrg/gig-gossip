@@ -7,19 +7,21 @@
                x:Class="GigMobile.Pages.Wallet.WalletDetailsPage"
                x:DataType="viewModel:WalletDetailsViewModel"
                x:TypeArguments="viewModel:WalletDetailsViewModel">
-    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="48">
         <Label Text="Your lightning wallet" FontSize="Title" HorizontalOptions="Center" VerticalOptions="Start"/>
-        <zxing:BarcodeGeneratorView HeightRequest="250"
-                                    WidthRequest="250"
-                                    BackgroundColor="Transparent"
-                                    ForegroundColor="White"
-                                    Value="{Binding WalletAddress}"
-                                    VerticalOptions="CenterAndExpand"
-                                    Format="QrCode" />
-        <StackLayout>
-
-
+        <StackLayout VerticalOptions="Center" Spacing="48" HorizontalOptions="FillAndExpand">
+            <zxing:BarcodeGeneratorView HeightRequest="250" WidthRequest="250"
+                                        HorizontalOptions="Center" VerticalOptions="Center"
+                                        ForegroundColor="Black" Format="QrCode"
+                                        Value="{Binding WalletAddress}" />
+            <StackLayout VerticalOptions="Center" HorizontalOptions="Center" Orientation="Horizontal" Spacing="12">
+                <Label Text="{Binding WalletAddress}" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
+                <Image Source="copy" HeightRequest="25" WidthRequest="25" HorizontalOptions="End">
+                    <Image.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding CopyAddressCommand}"/>
+                    </Image.GestureRecognizers>
+                </Image>
+            </StackLayout>
         </StackLayout>
-        <Label Text="{Binding WalletAddress}" HorizontalOptions="Center" VerticalOptions="CenterAndExpand"/>
     </StackLayout>
 </base:BasePage>

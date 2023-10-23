@@ -24,7 +24,7 @@ public partial class PickLocationPage : BasePage<PickLocationViewModel>
         Loaded -= BasePage_Loaded;
     }
 
-    private void BuildMap()
+    protected virtual void BuildMap()
     {
         _mapControl = new MapControl();
 

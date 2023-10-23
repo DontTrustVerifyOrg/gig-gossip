@@ -1,8 +1,5 @@
-﻿using System.Runtime.CompilerServices;
-using BindedMvvm.Abstractions;
+﻿using BindedMvvm.Abstractions;
 using GigMobile.ViewModels;
-
-using Color = Microsoft.Maui.Graphics.Color;
 
 namespace GigMobile.Pages
 {
@@ -26,14 +23,15 @@ namespace GigMobile.Pages
 
         protected void BasePage_Loaded(object sender, EventArgs e)
         {
-            Background = new LinearGradientBrush
+            BackgroundColor = Colors.White;
+            /*Background = new LinearGradientBrush
             {
                 GradientStops =
                 {
                     new GradientStop(Color.FromArgb("#FFFFFF"), 0.0f),
                     new GradientStop(Color.FromArgb("#FEFEE2"), 1.0f)
                 }
-            };
+            };*/
 
             var actualContent = Content;
             Content = null;

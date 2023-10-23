@@ -10,7 +10,7 @@ namespace GigMobile.ViewModels.Profile
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly IGigGossipNodeEventSource _gigGossipNodeEventSource;
-
+        private readonly ISecureDatabase _secureDatabase;
         private ICommand _loginCommand;
         public ICommand LoginCommand => _loginCommand ??= new Command(async () => await LoginAsync());
 
@@ -21,10 +21,12 @@ namespace GigMobile.ViewModels.Profile
         public bool IsKeyInStorage { get; set; }
 
         public LoginPrKeyViewModel(IServiceProvider serviceProvider,
-            IGigGossipNodeEventSource gigGossipNodeEventSource)
+            IGigGossipNodeEventSource gigGossipNodeEventSource,
+            ISecureDatabase secureDatabase)
         {
             _serviceProvider = serviceProvider;
             _gigGossipNodeEventSource = gigGossipNodeEventSource;
+            _secureDatabase = secureDatabase;
         }
 
         public override void Prepare(string data)
@@ -38,14 +40,14 @@ namespace GigMobile.ViewModels.Profile
             base.OnAppearing();
 
             if (string.IsNullOrEmpty(PrivateKey))
-                IsKeyInStorage = await SecureDatabase.GetUseBiometricAsync();
+                IsKeyInStorage = await _secureDatabase.GetUseBiometricAsync();
         }
 
         public async Task LoadKeyFromStorage()
         {
             if (IsKeyInStorage)
             {
-                var key = await SecureDatabase.GetPrivateKeyAsync();
+                var key = _secureDatabase.PrivateKey;
 
                 if (key != null)
                 {
@@ -78,7 +80,7 @@ namespace GigMobile.ViewModels.Profile
                     var key = await PrivateKey.AsECPrivKeyAsync();
                     if (key != null)
                     {
-                        await SecureDatabase.SetPrivateKeyAsync(PrivateKey);
+                        await _secureDatabase.SetPrivateKeyAsync(PrivateKey);
                         var node = _serviceProvider.GetService<GigGossipNode>();
                         try
                         {
@@ -98,16 +100,16 @@ namespace GigMobile.ViewModels.Profile
                             Console.WriteLine(ex.Message);
                         }
 
-                        var usBiometric = await SecureDatabase.GetUseBiometricAsync();
+                        var usBiometric = await _secureDatabase.GetUseBiometricAsync();
                         if (!usBiometric)
                             await NavigationService.NavigateAsync<Profile.AllowBiometricViewModel>();
                         else
                         {
-                            var status = await SecureDatabase.GetGetSetupStatusAsync();
+                            var status = await _secureDatabase.GetGetSetupStatusAsync();
                             switch (status)
                             {
-                                case SecureDatabase.SetupStatus.Enforcer: await NavigationService.NavigateAsync<TrustEnforcers.AddTrEnfViewModel, bool>(true); break;
-                                case SecureDatabase.SetupStatus.Wallet: await NavigationService.NavigateAsync<Wallet.AddWalletViewModel, bool>(true); break;
+                                case SetupStatus.Enforcer: await NavigationService.NavigateAsync<TrustEnforcers.AddTrEnfViewModel, bool>(true); break;
+                                case SetupStatus.Wallet: await NavigationService.NavigateAsync<Wallet.AddWalletViewModel, bool>(true); break;
                                 default:
                                     await NavigationService.NavigateAsync<MainViewModel>(); break;
                             }

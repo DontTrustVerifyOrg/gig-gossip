@@ -7,10 +7,10 @@
                xmlns:maui="clr-namespace:ZXing.Net.Maui;assembly=ZXing.Net.MAUI"
                x:Class="GigMobile.Pages.Wallet.ScanWalletCodePage"
                x:DataType="viewModel:ScanWalletCodeViewModel"
-               x:TypeArguments="viewModel:ScanWalletCodeViewModel"
-               Title=" 📸 Scan Bitcoin Address QR Code">
+               x:TypeArguments="viewModel:ScanWalletCodeViewModel">
     <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
-        <Label Text="Point your camera at the QR code.  " HorizontalOptions="Start" VerticalOptions="Start"/>
+        <Label Text="Scan Bitcoin Address QR Code" FontSize="Title" HorizontalOptions="Start" VerticalOptions="Start"/>
+        <Label Text="Point your camera at the QR code." FontSize="Body" HorizontalOptions="Start" VerticalOptions="Start"/>
         <Frame Margin="8" BorderColor="White" CornerRadius="0" Padding="4" InputTransparent="True" VerticalOptions="FillAndExpand">
             <zxing:CameraBarcodeReaderView VerticalOptions="FillAndExpand" HorizontalOptions="FillAndExpand" BarcodesDetected="CameraBarcodeReaderView_BarcodesDetected">
                 <zxing:CameraBarcodeReaderView.Options>
@@ -19,8 +19,8 @@
             </zxing:CameraBarcodeReaderView>
         </Frame>
         <StackLayout Orientation="Horizontal" VerticalOptions="End" HorizontalOptions="Center" Spacing="48">
-            <Button Text="[⛔ Cancel]" HorizontalOptions="Center"/>
-            <Button Text="[🆗 Continue]" HorizontalOptions="Center"/>
+            <Button Text="Cancel" HorizontalOptions="Center" BackgroundColor="Transparent"/>
+            <Button Text="Continue" HorizontalOptions="Center"/>
         </StackLayout>
     </StackLayout>
 </base:BasePage>

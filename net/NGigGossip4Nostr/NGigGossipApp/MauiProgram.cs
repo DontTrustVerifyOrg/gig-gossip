@@ -9,6 +9,7 @@ using Sharpnado.Tabs;
 using Nominatim.API.Geocoders;
 using Nominatim.API.Interfaces;
 using Nominatim.API.Web;
+using Osrm.Client;
 
 namespace GigMobile;
 
@@ -62,28 +63,41 @@ public static class MauiProgram
     public static void RegisterServices(this IServiceCollection serviceDescriptors)
     {
         serviceDescriptors.AddSingleton<BindedMvvm.INavigationService, BindedMvvm.NavigationService>();
+        serviceDescriptors.AddSingleton<ISecureDatabase, SecureDatabase>();
         serviceDescriptors.AddSingleton(implementationFactory: GigGossipNodeFactoryImplementation);
         serviceDescriptors.AddSingleton(implementationFactory: DirectComNodeFactoryImplementation);
         serviceDescriptors.AddSingleton<IGigGossipNodeEventSource, GigGossipNodeEventSource>();
         serviceDescriptors.AddScoped<INominatimWebInterface, NominatimWebInterface>();
         serviceDescriptors.AddScoped<ForwardGeocoder>();
         serviceDescriptors.AddScoped<ReverseGeocoder>();
+#if DEBUG
+        serviceDescriptors.AddHttpClient<HttpClient, HttpClient>(factory: (impl) =>
+        {
+            return new HttpClient(HttpsClientHandlerService.GetPlatformMessageHandler());
+        });
+#else
         serviceDescriptors.AddHttpClient();
+#endif
+        serviceDescriptors.AddScoped((provider) => new Osrm5x(provider.GetService<HttpClient>(), "http://router.project-osrm.org/"));
     }
 
     private static DirectCom DirectComNodeFactoryImplementation(IServiceProvider provider)
     {
+        var secureDb = provider.GetService<ISecureDatabase>();
+
         return new DirectCom(
-            SecureDatabase.PrivateKey.AsECPrivKey(),
+            secureDb.PrivateKey.AsECPrivKey(),
             GigGossipNodeConfig.ChunkSize
         );
     }
 
     private static GigGossipNode GigGossipNodeFactoryImplementation(IServiceProvider provider)
     {
+        var secureDb = provider.GetService<ISecureDatabase>();
+
         var node = new GigGossipNode(
             $"Filename={Path.Combine(FileSystem.AppDataDirectory, GigGossipNodeConfig.DatabaseFile)}",
-            SecureDatabase.PrivateKey.AsECPrivKey(),
+            secureDb.PrivateKey.AsECPrivKey(),
             GigGossipNodeConfig.ChunkSize
         );
 

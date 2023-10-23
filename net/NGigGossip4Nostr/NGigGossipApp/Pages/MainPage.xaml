@@ -7,12 +7,21 @@
                x:DataType="viewModel:MainViewModel"
                x:TypeArguments="viewModel:MainViewModel"
                HasNavigationBar="False">
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <Style TargetType="Frame">
+                <Setter Property="BorderColor" Value="#333333"/>
+                <Setter Property="HasShadow" Value="False"/>
+                <Setter Property="Padding" Value="16"/>
+            </Style>
+        </ResourceDictionary>
+    </ContentPage.Resources>
     <ContentPage.Content>
         <StackLayout Padding="24" Spacing="24" VerticalOptions="FillAndExpand">
             <Image Source="logo_no_background" HeightRequest="70"/>
             <ScrollView VerticalOptions="FillAndExpand">
                 <StackLayout HorizontalOptions="FillAndExpand" Spacing="24">
-                    <Frame HasShadow="False" BackgroundColor="#7FC37E" Padding="16">
+                    <Frame BorderColor="Transparent">
                         <Frame.Background>
                             <LinearGradientBrush>
                                 <GradientStop Color="#7FC37E" Offset="0.1"/>
@@ -27,7 +36,7 @@
                             <Image Source="way" HeightRequest="25" WidthRequest="25"/>
                         </StackLayout>
                     </Frame>
-                    <Frame HasShadow="False" BackgroundColor="#7FC37E" Padding="16">
+                    <Frame>
                         <StackLayout VerticalOptions="FillAndExpand" Spacing="16">
                             <StackLayout Orientation="Horizontal" Spacing="12">
                                 <Image Source="wallet" HeightRequest="30" WidthRequest="30"/>
@@ -36,13 +45,13 @@
                             </StackLayout>
                             <StackLayout Orientation="Horizontal" HorizontalOptions="FillAndExpand">
                                 <Label Text="Transfer:" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
-                                <ImageButton Source="send" WidthRequest="50" HeightRequest="50" HorizontalOptions="Start" Command="{Binding WalletDetailsCommand}"/>
+                                <ImageButton Source="send" WidthRequest="50" HeightRequest="50" HorizontalOptions="Start" Command="{Binding WithdrawBitcoinCommand}"/>
                                 <Label Text="/" HorizontalOptions="End" FontSize="Large" VerticalOptions="Center"/>
                                 <ImageButton Source="qr_code" WidthRequest="50" HeightRequest="50" HorizontalOptions="End" Command="{Binding WalletDetailsCommand}"/>
                             </StackLayout>
                         </StackLayout>
                     </Frame>
-                    <Frame HasShadow="False" BackgroundColor="#7FC37E" Padding="16">
+                    <Frame>
                         <StackLayout VerticalOptions="FillAndExpand" Spacing="16">
                             <StackLayout Orientation="Horizontal" Spacing="6">
                                 <Image Source="trust" HeightRequest="20" WidthRequest="20"/>
@@ -52,7 +61,7 @@
                             <Label Text="GigGossip Enforcer" FontFamily="RobotoBold" FontSize="Body" HorizontalOptions="Start" VerticalOptions="Center"/>
                         </StackLayout>
                     </Frame>
-                    <Frame HasShadow="False" BackgroundColor="#7FC37E" Padding="16">
+                    <Frame>
                         <StackLayout VerticalOptions="FillAndExpand" Spacing="16">
                             <StackLayout Orientation="Horizontal" Spacing="6">
                                 <Image Source="car" HeightRequest="20" WidthRequest="20"/>
@@ -61,12 +70,12 @@
                             </StackLayout>
                             <StackLayout Orientation="Horizontal" HorizontalOptions="FillAndExpand">
                                 <Label Text="Show me as a driver" FontSize="Small" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
-                                <Switch HorizontalOptions="End" OnColor="#333333"/>
+                                <Switch HorizontalOptions="End"/>
                             </StackLayout>
                         </StackLayout>
                     </Frame>
                     <Button Text="Logout" Command="{Binding DriverParametersCommand}" VerticalOptions="EndAndExpand" HorizontalOptions="FillAndExpand"
-                            BackgroundColor="Transparent" BorderWidth="2"/>
+                            TextColor="#333333" BackgroundColor="Transparent" BorderWidth="0"/>
                 </StackLayout>
             </ScrollView>
         </StackLayout>

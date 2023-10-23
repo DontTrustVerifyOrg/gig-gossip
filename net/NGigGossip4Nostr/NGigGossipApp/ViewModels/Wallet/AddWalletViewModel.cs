@@ -1,17 +1,29 @@
-﻿using System;
-using System.Windows.Input;
+﻿using System.Windows.Input;
 using GigMobile.Services;
-using CryptoToolkit;
 
 namespace GigMobile.ViewModels.Wallet
 {
-	public class AddWalletViewModel : BaseViewModel<bool>
+    public class AddWalletViewModel : BaseViewModel<bool>
     {
         private ICommand _addWalletCommand;
+        private readonly ISecureDatabase _secureDatabase;
+
         public ICommand AddWalletCommand => _addWalletCommand ??= new Command(async () => await AddWalletAsync());
 
         public string WalletDomain { get; set; }
         public bool FromSetup { get; private set; }
+
+        public AddWalletViewModel(ISecureDatabase secureDatabase)
+        {
+            _secureDatabase = secureDatabase;
+        }
+
+        public async override Task Initialize()
+        {
+            await base.Initialize();
+
+            WalletDomain = await _secureDatabase.GetWalletDomain();
+        }
 
         public override void Prepare(bool data)
         {
@@ -25,17 +37,15 @@ namespace GigMobile.ViewModels.Wallet
 #endif
             if (!string.IsNullOrEmpty(WalletDomain))
             {
-                var privateKeyString = await SecureDatabase.GetPrivateKeyAsync();
-                var privateKey = privateKeyString.AsECPrivKey();
-
-                await SecureDatabase.SetSetSetupStatusAsync(SecureDatabase.SetupStatus.Finished);
+                await _secureDatabase.SetWalletDomain(WalletDomain);
 
                 if (FromSetup)
-                    await NavigationService.NavigateAsync<MainViewModel>();
-                else
-                    await NavigationService.NavigateBackAsync();
+
+                    await _secureDatabase.SetSetSetupStatusAsync(SetupStatus.Finished);
+                await NavigationService.NavigateAsync<MainViewModel>();
             }
+            else
+                await NavigationService.NavigateBackAsync();
         }
     }
 }
-

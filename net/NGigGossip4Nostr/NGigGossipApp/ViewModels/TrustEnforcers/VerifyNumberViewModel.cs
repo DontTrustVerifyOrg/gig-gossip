@@ -8,7 +8,7 @@ namespace GigMobile.ViewModels.TrustEnforcers
     public class VerifyNumberViewModel : BaseViewModel<TrustEnforcer>
     {
         private readonly GigGossipNode _gigGossipNode;
-
+        private readonly ISecureDatabase _secureDatabase;
         private TrustEnforcer _newTrustEnforcer;
 
         private ICommand _submitCommand;
@@ -26,9 +26,10 @@ namespace GigMobile.ViewModels.TrustEnforcers
             _newTrustEnforcer = data;
         }
 
-        public VerifyNumberViewModel(GigGossipNode gigGossipNode)
+        public VerifyNumberViewModel(GigGossipNode gigGossipNode, ISecureDatabase secureDatabase)
         {
             _gigGossipNode = gigGossipNode;
+            _secureDatabase = secureDatabase;
         }
 
         public async override Task Initialize()
@@ -44,7 +45,7 @@ namespace GigMobile.ViewModels.TrustEnforcers
                 var settletCert = await settlerClient.IssueCertificateAsync(token, _gigGossipNode.PublicKey, new List<string> { "PhoneNumber" });
                 _newTrustEnforcer.Certificate = Crypto.DeserializeObject<Certificate>(settletCert);
 
-                await SecureDatabase.AddTrustEnforcersAsync(_newTrustEnforcer);
+                await _secureDatabase.AddTrustEnforcersAsync(_newTrustEnforcer);
             }
             catch (Exception ex)
             {
