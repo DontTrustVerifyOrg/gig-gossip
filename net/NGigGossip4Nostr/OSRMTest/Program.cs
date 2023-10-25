@@ -9,6 +9,7 @@ using Nominatim.API.Models;
 using Nominatim.API.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Nominatim.API.Web;
+using Nominatim.API.Address;
 
 using HttpClient client = new HttpClient();
 var osrm5x = new Osrm5x(client, "http://router.project-osrm.org/");
@@ -31,6 +32,7 @@ var serviceCollection = new ServiceCollection();
 serviceCollection.AddScoped<INominatimWebInterface, NominatimWebInterface>();
 serviceCollection.AddScoped<ForwardGeocoder>();
 serviceCollection.AddScoped<ReverseGeocoder>();
+serviceCollection.AddScoped<QuerySearcher>();
 serviceCollection.AddHttpClient();
 var _serviceProvider = serviceCollection.BuildServiceProvider();
 
@@ -49,4 +51,13 @@ var reverseGeocodeRequest = new ReverseGeocodeRequest
 };
 
 var r=await reverseGeocoder.ReverseGeocode(reverseGeocodeRequest);
-Console.WriteLine(r.Address.ToString());
+Console.WriteLine(r.DisplayName);
+
+
+var querySearcher = _serviceProvider.GetService<QuerySearcher>();
+var r3 = await querySearcher.Search(new SearchQueryRequest
+{
+     queryString="12 Romford Frenchs", CountryCodeSearch="AU", LimitResults=100,
+});
+
+Console.WriteLine(r3[0].DisplayName);

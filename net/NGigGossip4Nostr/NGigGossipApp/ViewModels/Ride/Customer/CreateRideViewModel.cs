@@ -1,4 +1,5 @@
 ﻿using System.Windows.Input;
+using Nominatim.API.Address;
 using Nominatim.API.Geocoders;
 using Nominatim.API.Models;
 using Osrm.Client;
@@ -8,6 +9,7 @@ namespace GigMobile.ViewModels.Ride.Customer
     public class CreateRideViewModel : BaseViewModel<Location>
     {
         private readonly ReverseGeocoder _reverseGeocoder;
+        private readonly QuerySearcher _querySearcher;
         private readonly Osrm5x _osrm5X;
 
         private ICommand _requestCommand;
@@ -27,10 +29,11 @@ namespace GigMobile.ViewModels.Ride.Customer
 
         public Location InitUserCoordinate { get; private set; }
 
-        public CreateRideViewModel(ReverseGeocoder reverseGeocoder, Osrm5x osrm5X)
+        public CreateRideViewModel(ReverseGeocoder reverseGeocoder, QuerySearcher querySearcher, Osrm5x osrm5X)
         {
             _reverseGeocoder = reverseGeocoder;
             _osrm5X = osrm5X;
+            _querySearcher = querySearcher;
         }
 
         public override void Prepare(Location data)
@@ -84,6 +87,42 @@ namespace GigMobile.ViewModels.Ride.Customer
             };
 
             return await _reverseGeocoder.ReverseGeocode(reverseGeocodeRequest);
+        }
+
+        public async Task<AddressSearchResponse[]> SearchAddress(string query, string country)
+        {
+            var addressSearchRequest = new SearchQueryRequest
+            {
+                queryString = query,
+                CountryCodeSearch = country,
+                Layer = "address",
+
+                BreakdownAddressElements = true,
+                ShowExtraTags = true,
+                ShowAlternativeNames = true,
+                ShowGeoJSON = true
+            };
+            return await _querySearcher.Search(addressSearchRequest);
+        }
+
+        public async Task<AddressSearchResponse[]> SearchAddress(string street, string city, string county, string state, string country, string postalCode)
+        {
+            var addressSearchRequest = new SearchQueryRequest
+            {
+                StreetAddress = street,
+                City = city,
+                County = county,
+                State = state,
+                Country = country,
+                PostalCode = postalCode,
+                Layer = "address",
+
+                BreakdownAddressElements = true,
+                ShowExtraTags = true,
+                ShowAlternativeNames = true,
+                ShowGeoJSON = true
+            };
+            return await _querySearcher.Search(addressSearchRequest);
         }
 
         private async void OnLocationPicked(object location, bool isFromLocation)
