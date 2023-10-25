@@ -7,6 +7,7 @@ using NGigGossip4Nostr;
 using GigLNDWalletAPIClient;
 using Sharpnado.Tabs;
 using Nominatim.API.Geocoders;
+using Nominatim.API.Address;
 using Nominatim.API.Interfaces;
 using Nominatim.API.Web;
 using Osrm.Client;
@@ -70,6 +71,7 @@ public static class MauiProgram
         serviceDescriptors.AddScoped<INominatimWebInterface, NominatimWebInterface>();
         serviceDescriptors.AddScoped<ForwardGeocoder>();
         serviceDescriptors.AddScoped<ReverseGeocoder>();
+        serviceDescriptors.AddScoped<QuerySearcher>();
 #if DEBUG
         serviceDescriptors.AddHttpClient<HttpClient, HttpClient>(factory: (impl) =>
         {
