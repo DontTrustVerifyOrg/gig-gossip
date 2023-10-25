@@ -7,10 +7,9 @@ using NGigGossip4Nostr;
 using GigLNDWalletAPIClient;
 using Sharpnado.Tabs;
 using Nominatim.API.Geocoders;
-using Nominatim.API.Address;
+using Osrm.Client;
 using Nominatim.API.Interfaces;
 using Nominatim.API.Web;
-using Osrm.Client;
 
 namespace GigMobile;
 
@@ -67,11 +66,11 @@ public static class MauiProgram
         serviceDescriptors.AddSingleton<ISecureDatabase, SecureDatabase>();
         serviceDescriptors.AddSingleton(implementationFactory: GigGossipNodeFactoryImplementation);
         serviceDescriptors.AddSingleton(implementationFactory: DirectComNodeFactoryImplementation);
-        serviceDescriptors.AddSingleton<IGigGossipNodeEventSource, GigGossipNodeEventSource>();
         serviceDescriptors.AddScoped<INominatimWebInterface, NominatimWebInterface>();
+        serviceDescriptors.AddSingleton<IGigGossipNodeEventSource, GigGossipNodeEventSource>();
+        serviceDescriptors.AddSingleton<Services.IAddressSearcher, AddressSearcher>();
         serviceDescriptors.AddScoped<ForwardGeocoder>();
         serviceDescriptors.AddScoped<ReverseGeocoder>();
-        serviceDescriptors.AddScoped<QuerySearcher>();
 #if DEBUG
         serviceDescriptors.AddHttpClient<HttpClient, HttpClient>(factory: (impl) =>
         {

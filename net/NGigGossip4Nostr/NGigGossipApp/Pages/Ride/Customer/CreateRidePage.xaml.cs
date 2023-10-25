@@ -87,11 +87,13 @@ public partial class CreateRidePage : BasePage<CreateRideViewModel>
             {
                 if (_fromPin != null)
                     _mapView.Pins.Remove(_fromPin);
+
                 _fromPin = new Pin(_mapView)
                 {
                     Label = "Picking up point",
                     Address = ViewModel.FromAddress,
-                    Position = new Position(ViewModel.FromLocation.Latitude, ViewModel.FromLocation.Longitude)
+                    Position = new Position(ViewModel.FromLocation.Latitude, ViewModel.FromLocation.Longitude),
+                    Color = Color.FromArgb("#00A4B4")
                 };
                 _mapView.Pins.Add(_fromPin);
                 allLocations.Add(ViewModel.FromLocation);
@@ -100,11 +102,13 @@ public partial class CreateRidePage : BasePage<CreateRideViewModel>
             {
                 if (_toPin != null)
                     _mapView.Pins.Remove(_toPin);
+
                 _toPin = new Pin(_mapView)
                 {
                     Label = "Destination point",
                     Address = ViewModel.ToAddress,
-                    Position = new Position(ViewModel.ToLocation.Latitude, ViewModel.ToLocation.Longitude)
+                    Position = new Position(ViewModel.ToLocation.Latitude, ViewModel.ToLocation.Longitude),
+                    Color = Color.FromArgb("#043418")
                 };
                 _mapView.Pins.Add(_toPin);
                 allLocations.Add(ViewModel.ToLocation);

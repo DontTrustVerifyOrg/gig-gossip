@@ -1,5 +1,5 @@
 ﻿using System.Windows.Input;
-using Nominatim.API.Address;
+using GigMobile.Services;
 using Nominatim.API.Geocoders;
 using Nominatim.API.Models;
 using Osrm.Client;
@@ -9,17 +9,26 @@ namespace GigMobile.ViewModels.Ride.Customer
     public class CreateRideViewModel : BaseViewModel<Location>
     {
         private readonly ReverseGeocoder _reverseGeocoder;
-        private readonly QuerySearcher _querySearcher;
         private readonly Osrm5x _osrm5X;
+        private readonly IAddressSearcher _addressSearcher;
 
         private ICommand _requestCommand;
         public ICommand RequestCommand => _requestCommand ??= new Command(() => NavigationService.NavigateAsync<LookingDriverViewModel>());
+
+        private ICommand _settingCommand;
+        public ICommand SettingCommand => _settingCommand ??= new Command(() => NavigationService.NavigateAsync<Sett>());
 
         private ICommand _pickFromCommand;
         public ICommand PickFromCommand => _pickFromCommand ??= new Command(async () => await PickLocationAsync(true));
 
         private ICommand _pickToCommand;
         public ICommand PickToCommand => _pickToCommand ??= new Command(async () => await PickLocationAsync(false));
+
+
+        private ICommand _pickFromSelectedCommand;
+        public ICommand PickFromSelectedCommand => _pickFromSelectedCommand ??= new Command<KeyValuePair<string, object>>((value) => SelectAddress(value, true));
+        private ICommand _pickToSelectedCommand;
+        public ICommand PickToSelectedCommand => _pickToSelectedCommand ??= new Command<KeyValuePair<string, object>>((value) => SelectAddress(value, false));
 
         public string FromAddress { get; set; }
         public string ToAddress { get; set; }
@@ -29,11 +38,19 @@ namespace GigMobile.ViewModels.Ride.Customer
 
         public Location InitUserCoordinate { get; private set; }
 
-        public CreateRideViewModel(ReverseGeocoder reverseGeocoder, QuerySearcher querySearcher, Osrm5x osrm5X)
+        public CreateRideViewModel(ReverseGeocoder reverseGeocoder, IAddressSearcher addressSearcher, Osrm5x osrm5X)
         {
             _reverseGeocoder = reverseGeocoder;
             _osrm5X = osrm5X;
-            _querySearcher = querySearcher;
+            _addressSearcher = addressSearcher;
+
+            SearchAddressFunc = async (string query, CancellationToken cancellationToken) =>
+            {
+                var result = await _addressSearcher.GetAddressAsync(query, cancellationToken);
+                if (result != null)
+                    return result.Select(x => KeyValuePair.Create(x.ToString(), (object)x)).ToArray();
+                return Array.Empty<KeyValuePair<string, object>>();
+            };
         }
 
         public override void Prepare(Location data)
@@ -45,6 +62,18 @@ namespace GigMobile.ViewModels.Ride.Customer
         {
             await NavigationService.NavigateAsync<PickLocationViewModel>((location) => OnLocationPicked(location, isFromLocation));
         }
+
+        private void SelectAddress(KeyValuePair<string, object> value, bool isFromLocation)
+        {
+            var place = value.Value as Place;
+            if (isFromLocation)
+            {
+                FromAddress = value.Key;
+                FromLocation = new Location(double.Parse(place.Lat), double.Parse(place.Lon));
+            }
+        }
+
+        public Func<string, CancellationToken, Task<KeyValuePair<string, object>[]>> SearchAddressFunc { get; private set; }
 
         public async Task<IEnumerable<Location>> GetRouteAsync()
         {
@@ -87,42 +116,6 @@ namespace GigMobile.ViewModels.Ride.Customer
             };
 
             return await _reverseGeocoder.ReverseGeocode(reverseGeocodeRequest);
-        }
-
-        public async Task<AddressSearchResponse[]> SearchAddress(string query, string country)
-        {
-            var addressSearchRequest = new SearchQueryRequest
-            {
-                queryString = query,
-                CountryCodeSearch = country,
-                Layer = "address",
-
-                BreakdownAddressElements = true,
-                ShowExtraTags = true,
-                ShowAlternativeNames = true,
-                ShowGeoJSON = true
-            };
-            return await _querySearcher.Search(addressSearchRequest);
-        }
-
-        public async Task<AddressSearchResponse[]> SearchAddress(string street, string city, string county, string state, string country, string postalCode)
-        {
-            var addressSearchRequest = new SearchQueryRequest
-            {
-                StreetAddress = street,
-                City = city,
-                County = county,
-                State = state,
-                Country = country,
-                PostalCode = postalCode,
-                Layer = "address",
-
-                BreakdownAddressElements = true,
-                ShowExtraTags = true,
-                ShowAlternativeNames = true,
-                ShowGeoJSON = true
-            };
-            return await _querySearcher.Search(addressSearchRequest);
         }
 
         private async void OnLocationPicked(object location, bool isFromLocation)

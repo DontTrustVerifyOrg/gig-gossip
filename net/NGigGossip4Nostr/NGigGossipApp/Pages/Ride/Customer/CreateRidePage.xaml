@@ -4,32 +4,35 @@
                xmlns:base="clr-namespace:GigMobile.Pages"
                xmlns:viewModel="clr-namespace:GigMobile.ViewModels.Ride.Customer"
                xmlns:maui="clr-namespace:Mapsui.UI.Maui;assembly=Mapsui.UI.Maui"
+               xmlns:uicomponets="clr-namespace:GigMobile.UIComponets"
                x:DataType="viewModel:CreateRideViewModel"
                x:TypeArguments="viewModel:CreateRideViewModel"
                x:Class="GigMobile.Pages.Ride.Customer.CreateRidePage"
                HasNavigationBar="True">
-    <Grid VerticalOptions="FillAndExpand" Margin="0, -120, 0, -70" RowDefinitions="*, Auto">
-        <maui:MapView x:Name="_mapView" Grid.Row="0"
+    <Grid VerticalOptions="FillAndExpand" Margin="0, -120, 0, -70" x:Name="_grid">
+        <maui:MapView x:Name="_mapView" Grid.Row="0" Margin="0, 0, 0, 200"
                       VerticalOptions="FillAndExpand" HorizontalOptions="FillAndExpand"/>
-        <Frame Grid.Row="1" Padding="20, 20, 20, 70" CornerRadius="20">
+        <Frame Grid.Row="0" Padding="20, 20, 20, 70" CornerRadius="20" VerticalOptions="End">
             <StackLayout Spacing="16">
                 <StackLayout Orientation="Horizontal" Spacing="12">
-                    <Image BackgroundColor="Black" HeightRequest="20" WidthRequest="20"/>
-                    <Entry Text="{Binding FromAddress}" Placeholder="Picking up point"
-                           HorizontalOptions="FillAndExpand"/>
-                    <ImageButton Source="setting" Command="{Binding PickFromCommand}" HeightRequest="30" WidthRequest="30" HorizontalOptions="End"/>
+                    <Image Source="blue_circle" HeightRequest="20" WidthRequest="20" Margin="6" VerticalOptions="Start"/>
+                    <uicomponets:SearchProposalEntry Text="{Binding FromAddress, Mode=TwoWay}" Placeholder="Picking up point" HorizontalOptions="FillAndExpand"
+                                                     QueryFunc="{Binding SearchAddressFunc}" SelectValueCommand="{Binding PickFromSelectedCommand}"
+                                                     Root="{Binding ., Source={Reference _grid}}"/>
+                    <ImageButton Source="pin" Command="{Binding PickFromCommand}" HeightRequest="30" WidthRequest="30" HorizontalOptions="End"  VerticalOptions="Start"/>
                 </StackLayout>
                 <StackLayout Orientation="Horizontal" Spacing="12">
-                    <Image BackgroundColor="Black" HeightRequest="20" WidthRequest="20"/>
-                    <Entry Text="{Binding ToAddress}" Placeholder="Destination"
-                           HorizontalOptions="FillAndExpand"/>
-                    <ImageButton Source="setting"  Command="{Binding PickToCommand}"  HeightRequest="30" WidthRequest="30" HorizontalOptions="End"/>
+                    <Image Source="green_circle" HeightRequest="20" WidthRequest="20" Margin="6" VerticalOptions="Start"/>
+                    <uicomponets:SearchProposalEntry Text="{Binding ToAddress}" Placeholder="Destination" HorizontalOptions="FillAndExpand"
+                                                     QueryFunc="{Binding SearchAddressFunc}" SelectValueCommand="{Binding PickToSelectedCommand}"
+                                                     Root="{Binding ., Source={Reference _grid}}"/>
+                    <ImageButton Source="pin"  Command="{Binding PickToCommand}"  HeightRequest="30" WidthRequest="30" HorizontalOptions="End"  VerticalOptions="Start"/>
                 </StackLayout>
                 <StackLayout Orientation="Horizontal" Spacing="12">
-                    <Label Text="Bittcoin Wallet" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
+                    <Label Text="Payment: Bittcoin Wallet" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
                     <ImageButton Source="setting" HeightRequest="30" WidthRequest="30" HorizontalOptions="End"/>
                 </StackLayout>
-                <Button Text="Request" HorizontalOptions="FillAndExpand" CornerRadius="20" Padding="16"/>
+                <Button Text="Request" Command="{Binding RequestCommand}" HorizontalOptions="FillAndExpand" CornerRadius="20" Padding="16"/>
             </StackLayout>
         </Frame>
     </Grid>
