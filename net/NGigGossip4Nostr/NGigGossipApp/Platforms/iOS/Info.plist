@@ -37,5 +37,7 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Need your lcation to define pickup address</string>
 </dict>
 </plist>

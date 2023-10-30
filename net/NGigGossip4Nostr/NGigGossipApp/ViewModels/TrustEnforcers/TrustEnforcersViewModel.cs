@@ -25,7 +25,7 @@ namespace GigMobile.ViewModels.TrustEnforcers
         {
             await base.Initialize();
             var enforcers = await _secureDatabase.GetTrustEnforcersAsync();
-            TrustEnforcers = enforcers.Values?.ToArray();
+            TrustEnforcers = enforcers?.Values?.ToArray();
         }
 
         public override void Prepare(bool data)

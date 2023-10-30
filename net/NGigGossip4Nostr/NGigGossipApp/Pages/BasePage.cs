@@ -6,6 +6,8 @@ namespace GigMobile.Pages
     public class BasePage<TViewModel> : BindedPage<TViewModel> where TViewModel : BindedViewModel, IBaseViewModel
     {
         protected Grid _rootLayout;
+        private StackLayout _background;
+        private ActivityIndicator _activityIndicator;
 
         public bool HasNavigationBar
         {
@@ -22,11 +24,15 @@ namespace GigMobile.Pages
             BackgroundColor = Colors.White;
         }
 
-        protected override SizeRequest OnMeasure(double widthConstraint, double heightConstraint)
+        protected override void OnBindingContextChanged()
         {
-            WrapContentInRoot();
+            base.OnBindingContextChanged();
 
-            return base.OnMeasure(widthConstraint, heightConstraint);
+            var layout = Content as Layout;
+            var ignoreSafeArea = layout.IgnoreSafeArea;
+
+            if (!ignoreSafeArea)
+                WrapContentInRoot();
         }
 
         private void WrapContentInRoot()
@@ -34,11 +40,15 @@ namespace GigMobile.Pages
             var actualContent = Content;
             Content = null;
 
-            var background = new StackLayout { BackgroundColor = Colors.Black, Opacity = 0.3f, Margin = new Thickness(-100) };
-            background.SetBinding(IsVisibleProperty, new Binding(nameof(IBaseViewModel.IsBusy)));
+            _background = new StackLayout { BackgroundColor = Colors.Black, Opacity = 0.3f, Margin = new Thickness(-100) };
 
-            var activityIndicator = new ActivityIndicator { VerticalOptions = LayoutOptions.Center, HorizontalOptions = LayoutOptions.Center };
-            activityIndicator.SetBinding(ActivityIndicator.IsRunningProperty, new Binding(nameof(IBaseViewModel.IsBusy)));
+            _activityIndicator = new ActivityIndicator { VerticalOptions = LayoutOptions.Center, HorizontalOptions = LayoutOptions.Center };
+            _activityIndicator.SetBinding(ActivityIndicator.IsRunningProperty, new Binding(nameof(IBaseViewModel.IsBusy)));
+            _activityIndicator.SetBinding(IsVisibleProperty, new Binding(nameof(IBaseViewModel.IsBusy)));
+
+            _background.SetBinding(IsVisibleProperty, new Binding(nameof(IBaseViewModel.IsBusy)));
+            _activityIndicator.SetBinding(ActivityIndicator.IsRunningProperty, new Binding(nameof(IBaseViewModel.IsBusy)));
+            _activityIndicator.SetBinding(IsVisibleProperty, new Binding(nameof(IBaseViewModel.IsBusy)));
 
             Content = _rootLayout = new Grid { actualContent };
 
@@ -47,8 +57,8 @@ namespace GigMobile.Pages
                 _rootLayout.RowDefinitions = new RowDefinitionCollection(
                     new RowDefinition[] { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Star) });
 
-                Grid.SetRowSpan(activityIndicator, 2);
-                Grid.SetRowSpan(background, 2);
+                Grid.SetRowSpan(_activityIndicator, 2);
+                Grid.SetRowSpan(_background, 2);
                 Grid.SetRow(actualContent, 1);
 
                 var backButton = new ImageButton
@@ -65,8 +75,8 @@ namespace GigMobile.Pages
                 _rootLayout.Add(new StackLayout { backButton });
             }
 
-            _rootLayout.Add(activityIndicator);
-            _rootLayout.Add(background);
+            _rootLayout.Add(_activityIndicator);
+            _rootLayout.Add(_background);
         }
     }
 }

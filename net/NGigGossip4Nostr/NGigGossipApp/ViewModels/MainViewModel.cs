@@ -26,8 +26,9 @@ namespace GigMobile.ViewModels
         private ICommand _requestRideCommand;
         public ICommand RequestRideCommand => _requestRideCommand ??= new Command(async () =>
         {
-            var location = await GeolocationService.GetCachedLocation();
-            await NavigationService.NavigateAsync<Ride.Customer.CreateRideViewModel, Location>(location, animated: true);
+            IsBusy = true;
+            await NavigationService.NavigateAsync<Ride.Customer.CreateRideViewModel>(animated: true);
+            IsBusy = false;
         });
 
         private ICommand _driverParametersCommand;
@@ -41,10 +42,13 @@ namespace GigMobile.ViewModels
 
         public override async Task Initialize()
         {
-            await base.Initialize();
+            IsBusy = true;
             var token = _gigGossipNode.MakeWalletAuthToken();
             WalletAddress = await _gigGossipNode.LNDWalletClient.NewAddressAsync(token);
             BitcoinBallance = await _gigGossipNode.LNDWalletClient.GetBalanceAsync(token);
+            IsBusy = false;
+
+            await base.Initialize();
         }
     }
 }

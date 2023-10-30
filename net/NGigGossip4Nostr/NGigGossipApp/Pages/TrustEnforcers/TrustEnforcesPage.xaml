@@ -9,6 +9,8 @@
                x:TypeArguments="viewModel:TrustEnforcersViewModel"
                Title="Trust Enforcer Management">
     <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
+        <Label Text="Trust enforcer's" FontSize="Body"
+               HorizontalOptions="Center" VerticalOptions="Start"/>
         <CollectionView ItemsSource="{Binding TrustEnforcers}" VerticalOptions="StartAndExpand">
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:TrustEnforcer">
@@ -24,6 +26,6 @@
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
-        <Button Text="[ 🟢 Add New Trust Enforcer ]" Command="{Binding AddTrEnfCommand}" VerticalOptions="End" HorizontalOptions="End"/>
+        <Button Text="Add New Trust Enforcer" Command="{Binding AddTrEnfCommand}" VerticalOptions="End" HorizontalOptions="End"/>
     </StackLayout>
 </base:BasePage>

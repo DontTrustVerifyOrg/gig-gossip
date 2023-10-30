@@ -13,10 +13,11 @@ namespace NGigGossip4Nostr
         Dictionary<Uri, GigGossipSettlerAPIClient.swaggerClient> swaggerClients = new();
         HashSet<Guid> revokedCertificates = new();
 
-        HttpClient httpClient = new HttpClient();
+        HttpClient _httpClient;
 
-        public SimpleSettlerSelector()
+        public SimpleSettlerSelector(HttpClient? httpClient)
         {
+            _httpClient = httpClient ?? new HttpClient();
         }
 
         public async Task<ECXOnlyPubKey> GetPubKeyAsync(Uri serviceUri)
@@ -29,7 +30,7 @@ namespace NGigGossip4Nostr
             lock (swaggerClients)
             {
                 if (!swaggerClients.ContainsKey(serviceUri))
-                    swaggerClients[serviceUri] = new GigGossipSettlerAPIClient.swaggerClient(serviceUri.AbsoluteUri, httpClient);
+                    swaggerClients[serviceUri] = new GigGossipSettlerAPIClient.swaggerClient(serviceUri.AbsoluteUri, _httpClient);
                 return swaggerClients[serviceUri];
             }
         }

@@ -1,8 +1,6 @@
 ﻿using System.Windows.Input;
 using CryptoToolkit;
 using GigMobile.Services;
-using Plugin.Fingerprint;
-using Plugin.Fingerprint.Abstractions;
 
 namespace GigMobile.ViewModels.Profile
 {
@@ -13,9 +11,6 @@ namespace GigMobile.ViewModels.Profile
         private readonly ISecureDatabase _secureDatabase;
         private ICommand _loginCommand;
         public ICommand LoginCommand => _loginCommand ??= new Command(async () => await LoginAsync());
-
-        private ICommand _loadKeyCommand;
-        public ICommand LoadKeyCommand => _loadKeyCommand ??= new Command(async () => await LoadKeyFromStorage());
 
         public string PrivateKey { get; set; }
         public bool IsKeyInStorage { get; set; }
@@ -33,41 +28,6 @@ namespace GigMobile.ViewModels.Profile
         {
             if (!string.IsNullOrEmpty(data))
                 PrivateKey = data;
-        }
-
-        public async override void OnAppearing()
-        {
-            base.OnAppearing();
-
-            if (string.IsNullOrEmpty(PrivateKey))
-                IsKeyInStorage = await _secureDatabase.GetUseBiometricAsync();
-        }
-
-        public async Task LoadKeyFromStorage()
-        {
-            if (IsKeyInStorage)
-            {
-                var key = _secureDatabase.PrivateKey;
-
-                if (key != null)
-                {
-                    var isAvailable = await CrossFingerprint.Current.IsAvailableAsync(allowAlternativeAuthentication: true);
-
-                    if (isAvailable)
-                    {
-                        var request = new AuthenticationRequestConfiguration("Login using biometrics", "Confirm login with your biometrics")
-                        {
-                            FallbackTitle = "Use PIN",
-                            AllowAlternativeAuthentication = true,
-                        };
-
-                        var result = await CrossFingerprint.Current.AuthenticateAsync(request);
-
-                        if (result.Authenticated)
-                            PrivateKey = key;
-                    }
-                }
-            }
         }
 
         private async Task LoginAsync()

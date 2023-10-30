@@ -21,6 +21,24 @@ public partial class CreateRidePage : BasePage<CreateRideViewModel>
         InitializeComponent();
 
         BuildMap();
+
+        Loaded += OnLoaded;
+    }
+
+    private void OnLoaded(object sender, EventArgs e)
+    {
+        MPoint sphericalMercatorCoordinate = null;
+        if (ViewModel?.FromLocation != null)
+            sphericalMercatorCoordinate = SphericalMercator.FromLonLat(ViewModel.FromLocation.Longitude,
+                ViewModel.FromLocation.Latitude).ToMPoint();
+        else
+        {
+            //TODO Mock Start Location
+            var centerOfSydney = new MPoint(151.209900, -33.865143);
+            sphericalMercatorCoordinate = SphericalMercator.FromLonLat(centerOfSydney.X, centerOfSydney.Y).ToMPoint();
+        }
+
+        _mapView.Map.Home = n => n.CenterOnAndZoomTo(sphericalMercatorCoordinate, n.Resolutions[18]);
     }
 
     private void BuildMap()
@@ -41,23 +59,13 @@ public partial class CreateRidePage : BasePage<CreateRideViewModel>
             HorizontalAlignment = Mapsui.Widgets.HorizontalAlignment.Left,
             VerticalAlignment = Mapsui.Widgets.VerticalAlignment.Bottom
         });
-        
-        MPoint sphericalMercatorCoordinate = null;
-        if (ViewModel?.InitUserCoordinate != null)
-            sphericalMercatorCoordinate = SphericalMercator.FromLonLat(ViewModel.InitUserCoordinate.Longitude,
-                ViewModel.InitUserCoordinate.Latitude).ToMPoint();
-        else
-        {
-            var centerOfSydney = new MPoint(151.209900, -33.865143);
-            sphericalMercatorCoordinate = SphericalMercator.FromLonLat(centerOfSydney.X, centerOfSydney.Y).ToMPoint();
-        }
-
-        _mapView.Map.Home = n => n.CenterOnAndZoomTo(sphericalMercatorCoordinate, n.Resolutions[18]);
     }
 
     protected override void OnAppearing()
     {
         ViewModel.PropertyChanged += OnVMPropertyChanged;
+        if (ViewModel.FromLocation != null)
+            OnVMPropertyChanged(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(ViewModel.FromLocation)));
 
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
@@ -78,8 +86,8 @@ public partial class CreateRidePage : BasePage<CreateRideViewModel>
     {
         try
         {
-            //TODO Lockation mock
-            List<Location> allLocations = new() { new Location(-33.865143, 151.209900) };
+            var myLocation = SphericalMercator.ToLonLat(_myLocationLayer.MyLocation);
+            List<Location> allLocations = new() {  };
 
             if (e.PropertyName == nameof(ViewModel.FromLocation))
             {
@@ -156,7 +164,7 @@ public partial class CreateRidePage : BasePage<CreateRideViewModel>
         while (!cancellationToken.IsCancellationRequested)
         {
             var location = await GeolocationService.GetCachedLocation();
-            //TODO Mock
+            //TODO Mock User Location
             location ??= new Location(-33.865143, 151.209900);
             if (location != null)
             {

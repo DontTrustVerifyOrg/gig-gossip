@@ -49,15 +49,6 @@ namespace GigMobile.Services
 
         public async Task<bool> GetUseBiometricAsync()
         {
-            var prvKey = await SecureStorage.Default.GetAsync(PRK);
-
-            if (!string.IsNullOrEmpty(prvKey))
-                _secureKey = GetHashString(prvKey);
-            else
-                return false;
-
-            PrivateKey = prvKey;
-
             var value = await SecureStorage.Default.GetAsync(_secureKey);
             if (!string.IsNullOrEmpty(value))
             {

@@ -102,7 +102,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
     public void Init(int fanout, long priceAmountForRouting, TimeSpan broadcastConditionsTimeout, string broadcastConditionsPowScheme,
                            int broadcastConditionsPowComplexity, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
-                           GigLNDWalletAPIClient.swaggerClient lndWalletClient)
+                           GigLNDWalletAPIClient.swaggerClient lndWalletClient, HttpClient? httpClient = null)
     {
         this.fanout = fanout;
         this.priceAmountForRouting = priceAmountForRouting;
@@ -114,7 +114,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
         LNDWalletClient = lndWalletClient;
 
-        SettlerSelector = new SimpleSettlerSelector();
+        SettlerSelector = new SimpleSettlerSelector(httpClient);
 
         _lndWalletMonitor = new LNDWalletMonitor(this);
         _settlerMonitor = new SettlerMonitor(this);

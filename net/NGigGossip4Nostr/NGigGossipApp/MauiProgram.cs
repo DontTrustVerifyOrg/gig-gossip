@@ -109,8 +109,10 @@ public static class MauiProgram
             address = address.Replace("localhost", "10.0.2.2");
 
         HttpClient client = new(HttpsClientHandlerService.GetPlatformMessageHandler());
+        HttpClient settlerClient = new(HttpsClientHandlerService.GetPlatformMessageHandler());
 #else
         HttpClient client = new HttpClient();
+        HttpClient settlerClient = new HttpClient();
 #endif
 
         var walletClient = new GigLNDWalletAPIClient.swaggerClient(address, client);
@@ -123,7 +125,7 @@ public static class MauiProgram
             GigGossipNodeConfig.BroadcastConditionsPowComplexity,
             TimeSpan.FromMilliseconds(GigGossipNodeConfig.TimestampToleranceMs),
             TimeSpan.FromSeconds(GigGossipNodeConfig.InvoicePaymentTimeoutSec),
-            walletClient);
+            walletClient, settlerClient);
 
         return node;
     }

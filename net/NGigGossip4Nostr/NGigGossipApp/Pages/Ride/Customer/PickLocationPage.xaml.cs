@@ -39,18 +39,6 @@ public partial class PickLocationPage : BasePage<PickLocationViewModel>
             HorizontalAlignment = Mapsui.Widgets.HorizontalAlignment.Left,
             VerticalAlignment = Mapsui.Widgets.VerticalAlignment.Bottom
         });
-
-        MPoint sphericalMercatorCoordinate = null;
-        if (ViewModel?.InitCoordinate != null)
-            sphericalMercatorCoordinate = SphericalMercator.FromLonLat(ViewModel.InitCoordinate.Longitude,
-                ViewModel.InitCoordinate.Latitude).ToMPoint();
-        else
-        {
-            var centerOfSydney = new MPoint(151.209900, -33.865143);
-            sphericalMercatorCoordinate = SphericalMercator.FromLonLat(centerOfSydney.X, centerOfSydney.Y).ToMPoint();
-        }
-
-        _mapView.Map.Home = n => n.CenterOnAndZoomTo(sphericalMercatorCoordinate, n.Resolutions[18]);
     }
 
     protected override void OnAppearing()
@@ -98,9 +86,17 @@ public partial class PickLocationPage : BasePage<PickLocationViewModel>
 
     private void PickLocationPage_Loaded(object sender, EventArgs e)
     {
-        var viewport = _mapView.Map.Navigator.Viewport;
-        var (lon, lat) = SphericalMercator.ToLonLat(viewport.CenterX, viewport.CenterY);
+        MPoint sphericalMercatorCoordinate = null;
+        if (ViewModel?.InitCoordinate != null)
+            sphericalMercatorCoordinate = SphericalMercator.FromLonLat(ViewModel.InitCoordinate.Longitude,
+                ViewModel.InitCoordinate.Latitude).ToMPoint();
+        else
+        {
+            //TODO Mock Start Location
+            var centerOfSydney = new MPoint(151.209900, -33.865143);
+            sphericalMercatorCoordinate = SphericalMercator.FromLonLat(centerOfSydney.X, centerOfSydney.Y).ToMPoint();
+        }
 
-        ViewModel.PickCoordinate(new Location(lat, lon));
+        _mapView.Map.Home = n => n.CenterOnAndZoomTo(sphericalMercatorCoordinate, n.Resolutions[18]);
     }
 }

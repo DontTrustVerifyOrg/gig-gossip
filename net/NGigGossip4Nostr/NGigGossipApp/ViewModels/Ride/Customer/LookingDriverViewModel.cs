@@ -1,6 +1,4 @@
-﻿using System;
-using System.Windows.Input;
-using CryptoToolkit;
+﻿using System.Windows.Input;
 using GigMobile.Services;
 using NGeoHash;
 
@@ -8,7 +6,7 @@ namespace GigMobile.ViewModels.Ride.Customer
 {
     public class LookingDriverViewModel : BaseViewModel<Tuple<Location, Location>>
     {
-        private GigGossipNode _gigGossipNode;
+        private readonly GigGossipNode _gigGossipNode;
         private readonly ISecureDatabase _secureDatabase;
         private Location _fromLocation;
         private Location _toLocation;
@@ -35,7 +33,8 @@ namespace GigMobile.ViewModels.Ride.Customer
             var fromGh = GeoHash.Encode(latitude: _fromLocation.Latitude, longitude: _fromLocation.Longitude, numberOfChars: 7);
             var toGh = GeoHash.Encode(latitude: _toLocation.Latitude, longitude: _toLocation.Longitude, numberOfChars: 7);
 
-            var trustEnforcers = await _secureDatabase.GetTrustEnforcersAsync();
+            //TODO can be uncommentonly when trsut enforcer can be added
+            /*var trustEnforcers = await _secureDatabase.GetTrustEnforcersAsync();
             var trustEnforcer = trustEnforcers.Last().Value;
             var certificate = trustEnforcer.Certificate;
 
@@ -45,7 +44,7 @@ namespace GigMobile.ViewModels.Ride.Customer
                 ToGeohash = toGh,
                 PickupAfter = DateTime.Now,
                 DropoffBefore = DateTime.Now.AddHours(3)
-            }, certificate);
+            }, certificate);*/
         }
     }
 }

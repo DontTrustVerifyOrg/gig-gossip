@@ -35,5 +35,7 @@
                 <Button Text="Request" Command="{Binding RequestCommand}" HorizontalOptions="FillAndExpand" CornerRadius="20" Padding="16"/>
             </StackLayout>
         </Frame>
+        <Button Text="Back" Command="{Binding BackCommand}" HorizontalOptions="Start" VerticalOptions="Start" Margin="25, 90"
+                Style="{StaticResource SecondaryButton}"/>
     </Grid>
 </base:BasePage>

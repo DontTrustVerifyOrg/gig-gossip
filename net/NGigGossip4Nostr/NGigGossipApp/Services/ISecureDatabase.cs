@@ -6,6 +6,7 @@ namespace GigMobile.Services
     {
         string PrivateKey { get; }
 
+        Task<string> GetPrivateKeyAsync();
         Task SetPrivateKeyAsync(string key);
         Task<Dictionary<string, TrustEnforcer>> GetTrustEnforcersAsync();
         Task AddTrustEnforcersAsync(TrustEnforcer newTrustEnforcer);

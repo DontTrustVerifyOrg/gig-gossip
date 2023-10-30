@@ -13,9 +13,6 @@
         <StackLayout Spacing="16" VerticalOptions="CenterAndExpand">
             <Label Text="Enter your private key:" FontSize="Body" HorizontalOptions="Start" VerticalOptions="Start"/>
             <Entry Placeholder="Private key" Text="{Binding PrivateKey}" HorizontalOptions="FillAndExpand"/>
-            <Button Text="Load private key" Command="{Binding LoadKeyCommand}"
-                    HorizontalOptions="End"
-                    IsVisible="{Binding IsKeyInStorage}"/>
         </StackLayout>
         <Button Text="Next" Style="{StaticResource SecondaryButton}" Command="{Binding LoginCommand}" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
     </StackLayout>
