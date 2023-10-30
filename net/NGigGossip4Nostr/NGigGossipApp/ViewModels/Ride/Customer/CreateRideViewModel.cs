@@ -16,7 +16,7 @@ namespace GigMobile.ViewModels.Ride.Customer
         public ICommand RequestCommand => _requestCommand ??= new Command(() => NavigationService.NavigateAsync<LookingDriverViewModel>());
 
         private ICommand _settingCommand;
-        public ICommand SettingCommand => _settingCommand ??= new Command(() => NavigationService.NavigateAsync<Sett>());
+        public ICommand SettingCommand => _settingCommand ??= new Command(() => NavigationService.NavigateAsync<LookingDriverViewModel>());
 
         private ICommand _pickFromCommand;
         public ICommand PickFromCommand => _pickFromCommand ??= new Command(async () => await PickLocationAsync(true));
@@ -46,7 +46,7 @@ namespace GigMobile.ViewModels.Ride.Customer
 
             SearchAddressFunc = async (string query, CancellationToken cancellationToken) =>
             {
-                var result = await _addressSearcher.GetAddressAsync(query, cancellationToken);
+                var result = await _addressSearcher.GetAddressAsync(query, "Sydney", "Australia", cancellationToken);
                 if (result != null)
                     return result.Select(x => KeyValuePair.Create(x.ToString(), (object)x)).ToArray();
                 return Array.Empty<KeyValuePair<string, object>>();
@@ -60,7 +60,8 @@ namespace GigMobile.ViewModels.Ride.Customer
 
         private async Task PickLocationAsync(bool isFromLocation)
         {
-            await NavigationService.NavigateAsync<PickLocationViewModel>((location) => OnLocationPicked(location, isFromLocation));
+            await NavigationService.NavigateAsync<PickLocationViewModel, Location>(isFromLocation ? FromLocation : ToLocation,
+                (location) => OnLocationPicked(location, isFromLocation));
         }
 
         private void SelectAddress(KeyValuePair<string, object> value, bool isFromLocation)
@@ -71,9 +72,14 @@ namespace GigMobile.ViewModels.Ride.Customer
                 FromAddress = value.Key;
                 FromLocation = new Location(double.Parse(place.Lat), double.Parse(place.Lon));
             }
+            else
+            {
+                ToAddress = value.Key;
+                ToLocation = new Location(double.Parse(place.Lat), double.Parse(place.Lon));
+            }
         }
 
-        public Func<string, CancellationToken, Task<KeyValuePair<string, object>[]>> SearchAddressFunc { get; private set; }
+        public Func<string, CancellationToken, Task<KeyValuePair<string, object>[]>> SearchAddressFunc { get; set; }
 
         public async Task<IEnumerable<Location>> GetRouteAsync()
         {
@@ -88,7 +94,7 @@ namespace GigMobile.ViewModels.Ride.Customer
                             new Osrm.Client.Models.Location(FromLocation.Latitude, FromLocation.Longitude),
                             new Osrm.Client.Models.Location(ToLocation.Latitude, ToLocation.Longitude)
                         },
-                        SendCoordinatesAsPolyline = true,
+                        SendCoordinatesAsPolyline = true
                     });
                     return result.Routes[0].Geometry.Select(x => new Location(x.Latitude, x.Longitude));
                 }

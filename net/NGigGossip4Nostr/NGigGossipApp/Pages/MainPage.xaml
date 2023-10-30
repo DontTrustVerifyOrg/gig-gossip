@@ -32,7 +32,7 @@
                             <TapGestureRecognizer Command="{Binding RequestRideCommand}"/>
                         </Frame.GestureRecognizers>
                         <StackLayout VerticalOptions="FillAndExpand" Spacing="16" Orientation="Horizontal">
-                            <Label Text="Request Ride" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
+                            <Label Text="Request Ride" HorizontalOptions="StartAndExpand" VerticalOptions="Center" TextColor="{StaticResource White}"/>
                             <Image Source="way" HeightRequest="25" WidthRequest="25"/>
                         </StackLayout>
                     </Frame>
@@ -69,7 +69,7 @@
                                 <ImageButton Source="setting" Command="{Binding DriverParametersCommand}" HeightRequest="30" WidthRequest="30" VerticalOptions="Center"/>
                             </StackLayout>
                             <StackLayout Orientation="Horizontal" HorizontalOptions="FillAndExpand">
-                                <Label Text="Show me as a driver" FontSize="Small" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
+                                <Label Text="Driver mode" FontSize="Small" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
                                 <Switch HorizontalOptions="End"/>
                             </StackLayout>
                         </StackLayout>

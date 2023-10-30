@@ -4,15 +4,12 @@ using Mapsui;
 using Mapsui.Extensions;
 using Mapsui.Layers;
 using Mapsui.Projections;
-using Mapsui.UI;
-using Mapsui.UI.Maui;
 
 namespace GigMobile.Pages.Ride.Customer;
 
 public partial class PickLocationPage : BasePage<PickLocationViewModel>
 {
     private MyLocationLayer _myLocationLayer;
-    private MapControl _mapControl;
     private CancellationTokenSource _cts;
 
     public PickLocationPage()
@@ -21,52 +18,39 @@ public partial class PickLocationPage : BasePage<PickLocationViewModel>
 
         BuildMap();
 
-        Loaded -= BasePage_Loaded;
+        Loaded += PickLocationPage_Loaded;
     }
 
     protected virtual void BuildMap()
     {
-        _mapControl = new MapControl();
+        _mapView.IsMyLocationButtonVisible = false;
+        _mapView.IsNorthingButtonVisible = false;
+        _mapView.IsZoomButtonVisible = false;
 
-        _mapControl.Map.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
+        _mapView.Map.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
 
-        _myLocationLayer = new MyLocationLayer(_mapControl.Map) { IsCentered = false };
-        _mapControl.Map.Layers.Add(_myLocationLayer);
+        _myLocationLayer = new MyLocationLayer(_mapView.Map) { IsCentered = false };
+        _mapView.Map.Layers.Add(_myLocationLayer);
 
-        _mapControl.Map.Widgets.Add(new Mapsui.Widgets.ScaleBar.ScaleBarWidget(_mapControl.Map)
+        _mapView.Map.Widgets.Add(new Mapsui.Widgets.ScaleBar.ScaleBarWidget(_mapView.Map)
         {
+            MarginY = 20f,
             TextAlignment = Mapsui.Widgets.Alignment.Center,
             HorizontalAlignment = Mapsui.Widgets.HorizontalAlignment.Left,
             VerticalAlignment = Mapsui.Widgets.VerticalAlignment.Bottom
         });
 
-        _mapControl.Map.Widgets.Add(new Mapsui.Widgets.Zoom.ZoomInOutWidget()
-        {
-            HorizontalAlignment = Mapsui.Widgets.HorizontalAlignment.Right,
-            VerticalAlignment = Mapsui.Widgets.VerticalAlignment.Top,
-        });
-
         MPoint sphericalMercatorCoordinate = null;
-        //if (ViewModel.UserCoordinate == null)
-        //{
+        if (ViewModel?.InitCoordinate != null)
+            sphericalMercatorCoordinate = SphericalMercator.FromLonLat(ViewModel.InitCoordinate.Longitude,
+                ViewModel.InitCoordinate.Latitude).ToMPoint();
+        else
+        {
             var centerOfSydney = new MPoint(151.209900, -33.865143);
             sphericalMercatorCoordinate = SphericalMercator.FromLonLat(centerOfSydney.X, centerOfSydney.Y).ToMPoint();
-        //}
-        //else
-        //    sphericalMercatorCoordinate = SphericalMercator.FromLonLat(ViewModel.UserCoordinate.Longitude, ViewModel.UserCoordinate.Latitude).ToMPoint();
+        }
 
-        _mapControl.Map.Home = n => n.CenterOnAndZoomTo(sphericalMercatorCoordinate, n.Resolutions[18]);
-
-        _mapControl.Map.Navigator.ViewportChanged += OnViewPortChanged;
-
-        _mapView.Content = _mapControl;
-    }
-
-    private void OnViewPortChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        var viewport = (sender as Navigator).Viewport;
-        var (lon, lat) = SphericalMercator.ToLonLat(viewport.CenterX, viewport.CenterY);
-        ViewModel.OnMapCenterChanged(new Location(lat, lon));
+        _mapView.Map.Home = n => n.CenterOnAndZoomTo(sphericalMercatorCoordinate, n.Resolutions[18]);
     }
 
     protected override void OnAppearing()
@@ -95,5 +79,28 @@ public partial class PickLocationPage : BasePage<PickLocationViewModel>
             }
             await Task.Delay(2000, cancellationToken);
         }
+    }
+
+    void MapTouchStarted(System.Object sender, Mapsui.UI.TouchedEventArgs e)
+    {
+        _target.Fill = Colors.Transparent;
+    }
+
+    void MapTouchEnded(System.Object sender, Mapsui.UI.TouchedEventArgs e)
+    {
+        _target.Fill = Colors.Gray;
+
+        var viewport = _mapView.Map.Navigator.Viewport;
+        var (lon, lat) = SphericalMercator.ToLonLat(viewport.CenterX, viewport.CenterY);
+
+        ViewModel.PickCoordinate(new Location(lat, lon));
+    }
+
+    private void PickLocationPage_Loaded(object sender, EventArgs e)
+    {
+        var viewport = _mapView.Map.Navigator.Viewport;
+        var (lon, lat) = SphericalMercator.ToLonLat(viewport.CenterX, viewport.CenterY);
+
+        ViewModel.PickCoordinate(new Location(lat, lon));
     }
 }

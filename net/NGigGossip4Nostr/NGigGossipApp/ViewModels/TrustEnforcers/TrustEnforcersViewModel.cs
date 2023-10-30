@@ -6,9 +6,9 @@ namespace GigMobile.ViewModels.TrustEnforcers
 {
 	public class TrustEnforcersViewModel : BaseViewModel<bool>
     {
-        private readonly SecureDatabase _secureDatabase;
+        private readonly ISecureDatabase _secureDatabase;
 
-        public TrustEnforcersViewModel(SecureDatabase secureDatabase)
+        public TrustEnforcersViewModel(ISecureDatabase secureDatabase)
         {
             _secureDatabase = secureDatabase;
         }
@@ -25,7 +25,7 @@ namespace GigMobile.ViewModels.TrustEnforcers
         {
             await base.Initialize();
             var enforcers = await _secureDatabase.GetTrustEnforcersAsync();
-            TrustEnforcers = enforcers.Values.ToArray();
+            TrustEnforcers = enforcers.Values?.ToArray();
         }
 
         public override void Prepare(bool data)

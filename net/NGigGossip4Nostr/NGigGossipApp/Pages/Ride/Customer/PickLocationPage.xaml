@@ -6,19 +6,17 @@
                x:DataType="viewModel:PickLocationViewModel"
                x:TypeArguments="viewModel:PickLocationViewModel"
                x:Class="GigMobile.Pages.Ride.Customer.PickLocationPage"
-               Title=" 🗺  Pick Location on Map">
-    <StackLayout>
-        <Grid VerticalOptions="FillAndExpand" HorizontalOptions="FillAndExpand">
-            <ContentView x:Name="_mapView" VerticalOptions="FillAndExpand" HorizontalOptions="FillAndExpand"/>
-            <Ellipse HeightRequest="25" WidthRequest="25" Fill="Black" Stroke="Gray" StrokeThickness="4" VerticalOptions="Center" HorizontalOptions="Center"/>
+               xmlns:maui="clr-namespace:Mapsui.UI.Maui;assembly=Mapsui.UI.Maui"
+               xmlns:ios="clr-namespace:Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;assembly=Microsoft.Maui.Controls"
+               ios:Page.UseSafeArea="False">
+        <Grid VerticalOptions="FillAndExpand" HorizontalOptions="FillAndExpand" IgnoreSafeArea="True">
+            <maui:MapView x:Name="_mapView" VerticalOptions="FillAndExpand" HorizontalOptions="FillAndExpand"
+                          TouchStarted="MapTouchStarted" TouchEnded="MapTouchEnded"/>
+            <Ellipse x:Name="_target" HeightRequest="16" WidthRequest="16" Fill="Gray" Stroke="Black" StrokeThickness="4"
+                     VerticalOptions="Center" HorizontalOptions="Center" InputTransparent="True"/>
+            <StackLayout Orientation="Horizontal" Spacing="24" Margin="24, 0, 24, 46" VerticalOptions="End" HorizontalOptions="FillAndExpand" InputTransparent="True">
+                <Entry Text="{Binding Address}" IsReadOnly="True" HorizontalOptions="FillAndExpand" VerticalOptions="Center" InputTransparent="False"/>
+                <Button Text="Pick" HorizontalOptions="End" VerticalOptions="Center" InputTransparent="False"/>
+            </StackLayout>
         </Grid>
-        <StackLayout Orientation="Horizontal" BackgroundColor="Black" VerticalOptions="End" Padding="12">
-            <Label Text="{Binding TargetCoordinate}"
-                   VerticalOptions="Center" HorizontalOptions="FillAndExpand"
-                   TextColor="White"/>
-            <Button Command="{Binding PickCommand}"
-                    Text="Pick" BackgroundColor="White" TextColor="Black"
-                    VerticalOptions="Center" HorizontalOptions="End" Padding="8"/>
-        </StackLayout>
-    </StackLayout>
 </base:BasePage>

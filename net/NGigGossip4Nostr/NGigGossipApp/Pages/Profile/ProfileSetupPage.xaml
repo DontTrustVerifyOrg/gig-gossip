@@ -9,14 +9,15 @@
                HasNavigationBar="False">
     <StackLayout VerticalOptions="Center" Spacing="48" Margin="48">
         <Image Source="logo_no_background" HeightRequest="90" Aspect="AspectFit"/>
-        <Label Text="Setup your profile" FontSize="Subtitle" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+        <Label Text="Setup your profile" FontSize="Body" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
         <StackLayout Spacing="16" HorizontalOptions="Center">
             <Button Text="Login with your private key" HorizontalOptions="CenterAndExpand"
                     Command="{Binding LoginCommand}"/>
             <Button Text="Create new profile" HorizontalOptions="FillAndExpand"
                     Command="{Binding CreateCommand}"/>
-            <Button Text="Recover existing profile" HorizontalOptions="FillAndExpand"
-                    Command="{Binding RecoverCommand}"/>
         </StackLayout>
+        <Button Text="Recover existing profile"
+                HorizontalOptions="Center" VerticalOptions="End"
+                Command="{Binding RecoverCommand}" Style="{StaticResource SecondaryButton}"/>
     </StackLayout>
 </base:BasePage>

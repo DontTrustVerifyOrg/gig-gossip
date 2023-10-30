@@ -16,8 +16,8 @@ public partial class LaunchPage : ContentPage
     {
         base.OnAppearing();
 
-        await Task.Delay(2000);
-        await _navigationService.NavigateAsync<ViewModels.Profile.ProfileSetupViewModel>();
+        await Task.Delay(1000);
+        await _navigationService.NavigateAsync<ViewModels.Ride.Customer.CreateRideViewModel>();
     }
 }
 

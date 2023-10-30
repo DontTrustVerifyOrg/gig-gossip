@@ -2,6 +2,6 @@
 {
     public interface IAddressSearcher
     {
-        Task<Place[]> GetAddressAsync(string query, CancellationToken ct);
+        Task<Place[]> GetAddressAsync(string query, string city, string country, CancellationToken ct);
     }
 }

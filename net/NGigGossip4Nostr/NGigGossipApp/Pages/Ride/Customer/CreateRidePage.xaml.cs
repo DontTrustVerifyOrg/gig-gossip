@@ -21,8 +21,6 @@ public partial class CreateRidePage : BasePage<CreateRideViewModel>
         InitializeComponent();
 
         BuildMap();
-
-        Loaded -= BasePage_Loaded;
     }
 
     private void BuildMap()
@@ -133,13 +131,17 @@ public partial class CreateRidePage : BasePage<CreateRideViewModel>
                 _mapView.Drawables.Add(line);
             }
 
-            var xMin = allLocations.Select(x => x.Longitude).Min() - 0.003;
-            var xMax = allLocations.Select(x => x.Longitude).Max() + 0.003;
-            var yMin = allLocations.Select(x => x.Latitude).Min() - 0.003;
-            var yMax = allLocations.Select(x => x.Latitude).Max() + 0.003;
+            var xMin = allLocations.Select(x => x.Longitude).Min();
+            var xMax = allLocations.Select(x => x.Longitude).Max();
+            var yMin = allLocations.Select(x => x.Latitude).Min();
+            var yMax = allLocations.Select(x => x.Latitude).Max();
 
-            var startPoint = SphericalMercator.FromLonLat(xMin, yMin).ToMPoint();
-            var endPoint = SphericalMercator.FromLonLat(xMax, yMax).ToMPoint();
+            var xDistance = Math.Abs(xMin - xMax);
+            var yDistance = Math.Abs(yMin - yMax);
+            var paddingDistance = (xDistance > yDistance ? xDistance : yDistance) / 10;
+
+            var startPoint = SphericalMercator.FromLonLat(xMin - paddingDistance, yMin - paddingDistance).ToMPoint();
+            var endPoint = SphericalMercator.FromLonLat(xMax + paddingDistance, yMax + paddingDistance).ToMPoint();
 
             _mapView.Map.Navigator.ZoomToBox(new MRect(startPoint.X, startPoint.Y, endPoint.X, endPoint.Y));
         }

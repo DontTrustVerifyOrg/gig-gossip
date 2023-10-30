@@ -70,6 +70,6 @@
                 <Entry Text="{Binding Mnemonic[11]}" />
             </StackLayout>
         </Grid>
-        <Button Text="Next" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
+        <Button Text="Next" Style="{StaticResource SecondaryButton}" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
     </StackLayout>
 </base:BasePage>

@@ -18,6 +18,13 @@
         </StackLayout>
         <Frame HasShadow="False" BackgroundColor="#7FC37E" Padding="16, 28">
             <StackLayout Spacing="18">
+                <StackLayout.Resources>
+                    <ResourceDictionary>
+                        <Style TargetType="Label">
+                            <Setter Property="TextColor" Value="{StaticResource White}"/>
+                        </Style>
+                    </ResourceDictionary>
+                </StackLayout.Resources>
                 <Label Text="KEEP THIS SEED SAFE. DO NOT SHARE." HorizontalOptions="Center" VerticalOptions="Start"/>
                 <Grid RowDefinitions="*, *, *, *" ColumnDefinitions="*, *, *" RowSpacing="12" ColumnSpacing="12">
                     <StackLayout Orientation="Horizontal" Grid.Column="0" Grid.Row="0" Spacing="12">
@@ -71,6 +78,6 @@
                 </Grid>
             </StackLayout>
         </Frame>
-        <Button Text="Next" Command="{Binding NextCommand}" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
+        <Button Text="Next" Style="{StaticResource SecondaryButton}" Command="{Binding NextCommand}" VerticalOptions="EndAndExpand" HorizontalOptions="End"/>
     </StackLayout>
 </base:BasePage>

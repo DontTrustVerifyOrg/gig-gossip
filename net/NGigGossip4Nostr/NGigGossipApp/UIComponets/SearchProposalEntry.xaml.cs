@@ -11,14 +11,19 @@ public partial class SearchProposalEntry : ContentView
 	{
 		InitializeComponent();
 
+        _entry.Focused += Onfocused;
         _entry.Unfocused += OnUnfocused;
         _entry.TextChanged += OnTextChanged;
     }
 
     private async void OnTextChanged(object sender, TextChangedEventArgs e)
     { 
-        if (QueryFunc != null && _entry.IsFocused)
+        if (QueryFunc != null && _entry.IsFocused && e.NewTextValue?.Length > 4)
         {
+            _searchIndicator.IsRunning = true;
+            _searchIndicator.IsVisible = true;
+            _progressLabel.Text = "Searching ...";
+
             _cancellationTokenSource?.Cancel();
 
             try
@@ -29,11 +34,17 @@ public partial class SearchProposalEntry : ContentView
                 if (_entry.IsFocused)
                 {
                     BindableLayout.SetItemsSource(_bdStack, result);
-                    _proposal.IsVisible = result.Any();
+
+                    _searchIndicator.IsRunning = false;
+                    _searchIndicator.IsVisible = false;
+                    _progressLabel.Text = result.Any()? "Result:" : "No address has been found.";
                 }
             }
             catch (TaskCanceledException) { }
         }
+        else
+            _progressLabel.Text = "Provide address";
+
     }
 
     public static readonly BindableProperty SelectValueCommandProperty =
@@ -87,23 +98,32 @@ public partial class SearchProposalEntry : ContentView
 
     private void OnUnfocused(object sender, FocusEventArgs e)
     {
-        _entry.Text = string.Empty;
-
         _proposal.IsVisible = false;
-        BindableLayout.SetItemsSource(_bdStack, Array.Empty<KeyValuePair<string, object>>());
+
+        BindableLayout.SetItemsSource(_bdStack, null);
+
+        _cancellationTokenSource?.Cancel();
+    }
+
+    private void Onfocused(object sender, FocusEventArgs e)
+    {
+        _proposal.IsVisible = true;
+
+        _progressLabel.Text = "Provide address";
     }
 
     protected override void OnPropertyChanged([CallerMemberName] string propertyName = null)
     {
         base.OnPropertyChanged(propertyName);
+
         if (propertyName == nameof(Text))
             _entry.Text = Text;
+
         else if (propertyName == nameof(Root))
         {
             (_proposal.Parent as Layout).Remove(_proposal);
             Root.Add(_proposal);
             Grid.SetRow(_proposal, 0);
-            _proposal.Margin = new Thickness(30, 80, 30, 70);
             _proposal.VerticalOptions = LayoutOptions.Start;
             _proposal.HorizontalOptions = LayoutOptions.Fill;
         }

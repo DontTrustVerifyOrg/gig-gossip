@@ -9,18 +9,20 @@ namespace GigMobile.Services
 
         public AddressSearcher()
         {
-            _httpClient = new HttpClient();
-            _httpClient.BaseAddress = new Uri("https://nominatim.openstreetmap.org");
+            _httpClient = new HttpClient
+            {
+                BaseAddress = new Uri("https://nominatim.openstreetmap.org")
+            };
         }
 
-        public async Task<Place[]> GetAddressAsync(string query, CancellationToken ct)
+        public async Task<Place[]> GetAddressAsync(string query, string city, string country, CancellationToken ct)
         {
             try
             {
-                if (string.IsNullOrEmpty(query) || query.Length < 5)
+                if (string.IsNullOrEmpty(query))
                     return Array.Empty<Place>();
 
-                var response = await _httpClient.GetAsync($"/search?q={query.Replace(' ', '+')}&format=json&addressdetails=1&countrycodes=AU", ct);
+                var response = await _httpClient.GetAsync($"/search?street={query.Replace(' ', '+')}&city={city}&country={country}&format=json", ct);
                 if (response.StatusCode != System.Net.HttpStatusCode.OK)
                 {
                     Console.WriteLine(response.StatusCode);
@@ -129,7 +131,7 @@ namespace GigMobile.Services
 
         public override string ToString()
         {
-            return $"{Address.HouseNumber}, {Address.Road}, {Address.City}";
+            return DisplayName;
         }
     }
 

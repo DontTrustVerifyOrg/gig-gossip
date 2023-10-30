@@ -12,15 +12,19 @@
         <Setter Property="FontFamily" Value="RobotoRegular" />
     </Style>
 
-    <Style TargetType="Editor">
-        <Setter Property="FontFamily" Value="RobotoRegular" />
-    </Style>
-
     <Style TargetType="Button">
         <Setter Property="FontFamily" Value="RobotoRegular"/>
-        <Setter Property="TextColor" Value="Black"/>
+        <Setter Property="TextColor" Value="{StaticResource White}"/>
+        <Setter Property="BackgroundColor" Value="{StaticResource Primary}"/>
         <Setter Property="BorderWidth" Value="0"/>
-        <Setter Property="BackgroundColor" Value="#7FC37E"/>
+        <Setter Property="CornerRadius" Value="8"/>
+    </Style>
+
+    <Style TargetType="Button" x:Key="SecondaryButton">
+        <Setter Property="FontFamily" Value="RobotoRegular"/>
+        <Setter Property="TextColor" Value="{StaticResource Black}"/>
+        <Setter Property="BackgroundColor" Value="{StaticResource White}"/>
+        <Setter Property="BorderWidth" Value="1"/>
         <Setter Property="CornerRadius" Value="8"/>
     </Style>
 </ResourceDictionary>
