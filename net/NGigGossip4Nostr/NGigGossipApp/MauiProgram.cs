@@ -71,6 +71,7 @@ public static class MauiProgram
         serviceDescriptors.AddSingleton<Services.IAddressSearcher, AddressSearcher>();
         serviceDescriptors.AddScoped<ForwardGeocoder>();
         serviceDescriptors.AddScoped<ReverseGeocoder>();
+        serviceDescriptors.AddScoped<IGeocoder, Geocoder>();
 #if DEBUG
         serviceDescriptors.AddHttpClient<HttpClient, HttpClient>(factory: (impl) =>
         {

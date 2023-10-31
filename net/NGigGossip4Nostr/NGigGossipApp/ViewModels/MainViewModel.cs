@@ -8,14 +8,26 @@ namespace GigMobile.ViewModels
 	public class MainViewModel : BaseViewModel
     {
         private readonly GigGossipNode _gigGossipNode;
+        private readonly ISecureDatabase _secureDatabase;
 
-        public MainViewModel(GigGossipNode gigGossipNode)
+        public MainViewModel(GigGossipNode gigGossipNode, ISecureDatabase secureDatabase)
         {
             _gigGossipNode = gigGossipNode;
+            _secureDatabase = secureDatabase;
         }
 
         private ICommand _editTrustEnforcersCommand;
-        public ICommand EditTrustEnforcersCommand => _editTrustEnforcersCommand ??= new Command(() => { NavigationService.NavigateAsync<TrustEnforcers.TrustEnforcersViewModel>(); });
+        public ICommand EditTrustEnforcersCommand => _editTrustEnforcersCommand ??= new Command(async () =>
+        {
+            if (!string.IsNullOrEmpty(DefaultTrustEnforcer))
+                await Application.Current.MainPage.DisplayAlert("Cann't request ride", "Firstly setup at least one trust enforcer", "Cancel");
+            else
+            {
+                IsBusy = false;
+                await NavigationService.NavigateAsync<TrustEnforcers.TrustEnforcersViewModel>();
+                IsBusy = true;
+            }
+        });
 
         private ICommand _editWalletDomainCommand;
         public ICommand EditWalletDomainCommand => _editWalletDomainCommand ??= new Command(() => { NavigationService.NavigateAsync<Wallet.AddWalletViewModel>(animated: true); });
@@ -39,16 +51,19 @@ namespace GigMobile.ViewModels
 
         public string WalletAddress { get; private set; }
         public long BitcoinBallance { get; private set; }
+        public string DefaultTrustEnforcer { get; private set; }
 
-        public override async Task Initialize()
+        public async override void OnAppearing()
         {
             IsBusy = true;
             var token = _gigGossipNode.MakeWalletAuthToken();
             WalletAddress = await _gigGossipNode.LNDWalletClient.NewAddressAsync(token);
             BitcoinBallance = await _gigGossipNode.LNDWalletClient.GetBalanceAsync(token);
+            var trustEnforcers = await _secureDatabase.GetTrustEnforcersAsync();
+            DefaultTrustEnforcer = trustEnforcers?.Values?.Last()?.Name;
             IsBusy = false;
 
-            await base.Initialize();
+            base.OnAppearing();
         }
     }
 }

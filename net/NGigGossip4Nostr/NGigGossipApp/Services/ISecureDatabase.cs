@@ -9,7 +9,8 @@ namespace GigMobile.Services
         Task<string> GetPrivateKeyAsync();
         Task SetPrivateKeyAsync(string key);
         Task<Dictionary<string, TrustEnforcer>> GetTrustEnforcersAsync();
-        Task AddTrustEnforcersAsync(TrustEnforcer newTrustEnforcer);
+        Task DeleteTrustEnforcersAsync(string key);
+        Task CreateOrUpdateTrustEnforcersAsync(TrustEnforcer newTrustEnforcer);
         Task<SetupStatus> GetGetSetupStatusAsync();
         Task SetSetSetupStatusAsync(SetupStatus value);
         Task SetUseBiometricAsync(bool value);

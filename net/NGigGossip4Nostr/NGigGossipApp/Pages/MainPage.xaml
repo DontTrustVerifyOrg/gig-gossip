@@ -58,7 +58,7 @@
                                 <Label Text="Trust enforcer" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
                                 <ImageButton Source="setting" HeightRequest="30" WidthRequest="30" VerticalOptions="Center" Command="{Binding EditTrustEnforcersCommand}" />
                             </StackLayout>
-                            <Label Text="GigGossip Enforcer" FontFamily="RobotoBold" FontSize="Body" HorizontalOptions="Start" VerticalOptions="Center"/>
+                            <Label Text="{Binding DefaultTrustEnforcer}" FontFamily="RobotoBold" FontSize="Body" HorizontalOptions="Start" VerticalOptions="Center"/>
                         </StackLayout>
                     </Frame>
                     <Frame>

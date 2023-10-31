@@ -41,7 +41,6 @@ namespace GigMobile.ViewModels.TrustEnforcers
                 var token = await _gigGossipNode.MakeSettlerAuthTokenAsync(new Uri(_newTrustEnforcer.Uri));
                 var settlerClient = _gigGossipNode.SettlerSelector.GetSettlerClient(new Uri(_newTrustEnforcer.Uri));
                 await settlerClient.VerifyChannelAsync(token, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", _newTrustEnforcer.PhoneNumber);
-
             }
             catch (Exception ex)
             {
@@ -56,13 +55,13 @@ namespace GigMobile.ViewModels.TrustEnforcers
             {
                 var token = await _gigGossipNode.MakeSettlerAuthTokenAsync(new Uri(_newTrustEnforcer.Uri));
                 var settlerClient = _gigGossipNode.SettlerSelector.GetSettlerClient(new Uri(_newTrustEnforcer.Uri));
-                var secret = Code0.ToString() + Code1.ToString(); /// CODE
+                var secret = $"{Code0}{Code1}{Code2}{Code3}{Code4}{Code5}";
                 var retries = await settlerClient.SubmitChannelSecretAsync(token, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", _newTrustEnforcer.PhoneNumber, secret);
                 if (retries == -1)//code was ok
                 {
                     var settletCert = await settlerClient.IssueCertificateAsync(token, _gigGossipNode.PublicKey, new List<string> { "PhoneNumber" });
                     _newTrustEnforcer.Certificate = Crypto.DeserializeObject<Certificate>(settletCert);
-                    await _secureDatabase.AddTrustEnforcersAsync(_newTrustEnforcer);
+                    await _secureDatabase.CreateOrUpdateTrustEnforcersAsync(_newTrustEnforcer);
                     await NavigationService.NavigateBackAsync();
                 }
                 else if (retries > 0)
@@ -71,7 +70,7 @@ namespace GigMobile.ViewModels.TrustEnforcers
                 }
                 else
                 {
-                    //fail
+                    await Application.Current.MainPage.DisplayAlert("Verefication faild", "Please verify your number", "Cancel");
                 }
             }
             catch (Exception ex)

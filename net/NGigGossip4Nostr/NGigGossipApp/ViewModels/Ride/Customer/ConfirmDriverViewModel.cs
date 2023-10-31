@@ -1,6 +1,4 @@
 ﻿using System.Windows.Input;
-using CryptoToolkit;
-using GigMobile.Services;
 using NGigGossip4Nostr;
 
 namespace GigMobile.ViewModels.Ride.Customer

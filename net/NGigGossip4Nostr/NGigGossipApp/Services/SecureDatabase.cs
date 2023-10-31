@@ -107,13 +107,27 @@ namespace GigMobile.Services
             return null;
         }
 
-        public async Task AddTrustEnforcersAsync(TrustEnforcer newTrustEnforcer)
+        public async Task DeleteTrustEnforcersAsync(string key)
+        {
+            var stringData = await SecureStorage.Default.GetAsync(_secureKey);
+
+            UserData data = JsonConvert.DeserializeObject<UserData>(stringData);
+
+            if (data.TrustEnforcers != null)
+            {
+                data.TrustEnforcers.Remove(key);
+                await SecureStorage.Default.SetAsync(_secureKey, JsonConvert.SerializeObject(data));
+            }
+        }
+
+        public async Task CreateOrUpdateTrustEnforcersAsync(TrustEnforcer newTrustEnforcer)
         {
             var stringData = await SecureStorage.Default.GetAsync(_secureKey);
 
             UserData data = JsonConvert.DeserializeObject<UserData>(stringData);
 
             data.TrustEnforcers ??= new Dictionary<string, TrustEnforcer>();
+            data.TrustEnforcers.Remove(newTrustEnforcer.Uri);
             data.TrustEnforcers.Add(newTrustEnforcer.Uri, newTrustEnforcer);
 
             await SecureStorage.Default.SetAsync(_secureKey, JsonConvert.SerializeObject(data));

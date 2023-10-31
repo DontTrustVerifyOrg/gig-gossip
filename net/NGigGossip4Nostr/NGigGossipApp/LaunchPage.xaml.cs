@@ -21,6 +21,13 @@ public partial class LaunchPage : ContentPage
 
     protected async override void OnAppearing()
     {
+        //TODO Work Progress ViewModel
+        /*await _secureStorage.GetPrivateKeyAsync();
+        await _navigationService.NavigateAsync<ViewModels.Ride.Customer.ChooseDriverViewModel, Tuple<Location, Location>>(
+            new Tuple<Location, Location>(new Location(-33.932878, 151.183251), new Location(-33.93332011307658, 151.1838875775517)));
+
+        return;*/
+
         base.OnAppearing();
 
         await _secureStorage.GetPrivateKeyAsync();
