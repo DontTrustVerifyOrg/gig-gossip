@@ -15,7 +15,7 @@ namespace NGigGossip4Nostr
 
         HttpClient _httpClient;
 
-        public SimpleSettlerSelector(HttpClient? httpClient)
+        public SimpleSettlerSelector(HttpClient? httpClient=null)
         {
             _httpClient = httpClient ?? new HttpClient();
         }

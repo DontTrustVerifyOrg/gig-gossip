@@ -42,10 +42,6 @@ namespace GigMobile.ViewModels.TrustEnforcers
                 var settlerClient = _gigGossipNode.SettlerSelector.GetSettlerClient(new Uri(_newTrustEnforcer.Uri));
                 await settlerClient.VerifyChannelAsync(token, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", _newTrustEnforcer.PhoneNumber);
 
-                var settletCert = await settlerClient.IssueCertificateAsync(token, _gigGossipNode.PublicKey, new List<string> { "PhoneNumber" });
-                _newTrustEnforcer.Certificate = Crypto.DeserializeObject<Certificate>(settletCert);
-
-                await _secureDatabase.AddTrustEnforcersAsync(_newTrustEnforcer);
             }
             catch (Exception ex)
             {
@@ -56,19 +52,32 @@ namespace GigMobile.ViewModels.TrustEnforcers
 
         private async Task SubmitAsync()
         {
-            /*TODO
-            var code = string.Join("", Code);
-            var success = PAWEL_API.VerifySmsCode (code);
-            if (success)
+            try
             {
-                var privateKey = await SecureDatabase.GetPrivateKeyAsync();
-                var publicKey = privateKey.AsECPrivKey().CreatePubKey()
-                var newTrustEnf = PAWE_API.AddTrustEnf(_newTrustEnforcer.Url, _newTrustEnforcer.PhoneNumber, publicKey);
-                await SecureDatabase.AddTrustEnforcersAsync(_newTrustEnforcer.Url);
+                var token = await _gigGossipNode.MakeSettlerAuthTokenAsync(new Uri(_newTrustEnforcer.Uri));
+                var settlerClient = _gigGossipNode.SettlerSelector.GetSettlerClient(new Uri(_newTrustEnforcer.Uri));
+                var secret = Code0.ToString() + Code1.ToString(); /// CODE
+                var retries = await settlerClient.SubmitChannelSecretAsync(token, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", _newTrustEnforcer.PhoneNumber, secret);
+                if (retries == -1)//code was ok
+                {
+                    var settletCert = await settlerClient.IssueCertificateAsync(token, _gigGossipNode.PublicKey, new List<string> { "PhoneNumber" });
+                    _newTrustEnforcer.Certificate = Crypto.DeserializeObject<Certificate>(settletCert);
+                    await _secureDatabase.AddTrustEnforcersAsync(_newTrustEnforcer);
+                    await NavigationService.NavigateBackAsync();
+                }
+                else if (retries > 0)
+                {
+                    //retry?   
+                }
+                else
+                {
+                    //fail
+                }
             }
-            */
-
-            await NavigationService.NavigateBackAsync();
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
         }
     }
 }

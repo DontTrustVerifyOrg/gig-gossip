@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using GigGossipSettler;
 using GigGossipSettlerAPI;
 using System.Xml.Linq;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -120,11 +121,10 @@ app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, s
 app.MapGet("/verifychannel", (string authToken, string pubkey, string name, string method, string value) =>
 {
     Singlethon.Settler.ValidateAuthToken(authToken);
-    Singlethon.Settler.GiveUserProperty(pubkey, name, Convert.FromBase64String(method+":"+value), DateTime.MaxValue);
 })
 .WithName("VerifyChannel")
-.WithSummary("Verifies specific channel.")
-.WithDescription("Verifies specific channel.")
+.WithSummary("Start verification of specific channel.")
+.WithDescription("Starts verification of specific channel.")
 .WithOpenApi(g =>
 {
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
@@ -134,6 +134,27 @@ app.MapGet("/verifychannel", (string authToken, string pubkey, string name, stri
     g.Parameters[4].Description = "Value of Channel for the method (phone number, email address).";
     return g;
 });
+
+app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name, string method, string value, string secret) =>
+{
+    Singlethon.Settler.ValidateAuthToken(authToken);
+    Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
+    return -1;
+})
+.WithName("SubmitChannelSecret")
+.WithSummary("Submits the secret code for the channel.")
+.WithDescription("Returns -1 if the secret is correct, otherwise the number of retires left is returned.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Public key of the subject.";
+    g.Parameters[2].Description = "Channel name (phone,email,...)";
+    g.Parameters[3].Description = "Method (sms,call,message)";
+    g.Parameters[4].Description = "Value of Channel for the method (phone number, email address).";
+    g.Parameters[5].Description = "Secret received from the channel.";
+    return g;
+});
+
 
 app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name) =>
 {
