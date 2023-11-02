@@ -106,9 +106,6 @@ public static class MauiProgram
         var address = GigGossipNodeConfig.GigWalletOpenApi;
 
 #if DEBUG
-        if (DeviceInfo.Platform == DevicePlatform.Android)
-            address = address.Replace("localhost", "10.0.2.2");
-
         HttpClient client = new(HttpsClientHandlerService.GetPlatformMessageHandler());
         HttpClient settlerClient = new(HttpsClientHandlerService.GetPlatformMessageHandler());
 #else

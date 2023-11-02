@@ -7,21 +7,26 @@
                x:TypeArguments="viewModel:ChooseDriverViewModel"
                x:Class="GigMobile.Pages.Ride.Customer.ChooseDriverPage"
                HasNavigationBar="False">
-    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="48">
-        <StackLayout Spacing="30">
-            <StackLayout Orientation="Horizontal" Spacing="12">
-                <Ellipse Fill="Transparent" Stroke="#50a5e8" StrokeThickness="3"
-                            WidthRequest="20" HeightRequest="20" VerticalOptions="Center" HorizontalOptions="Start"/>
-                <Label Text="{Binding FromAddress}" LineBreakMode="HeadTruncation" MaxLines="3" VerticalOptions="Center"/>
+    <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="0">
+        <Frame CornerRadius="24" Margin="-24, -90, -24, 0" Padding="16, 60, 16, 16">
+            <StackLayout Spacing="30">
+                <StackLayout Orientation="Horizontal" Spacing="12">
+                    <Ellipse Fill="Transparent" Stroke="#50a5e8" StrokeThickness="3"
+                                WidthRequest="20" HeightRequest="20" VerticalOptions="Center" HorizontalOptions="Start"/>
+                    <Label Text="{Binding FromAddress}" LineBreakMode="TailTruncation" MaxLines="1" VerticalOptions="Center"/>
+                </StackLayout>
+                <BoxView WidthRequest="2" HeightRequest="20" HorizontalOptions="Start" Margin="9, -30" Color="#333333"/>
+                <StackLayout Orientation="Horizontal" Spacing="12">
+                    <Ellipse Fill="Transparent" Stroke="{StaticResource Primary}" StrokeThickness="3"
+                                WidthRequest="20" HeightRequest="20" VerticalOptions="Center" HorizontalOptions="Start"/>
+                    <Label Text="{Binding ToAddress}" LineBreakMode="TailTruncation" MaxLines="1" VerticalOptions="Center"/>
+                </StackLayout>
+                <Button Text="Cancel" Style="{StaticResource SecondaryButton}"
+                        Command="{Binding CancelRequestCommand}"
+                        VerticalOptions="End" HorizontalOptions="End"/>
             </StackLayout>
-            <BoxView WidthRequest="2" HeightRequest="20" HorizontalOptions="Start" Margin="9, -30" Color="#333333"/>
-            <StackLayout Orientation="Horizontal" Spacing="12">
-                <Ellipse Fill="Transparent" Stroke="{StaticResource Primary}" StrokeThickness="3"
-                            WidthRequest="20" HeightRequest="20" VerticalOptions="Center" HorizontalOptions="Start"/>
-                <Label Text="{Binding ToAddress}" LineBreakMode="HeadTruncation" MaxLines="3" VerticalOptions="Center"/>
-            </StackLayout>
-        </StackLayout>
-        <ScrollView VerticalOptions="FillAndExpand" Margin="-24, 0">
+        </Frame>
+        <ScrollView VerticalOptions="FillAndExpand" Margin="-24, 0, -24, -60" Padding="0, 0, 0, 50">
             <StackLayout BindableLayout.ItemsSource="{Binding DriversProposals}">
                 <BindableLayout.EmptyView>
                     <StackLayout VerticalOptions="CenterAndExpand" Spacing="24">
@@ -32,11 +37,11 @@
                 </BindableLayout.EmptyView>
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="viewModel:DriverProposal">
-                        <Frame Margin="24, 6" Padding="12">
+                        <Frame Margin="24, 6" Padding="12" HasShadow="False" BackgroundColor="{StaticResource Primary}">
                             <Grid Padding="10" ColumnDefinitions="*, *, *">
-                                <Label Grid.Column="0" Text="{Binding DriverName}" HorizontalOptions="Center"/>
-                                <Label Grid.Column="1" Text="{Binding Price, StringFormat='{0} BTC'}" HorizontalOptions="Center"/>
-                                <Label Grid.Column="2" Text="7 min" HorizontalOptions="Center"/>
+                                <Label Grid.Column="0" Text="{Binding DriverName}" HorizontalOptions="Start" TextColor="{StaticResource White}"/>
+                                <Label Grid.Column="1" Text="{Binding Price, StringFormat='{0} BTC'}" HorizontalOptions="Center" TextColor="{StaticResource White}"/>
+                                <Label Grid.Column="2" Text="7 min" HorizontalOptions="End" TextColor="{StaticResource White}"/>
                             </Grid>
                             <Frame.GestureRecognizers>
                                 <TapGestureRecognizer CommandParameter="{Binding .}" Command="{Binding SelectDriverCommand,
@@ -47,8 +52,5 @@
                 </BindableLayout.ItemTemplate>
             </StackLayout>
         </ScrollView>
-        <Button Text="Cancel" Style="{StaticResource SecondaryButton}"
-                Command="{Binding CancelRequestCommand}"
-                VerticalOptions="End" HorizontalOptions="Center"/>
     </StackLayout>
 </base:BasePage>

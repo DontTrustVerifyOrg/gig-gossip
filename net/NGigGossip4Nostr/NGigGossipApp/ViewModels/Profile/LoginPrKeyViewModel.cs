@@ -60,6 +60,7 @@ namespace GigMobile.ViewModels.Profile
                             Console.WriteLine(ex.Message);
                         }
 
+                        await _secureDatabase.SetSetSetupStatusAsync(SetupStatus.Enforcer);
                         var usBiometric = await _secureDatabase.GetUseBiometricAsync();
                         if (!usBiometric)
                             await NavigationService.NavigateAsync<Profile.AllowBiometricViewModel>();

@@ -19,14 +19,9 @@ namespace GigMobile.ViewModels
         private ICommand _editTrustEnforcersCommand;
         public ICommand EditTrustEnforcersCommand => _editTrustEnforcersCommand ??= new Command(async () =>
         {
-            if (!string.IsNullOrEmpty(DefaultTrustEnforcer))
-                await Application.Current.MainPage.DisplayAlert("Cann't request ride", "Firstly setup at least one trust enforcer", "Cancel");
-            else
-            {
-                IsBusy = false;
-                await NavigationService.NavigateAsync<TrustEnforcers.TrustEnforcersViewModel>();
-                IsBusy = true;
-            }
+            IsBusy = false;
+            await NavigationService.NavigateAsync<TrustEnforcers.TrustEnforcersViewModel>();
+            IsBusy = true;
         });
 
         private ICommand _editWalletDomainCommand;
@@ -38,9 +33,16 @@ namespace GigMobile.ViewModels
         private ICommand _requestRideCommand;
         public ICommand RequestRideCommand => _requestRideCommand ??= new Command(async () =>
         {
-            IsBusy = true;
-            await NavigationService.NavigateAsync<Ride.Customer.CreateRideViewModel>(animated: true);
-            IsBusy = false;
+            if (DriverModeOn)
+                await Application.Current.MainPage.DisplayAlert("You cann't request a ride", "Please disable a driver mode to use a rider feature's", "Cancel");
+            else if (string.IsNullOrEmpty(DefaultTrustEnforcer))
+                await Application.Current.MainPage.DisplayAlert("You cann't request a ride", "Firstly setup at least one trust enforcer", "Cancel");
+            else
+            {
+                IsBusy = true;
+                await NavigationService.NavigateAsync<Ride.Customer.CreateRideViewModel>(animated: true);
+                IsBusy = false;
+            }
         });
 
         private ICommand _driverParametersCommand;
@@ -52,6 +54,37 @@ namespace GigMobile.ViewModels
         public string WalletAddress { get; private set; }
         public long BitcoinBallance { get; private set; }
         public string DefaultTrustEnforcer { get; private set; }
+
+        private bool _driverModeOn;
+        public bool DriverModeOn
+        {
+            get => _driverModeOn;
+            set
+            {
+                _driverModeOn = value;
+                if (_driverModeOn)
+                {
+                    if (string.IsNullOrEmpty(DefaultTrustEnforcer))
+                    {
+                        Application.Current.MainPage.DisplayAlert("You cann't be a driver", "Firstly setup at least one trust enforcer", "Cancel");
+#pragma warning disable CA2011 // Avoid infinite recursion
+                        DriverModeOn = false;
+#pragma warning restore CA2011 // Avoid infinite recursion
+                    }
+                    else
+                    {
+                        //TODO PAWEL
+                        //Make a user a driver and start listen jobs
+                    }
+                    
+                }
+                else
+                {
+                    //TODO PAWEL
+                    //Stop be a driver.
+                }
+            }
+        }
 
         public async override void OnAppearing()
         {

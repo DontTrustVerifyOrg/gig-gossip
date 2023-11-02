@@ -13,12 +13,12 @@
                 <x:Boolean x:Key="False">False</x:Boolean>
         </ResourceDictionary>
     </ContentPage.Resources>
-    <StackLayout VerticalOptions="StartAndExpand" Padding="24" Spacing="48">
-        <Label Text="Would you like to enable FaceID for this app?" FontSize="Title"
+    <StackLayout VerticalOptions="Center" Padding="24" Spacing="48">
+        <Label Text="Would you like to enable FaceID for this app?" FontSize="Subtitle"
                HorizontalOptions="Center" VerticalOptions="Start" HorizontalTextAlignment="Center"/>
         <StackLayout Orientation="Horizontal" VerticalOptions="Center" HorizontalOptions="Center" Spacing="48">
             <Button Text="No" Command="{Binding AnswerCommand}" CommandParameter="{StaticResource False}"
-                    BackgroundColor="Transparent" HorizontalOptions="Center" FontSize="Body"/>
+                    Style="{StaticResource SecondaryButton}" HorizontalOptions="Center" FontSize="Body"/>
             <Button Text="Yes" Command="{Binding AnswerCommand}" CommandParameter="{StaticResource True}"
                     FontSize="Body" HorizontalOptions="Center" Padding="16"/>
         </StackLayout>

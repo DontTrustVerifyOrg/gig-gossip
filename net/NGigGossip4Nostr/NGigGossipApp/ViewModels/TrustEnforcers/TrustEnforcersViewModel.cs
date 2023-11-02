@@ -5,7 +5,7 @@ using GigMobile.Services;
 
 namespace GigMobile.ViewModels.TrustEnforcers
 {
-	public class TrustEnforcersViewModel : BaseViewModel<bool>
+	public class TrustEnforcersViewModel : BaseViewModel
     {
         private readonly ISecureDatabase _secureDatabase;
 
@@ -17,7 +17,7 @@ namespace GigMobile.ViewModels.TrustEnforcers
         public ObservableCollection<TrustEnforcer> TrustEnforcers { get; set; }
 
         private ICommand _addTrEnfCommand;
-        public ICommand AddTrEnfCommand => _addTrEnfCommand ??= new Command(() => { NavigationService.NavigateAsync<AddTrEnfViewModel, bool>(FromSetup, animated: true); });
+        public ICommand AddTrEnfCommand => _addTrEnfCommand ??= new Command(() => { NavigationService.NavigateAsync<AddTrEnfViewModel, bool>(false, animated: true); });
 
         private ICommand _deleteTrEnfCommand;
         public ICommand DeleteTrEnfCommand => _deleteTrEnfCommand ??= new Command<TrustEnforcer>(async (TrustEnforcer tr) =>
@@ -30,18 +30,11 @@ namespace GigMobile.ViewModels.TrustEnforcers
             IsBusy = false;
         });
 
-        public bool FromSetup { get; private set; }
-
         public async override void OnAppearing()
         {
             var enforcers = await _secureDatabase.GetTrustEnforcersAsync();
             if (enforcers?.Values != null)
                 TrustEnforcers = new ObservableCollection<TrustEnforcer>(enforcers.Values);
-        }
-
-        public override void Prepare(bool data)
-        {
-            FromSetup = data;
         }
     }
 }

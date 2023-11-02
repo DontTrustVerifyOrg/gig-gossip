@@ -22,7 +22,8 @@ namespace GigMobile.ViewModels.Profile
             if (useBiometric)
                 await _secureDatabase.SetUseBiometricAsync(true);
 
-            await NavigationService.NavigateAsync<TrustEnforcersViewModel, bool>(true, animated: true);
+            await _secureDatabase.SetSetSetupStatusAsync(SetupStatus.Enforcer);
+            await NavigationService.NavigateAsync<AddTrEnfViewModel, bool>(true, animated: true);
         }
     }
 }

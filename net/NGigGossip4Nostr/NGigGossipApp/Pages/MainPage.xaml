@@ -70,7 +70,7 @@
                             </StackLayout>
                             <StackLayout Orientation="Horizontal" HorizontalOptions="FillAndExpand">
                                 <Label Text="Driver mode" FontSize="Small" HorizontalOptions="StartAndExpand" VerticalOptions="Center"/>
-                                <Switch HorizontalOptions="End"/>
+                                <Switch HorizontalOptions="End" IsToggled="{Binding DriverModeOn}"/>
                             </StackLayout>
                         </StackLayout>
                     </Frame>

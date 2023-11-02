@@ -6,24 +6,34 @@
                x:DataType="viewModel:ConfirmDriverViewModel"
                x:TypeArguments="viewModel:ConfirmDriverViewModel"
                x:Class="GigMobile.Pages.Ride.Customer.ConfirmDriverPage"
-               Title=" 🚖  Confirm Your Ride">
+               HasNavigationBar="False">
     <StackLayout VerticalOptions="FillAndExpand" Padding="24" Spacing="24">
-        <Grid Padding="12" ColumnDefinitions="*, *" RowDefinitions="Auto, Auto, Auto, Auto">
-            <Label Grid.Column="0" Grid.Row="0" Text="Driver:" HorizontalOptions="End"/>
-            <Label Grid.Column="0" Grid.Row="1" Text="Trust Enforcer:" HorizontalOptions="End"/>
-            <Label Grid.Column="0" Grid.Row="2" Text="Price:" HorizontalOptions="End"/>
-            <Label Grid.Column="0" Grid.Row="3" Text="ETA:" HorizontalOptions="End"/>
-            <Label Grid.Column="1" Grid.Row="0" Text="Driver A" HorizontalOptions="Start"/>
-            <Label Grid.Column="1" Grid.Row="1" Text="Trust Enforcer 2" HorizontalOptions="Start"/>
-            <Label Grid.Column="1" Grid.Row="2" Text="0.00004 BTC" HorizontalOptions="Start"/>
-            <Label Grid.Column="1" Grid.Row="3" Text="3 min" HorizontalOptions="Start"/>
-        </Grid>
+        <Label Text="Confirm Your Ride" FontSize="Subtitle" HorizontalOptions="Center"/>
+        <Frame HasShadow="False" Background="{StaticResource Primary}" CornerRadius="24">
+            <Frame.Resources>
+                <ResourceDictionary>
+                    <Style TargetType="Label">
+                        <Setter Property="TextColor" Value="{StaticResource White}"/>
+                    </Style>
+                </ResourceDictionary>
+            </Frame.Resources>
+            <Grid VerticalOptions="Start" HorizontalOptions="FillAndExpand" Padding="12" ColumnDefinitions="*, *" RowDefinitions="Auto, Auto, Auto, Auto">
+                <Label Grid.Column="0" Grid.Row="0" Text="Driver:" HorizontalOptions="End"/>
+                <Label Grid.Column="0" Grid.Row="1" Text="Trust Enforcer:" HorizontalOptions="End"/>
+                <Label Grid.Column="0" Grid.Row="2" Text="Price:" HorizontalOptions="End"/>
+                <Label Grid.Column="0" Grid.Row="3" Text="ETA:" HorizontalOptions="End"/>
+                <Label Grid.Column="1" Grid.Row="0" Text="Oscar" HorizontalOptions="Start"/>
+                <Label Grid.Column="1" Grid.Row="1" Text="LocalJHost" HorizontalOptions="Start"/>
+                <Label Grid.Column="1" Grid.Row="2" Text="0.00004 BTC" HorizontalOptions="Start"/>
+                <Label Grid.Column="1" Grid.Row="3" Text="3 min" HorizontalOptions="Start"/>
+            </Grid>
+        </Frame>
         <Label Text="To confirm this ride, your payment will be LOCKED with Trust Enforcer 2. Please make sure that you want to proceed before accepting."/>
-        <Label Text="❗WARNING❗" HorizontalOptions="Center"/>
+        <Label Text="WARNING" HorizontalOptions="Center" TextColor="Red"/>
         <Label Text="Accepting this ride will lock your payment with Trust Enforcer 2 until the ride is completed. This action cannot be undone. Afer confirming, the cancellation fee will be applied."/>
         <Grid ColumnDefinitions="*, *" VerticalOptions="EndAndExpand">
-            <Button Grid.Column="0" Text="[Back 🔙]" VerticalOptions="End" HorizontalOptions="Center"/>
-            <Button Grid.Column="1" Text="[Confirm ✔️]" Command="{Binding ConfirmCommand}" VerticalOptions="End" HorizontalOptions="Center"/>
+            <Button Grid.Column="0" Text="Back" Command="{Binding BackCommand}" VerticalOptions="End" HorizontalOptions="Center" Style="{StaticResource SecondaryButton}"/>
+            <Button Grid.Column="1" Text="Confirm" Command="{Binding ConfirmCommand}" VerticalOptions="End" HorizontalOptions="Center"/>
         </Grid>
     </StackLayout>
 </base:BasePage>

@@ -46,16 +46,22 @@ namespace GigMobile.ViewModels.TrustEnforcers
 
         private async Task AddDefaultTrustEnforcerAsync()
         {
-            Url = GigGossipNodeConfig.SettlerOpenApi.ToString();
-            var newTrustEnforcer = new TrustEnforcer { Name = "LocalHost", Uri = Url, PhoneNumber = $"+{PhoneCode} {PhoneNumber}" };
-            var token = await _gigGossipNode.MakeSettlerAuthTokenAsync(new Uri(newTrustEnforcer.Uri));
-            var settlerClient = _gigGossipNode.SettlerSelector.GetSettlerClient(new Uri(newTrustEnforcer.Uri));
-            await settlerClient.VerifyChannelAsync(token, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", newTrustEnforcer.PhoneNumber);
-            var retries = await settlerClient.SubmitChannelSecretAsync(token, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", newTrustEnforcer.PhoneNumber, "MOCK");
-            var settletCert = await settlerClient.IssueCertificateAsync(token, _gigGossipNode.PublicKey, new List<string> { "PhoneNumber" });
-            newTrustEnforcer.Certificate = Crypto.DeserializeObject<Certificate>(settletCert);
-            await _secureDatabase.CreateOrUpdateTrustEnforcersAsync(newTrustEnforcer);
-            await NavigationService.NavigateBackAsync();
+            try
+            {
+                Url = GigGossipNodeConfig.SettlerOpenApi.ToString();
+                var newTrustEnforcer = new TrustEnforcer { Name = "LocalHost", Uri = Url, PhoneNumber = $"+{PhoneCode} {PhoneNumber}" };
+                var token = await _gigGossipNode.MakeSettlerAuthTokenAsync(new Uri(newTrustEnforcer.Uri));
+                var settlerClient = _gigGossipNode.SettlerSelector.GetSettlerClient(new Uri(newTrustEnforcer.Uri));
+                await settlerClient.VerifyChannelAsync(token, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", newTrustEnforcer.PhoneNumber);
+                var retries = await settlerClient.SubmitChannelSecretAsync(token, _gigGossipNode.PublicKey, "PhoneNumber", "SMS", newTrustEnforcer.PhoneNumber, "MOCK");
+                var settletCert = await settlerClient.IssueCertificateAsync(token, _gigGossipNode.PublicKey, new List<string> { "PhoneNumber" });
+                newTrustEnforcer.Certificate = Crypto.DeserializeObject<Certificate>(settletCert);
+                await _secureDatabase.CreateOrUpdateTrustEnforcersAsync(newTrustEnforcer);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
         }
 
         private async Task OpenAddTrEnfAsync()

@@ -68,7 +68,7 @@ namespace GigMobile.Pages
                     HeightRequest = 24,
                     WidthRequest = 24,
                     HorizontalOptions = LayoutOptions.Start,
-                    Margin = new Thickness(16, 0)
+                    Margin = new Thickness(16)
                 };
                 backButton.SetBinding(Button.CommandProperty, new Binding(nameof(IBaseViewModel.BackCommand)));
 

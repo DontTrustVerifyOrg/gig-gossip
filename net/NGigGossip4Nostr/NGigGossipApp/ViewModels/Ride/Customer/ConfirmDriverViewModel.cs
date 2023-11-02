@@ -3,7 +3,7 @@ using NGigGossip4Nostr;
 
 namespace GigMobile.ViewModels.Ride.Customer
 {
-    public class ConfirmDriverViewModel : BaseViewModel
+    public class ConfirmDriverViewModel : BaseViewModel<DriverProposal>
     {
         private DriverProposal _selectedDriverProposal;
         private IGigGossipNodeEventSource gigGossipNodeEventSource;
@@ -15,6 +15,11 @@ namespace GigMobile.ViewModels.Ride.Customer
         {
             this.gigGossipNodeEventSource = gigGossipNodeEventSource;
             this.directCom = directCom;
+        }
+
+        public override void Prepare(DriverProposal data)
+        {
+            NewResponseEventArgs args = _selectedDriverProposal.EventArgs;
         }
 
         async void ConfirmDriver()

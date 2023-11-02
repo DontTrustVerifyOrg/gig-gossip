@@ -34,6 +34,9 @@ namespace GigMobile.Services
         public async Task<string> GetPrivateKeyAsync()
         {
             PrivateKey = await SecureStorage.Default.GetAsync(PRK);
+            if (string.IsNullOrEmpty(PrivateKey))
+                return null;
+
             _secureKey = GetHashString(PrivateKey);
 
             return PrivateKey;
@@ -89,9 +92,14 @@ namespace GigMobile.Services
         {
             var stringData = await SecureStorage.Default.GetAsync(_secureKey);
 
-            UserData data = JsonConvert.DeserializeObject<UserData>(stringData);
-
-            data.WalletDomain = value;
+            UserData data;
+            if (!string.IsNullOrEmpty(stringData))
+            {
+                data = JsonConvert.DeserializeObject<UserData>(stringData);
+                data.WalletDomain = value;
+            }
+            else
+                data = new UserData(false, value, null, SetupStatus.Wallet);
 
             await SecureStorage.Default.SetAsync(_secureKey, JsonConvert.SerializeObject(data));
         }
@@ -124,7 +132,13 @@ namespace GigMobile.Services
         {
             var stringData = await SecureStorage.Default.GetAsync(_secureKey);
 
-            UserData data = JsonConvert.DeserializeObject<UserData>(stringData);
+            UserData data;
+            if (!string.IsNullOrEmpty(stringData))
+            {
+                data = JsonConvert.DeserializeObject<UserData>(stringData);
+            }
+            else
+                data = new UserData(false, null, null, SetupStatus.Wallet);
 
             data.TrustEnforcers ??= new Dictionary<string, TrustEnforcer>();
             data.TrustEnforcers.Remove(newTrustEnforcer.Uri);
@@ -148,9 +162,14 @@ namespace GigMobile.Services
         {
             var stringData = await SecureStorage.Default.GetAsync(_secureKey);
 
-            UserData data = JsonConvert.DeserializeObject<UserData>(stringData);
-
-            data.Status = value;
+            UserData data;
+            if (!string.IsNullOrEmpty(stringData))
+            {
+                data = JsonConvert.DeserializeObject<UserData>(stringData);
+                data.Status = value;
+            }
+            else
+                data = new UserData(false, null, null, value);
 
             await SecureStorage.Default.SetAsync(_secureKey, JsonConvert.SerializeObject(data));
         }
