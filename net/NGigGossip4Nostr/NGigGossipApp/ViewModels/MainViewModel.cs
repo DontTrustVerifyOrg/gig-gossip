@@ -1,18 +1,22 @@
 ﻿using System.Windows.Input;
 using BindedMvvm.Attributes;
+using CryptoToolkit;
 using GigMobile.Services;
+using NGeoHash;
 
 namespace GigMobile.ViewModels
 {
     [CleanHistory]
-	public class MainViewModel : BaseViewModel
+    public class MainViewModel : BaseViewModel
     {
         private readonly GigGossipNode _gigGossipNode;
+        private readonly IGigGossipNodeEventSource _gigGossipNodeEventSource;
         private readonly ISecureDatabase _secureDatabase;
 
-        public MainViewModel(GigGossipNode gigGossipNode, ISecureDatabase secureDatabase)
+        public MainViewModel(GigGossipNode gigGossipNode, IGigGossipNodeEventSource gigGossipNodeEventSource, ISecureDatabase secureDatabase)
         {
             _gigGossipNode = gigGossipNode;
+            _gigGossipNodeEventSource = gigGossipNodeEventSource;
             _secureDatabase = secureDatabase;
         }
 
@@ -74,14 +78,14 @@ namespace GigMobile.ViewModels
                     else
                     {
                         //TODO PAWEL
-                        //Make a user a driver and start listen jobs
+                        _gigGossipNodeEventSource.OnAcceptBroadcast += OnAcceptBroadcast;
                     }
-                    
+
                 }
                 else
                 {
                     //TODO PAWEL
-                    //Stop be a driver.
+                    _gigGossipNodeEventSource.OnAcceptBroadcast -= OnAcceptBroadcast;
                 }
             }
         }
@@ -94,10 +98,46 @@ namespace GigMobile.ViewModels
             BitcoinBallance = await _gigGossipNode.LNDWalletClient.GetBalanceAsync(token);
             var trustEnforcers = await _secureDatabase.GetTrustEnforcersAsync();
             DefaultTrustEnforcer = trustEnforcers?.Values?.Last()?.Name;
+
             IsBusy = false;
 
             base.OnAppearing();
         }
+
+        public override void OnDisappearing()
+        {
+            base.OnDisappearing();
+        }
+
+        private static Tuple<Location, Location> GeohashToBoundingBox(string geohash)
+        {
+            var decoded = GeoHash.Decode(geohash);
+            var latitude = decoded.Coordinates.Lat;
+            var longitude = decoded.Coordinates.Lon;
+
+            var errorMarginLat = decoded.Error.Lat;
+            var errorMarginLon = decoded.Error.Lon;
+            return Tuple.Create(new Location(latitude - errorMarginLat, longitude - errorMarginLon), new Location(latitude + errorMarginLat, longitude + errorMarginLon));
+        }
+
+        private void OnAcceptBroadcast(object sender, AcceptBroadcastEventArgs e)
+        {
+            var senderProps = e.BroadcastFrame.BroadcastPayload.SignedRequestPayload.SenderCertificate.Properties;
+            var senderSecurityCenter = e.BroadcastFrame.BroadcastPayload.SignedRequestPayload.SenderCertificate.ServiceUri;
+            var topic = Crypto.DeserializeObject<TaxiTopic>(e.BroadcastFrame.BroadcastPayload.SignedRequestPayload.Topic);
+            var fromLocBB = GeohashToBoundingBox(topic.FromGeohash);
+            var toLocBB = GeohashToBoundingBox(topic.ToGeohash);
+            var pickupAfter = topic.PickupAfter;
+            var dropOffBefore = topic.DropoffBefore;
+
+            //TODO: display new job
+            //TODO: show passanger properties (at least "PhoneNumber" should be in the least) with the message: PhoneNumber of the passenger was verified by senderSecurityCenter
+            //TODO: on a map there should be a box showing approx location of the passenger
+            //TODO: also picpup after and dropoff before time should be displayed
+            //TODO: and butons Accept/Reject '
+            //TODO: Accept => DriverParametersModel.Accept(e)
+        }
+
     }
 }
 
