@@ -30,15 +30,12 @@ var encrypted = Crypto.EncryptObject(obj, otherPubKey, myPrivKey);
 var decr = Crypto.DecryptObject< List<object>>(encrypted, otherPrivKey, myPubKey);
 
 Console.WriteLine(JsonSerializer.Serialize(decr));
-
 var signature = Crypto.SignObject(obj, myPrivKey);
 Console.WriteLine(JsonSerializer.Serialize(signature));
 var ok = Crypto.VerifyObject(obj, signature, myPubKey);
 Console.WriteLine(ok);
 
-
 var symKey = Crypto.GenerateSymmetricKey();
-
 var encrypted1 = Crypto.SymmetricEncrypt(symKey,obj);
 var decr1 = Crypto.SymmetricDecrypt<List<object>>(symKey,encrypted1);
 
