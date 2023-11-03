@@ -37,8 +37,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GigLNDWalletApiClientCLI", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OSRMTest", "OSRMTest\OSRMTest.csproj", "{BAD744B3-3AF4-4F2D-A3F8-F96E85884942}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GigMobile", "NGigGossipApp\GigMobile.csproj", "{D0CDE0EC-1F47-4B05-9EE5-18408D8F61AF}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -113,10 +111,6 @@ Global
 		{BAD744B3-3AF4-4F2D-A3F8-F96E85884942}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BAD744B3-3AF4-4F2D-A3F8-F96E85884942}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BAD744B3-3AF4-4F2D-A3F8-F96E85884942}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D0CDE0EC-1F47-4B05-9EE5-18408D8F61AF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D0CDE0EC-1F47-4B05-9EE5-18408D8F61AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D0CDE0EC-1F47-4B05-9EE5-18408D8F61AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D0CDE0EC-1F47-4B05-9EE5-18408D8F61AF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
