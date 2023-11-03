@@ -40,10 +40,8 @@ var encrypted1 = Crypto.SymmetricEncrypt(symKey,obj);
 var decr1 = Crypto.SymmetricDecrypt<List<object>>(symKey,encrypted1);
 
 Console.WriteLine(JsonSerializer.Serialize(decr1));
-
 var wr = new WorkRequest() { PowScheme = "sha256", PowTarget = ProofOfWork.PowTargetFromComplexity("sha256", 100) };
 var pow = wr.ComputeProof(obj);
 Console.WriteLine(pow.Nuance);
 Console.WriteLine(pow.Validate(obj));
-
 Console.ReadKey();
