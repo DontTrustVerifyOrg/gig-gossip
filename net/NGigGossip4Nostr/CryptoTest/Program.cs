@@ -18,9 +18,7 @@ var hash = Crypto.ComputeSha256(new List<byte[]> { Encoding.ASCII.GetBytes("A"),
 
 Console.WriteLine(hash.AsHex());
 
-
 var obj = new List<object>() { "ala", new List<object>{ "ma", "kota" } };
-
 Console.WriteLine(JsonSerializer.Serialize(obj));
 
 var myPrivKey = Crypto.GeneratECPrivKey();
