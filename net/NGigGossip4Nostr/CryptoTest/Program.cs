@@ -18,9 +18,7 @@ var hash = Crypto.ComputeSha256(new List<byte[]> { Encoding.ASCII.GetBytes("A"),
 
 Console.WriteLine(hash.AsHex());
 
-
 var obj = new List<object>() { "ala", new List<object>{ "ma", "kota" } };
-
 Console.WriteLine(JsonSerializer.Serialize(obj));
 
 var myPrivKey = Crypto.GeneratECPrivKey();
@@ -32,23 +30,18 @@ var encrypted = Crypto.EncryptObject(obj, otherPubKey, myPrivKey);
 var decr = Crypto.DecryptObject< List<object>>(encrypted, otherPrivKey, myPubKey);
 
 Console.WriteLine(JsonSerializer.Serialize(decr));
-
 var signature = Crypto.SignObject(obj, myPrivKey);
 Console.WriteLine(JsonSerializer.Serialize(signature));
 var ok = Crypto.VerifyObject(obj, signature, myPubKey);
 Console.WriteLine(ok);
 
-
 var symKey = Crypto.GenerateSymmetricKey();
-
 var encrypted1 = Crypto.SymmetricEncrypt(symKey,obj);
 var decr1 = Crypto.SymmetricDecrypt<List<object>>(symKey,encrypted1);
 
 Console.WriteLine(JsonSerializer.Serialize(decr1));
-
 var wr = new WorkRequest() { PowScheme = "sha256", PowTarget = ProofOfWork.PowTargetFromComplexity("sha256", 100) };
 var pow = wr.ComputeProof(obj);
 Console.WriteLine(pow.Nuance);
 Console.WriteLine(pow.Validate(obj));
-
 Console.ReadKey();
