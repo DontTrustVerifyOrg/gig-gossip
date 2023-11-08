@@ -104,11 +104,6 @@ public class MediumTest
                 (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
              );
 
-        var gigWorkerCert = Crypto.DeserializeObject<Certificate>(
-            await settlerClient.IssueCertificateAsync(
-                 token, gigWorker.PublicKey, new List<string> { "drive" }));
-
-
         var gossipers = new List<GigGossipNode>();
         for (int i = 0; i < applicationSettings.NumberOfGossipers; i++)
         {
@@ -135,11 +130,6 @@ public class MediumTest
             (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
          );
 
-        var customerCert = Crypto.DeserializeObject<Certificate>(
-             await settlerClient.IssueCertificateAsync(
-                token, customer.PublicKey, new List<string> { "ride" }));
-
-
         gigWorker.Init(
             gigWorkerSettings.Fanout,
             gigWorkerSettings.PriceAmountForRouting,
@@ -149,7 +139,6 @@ public class MediumTest
             TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(gigWorkerSettings.InvoicePaymentTimeoutSec),
             gigWorkerSettings.GetLndWalletClient(httpClient));
-        //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
 
 
         foreach(var node in gossipers)
@@ -175,9 +164,17 @@ public class MediumTest
             TimeSpan.FromSeconds(customerSettings.InvoicePaymentTimeoutSec),
             customerSettings.GetLndWalletClient(httpClient));
 
-        //await customer.LoadCertificates(customerSettings.SettlerOpenApi);
+        await gigWorker.StartAsync(gigWorkerSettings.GetNostrRelays(), new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi));
+        gigWorker.ClearContacts();
+        foreach (var node in gossipers)
+        {
+            await node.StartAsync(gossiperSettings.GetNostrRelays(), new NetworkEarnerNodeEvents());
+            node.ClearContacts();
+        }
+        await customer.StartAsync(customerSettings.GetNostrRelays(), new CustomerGossipNodeEvents(this));
+        customer.ClearContacts();
 
-        async void TopupNode(GigGossipNode node, long minAmout,long topUpAmount)
+        async Task TopupNode(GigGossipNode node, long minAmout,long topUpAmount)
         {
             var ballanceOfCustomer = await node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken());
             if (ballanceOfCustomer < minAmout)
@@ -187,11 +184,13 @@ public class MediumTest
             }
         }
 
+        bitcoinClient.Generate(10); // generate some blocks
+
         var minAmount = 1000000;
         var topUpAmount = 10000000;
-        TopupNode(customer, minAmount, topUpAmount);
+        await TopupNode(customer, minAmount, topUpAmount);
         foreach (var node in gossipers)
-            TopupNode(node, minAmount, topUpAmount);
+            await TopupNode(node, minAmount, topUpAmount);
 
         bitcoinClient.Generate(10); // generate some blocks
 
@@ -209,16 +208,6 @@ public class MediumTest
                 break;
             }
         } while (true);
-
-        await gigWorker.StartAsync(gigWorkerSettings.GetNostrRelays(), new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi, gigWorkerCert));
-        gigWorker.ClearContacts();
-        foreach (var node in gossipers)
-        {
-            await node.StartAsync(gossiperSettings.GetNostrRelays(),new NetworkEarnerNodeEvents());
-            node.ClearContacts();
-        }
-        await customer.StartAsync(customerSettings.GetNostrRelays(),new CustomerGossipNodeEvents(this));
-        customer.ClearContacts();
 
         gigWorker.AddContact( gossipers[0].PublicKey, "Gossiper0");
         gossipers[0].AddContact( gigWorker.PublicKey, "GigWorker");
@@ -245,7 +234,8 @@ public class MediumTest
                 PickupAfter = DateTime.Now,
                 DropoffBefore = DateTime.Now.AddMinutes(20)
             },
-            customerCert);
+            customerSettings.SettlerOpenApi,
+            new[] {"ride"} );
 
         }
 
@@ -274,7 +264,7 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
 {
     public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
     {
-        var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(broadcastFrame.BroadcastPayload.SignedRequestPayload.Topic);
+        var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(broadcastFrame.SignedBroadcastPayload.SignedRequestPayload.Value.Topic);
         if (taxiTopic != null)
         {
             if (taxiTopic.FromGeohash.Length >= 7 &&
@@ -286,11 +276,10 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
     }
-
-    public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)
+    public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
     {
     }
 
@@ -322,27 +311,25 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
 public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 {
     Uri settlerUri;
-    Certificate selectedCertificate;
-    public GigWorkerGossipNodeEvents(Uri settlerUri, Certificate selectedCertificate)
+    public GigWorkerGossipNodeEvents(Uri settlerUri)
     {
         this.settlerUri = settlerUri;
-        this.selectedCertificate = selectedCertificate;
     }
 
     public async void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
     {
         var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(
-            broadcastFrame.BroadcastPayload.SignedRequestPayload.Topic);
+            broadcastFrame.SignedBroadcastPayload.SignedRequestPayload.Value.Topic);
 
         if (taxiTopic != null)
         {
             await me.AcceptBroadcastAsync( peerPublicKey, broadcastFrame,
                 new AcceptBroadcastResponse()
                 {
+                    Properties = new string[] { "drive"},
                     Message = Encoding.Default.GetBytes(me.PublicKey),
                     Fee = 4321,
                     SettlerServiceUri = settlerUri,
-                    MyCertificate = selectedCertificate
                 });
             FlowLogger.NewEvent(me.PublicKey, "AcceptBraodcast");
         }
@@ -368,15 +355,14 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    public async void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    {
+    }
+    public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
     {
     }
 
     public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
-    {
-    }
-
-    public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)
     {
     }
 }
@@ -396,21 +382,21 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     Timer timer=null;
     int old_cnt = 0;
 
-    public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    public async void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
         lock (this)
         {
             if (timer == null)
                 timer = new Timer((o) => {
                     timer.Change(Timeout.Infinite, Timeout.Infinite);
-                    var new_cnt = me.GetReplyPayloads(replyPayload.SignedRequestPayload.PayloadId).Count();
+                    var new_cnt = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Value.PayloadId).Count();
                     if (new_cnt == old_cnt)
                     {
-                        var resps = me.GetReplyPayloads(replyPayload.SignedRequestPayload.PayloadId).ToList();
+                        var resps = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Value.PayloadId).ToList();
                         resps.Sort((a, b) => (int)(Crypto.DeserializeObject<PayReq>(a.DecodedNetworkInvoice).NumSatoshis - Crypto.DeserializeObject<PayReq>(b.DecodedNetworkInvoice).NumSatoshis));
                         var win = resps[0];
                         me.AcceptResponseAsync(
-                            Crypto.DeserializeObject<ReplyPayload>(win.TheReplyPayload),
+                            Crypto.DeserializeObject<Certificate<ReplyPayloadValue>>(win.TheReplyPayload),
                             win.ReplyInvoice,
                             Crypto.DeserializeObject<PayReq>(win.DecodedReplyInvoice),
                             win.NetworkInvoice,
@@ -426,11 +412,11 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)
+    public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
     {
         var message = Encoding.Default.GetString(Crypto.SymmetricDecrypt<byte[]>(
             key.AsBytes(),
-            replyPayload.EncryptedReplyMessage));
+            replyPayload.Value.EncryptedReplyMessage));
         Trace.TraceInformation(message);
         FlowLogger.NewEvent(me.PublicKey, "OnResponseReady");
         FlowLogger.NewConnected(message, me.PublicKey, "connected");

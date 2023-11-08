@@ -1,4 +1,6 @@
 ﻿using System;
+using CryptoToolkit;
+
 namespace NGigGossip4Nostr;
 
 /// <summary>
@@ -11,7 +13,7 @@ public class BroadcastPayload
     /// <summary>
     /// Gets or sets the signed payload for the request. This contains the necessary data for processing the request.
     /// </summary>
-    public required RequestPayload SignedRequestPayload { get; set; }
+    public required Certificate<RequestPayloadValue> SignedRequestPayload { get; set; }
 
     /// <summary>
     /// Gets or sets the Onion Route used for back-routing of the message.

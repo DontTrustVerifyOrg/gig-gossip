@@ -16,6 +16,11 @@ public class SettlementPromise : SignableObject
     public required Uri ServiceUri { get; set; }
 
     /// <summary>
+    /// Gets or sets the service URI of the Requester Settler.
+    /// </summary>
+    public required Uri RequestersServiceUri { get; set; }
+
+    /// <summary>
     /// Gets or sets the network payment hash.
     /// </summary>
     public required byte[] NetworkPaymentHash { get; set; }
@@ -71,6 +76,7 @@ public class SettlementPromise : SignableObject
         return new SettlementPromise()
         {
             ServiceUri = this.ServiceUri,
+            RequestersServiceUri = this.RequestersServiceUri,
             NetworkPaymentHash = this.NetworkPaymentHash.ToArray(),
             HashOfEncryptedReplyPayload = this.HashOfEncryptedReplyPayload.ToArray(),
             ReplyPaymentAmount = this.ReplyPaymentAmount,

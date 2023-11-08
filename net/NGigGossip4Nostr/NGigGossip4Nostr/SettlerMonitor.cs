@@ -51,11 +51,11 @@ namespace NGigGossip4Nostr
                     PaymentHash = phash,
                     Preimage = null
                 });
-            (await this.gigGossipNode.GetPreimageRevealClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash);
+            await (await this.gigGossipNode.GetPreimageRevealClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash);
             return true;
         }
 
-        public async Task<bool> MonitorSymmetricKeyAsync(Uri serviceUri, Guid tid, string replierPublicKey, byte[] data)
+        public async Task<bool> MonitorSymmetricKeyAsync(Uri serviceUri, Guid senderCertificateId,  Guid tid, Guid replierCertificateId, byte[] data)
         {
             if ((from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
                  where i.PayloadId == tid && i.PublicKey == this.gigGossipNode.PublicKey
@@ -72,14 +72,15 @@ namespace NGigGossip4Nostr
             gigGossipNode.nodeContext.Value.AddObject(
                 new MonitoredSymmetricKeyRow
                 {
+                    SenderCertificateId = senderCertificateId,
                     PublicKey = this.gigGossipNode.PublicKey,
-                    ReplierPublicKey = replierPublicKey,
+                    ReplierCertificateId = replierCertificateId,
                     ServiceUri = serviceUri,
                     PayloadId = tid,
                     Data = data,
                     SymmetricKey = null
                 });
-            await (await this.gigGossipNode.GetSymmetricKeyRevealClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), tid, replierPublicKey);
+            await (await this.gigGossipNode.GetSymmetricKeyRevealClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), tid, replierCertificateId);
             return true;
         }
 
@@ -118,7 +119,7 @@ namespace NGigGossip4Nostr
                 {
                     var serviceUri = kv.ServiceUri;
                     var tid = kv.PayloadId;
-                    var key = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), tid.ToString(), kv.ReplierPublicKey);
+                    var key = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), kv.SenderCertificateId.ToString(), tid.ToString(), kv.ReplierCertificateId.ToString());
                     if (!string.IsNullOrWhiteSpace(key))
                     {
                         gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
@@ -187,18 +188,17 @@ namespace NGigGossip4Nostr
                         {
                             var pp = symkeyupd.Split('|');
                             var gigId = Guid.Parse(pp[0]);
-                            var replierid = pp[1];
+                            var repliercertificateid = Guid.Parse(pp[1]);
                             var symkey = pp[2];
                             var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
                                           where i.PublicKey == this.gigGossipNode.PublicKey
                                           && i.PayloadId == gigId
-                                          && i.ReplierPublicKey == replierid
+                                          && i.ReplierCertificateId == repliercertificateid
                                           && i.SymmetricKey == null
                                           select i).FirstOrDefault();
 
                             if (kToMon != null)
                             {
-                                FlowLogger.NewMessage(Encoding.Default.GetBytes(settlerUri.AbsoluteUri).AsHex(), gigId.ToString() + "_" + replierid, "reveal");
                                 gigGossipNode.OnSymmetricKeyRevealed(kToMon.Data, symkey);
                                 kToMon.SymmetricKey = symkey;
                                 gigGossipNode.nodeContext.Value.SaveObject(kToMon);

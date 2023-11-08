@@ -173,6 +173,7 @@ public abstract class NostrNode
     }
 
     private Dictionary<string, SortedDictionary<int, string>> _partial_messages = new();
+    private SemaphoreSlim _partial_messages_lock = new SemaphoreSlim(1, 1);
 
     private async Task ProcessNewMessageAsync(NostrEvent nostrEvent)
     {
@@ -199,8 +200,8 @@ public abstract class NostrNode
                 }
                 else
                 {
-                    object frame = null;
-                    lock (_partial_messages)
+                    await _partial_messages_lock.WaitAsync();
+                    try
                     {
                         if (!_partial_messages.ContainsKey(idx))
                             _partial_messages[idx] = new SortedDictionary<int, string>();
@@ -211,12 +212,15 @@ public abstract class NostrNode
                             var t = GetFrameType(tagDic["t"][0]);
                             if (t == null)
                                 return;
-                            frame = Crypto.DeserializeObject(Convert.FromBase64String(txt), t);
+                            var frame = Crypto.DeserializeObject(Convert.FromBase64String(txt), t);
                             _partial_messages.Remove(idx);
+                            await this.OnMessageAsync(idx, nostrEvent.PublicKey, frame);
                         }
                     }
-                    if (frame != null)
-                        await this.OnMessageAsync(idx, nostrEvent.PublicKey, frame);
+                    finally
+                    {
+                        _partial_messages_lock.Release();
+                    }
                 }
             }
     }

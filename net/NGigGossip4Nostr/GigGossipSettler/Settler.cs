@@ -15,6 +15,7 @@ using Newtonsoft.Json.Linq;
 using NGigGossip4Nostr;
 using Quartz;
 using Quartz.Impl;
+using Quartz.Spi;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace GigGossipSettler;
@@ -30,7 +31,7 @@ public delegate void PreimageRevealEventHandler(object sender, PreimageRevealEve
 public class SymmetricKeyRevealEventArgs : EventArgs
 {
     public required Guid GigId { get; set; }
-    public required string ReplierPublicKey { get; set; }
+    public required Guid ReplierCertificateId { get; set; }
     public required string SymmetricKey { get; set; }
 }
 public delegate void SymmetricKeyRevealEventHandler(object sender, SymmetricKeyRevealEventArgs e);
@@ -39,14 +40,14 @@ public class Settler : CertificationAuthority
 {
     public event SymmetricKeyRevealEventHandler OnSymmetricKeyReveal;
 
-    public void FireOnSymmetricKeyReveal(Guid gidId, string replierPublicKey, string symmetricKey)
+    public void FireOnSymmetricKeyReveal(Guid gidId, Guid replierCertificateId, string symmetricKey)
     {
         if (OnSymmetricKeyReveal != null)
             OnSymmetricKeyReveal.Invoke(this, new SymmetricKeyRevealEventArgs()
             {
                 SymmetricKey = symmetricKey,
                 GigId = gidId,
-                ReplierPublicKey = replierPublicKey,
+                ReplierCertificateId = replierCertificateId,
             });;
     }
 
@@ -70,12 +71,14 @@ public class Settler : CertificationAuthority
     private ThreadLocal<SettlerContext> settlerContext;
     private IScheduler scheduler;
     private InvoiceStateUpdatesClient invoiceStateUpdatesClient;
+    private ISettlerSelector settlerSelector;
 
-    public Settler(Uri serviceUri, ECPrivKey settlerPrivateKey, long priceAmountForSettlement, TimeSpan invoicePaymentTimeout, TimeSpan disputeTimeout) : base(serviceUri, settlerPrivateKey)
+    public Settler(Uri serviceUri, ISettlerSelector settlerSelector, ECPrivKey settlerPrivateKey, long priceAmountForSettlement, TimeSpan invoicePaymentTimeout, TimeSpan disputeTimeout) : base(serviceUri, settlerPrivateKey)
     {
         this.priceAmountForSettlement = priceAmountForSettlement;
         this.invoicePaymentTimeout = invoicePaymentTimeout;
         this.disputeTimeout = disputeTimeout;
+        this.settlerSelector = settlerSelector;
     }
 
     public async Task InitAsync(swaggerClient lndWalletClient, string connectionString, bool deleteDb = false)
@@ -169,8 +172,7 @@ public class Settler : CertificationAuthority
         }
     }
 
-
-    public Certificate IssueCertificate(string pubkey, string[] properties)
+    public Certificate<T> IssueCertificate<T>(string pubkey, string[] properties, T data)
     {
         var props = (from u in settlerContext.Value.UserProperties where u.PublicKey == pubkey && !u.IsRevoked && u.ValidTill >= DateTime.Now && properties.Contains(u.Name) select u).ToArray();
         var hasprops = new HashSet<string>(properties);
@@ -178,10 +180,10 @@ public class Settler : CertificationAuthority
             throw new SettlerException(SettlerErrorCode.PropertyNotGranted);
         var minDate = (from p in props select p.ValidTill).Min();
         var prp = (from p in props select p.Name).ToArray();
-        var cert = base.IssueCertificate(pubkey.AsECXOnlyPubKey(), prp, minDate, DateTime.Now);
+        var cert = base.IssueCertificate<T>(prp, minDate, DateTime.Now, data);
         var certProps = (from p in props select new CertificateProperty() { CertificateId = cert.Id, PropertyId = p.PropertyId }).ToArray();
         settlerContext.Value.AddObjectRange(certProps);
-        settlerContext.Value.AddObject(new UserCertificate() { PublicKey = pubkey, CertificateId = cert.Id, IsRevoked = false, TheCertificate = Crypto.SerializeObject(cert) });
+        settlerContext.Value.AddObject(new UserCertificate() { PublicKey = pubkey, CertificateId = cert.Id, IsRevoked = false });
         return cert;
     }
 
@@ -190,25 +192,17 @@ public class Settler : CertificationAuthority
         return (from cert in settlerContext.Value.UserCertificates where cert.PublicKey == pubkey && !cert.IsRevoked select cert.CertificateId).ToArray();
     }
 
-    public Certificate GetCertificate(string pubkey, Guid certid)
-    {
-        var crt = (from c in settlerContext.Value.UserCertificates where c.PublicKey == pubkey && c.CertificateId == certid && !c.IsRevoked select c.TheCertificate).FirstOrDefault();
-        if (crt == null)
-            throw new SettlerException(SettlerErrorCode.UnknownCertificate);
-        return Crypto.DeserializeObject<Certificate>(crt);
-    }
-
     public bool IsCertificateRevoked(Guid certid)
     {
         return (from c in settlerContext.Value.UserCertificates where c.CertificateId == certid && c.IsRevoked select c).FirstOrDefault() != null;
     }
 
-    public string GenerateReplyPaymentPreimage(string pubkey, Guid tid, string replierPubKey)
+    public string GenerateReplyPaymentPreimage(string pubkey, Guid tid, string replierpubkey)
     {
         var preimage = Crypto.GenerateRandomPreimage();
         var paymentHash = Crypto.ComputePaymentHash(preimage).AsHex();
 
-        settlerContext.Value.AddObject(new InvoicePreimage() { PaymentHash = paymentHash, Preimage = preimage.AsHex(), GigId = tid, ReplierPublicKey= replierPubKey, PublicKey = pubkey, IsRevealed = false });
+        settlerContext.Value.AddObject(new InvoicePreimage() { PaymentHash = paymentHash, Preimage = preimage.AsHex(), GigId = tid, ReplierPublicKey= replierpubkey, PublicKey = pubkey, IsRevealed = false });
         return paymentHash;
     }
 
@@ -245,34 +239,47 @@ public class Settler : CertificationAuthority
             return preimage.Preimage;
     }
 
-    public string RevealSymmetricKey(string senderpubkey, Guid tid, string replierpubkey)
+    public string RevealSymmetricKey(Guid sendercertificateid, Guid tid, Guid repliercertificateid)
     {
-        var symkey = (from g in settlerContext.Value.Gigs where g.SenderPublicKey == senderpubkey && g.ReplierPublicKey == replierpubkey && g.GigId == tid && g.Status == GigStatus.Accepted select g).FirstOrDefault();
+        var symkey = (from g in settlerContext.Value.Gigs where g.SenderCertificateId == sendercertificateid && g.ReplierCertificateId == repliercertificateid && g.GigId == tid && g.Status == GigStatus.Accepted select g).FirstOrDefault();
         if (symkey == null)
             return "";
         else
             return symkey.SymmetricKey;
     }
 
-    public async Task<SettlementTrust> GenerateSettlementTrustAsync(string replierpubkey, byte[] message, string replyInvoice, RequestPayload signedRequestPayload, Certificate replierCertificate)
+    public async Task<SettlementTrust> GenerateSettlementTrustAsync(string replierpubkey, string[] replierproperties, byte[] message, string replyInvoice, Certificate<RequestPayloadValue> signedRequestPayload)
     {
         var decodedInv = await lndWalletClient.DecodeInvoiceAsync(MakeAuthToken(), replyInvoice);
         var invPaymentHash = decodedInv.PaymentHash;
-        if ((from pi in settlerContext.Value.Preimages where pi.GigId == signedRequestPayload.PayloadId && pi.PaymentHash == invPaymentHash select pi).FirstOrDefault() == null)
+        if ((from pi in settlerContext.Value.Preimages where pi.GigId == signedRequestPayload.Value.PayloadId && pi.PaymentHash == invPaymentHash select pi).FirstOrDefault() == null)
             throw new SettlerException(SettlerErrorCode.UnknownPreimage);
 
         byte[] key = Crypto.GenerateSymmetricKey();
         byte[] encryptedReplyMessage = Crypto.SymmetricEncrypt(key, message);
 
-        var networkInvoicePaymentHash = GenerateReplyPaymentPreimage(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.PayloadId, replierpubkey);
+        var replyPayload = this.IssueCertificate<ReplyPayloadValue>(
+            replierpubkey,
+            replierproperties,
+            new ReplyPayloadValue
+            {
+                SignedRequestPayload = signedRequestPayload,
+                EncryptedReplyMessage = encryptedReplyMessage,
+                ReplyInvoice = replyInvoice
+            }
+        );
+
+        var networkInvoicePaymentHash = GenerateReplyPaymentPreimage(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.Value.PayloadId, replierpubkey);
         var networkInvoice = await lndWalletClient.AddHodlInvoiceAsync(
              MakeAuthToken(), priceAmountForSettlement, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds);
 
+
+
         settlerContext.Value.AddObject(new Gig()
         {
-            SenderPublicKey = signedRequestPayload.SenderCertificate.PublicKey,
-            ReplierPublicKey = replierpubkey,
-            GigId = signedRequestPayload.PayloadId,
+            SenderCertificateId = signedRequestPayload.Id,
+            ReplierCertificateId = replyPayload.Id,
+            GigId = signedRequestPayload.Value.PayloadId,
             SymmetricKey = key.AsHex(),
             Status = GigStatus.Open,
             SubStatus = GigSubStatus.None,
@@ -281,20 +288,17 @@ public class Settler : CertificationAuthority
             DisputeDeadline = DateTime.MaxValue
         });
 
-        ReplyPayload replyPayload = new ReplyPayload()
-        {
-            ReplierCertificate = replierCertificate,
-            SignedRequestPayload = signedRequestPayload,
-            EncryptedReplyMessage = encryptedReplyMessage,
-            ReplyInvoice = replyInvoice
-        };
+        var encryptedReplyPayload = Convert.FromBase64String(await settlerSelector.GetSettlerClient(signedRequestPayload.ServiceUri)
+            .EncryptObjectForCertificateIdAsync(signedRequestPayload.Id.ToString(),
+                                                Convert.ToBase64String(Crypto.SerializeObject(replyPayload))));
 
-        byte[] encryptedReplyPayload = Crypto.EncryptObject(replyPayload, signedRequestPayload.SenderCertificate.PublicKey.AsECXOnlyPubKey(), this._CaPrivateKey);
-        byte[] hashOfEncryptedReplyPayload = Crypto.ComputeSha256(new List<byte[]> { encryptedReplyPayload });
+
+        byte[] hashOfEncryptedReplyPayload = Crypto.ComputeSha256(new List<byte[]> { encryptedReplyPayload});
 
         SettlementPromise signedSettlementPromise = new SettlementPromise()
         {
             ServiceUri = this.ServiceUri,
+            RequestersServiceUri = signedRequestPayload.ServiceUri,
             HashOfEncryptedReplyPayload = hashOfEncryptedReplyPayload,
             ReplyPaymentAmount = decodedInv.NumSatoshis,
             NetworkPaymentHash = networkInvoicePaymentHash.AsBytes(),
@@ -313,9 +317,30 @@ public class Settler : CertificationAuthority
         };
     }
 
-    public async Task ManageDisputeAsync(Guid tid, string replierpubkey, bool open)
+    public byte[] EncryptObjectForCertificateId(byte[] bytes, Guid certificateId)
     {
-        var gig = (from g in settlerContext.Value.Gigs where g.GigId == tid && g.ReplierPublicKey == replierpubkey && g.Status == GigStatus.Accepted select g).FirstOrDefault();
+        var pubkey = (from cert in settlerContext.Value.UserCertificates where cert.CertificateId == certificateId && !cert.IsRevoked select cert.PublicKey).FirstOrDefault();
+        if (pubkey == null)
+            return null;
+        return Crypto.EncryptObject(Crypto.DeserializeObject<Certificate<ReplyPayloadValue>>(bytes), pubkey.AsECXOnlyPubKey(), this._CaPrivateKey);
+    }
+
+    public Certificate<RequestPayloadValue> GenerateRequestPayload(string senderspubkey, string[] sendersproperties, byte[] topic)
+    {
+        return this.IssueCertificate<RequestPayloadValue>(
+            senderspubkey,
+            sendersproperties,
+            new RequestPayloadValue
+            {
+                PayloadId = Guid.NewGuid(),
+                Topic = topic
+            }
+        );
+    }
+
+    public async Task ManageDisputeAsync(Guid tid, Guid repliercertificateId, bool open)
+    {
+        var gig = (from g in settlerContext.Value.Gigs where g.GigId == tid && g.ReplierCertificateId == repliercertificateId && g.Status == GigStatus.Accepted select g).FirstOrDefault();
         if (gig != null)
         {
             if (open)
@@ -346,7 +371,10 @@ public class Settler : CertificationAuthority
 
     public async Task SettleGigAsync(Gig gig)
     {
-        var preims = (from pi in this.settlerContext.Value.Preimages where pi.ReplierPublicKey == gig.ReplierPublicKey && pi.GigId == gig.GigId select pi).ToList();
+        var replierpubkey = (from cert in this.settlerContext.Value.UserCertificates where cert.CertificateId==gig.ReplierCertificateId && !cert.IsRevoked select cert.PublicKey).FirstOrDefault();
+        if (replierpubkey == null)
+            throw new SettlerException(SettlerErrorCode.UnknownPreimage);
+        var preims = (from pi in this.settlerContext.Value.Preimages where pi.ReplierPublicKey == replierpubkey && pi.GigId == gig.GigId select pi).ToList();
         foreach (var pi in preims)
             pi.IsRevealed = true;
         this.settlerContext.Value.SaveObjectRange(preims);
@@ -418,7 +446,7 @@ public class Settler : CertificationAuthority
                     }
                     else if (gig.Status == GigStatus.Accepted)
                     {
-                        FireOnSymmetricKeyReveal(gig.GigId, gig.ReplierPublicKey, gig.SymmetricKey);
+                        FireOnSymmetricKeyReveal(gig.GigId, gig.ReplierCertificateId, gig.SymmetricKey);
                         if (DateTime.Now >= gig.DisputeDeadline)
                         {
                             await SettleGigAsync(gig);
@@ -464,7 +492,7 @@ public class Settler : CertificationAuthority
                                         gig.SubStatus = GigSubStatus.None;
                                         gig.DisputeDeadline = DateTime.Now + this.disputeTimeout;
                                         settlerContext.Value.SaveObject(gig);
-                                        FireOnSymmetricKeyReveal(gig.GigId, gig.ReplierPublicKey, gig.SymmetricKey);
+                                        FireOnSymmetricKeyReveal(gig.GigId, gig.ReplierCertificateId, gig.SymmetricKey);
                                         await ScheduleGigAsync(gig);
                                     }
                                 }

@@ -17,16 +17,16 @@ public interface ICertificationAuthorityAccessor
     /// <summary>
     /// Method to check if a certificate is revoked
     /// </summary>
-    /// <param name="certificate">A Digital Certificate object</param>
+    /// <param name="id">A Digital Certificate id</param>
     /// <returns>Returns true if the certificate has been revoked, false otherwise. Usefull to implement revocation list.</returns>
-    public Task<bool> IsRevokedAsync(Certificate certificate);
+    public Task<bool> IsRevokedAsync(Uri serviceUri, Guid id);
 }
 
 /// <summary>
 /// A Digital Certificate issued by Certification Authority for the Subject
 /// </summary>
 [Serializable]
-public class Certificate : SignableObject
+public class Certificate<T> : SignableObject
 {  
    /// <summary>
    /// The Uri of the Certification Authority service
@@ -37,11 +37,6 @@ public class Certificate : SignableObject
    /// Serial number of the certificate
    /// </summary>
    public required Guid Id { get; set; }
-
-   /// <summary>
-   /// hex-encoded string representation of the public key of the Subject
-   /// </summary>
-   public required string PublicKey { get; set; }
 
    /// <summary>
    /// Collection of certified properties of the Subject
@@ -57,6 +52,8 @@ public class Certificate : SignableObject
    /// Date and Time before which the Certificate is not yet valid
    /// </summary>
    public required DateTime NotValidBefore { get; set; }
+
+   public required T Value { get; set; }
 
    /// <summary>
    /// Verifies the certificate with the Certification Authority public key.
@@ -117,21 +114,20 @@ public class CertificationAuthority
    /// <summary>
    /// Issues a new certificate with provided details.
    /// </summary>
-   /// <param name="ecxOnlypublicKey">Public key of the Subject.</param>
    /// <param name="properties">Properties of the Subject.</param>
    /// <param name="notValidAfter">The date after which the certificate is not valid.</param>
    /// <param name="notValidBefore">The date before which the certificate is not valid.</param>
    /// <returns>A new certificate signed and issued by the Certification Authority for the Subject.</returns>
-   public Certificate IssueCertificate(ECXOnlyPubKey ecxOnlypublicKey, string[] properties, DateTime notValidAfter, DateTime notValidBefore)
+   public Certificate<T> IssueCertificate<T>(string[] properties, DateTime notValidAfter, DateTime notValidBefore, T value)
    {
-       var certificate = new Certificate
+       var certificate = new Certificate<T>
        {
            Id = Guid.NewGuid(),
            ServiceUri = ServiceUri,
-           PublicKey = ecxOnlypublicKey.AsHex(),
            Properties = properties,
            NotValidAfter = notValidAfter,
-           NotValidBefore = notValidBefore
+           NotValidBefore = notValidBefore,
+           Value = value,
        };
        certificate.Sign(this._CaPrivateKey);
        return certificate;

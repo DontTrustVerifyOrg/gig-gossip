@@ -21,9 +21,9 @@ namespace GigGossipSettlerAPIClient
             await connection.StartAsync();
         }
 
-        public async Task MonitorAsync(string authToken, Guid gigId, string replierPublicKey)
+        public async Task MonitorAsync(string authToken, Guid gigId, Guid replierCertificateId)
         {
-            await connection.SendAsync("Monitor", authToken, gigId, replierPublicKey);
+            await connection.SendAsync("Monitor", authToken, gigId, replierCertificateId);
         }
 
         public IAsyncEnumerable<string> StreamAsync(string authToken, CancellationToken cancellationToken)

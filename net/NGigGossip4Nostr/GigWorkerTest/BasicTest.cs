@@ -103,10 +103,6 @@ public class BasicTest
                 (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
              );
 
-        var gigWorkerCert = Crypto.DeserializeObject<Certificate>(
-            await settlerClient.IssueCertificateAsync(
-                 token, gigWorker.PublicKey, new List<string> { "drive" }));
-
         var customer = new GigGossipNode(
             customerSettings.ConnectionString,
             customerSettings.PrivateKey.AsECPrivKey(),
@@ -121,11 +117,6 @@ public class BasicTest
             (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
          );
 
-        var customerCert = Crypto.DeserializeObject<Certificate>(
-             await settlerClient.IssueCertificateAsync(
-                token, customer.PublicKey, new List<string> { "ride" }));
-
-
         gigWorker.Init(
             gigWorkerSettings.Fanout,
             gigWorkerSettings.PriceAmountForRouting,
@@ -135,7 +126,6 @@ public class BasicTest
             TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(gigWorkerSettings.InvoicePaymentTimeoutSec),
             gigWorkerSettings.GetLndWalletClient(httpClient));
-        //await gigWorker.LoadCertificates(gigWorkerSettings.SettlerOpenApi);
 
         customer.Init(
             customerSettings.Fanout,
@@ -147,9 +137,10 @@ public class BasicTest
             TimeSpan.FromSeconds(customerSettings.InvoicePaymentTimeoutSec),
             customerSettings.GetLndWalletClient(httpClient));
 
-        //await customer.LoadCertificates(customerSettings.SettlerOpenApi);
+        await gigWorker.StartAsync(gigWorkerSettings.GetNostrRelays(), new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi));
+        await customer.StartAsync(customerSettings.GetNostrRelays(), new CustomerGossipNodeEvents());
 
-        var ballanceOfCustomer= await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken());
+        var ballanceOfCustomer = await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken());
 
         if (ballanceOfCustomer == 0)
         {
@@ -172,9 +163,7 @@ public class BasicTest
 
 
 
-        await gigWorker.StartAsync(gigWorkerSettings.GetNostrRelays(), new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi, gigWorkerCert));
         gigWorker.ClearContacts();
-        await customer.StartAsync(customerSettings.GetNostrRelays(),new CustomerGossipNodeEvents());
         customer.ClearContacts();
 
         gigWorker.AddContact(customer.PublicKey,"Customer" );
@@ -191,7 +180,8 @@ public class BasicTest
                 PickupAfter = DateTime.Now,
                 DropoffBefore = DateTime.Now.AddMinutes(20)
             },
-            customerCert);
+            customerSettings.SettlerOpenApi,
+            new string[] { "ride" });
 
         }
 
@@ -211,27 +201,25 @@ public class BasicTest
 public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 {
     Uri settlerUri;
-    Certificate selectedCertificate;
-    public GigWorkerGossipNodeEvents(Uri settlerUri, Certificate selectedCertificate)
+    public GigWorkerGossipNodeEvents(Uri settlerUri)
     {
         this.settlerUri = settlerUri;
-        this.selectedCertificate = selectedCertificate;
     }
 
     public async void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
     {
         var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(
-            broadcastFrame.BroadcastPayload.SignedRequestPayload.Topic);
+            broadcastFrame.SignedBroadcastPayload.SignedRequestPayload.Value.Topic);
 
         if (taxiTopic != null)
         {
-            await me.AcceptBroadcastAsync( peerPublicKey, broadcastFrame,
+            await me.AcceptBroadcastAsync(peerPublicKey, broadcastFrame,
                 new AcceptBroadcastResponse()
                 {
+                    Properties = new string[] {"drive" },
                     Message = Encoding.Default.GetBytes(me.PublicKey),
                     Fee = 4321,
-                    SettlerServiceUri = settlerUri,
-                    MyCertificate = selectedCertificate
+                    SettlerServiceUri = settlerUri
                 });
             FlowLogger.NewEvent(me.PublicKey, "AcceptBraodcast");
         }
@@ -252,12 +240,13 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
-    }
 
-    public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)
+    }
+    public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
     {
+
     }
 
     public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
@@ -283,17 +272,16 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     {
     }
 
-    public async void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    public async void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
         FlowLogger.NewEvent(me.PublicKey, "AcceptResponse");
-        await me.AcceptResponseAsync(replyPayload, replyInvoice,decodedReplyInvoice,networkInvoice,decodedNetworkInvoice);
+        await me.AcceptResponseAsync(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
     }
-
-    public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key)
+    public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
     {
         var message = Encoding.Default.GetString(Crypto.SymmetricDecrypt<byte[]>(
             key.AsBytes(),
-            replyPayload.EncryptedReplyMessage));
+            replyPayload.Value.EncryptedReplyMessage));
         Trace.TraceInformation(message);
         FlowLogger.NewEvent(me.PublicKey, "OnResponseReady");
         FlowLogger.NewConnected(message, me.PublicKey, "connected");

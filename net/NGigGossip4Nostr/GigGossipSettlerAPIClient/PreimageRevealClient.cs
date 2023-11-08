@@ -21,7 +21,7 @@ namespace GigGossipSettlerAPIClient
             await connection.StartAsync();
         }
 
-        public async void MonitorAsync(string authToken, string paymentHash)
+        public async Task MonitorAsync(string authToken, string paymentHash)
         {
             await connection.SendAsync("Monitor", authToken, paymentHash);
         }

@@ -5,7 +5,7 @@ using NBitcoin.Secp256k1;
 using GigLNDWalletAPIClient;
 using System.Threading.Tasks;
 
-namespace NGigGossip4Nostr;
+namespace GigGossipSettler;
 
 public interface ISettlerSelector : ICertificationAuthorityAccessor
 {

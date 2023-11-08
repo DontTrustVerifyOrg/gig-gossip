@@ -16,8 +16,8 @@ public class POWBroadcastFrame
     /// <summary>
     /// Gets or sets the payload information for the broadcast frame.
     /// </summary>
-    /// <see cref="BroadcastPayload"/>
-    public required BroadcastPayload BroadcastPayload { get; set; }
+    /// <see cref="SignedBroadcastPayload"/>
+    public required BroadcastPayload SignedBroadcastPayload { get; set; }
 
     /// <summary>
     /// Gets or sets the ProofOfWork object associated with this broadcast frame.
@@ -32,16 +32,11 @@ public class POWBroadcastFrame
     /// <returns>Returns true if verification is successful, otherwise returns false.</returns>
     public async Task<bool> VerifyAsync(ICertificationAuthorityAccessor caAccessor)
     {
-        if (!await this.BroadcastPayload.SignedRequestPayload.SenderCertificate.VerifyAsync(caAccessor))
+        if (!await this.SignedBroadcastPayload.SignedRequestPayload.VerifyAsync(caAccessor))
         {
             return false;
         }
 
-        if (!this.BroadcastPayload.SignedRequestPayload.Verify(this.BroadcastPayload.SignedRequestPayload.SenderCertificate.PublicKey.AsECXOnlyPubKey()))
-        {
-            return false;
-        }
-
-        return this.ProofOfWork.Validate(this.BroadcastPayload);
+        return this.ProofOfWork.Validate(this.SignedBroadcastPayload);
     }
 }
