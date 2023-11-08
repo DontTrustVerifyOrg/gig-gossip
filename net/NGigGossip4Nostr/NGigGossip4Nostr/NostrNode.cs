@@ -5,6 +5,7 @@ using NNostr.Client;
 using CryptoToolkit;
 using System.Threading;
 using NBitcoin.RPC;
+using System.Collections.Concurrent;
 
 namespace NGigGossip4Nostr;
 
@@ -172,8 +173,7 @@ public abstract class NostrNode
         }
     }
 
-    private Dictionary<string, SortedDictionary<int, string>> _partial_messages = new();
-    private SemaphoreSlim _partial_messages_lock = new SemaphoreSlim(1, 1);
+    private ConcurrentDictionary<string, ConcurrentDictionary<int, string>> _partial_messages = new();
 
     private async Task ProcessNewMessageAsync(NostrEvent nostrEvent)
     {
@@ -200,26 +200,19 @@ public abstract class NostrNode
                 }
                 else
                 {
-                    await _partial_messages_lock.WaitAsync();
-                    try
+                    var inner_dic = _partial_messages.GetOrAdd(idx, (idx) => new ConcurrentDictionary<int, string>());
+                    if (inner_dic.TryAdd(parti, msg))
                     {
-                        if (!_partial_messages.ContainsKey(idx))
-                            _partial_messages[idx] = new SortedDictionary<int, string>();
-                        _partial_messages[idx][parti] = msg;
-                        if (_partial_messages[idx].Count == partNum)
+                        if (inner_dic.Count == partNum)
                         {
-                            var txt = string.Join("", _partial_messages[idx].Values);
+                            _partial_messages.TryRemove(idx, out _);
+                            var txt = string.Join("", new SortedDictionary<int, string>(inner_dic).Values);
                             var t = GetFrameType(tagDic["t"][0]);
                             if (t == null)
                                 return;
                             var frame = Crypto.DeserializeObject(Convert.FromBase64String(txt), t);
-                            _partial_messages.Remove(idx);
                             await this.OnMessageAsync(idx, nostrEvent.PublicKey, frame);
                         }
-                    }
-                    finally
-                    {
-                        _partial_messages_lock.Release();
                     }
                 }
             }

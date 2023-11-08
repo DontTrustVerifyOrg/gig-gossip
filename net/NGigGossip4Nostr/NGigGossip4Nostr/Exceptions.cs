@@ -9,7 +9,7 @@ public enum GigGossipNodeErrorCode
     FrameTypeNotRegistered = 2,
 }
 
-public static class Extensions
+public static class ExceptionExtensions
 {
     static string[] gigGossipErrorMesssages = new string[]{
         "",

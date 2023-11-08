@@ -4,6 +4,7 @@ using GigGossipSettlerAPIClient;
 using NBitcoin.Secp256k1;
 using GigLNDWalletAPIClient;
 using System.Threading.Tasks;
+using System.Collections.Concurrent;
 
 namespace NGigGossip4Nostr;
 
@@ -14,12 +15,12 @@ public interface ISettlerSelector : ICertificationAuthorityAccessor
 
 public class SimpleSettlerSelector : ISettlerSelector
 {
-    Dictionary<Uri, GigGossipSettlerAPIClient.swaggerClient> swaggerClients = new();
-    HashSet<Guid> revokedCertificates = new();
+    ConcurrentDictionary<Uri, GigGossipSettlerAPIClient.swaggerClient> swaggerClients = new();
+    ConcurrentDictionary<Guid, bool> revokedCertificates = new();
 
     HttpClient _httpClient;
 
-    public SimpleSettlerSelector(HttpClient? httpClient=null)
+    public SimpleSettlerSelector(HttpClient? httpClient = null)
     {
         _httpClient = httpClient ?? new HttpClient();
     }
@@ -31,30 +32,12 @@ public class SimpleSettlerSelector : ISettlerSelector
 
     public GigGossipSettlerAPIClient.swaggerClient GetSettlerClient(Uri serviceUri)
     {
-        lock (swaggerClients)
-        {
-            if (!swaggerClients.ContainsKey(serviceUri))
-                swaggerClients[serviceUri] = new GigGossipSettlerAPIClient.swaggerClient(serviceUri.AbsoluteUri, _httpClient);
-            return swaggerClients[serviceUri];
-        }
+        return swaggerClients.GetOrAdd(serviceUri, (serviceUri) => new GigGossipSettlerAPIClient.swaggerClient(serviceUri.AbsoluteUri, _httpClient));
     }
 
-    public async Task<bool> IsRevokedAsync(Uri serviceUri,Guid id)
+    public async Task<bool> IsRevokedAsync(Uri serviceUri, Guid id)
     {
-        lock (revokedCertificates)
-        {
-            if (revokedCertificates.Contains(id))
-                return true;
-        }
-        if (await GetSettlerClient(serviceUri).IsCertificateRevokedAsync(id.ToString()))
-        {
-            lock (revokedCertificates)
-            {
-                revokedCertificates.Add(id);
-            }
-            return true;
-        }
-        return false;
+        return await revokedCertificates.GetOrAddAsync(id, async (id) => await GetSettlerClient(serviceUri).IsCertificateRevokedAsync(id.ToString()));
     }
 }
 

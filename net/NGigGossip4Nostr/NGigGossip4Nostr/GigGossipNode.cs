@@ -20,6 +20,7 @@ using System.Xml.Linq;
 using GigGossipSettlerAPIClient;
 using System.IO;
 using static NBitcoin.Protocol.Behaviors.ChainBehavior;
+using System.Collections.Concurrent;
 
 [Serializable]
 public class InvoiceAcceptedData
@@ -68,19 +69,16 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
     protected int fanout;
 
     public GigLNDWalletAPIClient.swaggerClient LNDWalletClient;
-    Dictionary<Uri, SymmetricKeyRevealClient> settlerSymmetricKeyRevelClients = new();
-    SemaphoreSlim settlerSymmetricKeyRevelClientsLock = new SemaphoreSlim(1, 1);
-    Dictionary<Uri, PreimageRevealClient> settlerPreimageRevelClients = new();
-    SemaphoreSlim settlerPreimageRevelClientsLock = new SemaphoreSlim(1, 1);
+    private ConcurrentDictionary<Uri, SymmetricKeyRevealClient> settlerSymmetricKeyRevelClients = new();
+    private ConcurrentDictionary<Uri, PreimageRevealClient> settlerPreimageRevelClients = new();
     protected Guid _walletToken;
-    protected Dictionary<Uri, Guid> _settlerToken;
-    SemaphoreSlim _settlerTokenLock = new SemaphoreSlim(1, 1);
+    protected ConcurrentDictionary<Uri, Guid> _settlerToken;
 
     public ISettlerSelector SettlerSelector;
     protected LNDWalletMonitor _lndWalletMonitor;
     protected SettlerMonitor _settlerMonitor;
 
-    IGigGossipNodeEvents gigGossipNodeEvents;
+    private IGigGossipNodeEvents gigGossipNodeEvents;
 
     internal ThreadLocal<GigGossipNodeContext> nodeContext;
 
@@ -238,64 +236,33 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
     public async Task<string> MakeSettlerAuthTokenAsync(Uri serviceUri)
     {
-        Guid token;
-        await this._settlerTokenLock.WaitAsync();
-        try
-        {
-            if (!this._settlerToken.ContainsKey(serviceUri))
-            {
-                var newtoken = await SettlerSelector.GetSettlerClient(serviceUri).GetTokenAsync(this.PublicKey);
-                this._settlerToken[serviceUri] = newtoken;
-            }
-            token = this._settlerToken[serviceUri];
-        }
-        finally
-        {
-            this._settlerTokenLock.Release();
-        }
-        return Crypto.MakeSignedTimedToken(this.privateKey, DateTime.Now, token);
+        return Crypto.MakeSignedTimedToken(
+            this.privateKey, DateTime.Now,
+            await _settlerToken.GetOrAddAsync(serviceUri, async (serviceUri) => await SettlerSelector.GetSettlerClient(serviceUri).GetTokenAsync(this.PublicKey)));
     }
 
     public async Task<SymmetricKeyRevealClient> GetSymmetricKeyRevealClientAsync(Uri serviceUri)
     {
-        SymmetricKeyRevealClient client;
-        await settlerSymmetricKeyRevelClientsLock.WaitAsync();
-        try
-        {
-            if (!settlerSymmetricKeyRevelClients.ContainsKey(serviceUri))
+        return await settlerSymmetricKeyRevelClients.GetOrAddAsync(
+            serviceUri,
+            async (serviceUri) =>
             {
                 var newClient = new SymmetricKeyRevealClient(SettlerSelector.GetSettlerClient(serviceUri));
                 await newClient.ConnectAsync(await MakeSettlerAuthTokenAsync(serviceUri));
-                settlerSymmetricKeyRevelClients[serviceUri] = newClient;
-            }
-            client = settlerSymmetricKeyRevelClients[serviceUri];
-        }
-        finally
-        {
-            settlerSymmetricKeyRevelClientsLock.Release();
-        }
-        return client;
+                return newClient;
+            });
     }
 
     public async Task<PreimageRevealClient> GetPreimageRevealClientAsync(Uri serviceUri)
     {
-        PreimageRevealClient client;
-        await settlerPreimageRevelClientsLock.WaitAsync();
-        try
-        {
-            if (!settlerPreimageRevelClients.ContainsKey(serviceUri))
+        return await settlerPreimageRevelClients.GetOrAddAsync(
+            serviceUri,
+            async (serviceUri) =>
             {
                 var newClient = new PreimageRevealClient(SettlerSelector.GetSettlerClient(serviceUri));
                 await newClient.ConnectAsync(await MakeSettlerAuthTokenAsync(serviceUri));
-                settlerPreimageRevelClients[serviceUri] = newClient;
-            }
-            client= settlerPreimageRevelClients[serviceUri];
-        }
-        finally
-        {
-            settlerPreimageRevelClientsLock.Release();
-        }
-        return client;
+                return newClient;
+            });
     }
 
     public List<string> GetBroadcastContactList(Guid payloadId , string? originatorPublicKey)
