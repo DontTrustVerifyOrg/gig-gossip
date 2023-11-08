@@ -12,21 +12,21 @@ public interface ICertificationAuthorityAccessor
     /// </summary>
     /// <param name="serviceUri">The Uri of the Certifiation Authority service</param>
     /// <returns> Returns ECXOnlyPubKey of Certification Authority that can be used to validate signatures of e.g. issued certificates.</returns>
-    public ECXOnlyPubKey GetPubKey(Uri serviceUri);
+    public Task<ECXOnlyPubKey> GetPubKeyAsync(Uri serviceUri);
 
     /// <summary>
     /// Method to check if a certificate is revoked
     /// </summary>
-    /// <param name="certificate">A Digital Certificate object</param>
+    /// <param name="id">A Digital Certificate id</param>
     /// <returns>Returns true if the certificate has been revoked, false otherwise. Usefull to implement revocation list.</returns>
-    public bool IsRevoked(Certificate certificate);
+    public Task<bool> IsRevokedAsync(Uri serviceUri, Guid id);
 }
 
 /// <summary>
 /// A Digital Certificate issued by Certification Authority for the Subject
 /// </summary>
 [Serializable]
-public class Certificate : SignableObject
+public class Certificate<T> : SignableObject
 {  
    /// <summary>
    /// The Uri of the Certification Authority service
@@ -39,14 +39,9 @@ public class Certificate : SignableObject
    public required Guid Id { get; set; }
 
    /// <summary>
-   /// hex-encoded string representation of the public key of the Subject
-   /// </summary>
-   public required string PublicKey { get; set; }
-
-   /// <summary>
    /// Collection of certified properties of the Subject
    /// </summary>
-   public required Dictionary<string, byte[]> Properties { get; set; }
+   public required string[] Properties { get; set; }
 
    /// <summary>
    /// Date and Time when the Certificate will no longer be valid
@@ -58,16 +53,18 @@ public class Certificate : SignableObject
    /// </summary>
    public required DateTime NotValidBefore { get; set; }
 
+   public required T Value { get; set; }
+
    /// <summary>
    /// Verifies the certificate with the Certification Authority public key.
    /// </summary>
    /// <param name="caAccessor">An instance of an object that implements ICertificationAuthorityAccessor</param>
    /// <returns>Returns true if the certificate is valid, false otherwise.</returns>
-   public new bool Verify(ICertificationAuthorityAccessor caAccessor)
+   public async Task<bool> VerifyAsync(ICertificationAuthorityAccessor caAccessor)
    {
        if (NotValidAfter >= DateTime.Now && NotValidBefore <= DateTime.Now)
        {
-           if (Verify(caAccessor.GetPubKey(this.ServiceUri)))
+           if (Verify(await caAccessor.GetPubKeyAsync(this.ServiceUri)))
                return true;
        }
        return false;
@@ -117,21 +114,20 @@ public class CertificationAuthority
    /// <summary>
    /// Issues a new certificate with provided details.
    /// </summary>
-   /// <param name="ecxOnlypublicKey">Public key of the Subject.</param>
    /// <param name="properties">Properties of the Subject.</param>
    /// <param name="notValidAfter">The date after which the certificate is not valid.</param>
    /// <param name="notValidBefore">The date before which the certificate is not valid.</param>
    /// <returns>A new certificate signed and issued by the Certification Authority for the Subject.</returns>
-   public Certificate IssueCertificate(ECXOnlyPubKey ecxOnlypublicKey, Dictionary<string, byte[]> properties, DateTime notValidAfter, DateTime notValidBefore)
+   public Certificate<T> IssueCertificate<T>(string[] properties, DateTime notValidAfter, DateTime notValidBefore, T value)
    {
-       var certificate = new Certificate
+       var certificate = new Certificate<T>
        {
            Id = Guid.NewGuid(),
            ServiceUri = ServiceUri,
-           PublicKey = ecxOnlypublicKey.AsHex(),
            Properties = properties,
            NotValidAfter = notValidAfter,
-           NotValidBefore = notValidBefore
+           NotValidBefore = notValidBefore,
+           Value = value,
        };
        certificate.Sign(this._CaPrivateKey);
        return certificate;

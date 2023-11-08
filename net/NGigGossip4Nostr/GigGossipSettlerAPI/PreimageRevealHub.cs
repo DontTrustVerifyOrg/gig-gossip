@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 using GigGossipSettler;
 using Microsoft.AspNetCore.SignalR;
 using Nito.AsyncEx;
@@ -45,12 +46,13 @@ public class PreimageRevealHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public async Task Monitor(string authToken,string paymentHash)
+    public void Monitor(string authToken,string paymentHash)
     {
         var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
         Singlethon.Preimages4UserPublicKey.AddItem(publicKey, paymentHash);
     }
-    public async IAsyncEnumerable<string> Streaming(string authToken, CancellationToken cancellationToken)
+
+    public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
         while (true)

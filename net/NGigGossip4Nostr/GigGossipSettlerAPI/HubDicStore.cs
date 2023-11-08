@@ -1,63 +1,46 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace GigGossipSettlerAPI
 {
     public class HubDicStore<T>
     {
-        public static Dictionary<string, HashSet<T>> Item4PublicKey = new();
-        public static Dictionary<T, HashSet<string>> PublicKeys4Items = new();
+        public static ConcurrentDictionary<string, ConcurrentDictionary<T, bool>> Item4PublicKey = new();
+        public static ConcurrentDictionary<T, ConcurrentDictionary<string, bool>> PublicKeys4Items = new();
 
         public HubDicStore()
         {
         }
 
-        public void RemoveConnection(string connectionId)
-        {
-            lock (Item4PublicKey)
-            {
-                lock (PublicKeys4Items)
-                {
-                    if (Item4PublicKey.ContainsKey(connectionId))
-                        foreach (var payhash in Item4PublicKey[connectionId])
-                            PublicKeys4Items[payhash].Remove(connectionId);
-                }
-                if (Item4PublicKey.ContainsKey(connectionId))
-                    Item4PublicKey.Remove(connectionId);
-            }
-        }
-
         public void AddItem(string connectionId, T item)
         {
-            lock (Item4PublicKey)
-            {
-                if (!Item4PublicKey.ContainsKey(connectionId))
-                    Item4PublicKey[connectionId] = new();
-                Item4PublicKey[connectionId].Add(item);
+            Item4PublicKey.GetOrAdd(connectionId, (_) => new ConcurrentDictionary<T, bool>()).TryAdd(item, true);
+            PublicKeys4Items.GetOrAdd(item, (_) => new ConcurrentDictionary<string, bool>()).TryAdd(connectionId, true);
+        }
 
-            }
-            lock (PublicKeys4Items)
-            {
-                if (!PublicKeys4Items.ContainsKey(item))
-                    PublicKeys4Items[item] = new();
-                PublicKeys4Items[item].Add(connectionId);
-            }
+        public void RemoveConnection(string connectionId)
+        {
+            ConcurrentDictionary<T, bool> inner;
+            if (Item4PublicKey.TryGetValue(connectionId, out inner!))
+                foreach (var payhash in inner.Keys.ToList())
+                    PublicKeys4Items[payhash].TryRemove(connectionId, out _);
+            Item4PublicKey.TryRemove(connectionId, out _);
         }
 
         public bool ContainsItem(string connectionId, T item)
         {
-            lock (Item4PublicKey)
-            {
-                if (Item4PublicKey.ContainsKey(connectionId))
-                    return Item4PublicKey[connectionId].Contains(item);
-            }
+            ConcurrentDictionary<T, bool> inner;
+            if (Item4PublicKey.TryGetValue(connectionId, out inner!))
+                return inner.TryGetValue(item, out _);
             return false;
         }
 
         public HashSet<string> PublicKeysForItem(T item)
         {
-            lock (PublicKeys4Items)
-                if (PublicKeys4Items.ContainsKey(item))
-                    return PublicKeys4Items[item];
+            ConcurrentDictionary<string, bool> inner;
+            if (PublicKeys4Items.TryGetValue(item, out inner!))
+                return new HashSet<string>(inner.Keys);
             return new HashSet<string>();
         }
 

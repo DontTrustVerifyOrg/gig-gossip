@@ -93,7 +93,7 @@ public class ReplyPayloadRow
 
     public required Guid PayloadId { get; set; }
 
-    public required string ReplierPublicKey { get; set; }
+    public required Guid ReplierCertificateId { get; set; }
     public required byte[] TheReplyPayload { get; set; }
     public required string NetworkInvoice { get; set; }
     public required byte[] DecodedNetworkInvoice { get; set; }
@@ -173,7 +173,7 @@ public class MonitoredPreimageRow
     public required string? Preimage { get; set; }
 }
 
-[PrimaryKey(nameof(PublicKey), nameof(PayloadId), nameof(ReplierPublicKey))]
+[PrimaryKey(nameof(PublicKey), nameof(PayloadId), nameof(ReplierCertificateId))]
 public class MonitoredSymmetricKeyRow
 {
     /// <summary>
@@ -186,7 +186,9 @@ public class MonitoredSymmetricKeyRow
     public required Guid PayloadId { get; set; }
 
     [Column(Order = 3)]
-    public required string ReplierPublicKey { get; set; }
+    public required Guid ReplierCertificateId { get; set; }
+
+    public required Guid SenderCertificateId { get; set; }
 
     public required Uri ServiceUri { get; set; }
     public string? SymmetricKey { get; set; }

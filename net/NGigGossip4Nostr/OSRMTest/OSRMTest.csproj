@@ -10,4 +10,7 @@
   <ItemGroup>
     <PackageReference Include="Osrm.Client.NetCore" Version="3.5.0" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Nominatim.API\src\Nominatim.API\Nominatim.API.csproj" />
+  </ItemGroup>
 </Project>

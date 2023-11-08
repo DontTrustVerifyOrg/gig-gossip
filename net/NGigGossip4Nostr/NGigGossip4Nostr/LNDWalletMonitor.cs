@@ -23,7 +23,7 @@ namespace NGigGossip4Nostr
 			this.gigGossipNode = gigGossipNode;
 		}
 
-		public void MonitorInvoice(string phash, byte[] data)
+		public async Task MonitorInvoiceAsync(string phash, byte[] data)
 		{
 			if ((from i in gigGossipNode.nodeContext.Value.MonitoredInvoices
 				 where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
@@ -38,7 +38,7 @@ namespace NGigGossip4Nostr
 					InvoiceState = "Unknown",
 					Data = data,
 				});
-            this.gigGossipNode.InvoiceStateUpdatesClient.Monitor(gigGossipNode.MakeWalletAuthToken(), phash);
+            await this.gigGossipNode.InvoiceStateUpdatesClient.MonitorAsync(gigGossipNode.MakeWalletAuthToken(), phash);
 		}
 
 		public bool IsPaymentMonitored(string phash)
@@ -48,7 +48,7 @@ namespace NGigGossip4Nostr
 					select i).FirstOrDefault() != null;
         }
 
-        public void MonitorPayment(string phash, byte[] data)
+        public async Task MonitorPaymentAsync(string phash, byte[] data)
         {
             if ((from i in gigGossipNode.nodeContext.Value.MonitoredPayments
                  where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
@@ -64,14 +64,14 @@ namespace NGigGossip4Nostr
                     Data = data,
                 });
 
-            this.gigGossipNode.PaymentStatusUpdatesClient.Monitor(gigGossipNode.MakeWalletAuthToken(), phash);
+            await this.gigGossipNode.PaymentStatusUpdatesClient.MonitorAsync(gigGossipNode.MakeWalletAuthToken(), phash);
         }
 
         Thread invoiceMonitorThread;
         Thread paymentMonitorThread;
 		CancellationTokenSource CancellationTokenSource = new();
 
-        public void Start()
+        public async Task StartAsync()
 		{
             {
                 var invToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredInvoices
@@ -81,7 +81,7 @@ namespace NGigGossip4Nostr
 
                 foreach (var inv in invToMon)
                 {
-                    var state = gigGossipNode.LNDWalletClient.GetInvoiceStateAsync(gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash).Result;
+                    var state = await gigGossipNode.LNDWalletClient.GetInvoiceStateAsync(gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash);
                     if (state != inv.InvoiceState)
                     {
                         gigGossipNode.OnInvoiceStateChange(state, inv.Data);
@@ -99,7 +99,7 @@ namespace NGigGossip4Nostr
 
                 foreach (var pay in payToMon)
                 {
-                    var status = gigGossipNode.LNDWalletClient.GetPaymentStatusAsync(gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash).Result;
+                    var status = await gigGossipNode.LNDWalletClient.GetPaymentStatusAsync(gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash);
                     if (status != pay.PaymentStatus)
                     {
                         gigGossipNode.OnPaymentStatusChange(status, pay.Data);

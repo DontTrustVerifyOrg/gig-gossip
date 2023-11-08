@@ -6,7 +6,7 @@ using GigLNDWalletAPIClient;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 
-namespace NGigGossip4Nostr;
+namespace GigGossipSettler;
 
 public interface ISettlerSelector : ICertificationAuthorityAccessor
 {

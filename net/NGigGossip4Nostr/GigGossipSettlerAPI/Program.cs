@@ -9,6 +9,8 @@ using System.Reflection;
 using Microsoft.AspNetCore.SignalR.Client;
 using GigGossipSettler;
 using GigGossipSettlerAPI;
+using System.Xml.Linq;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,11 +60,10 @@ var caPrivateKey = settlerSettings.SettlerPrivateKey.AsECPrivKey();
 var httpClient = new HttpClient();
 var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.AbsoluteUri, httpClient);
 
-Singlethon.Settler = new Settler(settlerSettings.ServiceUri, caPrivateKey, settlerSettings.PriceAmountForSettlement, TimeSpan.FromSeconds(settlerSettings.InvoicePaymentTimeoutSec),TimeSpan.FromSeconds(settlerSettings.DisputeTimeoutSec));
-Singlethon.Settler.Init(lndWalletClient, settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)), false);
 
-Singlethon.Settler.Start();
-
+Singlethon.Settler = new Settler(settlerSettings.ServiceUri, new SimpleSettlerSelector(httpClient) , caPrivateKey, settlerSettings.PriceAmountForSettlement, TimeSpan.FromSeconds(settlerSettings.InvoicePaymentTimeoutSec),TimeSpan.FromSeconds(settlerSettings.DisputeTimeoutSec));
+await Singlethon.Settler.InitAsync(lndWalletClient, settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)), false);
+await Singlethon.Settler.StartAsync();
 
 app.MapGet("/getcapublickey", () =>
 {
@@ -118,6 +119,44 @@ app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, s
     return g;
 });
 
+app.MapGet("/verifychannel", (string authToken, string pubkey, string name, string method, string value) =>
+{
+    Singlethon.Settler.ValidateAuthToken(authToken);
+})
+.WithName("VerifyChannel")
+.WithSummary("Start verification of specific channel.")
+.WithDescription("Starts verification of specific channel.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Public key of the subject.";
+    g.Parameters[2].Description = "Channel name (phone,email,...)";
+    g.Parameters[3].Description = "Method (sms,call,message)";
+    g.Parameters[4].Description = "Value of Channel for the method (phone number, email address).";
+    return g;
+});
+
+app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name, string method, string value, string secret) =>
+{
+    Singlethon.Settler.ValidateAuthToken(authToken);
+    Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
+    return -1;
+})
+.WithName("SubmitChannelSecret")
+.WithSummary("Submits the secret code for the channel.")
+.WithDescription("Returns -1 if the secret is correct, otherwise the number of retires left is returned.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Public key of the subject.";
+    g.Parameters[2].Description = "Channel name (phone,email,...)";
+    g.Parameters[3].Description = "Method (sms,call,message)";
+    g.Parameters[4].Description = "Value of Channel for the method (phone number, email address).";
+    g.Parameters[5].Description = "Secret received from the channel.";
+    return g;
+});
+
+
 app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name) =>
 {
     Singlethon.Settler.ValidateAuthToken(authToken);
@@ -129,53 +168,6 @@ app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name)
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
     g.Parameters[1].Description = "Public key of the subject.";
     g.Parameters[2].Description = "Name of the property.";
-    return g;
-});
-
-app.MapGet("/issuecertificate", (string authToken, string pubkey, string[] properties) =>
-{
-    Singlethon.Settler.ValidateAuthToken(authToken);
-    return Crypto.SerializeObject(Singlethon.Settler.IssueCertificate(pubkey, properties));
-})
-.WithName("IssueCertificate")
-.WithSummary("Issues a new Digital Certificate for the Subject.")
-.WithDescription("Issues a new Digital Certificate for the Subject. Only authorised users can issue the certificate.")
-.WithOpenApi(g =>
-{
-    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user including Subject.";
-    g.Parameters[1].Description = "Public key of the Subject.";
-    g.Parameters[2].Description = "List of properties for the certificate";
-    return g;
-});
-
-app.MapGet("/getcertificate", (string authToken, string pubkey, Guid certid) =>
-{
-    Singlethon.Settler.ValidateAuthToken(authToken);
-    return Crypto.SerializeObject(Singlethon.Settler.GetCertificate(pubkey, certid));
-})
-.WithName("GetCertificate")
-.WithSummary("Returns an existing Digital Certificate for the Subject.")
-.WithDescription("Returns an existing Digital Certificate for the Subject. Only authorised users can get the certificate.")
-.WithOpenApi(g =>
-{
-    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user including Subject.";
-    g.Parameters[1].Description = "Public key of the Subject.";
-    g.Parameters[2].Description = "Serial number of the certificate.";
-    return g;
-});
-
-app.MapGet("/listcertificates", (string authToken, string pubkey) =>
-{
-    Singlethon.Settler.ValidateAuthToken(authToken);
-    return Singlethon.Settler.ListCertificates(pubkey);
-})
-.WithName("ListCertificates")
-.WithSummary("Lists serial numbers of all Digital Certificate issued for the Subject.")
-.WithDescription("Lists serial numbers of all Digital Certificate issued for the Subject. Only authorised users can list certificates.")
-.WithOpenApi(g =>
-{
-    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user including Subject.";
-    g.Parameters[1].Description = "Public key of the Subject.";
     return g;
 });
 
@@ -241,13 +233,45 @@ app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
     return g;
 });
 
-
-app.MapGet("/generatesettlementtrust", (string authToken, string message, string replyinvoice, string signedRequestPayloadSerialized, string replierCertificateSerialized) =>
+app.MapGet("/revealsymmetrickey", (string authToken, Guid senderCertificateId, Guid gigId, Guid repliperCertificateId) =>
 {
     var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-    var signedRequestPayload = Crypto.DeserializeObject< RequestPayload>(Convert.FromBase64String(signedRequestPayloadSerialized));
-    var replierCertificate = Crypto.DeserializeObject< Certificate>(Convert.FromBase64String(replierCertificateSerialized));
-    var st =  Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, Convert.FromBase64String(message), replyinvoice, signedRequestPayload, replierCertificate).Result;
+    return Singlethon.Settler.RevealSymmetricKey(senderCertificateId, gigId, repliperCertificateId);
+})
+.WithName("RevealSymmetricKey")
+.WithSummary("Reveals symmetric key that customer can use to decrypt the message from gig-worker.")
+.WithDescription("Reveals symmetric key that customer can use to decrypt the message from gig-worker. This key is secret as long as the gig-job is not marked as accepted.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication.";
+    g.Parameters[1].Description = "CertificateId of the sender.";
+    g.Parameters[2].Description = "Gig-job identifier.";
+    g.Parameters[3].Description = "CertificateId of the replier.";
+    return g;
+});
+
+app.MapGet("/generaterequestpayload", (string authToken, string[] properties, string serialisedTopic) =>
+{
+    var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+    var st = Singlethon.Settler.GenerateRequestPayload(pubkey, properties, Convert.FromBase64String(serialisedTopic));
+    return Convert.ToBase64String(Crypto.SerializeObject(st));
+})
+.WithName("GenerateRequestPayload")
+.WithSummary("Genertes RequestPayload for the specific topic.")
+.WithDescription("Genertes RequestPayload for the specific topic.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication.";
+    g.Parameters[1].Description = "Requested properties of the sender.";
+    g.Parameters[2].Description = "Topic";
+    return g;
+});
+
+app.MapGet("/generatesettlementtrust", async (string authToken, string[] properties, string message, string replyinvoice, string signedRequestPayloadSerialized) =>
+{
+    var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+    var signedRequestPayload = Crypto.DeserializeObject<Certificate<RequestPayloadValue>>(Convert.FromBase64String(signedRequestPayloadSerialized));
+    var st =  await Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, properties, Convert.FromBase64String(message), replyinvoice, signedRequestPayload);
     return Convert.ToBase64String(Crypto.SerializeObject(st));
 })
 .WithName("GenerateSettlementTrust")
@@ -256,33 +280,32 @@ app.MapGet("/generatesettlementtrust", (string authToken, string message, string
 .WithOpenApi(g =>
 {
     g.Parameters[0].Description = "Authorisation token for the communication.";
-    g.Parameters[1].Description = "Message to be delivered to the customer.";
-    g.Parameters[2].Description = "Invoice for the job.";
-    g.Parameters[3].Description = "Request payload";
-    g.Parameters[4].Description = "Gig-worker certificate";
+    g.Parameters[1].Description = "Requested properties of the replier.";
+    g.Parameters[2].Description = "Message to be encrypted";
+    g.Parameters[3].Description = "Invoice for the job.";
+    g.Parameters[4].Description = "Request payload";
     return g;
 });
 
-app.MapGet("/revealsymmetrickey", (string authToken, Guid gigId, string repliperPubKey) =>
+app.MapGet("/encryptobjectforcertificateid", (Guid certificateId, string objectSerialized) =>
 {
-    var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-    return Singlethon.Settler.RevealSymmetricKey(pubkey, gigId, repliperPubKey);
+    byte[] encryptedReplyPayload = Singlethon.Settler.EncryptObjectForCertificateId(Convert.FromBase64String(objectSerialized), certificateId);
+    return Convert.ToBase64String(encryptedReplyPayload);
 })
-.WithName("RevealSymmetricKey")
-.WithSummary("Reveals symmetric key that customer can use to decrypt the message from gig-worker.")
-.WithDescription("Reveals symmetric key that customer can use to decrypt the message from gig-worker. This key is secret as long as the gig-job is not marked as accepted.")
+.WithName("EncryptObjectForCertificateId")
+.WithSummary("Encrypts the object using public key related to the specific certioficate id.")
+.WithDescription("Encrypts the object using public key related to the specific certioficate id.")
 .WithOpenApi(g =>
 {
-    g.Parameters[0].Description = "Authorisation token for the communication.";
-    g.Parameters[1].Description = "Gig-job identifier.";
-    g.Parameters[2].Description = "Public key of the replier.";
+    g.Parameters[0].Description = "Certificate ID";
+    g.Parameters[1].Description = "Serialized Object";
     return g;
 });
 
-app.MapGet("/managedispute", (string authToken, Guid gigId, string repliperPubKey, bool open) =>
+app.MapGet("/managedispute", async (string authToken, Guid gigId, Guid repliperCertificateId, bool open) =>
 {
     Singlethon.Settler.ValidateAuthToken(authToken);
-    Singlethon.Settler.ManageDispute(gigId, repliperPubKey, open);
+    await Singlethon.Settler.ManageDisputeAsync(gigId, repliperCertificateId, open);
 })
 .WithName("ManageDispute")
 .WithSummary("Allows opening and closing disputes.")
@@ -291,7 +314,7 @@ app.MapGet("/managedispute", (string authToken, Guid gigId, string repliperPubKe
 {
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
     g.Parameters[1].Description = "Gig-job identifier.";
-    g.Parameters[2].Description = "Public key of the replier.";
+    g.Parameters[2].Description = "CertificateId of the replier.";
     g.Parameters[3].Description = "True to open/False to close dispute.";
     return g;
 });
@@ -303,11 +326,11 @@ app.Run(settlerSettings.ServiceUri.AbsoluteUri);
 
 public class SettlerSettings
 {
-    public Uri ServiceUri { get; set; }
-    public Uri GigWalletOpenApi { get; set; }
-    public long PriceAmountForSettlement { get; set; }
-    public string ConnectionString { get; set; }
-    public string SettlerPrivateKey { get; set; }
-    public long InvoicePaymentTimeoutSec { get; set; }
-    public long DisputeTimeoutSec { get; set; }
+    public required Uri ServiceUri { get; set; }
+    public required Uri GigWalletOpenApi { get; set; }
+    public required long PriceAmountForSettlement { get; set; }
+    public required string ConnectionString { get; set; }
+    public required string SettlerPrivateKey { get; set; }
+    public required long InvoicePaymentTimeoutSec { get; set; }
+    public required long DisputeTimeoutSec { get; set; }
 }

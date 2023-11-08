@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.SignalR;
 using LNDWallet;
 using Nito.AsyncEx;
+using System.Runtime.CompilerServices;
 
 namespace GigLNDWalletAPI;
 
@@ -45,13 +46,13 @@ public class PaymentStatusUpdatesHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public async Task Monitor(string authToken, string paymentHash)
+    public void Monitor(string authToken, string paymentHash)
     {
         var account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
         Singlethon.PaymentHashes4ConnectionId.AddItem(account.PublicKey, paymentHash);
     }
 
-    public async IAsyncEnumerable<string> Streaming(string authToken, CancellationToken cancellationToken)
+    public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
         while (true)

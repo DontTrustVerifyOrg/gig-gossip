@@ -28,7 +28,7 @@ public class LNDChannelManager
     public void Start()
 	{
 		_mainThreadStop = 0;
-        mainThread = new Thread(() =>
+        mainThread = new Thread(async () =>
 		{
 			var peersof2 = new HashSet<string>(from p in walletManager.ListPeers().Peers select p.PubKey + "@" + p.Address.Replace("127.0.0.1", "localhost"));
 
@@ -49,8 +49,8 @@ public class LNDChannelManager
 				try
 				{
 					foreach (var friend in nearbyNodes)
-						GoForOpeningNewChannelsForNodeAsync(friend.Split("@")[0], maxSatoshisPerChannel, estimatedTxFee).Wait();
-					GoForExecutingPayoutsAsync(estimatedTxFee).Wait();
+						await GoForOpeningNewChannelsForNodeAsync(friend.Split("@")[0], maxSatoshisPerChannel, estimatedTxFee);
+					await GoForExecutingPayoutsAsync(estimatedTxFee);
 				}
 				catch(Exception ex)
 				{
@@ -71,21 +71,21 @@ public class LNDChannelManager
 
 	public async Task GoForOpeningNewChannelsForNodeAsync(string nodePubKey, long maxSatoshisPerChannel, long estimatedTxFee)
 	{
-        var activeFunding = walletManager.GetChannelFundingBalance(6);
-        if (activeFunding > 0)
-            try
-            {
-                var ocs=walletManager.OpenChannel(nodePubKey, activeFunding - estimatedTxFee > maxSatoshisPerChannel? maxSatoshisPerChannel - estimatedTxFee:-1);
-				while(await ocs.ResponseStream.MoveNext())
+		var activeFunding = walletManager.GetChannelFundingBalance(6);
+		if (activeFunding > 0)
+			try
+			{
+				var ocs = walletManager.OpenChannel(nodePubKey, activeFunding - estimatedTxFee > maxSatoshisPerChannel ? maxSatoshisPerChannel - estimatedTxFee : -1);
+				while (await ocs.ResponseStream.MoveNext())
 				{
 					if (ocs.ResponseStream.Current.UpdateCase == OpenStatusUpdate.UpdateOneofCase.ChanOpen)
 						return;
 				}
-            }
-            catch (Exception ex)
-            {
-                Trace.TraceError(ex.ToString());
-            }
+			}
+			catch (Exception ex)
+			{
+				Trace.TraceError(ex.ToString());
+			}
 	}
 
 	public async Task GoForExecutingPayoutsAsync(long estimatedTxFee)

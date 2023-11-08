@@ -1,15 +1,16 @@
-﻿using Grpc.Core;
-using Invoicesrpc;
+﻿using Invoicesrpc;
 using Lnrpc;
-using NBitcoin;
 using Routerrpc;
 using CryptoToolkit;
+using Grpc.Net.Client;
+using Grpc.Core;
+using System.Security.Cryptography.X509Certificates;
+using System.Net.Http;
 
 namespace LNDClient;
 
 public static class LND
 {
-
     public class NodeSettings
     {
         public required string MacaroonFile { get; set; }
@@ -18,33 +19,49 @@ public static class LND
         public required string ListenHost { get; set; }
     }
 
+    public static HttpClient GetSSLHttpClient(string tlsCertFile)
+    {
+        var httpClientHandler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        };
+
+        var clientCert = new X509Certificate2(tlsCertFile);
+        httpClientHandler.ClientCertificates.Add(clientCert);
+
+        return new HttpClient(httpClientHandler);
+    }
 
     static Invoicesrpc.Invoices.InvoicesClient InvoicesClient(NodeSettings conf)
     {
-        var channel = new Grpc.Core.Channel(conf.RpcHost, GetSslCredentials(conf));
-        var client = new Invoicesrpc.Invoices.InvoicesClient(channel);
-        return client;
+        return Client<Invoicesrpc.Invoices.InvoicesClient>(conf);
     }
 
     static Routerrpc.Router.RouterClient RouterClient(NodeSettings conf)
     {
-        var channel = new Grpc.Core.Channel(conf.RpcHost, GetSslCredentials(conf));
-        var client = new Routerrpc.Router.RouterClient(channel);
-        return client;
+        return Client<Routerrpc.Router.RouterClient>(conf);
     }
 
     static Lnrpc.Lightning.LightningClient LightningClient(NodeSettings conf)
     {
-        var channel = new Grpc.Core.Channel(conf.RpcHost, GetSslCredentials(conf));
-        var client = new Lnrpc.Lightning.LightningClient(channel);
-        return client;
+        return Client<Lnrpc.Lightning.LightningClient>(conf);
     }
 
     static Walletrpc.WalletKit.WalletKitClient WalletKit(NodeSettings conf)
     {
-        var channel = new Grpc.Core.Channel(conf.RpcHost, GetSslCredentials(conf));
-        var client = new Walletrpc.WalletKit.WalletKitClient(channel);
-        return client;
+        return Client<Walletrpc.WalletKit.WalletKitClient>(conf);
+    }
+
+
+    static T Client<T>(NodeSettings conf) where T : ClientBase<T>
+    {
+        var channel = GrpcChannel.ForAddress(conf.RpcHost,
+            new GrpcChannelOptions {
+                HttpClient = GetSSLHttpClient(conf.TlsCertFile.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))) });
+
+        var ctors = typeof(T).GetConstructors();
+        var ctor = ctors.First(x => x.GetParameters().Length == 1 && x.GetParameters().Single().Name == "channel");
+        return ctor.Invoke(new object[] { channel }) as T;
     }
 
 

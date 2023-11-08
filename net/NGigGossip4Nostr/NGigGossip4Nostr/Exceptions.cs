@@ -6,16 +6,19 @@ public enum GigGossipNodeErrorCode
 {
     Ok = 0,
     SelfConnection = 1,
+    FrameTypeNotRegistered = 2,
 }
-public static class Extensions
+
+public static class ExceptionExtensions
 {
-    static string[] errorMesssages = new string[]{
+    static string[] gigGossipErrorMesssages = new string[]{
         "",
         "Cannot connect node to itself",
+        "This frame type is not registered",
     };
     public static string Message(this GigGossipNodeErrorCode errorCode)
     {
-        return errorMesssages[(int)errorCode];
+        return gigGossipErrorMesssages[(int)errorCode];
     }
 }
 

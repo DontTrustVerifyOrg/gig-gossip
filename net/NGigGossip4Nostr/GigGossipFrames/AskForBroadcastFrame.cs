@@ -1,4 +1,6 @@
 ﻿using System;
+using CryptoToolkit;
+
 namespace NGigGossip4Nostr;
 
 /// <summary>
@@ -16,6 +18,6 @@ public class AskForBroadcastFrame
     /// <summary>
     /// Gets or sets the signed payload for the request. This contains the necessary data for processing the request.
     /// </summary>
-    public required RequestPayload SignedRequestPayload { get; set; }
+    public required Certificate<RequestPayloadValue> SignedRequestPayload { get; set; }
 }
 

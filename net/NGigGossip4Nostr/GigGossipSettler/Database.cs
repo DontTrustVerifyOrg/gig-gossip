@@ -78,10 +78,6 @@ public class UserCertificate
     public required string PublicKey { get; set; }
 
     /// <summary>
-    /// The certificate in byte array format.
-    /// </summary>
-    public required byte[] TheCertificate { get; set; }
-    /// <summary>
     /// Represent whether the certificate is revoked.
     /// </summary>
     public required bool IsRevoked { get; set; }
@@ -146,7 +142,7 @@ public enum GigSubStatus
 /// <summary>
 /// A gig job
 /// </summary>
-[PrimaryKey(nameof(GigId), nameof(ReplierPublicKey))]
+[PrimaryKey(nameof(GigId), nameof(ReplierCertificateId))]
 public class Gig
 {
     /// <summary>
@@ -159,12 +155,12 @@ public class Gig
     /// The public key of the replier.
     /// </summary>
     [Column(Order = 2)]
-    public required string ReplierPublicKey { get; set; }
+    public required Guid ReplierCertificateId { get; set; }
 
     /// <summary>
     /// The public key of the sender.
     /// </summary>
-    public required string SenderPublicKey { get; set; }
+    public required Guid SenderCertificateId { get; set; }
 
     /// <summary>
     /// The symmetric key.

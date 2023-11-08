@@ -5,30 +5,36 @@ namespace GigLNDWalletAPIClient
 	public class PaymentStatusUpdatesClient
 	{
         swaggerClient swaggerClient;
+        private readonly HttpMessageHandler? httpMessageHandler;
         HubConnection connection;
 
-        public PaymentStatusUpdatesClient(swaggerClient swaggerClient)
+        public PaymentStatusUpdatesClient(swaggerClient swaggerClient, HttpMessageHandler? httpMessageHandler = null)
 		{
             this.swaggerClient = swaggerClient;
+            this.httpMessageHandler = httpMessageHandler;
         }
 
-		public void Connect(string authToken)
+		public async Task ConnectAsync(string authToken)
 		{
-            connection = new HubConnectionBuilder()
-                .WithUrl(swaggerClient.BaseUrl + "paymentstatusupdates?authtoken=" + Uri.EscapeDataString(authToken))
-                .WithAutomaticReconnect()
-                .Build();
-            connection.StartAsync().Wait();
+            var builder = new HubConnectionBuilder().WithAutomaticReconnect();
+
+            if (httpMessageHandler != null)
+                builder.WithUrl(swaggerClient.BaseUrl + "paymentstatusupdates?authtoken=" + Uri.EscapeDataString(authToken), (options) => { options.HttpMessageHandlerFactory = (messageHndl) => { return httpMessageHandler; }; });
+            else
+                builder.WithUrl(swaggerClient.BaseUrl + "paymentstatusupdates?authtoken=" + Uri.EscapeDataString(authToken));
+
+            connection = builder.Build();
+            await connection.StartAsync();
         }
 
-        public void Monitor(string authToken, string paymentHash)
+        public async Task MonitorAsync(string authToken, string paymentHash)
         {
-            connection.SendAsync("Monitor", authToken, paymentHash).Wait();
+            await connection.SendAsync("Monitor", authToken, paymentHash);
         }
 
         public IAsyncEnumerable<string> StreamAsync(string authToken, CancellationToken cancellationToken)
         {
-            return connection.StreamAsync<string>("Streaming", authToken, cancellationToken);
+            return connection.StreamAsync<string>("StreamAsync", authToken, cancellationToken);
         }
     }
 }

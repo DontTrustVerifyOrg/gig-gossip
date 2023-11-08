@@ -20,27 +20,28 @@ using System.Xml.Linq;
 using GigGossipSettlerAPIClient;
 using System.IO;
 using static NBitcoin.Protocol.Behaviors.ChainBehavior;
+using System.Collections.Concurrent;
 
 [Serializable]
 public class InvoiceAcceptedData
 {
-    public string NetworkInvoice { get; set; }
-    public string NetworkInvoicePaymentHash { get; set; }
-    public int TotalSeconds { get; set; }
+    public required string NetworkInvoice { get; set; }
+    public required string NetworkInvoicePaymentHash { get; set; }
+    public required int TotalSeconds { get; set; }
 }
 
 [Serializable]
 public class PaymentData
 {
-    public string Invoice { get; set; }
-    public string PaymentHash { get; set; }
+    public required string Invoice { get; set; }
+    public required string PaymentHash { get; set; }
 }
 
 
 public interface IGigGossipNodeEvents
 {
-    public void OnNewResponse(GigGossipNode me, ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice);
-    public void OnResponseReady(GigGossipNode me, ReplyPayload replyPayload, string key);
+    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice);
+    public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key);
     public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame);
     public void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac);
     public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage);
@@ -50,15 +51,12 @@ public interface IGigGossipNodeEvents
 public class AcceptBroadcastResponse
 {
     public required Uri SettlerServiceUri { get; set; }
-    public required Certificate MyCertificate { get; set; }
+    public required string [] Properties { get; set; }
     public required byte[] Message { get; set; }
     public required long Fee { get; set; }
 }
 
-public interface ISettlerSelector : ICertificationAuthorityAccessor
-{
-    GigGossipSettlerAPIClient.swaggerClient GetSettlerClient(Uri ServiceUri);
-}
+
 
 public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitorEvents
 {
@@ -71,24 +69,29 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
     protected int fanout;
 
     public GigLNDWalletAPIClient.swaggerClient LNDWalletClient;
-    Dictionary<Uri, SymmetricKeyRevealClient> settlerSymmetricKeyRevelClients = new();
-    Dictionary<Uri, PreimageRevealClient> settlerPreimageRevelClients = new();
+    private ConcurrentDictionary<Uri, SymmetricKeyRevealClient> settlerSymmetricKeyRevelClients = new();
+    private ConcurrentDictionary<Uri, PreimageRevealClient> settlerPreimageRevelClients = new();
     protected Guid _walletToken;
-    protected Dictionary<Uri, Guid> _settlerToken;
+    protected ConcurrentDictionary<Uri, Guid> _settlerToken;
 
     public ISettlerSelector SettlerSelector;
-    protected LNDWalletMonitor lndWalletMonitor;
-    protected SettlerMonitor settlerMonitor;
+    protected LNDWalletMonitor _lndWalletMonitor;
+    protected SettlerMonitor _settlerMonitor;
 
-    IGigGossipNodeEvents gigGossipNodeEvents;
+    private IGigGossipNodeEvents gigGossipNodeEvents;
 
     internal ThreadLocal<GigGossipNodeContext> nodeContext;
 
     public InvoiceStateUpdatesClient InvoiceStateUpdatesClient;
     public PaymentStatusUpdatesClient PaymentStatusUpdatesClient;
 
-    public GigGossipNode(string connectionString, ECPrivKey privKey, string[] nostrRelays, int chunkSize, bool deleteDb = false) : base(privKey, nostrRelays, chunkSize)
+    public GigGossipNode(string connectionString, ECPrivKey privKey, int chunkSize, bool deleteDb = false) : base(privKey, chunkSize)
     {
+        RegisterFrameType<AskForBroadcastFrame>();
+        RegisterFrameType<POWBroadcastConditionsFrame>();
+        RegisterFrameType<POWBroadcastFrame>();
+        RegisterFrameType<ReplyFrame>();
+
         this.nodeContext = new ThreadLocal<GigGossipNodeContext>(() => new GigGossipNodeContext(connectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))));
         if (deleteDb)
             nodeContext.Value.Database.EnsureDeleted();
@@ -97,7 +100,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
     public void Init(int fanout, long priceAmountForRouting, TimeSpan broadcastConditionsTimeout, string broadcastConditionsPowScheme,
                            int broadcastConditionsPowComplexity, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
-                           GigLNDWalletAPIClient.swaggerClient lndWalletClient)
+                           GigLNDWalletAPIClient.swaggerClient lndWalletClient, HttpClient? httpClient = null)
     {
         this.fanout = fanout;
         this.priceAmountForRouting = priceAmountForRouting;
@@ -107,34 +110,42 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         this.timestampTolerance = timestampTolerance;
         this.invoicePaymentTimeout = invoicePaymentTimeout;
 
-        this.LNDWalletClient = lndWalletClient;
-        this._walletToken = lndWalletClient.GetTokenAsync(this.PublicKey).Result;
+        LNDWalletClient = lndWalletClient;
 
-        this.SettlerSelector = new SimpleSettlerSelector();
-        this._settlerToken = new();
+        SettlerSelector = new SimpleSettlerSelector(httpClient);
 
-        this.lndWalletMonitor = new LNDWalletMonitor(this);
-        this.settlerMonitor = new SettlerMonitor(this);
-        this.LoadContactList();
+        _lndWalletMonitor = new LNDWalletMonitor(this);
+        _settlerMonitor = new SettlerMonitor(this);
+
+        LoadContactList();
     }
 
-    public void Start(IGigGossipNodeEvents gigGossipNodeEvents)
+    public async Task StartAsync(string[] nostrRelays, IGigGossipNodeEvents gigGossipNodeEvents, HttpMessageHandler? httpMessageHandler = null)
     {
         this.gigGossipNodeEvents = gigGossipNodeEvents;
-        InvoiceStateUpdatesClient = new InvoiceStateUpdatesClient(this.LNDWalletClient);
-        InvoiceStateUpdatesClient.Connect(MakeWalletAuthToken());
-        PaymentStatusUpdatesClient = new PaymentStatusUpdatesClient(this.LNDWalletClient);
-        PaymentStatusUpdatesClient.Connect(MakeWalletAuthToken());
-        this.lndWalletMonitor.Start();
-        this.settlerMonitor.Start();
-        base.Start();
+
+        _walletToken = await LNDWalletClient.GetTokenAsync(this.PublicKey);
+        var token = MakeWalletAuthToken();
+
+        InvoiceStateUpdatesClient = new InvoiceStateUpdatesClient(this.LNDWalletClient, httpMessageHandler);
+        await InvoiceStateUpdatesClient.ConnectAsync(token);
+
+        PaymentStatusUpdatesClient = new PaymentStatusUpdatesClient(this.LNDWalletClient, httpMessageHandler);
+        await PaymentStatusUpdatesClient.ConnectAsync(token);
+
+        await _lndWalletMonitor.StartAsync();
+
+        _settlerToken = new();
+        await _settlerMonitor.StartAsync();
+
+        await base.StartAsync(nostrRelays);
     }
 
     public override void Stop()
     {
         base.Stop();
-        this.lndWalletMonitor.Stop();
-        this.settlerMonitor.Stop();
+        this._lndWalletMonitor.Stop();
+        this._settlerMonitor.Stop();
     }
 
 
@@ -172,12 +183,14 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         }
     }
 
-    public void PublishContactList()
+    public async Task PublishContactListAsync()
     {
+        Dictionary<string, NostrContact> cl;
         lock (_contactList)
         {
-            this.PublishContactList(_contactList);
+            cl = new Dictionary<string, NostrContact>(_contactList);
         }
+        await this.PublishContactListAsync(cl);
     }
 
     public void LoadContactList()
@@ -216,32 +229,6 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         }
     }
 
-    public void LoadCertificates(Uri settler)
-    {
-        var settlerClient = this.SettlerSelector.GetSettlerClient(settler);
-        var authToken = MakeSettlerAuthTokenAsync(settler).Result;
-        var mycerts = new HashSet<Guid>(settlerClient.ListCertificatesAsync(
-             authToken, this.PublicKey
-            ).Result);
-
-        mycerts.ExceptWith(from c in this.nodeContext.Value.UserCertificates where c.PublicKey == this.PublicKey select c.CertificateId);
-
-        foreach (var cid in mycerts)
-        {
-            var scert = settlerClient.GetCertificateAsync(
-                 authToken, this.PublicKey,
-                cid.ToString()
-                ).Result;
-            this.nodeContext.Value.AddObject(
-                new UserCertificate()
-                {
-                    PublicKey = this.PublicKey,
-                    CertificateId = cid,
-                    TheCertificate = scert
-                });
-        }
-    }
-
     public string MakeWalletAuthToken()
     {
         return Crypto.MakeSignedTimedToken(this.privateKey, DateTime.Now, this._walletToken);
@@ -249,47 +236,33 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
     public async Task<string> MakeSettlerAuthTokenAsync(Uri serviceUri)
     {
-        Guid? token = null;
-        lock (this._settlerToken)
-        {
-            if (this._settlerToken.ContainsKey(serviceUri))
-                token = this._settlerToken[serviceUri];
-        }
-        if (token == null)
-        {
-            token = await SettlerSelector.GetSettlerClient(serviceUri).GetTokenAsync(this.PublicKey);
-            lock (this._settlerToken)
-            {
-                this._settlerToken[serviceUri] = token.Value;
-            }
-        }
-        return Crypto.MakeSignedTimedToken(this.privateKey, DateTime.Now, token.Value);
+        return Crypto.MakeSignedTimedToken(
+            this.privateKey, DateTime.Now,
+            await _settlerToken.GetOrAddAsync(serviceUri, async (serviceUri) => await SettlerSelector.GetSettlerClient(serviceUri).GetTokenAsync(this.PublicKey)));
     }
 
-    public SymmetricKeyRevealClient GetSymmetricKeyRevealClient(Uri serviceUri)
+    public async Task<SymmetricKeyRevealClient> GetSymmetricKeyRevealClientAsync(Uri serviceUri)
     {
-        lock (settlerSymmetricKeyRevelClients)
-        {
-            if (!settlerSymmetricKeyRevelClients.ContainsKey(serviceUri))
+        return await settlerSymmetricKeyRevelClients.GetOrAddAsync(
+            serviceUri,
+            async (serviceUri) =>
             {
-                settlerSymmetricKeyRevelClients[serviceUri] = new SymmetricKeyRevealClient(SettlerSelector.GetSettlerClient(serviceUri));
-                settlerSymmetricKeyRevelClients[serviceUri].Connect(MakeSettlerAuthTokenAsync(serviceUri).Result);
-            }
-            return settlerSymmetricKeyRevelClients[serviceUri];
-        }
+                var newClient = new SymmetricKeyRevealClient(SettlerSelector.GetSettlerClient(serviceUri));
+                await newClient.ConnectAsync(await MakeSettlerAuthTokenAsync(serviceUri));
+                return newClient;
+            });
     }
 
-    public PreimageRevealClient GetPreimageRevealClient(Uri serviceUri)
+    public async Task<PreimageRevealClient> GetPreimageRevealClientAsync(Uri serviceUri)
     {
-        lock (settlerPreimageRevelClients)
-        {
-            if (!settlerPreimageRevelClients.ContainsKey(serviceUri))
+        return await settlerPreimageRevelClients.GetOrAddAsync(
+            serviceUri,
+            async (serviceUri) =>
             {
-                settlerPreimageRevelClients[serviceUri] = new PreimageRevealClient(SettlerSelector.GetSettlerClient(serviceUri));
-                settlerPreimageRevelClients[serviceUri].Connect(MakeSettlerAuthTokenAsync(serviceUri).Result);
-            }
-            return settlerPreimageRevelClients[serviceUri];
-        }
+                var newClient = new PreimageRevealClient(SettlerSelector.GetSettlerClient(serviceUri));
+                await newClient.ConnectAsync(await MakeSettlerAuthTokenAsync(serviceUri));
+                return newClient;
+            });
     }
 
     public List<string> GetBroadcastContactList(Guid payloadId , string? originatorPublicKey)
@@ -298,27 +271,24 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         var contacts = new HashSet<string>(GetContacts());
         var alreadyBroadcasted = (from inc in this.nodeContext.Value.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.PayloadId == payloadId select inc.ContactPublicKey).ToList();
         contacts.ExceptWith(alreadyBroadcasted);
+        if(originatorPublicKey!=null)
+            contacts.ExceptWith(new string[] { originatorPublicKey });
         if (contacts.Count == 0)
             return new List<string>();
 
         var retcontacts= (from r in contacts.AsEnumerable().OrderBy(x => rnd.Next()).Take(this.fanout) select new BroadcastHistoryRow() { ContactPublicKey=r, PayloadId=payloadId, PublicKey=this.PublicKey});
         this.nodeContext.Value.AddObjectRange(retcontacts);
-        if(originatorPublicKey!=null)
-        {
-            var ogi = (from inc in this.nodeContext.Value.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.PayloadId == payloadId && inc.ContactPublicKey == originatorPublicKey select inc).FirstOrDefault();
-            if (ogi == null)
-                this.nodeContext.Value.AddObject(new BroadcastHistoryRow() { ContactPublicKey = originatorPublicKey, PayloadId = payloadId, PublicKey = this.PublicKey });
-        }
+
         return (from r in retcontacts select r.ContactPublicKey).ToList();
     }
 
 
-    public void Broadcast(RequestPayload requestPayload,
+    public async Task BroadcastAsync(Certificate<RequestPayloadValue> requestPayload,
                         string? originatorPublicKey = null,
                         OnionRoute? backwardOnion = null)
     {
 
-        var tobroadcast = GetBroadcastContactList(requestPayload.PayloadId,originatorPublicKey);
+        var tobroadcast = GetBroadcastContactList(requestPayload.Value.PayloadId,originatorPublicKey);
         if (tobroadcast.Count==0)
         {
             Trace.TraceInformation("already broadcasted");
@@ -327,8 +297,6 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
         foreach (var peerPublicKey in tobroadcast)
         {
-            if (peerPublicKey == originatorPublicKey)
-                continue;
 
             AskForBroadcastFrame askForBroadcastFrame = new AskForBroadcastFrame()
             {
@@ -345,13 +313,6 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                 Timestamp = null
             };
 
-            if ((from b in this.nodeContext.Value.BroadcastPayloadsByAskId
-                 where b.PublicKey == this.PublicKey && b.AskId == askForBroadcastFrame.AskId
-                 select b).FirstOrDefault() != null)
-                return;
-
-            this.SendMessage(peerPublicKey, askForBroadcastFrame,true);
-
             this.nodeContext.Value.AddObject(
                 new BroadcastPayloadRow()
                 {
@@ -359,10 +320,12 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                     AskId = askForBroadcastFrame.AskId,
                     TheBroadcastPayload = Crypto.SerializeObject(broadcastPayload)
                 });
+
+            await this.SendMessageAsync(peerPublicKey, askForBroadcastFrame, true);
         }
     }
 
-    public void OnAskForBroadcastFrame(string messageId, string peerPublicKey, AskForBroadcastFrame askForBroadcastFrame)
+    public async Task OnAskForBroadcastFrameAsync(string messageId, string peerPublicKey, AskForBroadcastFrame askForBroadcastFrame)
     {
         POWBroadcastConditionsFrame powBroadcastConditionsFrame = new POWBroadcastConditionsFrame()
         {
@@ -384,11 +347,11 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                 ThePOWBroadcastConditionsFrame = Crypto.SerializeObject(powBroadcastConditionsFrame)
             });
 
-        SendMessage(peerPublicKey, powBroadcastConditionsFrame,true);
+        await SendMessageAsync(peerPublicKey, powBroadcastConditionsFrame,true);
         MarkMessageAsDone(messageId);
     }
 
-    public void OnPOWBroadcastConditionsFrame(string messageId, string peerPublicKey, POWBroadcastConditionsFrame powBroadcastConditionsFrame)
+    public async Task OnPOWBroadcastConditionsFrameAsync(string messageId, string peerPublicKey, POWBroadcastConditionsFrame powBroadcastConditionsFrame)
     {
         if (DateTime.Now <= powBroadcastConditionsFrame.ValidTill)
         {
@@ -404,10 +367,10 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                 POWBroadcastFrame powBroadcastFrame = new POWBroadcastFrame()
                 {
                     AskId = powBroadcastConditionsFrame.AskId,
-                    BroadcastPayload = broadcastPayload,
+                    SignedBroadcastPayload = broadcastPayload,
                     ProofOfWork = pow
                 };
-                SendMessage(peerPublicKey, powBroadcastFrame,true);
+                await SendMessageAsync(peerPublicKey, powBroadcastFrame,true);
                 FlowLogger.NewMessage(this.PublicKey, peerPublicKey, "broadcast");
             }
         }
@@ -415,7 +378,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
     }
 
 
-    public void OnPOWBroadcastFrame(string messageId, string peerPublicKey, POWBroadcastFrame powBroadcastFrame)
+    public async Task OnPOWBroadcastFrameAsync(string messageId, string peerPublicKey, POWBroadcastFrame powBroadcastFrame)
     {
         var brow = (from b in this.nodeContext.Value.POWBroadcastConditionsFrameRowByAskId
                     where b.PublicKey == this.PublicKey && b.AskId == powBroadcastFrame.AskId
@@ -441,19 +404,19 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             return;
         }
 
-        if (powBroadcastFrame.BroadcastPayload.Timestamp > DateTime.Now)
+        if (powBroadcastFrame.SignedBroadcastPayload.Timestamp > DateTime.Now)
         {
             MarkMessageAsDone(messageId);
             return;
         }
 
-        if (powBroadcastFrame.BroadcastPayload.Timestamp + myPowBroadcastConditionFrame.TimestampTolerance < DateTime.Now)
+        if (powBroadcastFrame.SignedBroadcastPayload.Timestamp + myPowBroadcastConditionFrame.TimestampTolerance < DateTime.Now)
         {
             MarkMessageAsDone(messageId);
             return;
         }
 
-        if (!powBroadcastFrame.Verify(SettlerSelector))
+        if (!await powBroadcastFrame.VerifyAsync(SettlerSelector))
         {
             MarkMessageAsDone(messageId);
             return;
@@ -463,20 +426,20 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         MarkMessageAsDone(messageId);
     }
 
-    public void BroadcastToPeers(string peerPublicKey, POWBroadcastFrame powBroadcastFrame)
+    public async Task BroadcastToPeersAsync(string peerPublicKey, POWBroadcastFrame powBroadcastFrame)
     {
-        this.Broadcast(
-            requestPayload: powBroadcastFrame.BroadcastPayload.SignedRequestPayload,
+        await this.BroadcastAsync(
+            requestPayload: powBroadcastFrame.SignedBroadcastPayload.SignedRequestPayload,
             originatorPublicKey: peerPublicKey,
-            backwardOnion: powBroadcastFrame.BroadcastPayload.BackwardOnion);
+            backwardOnion: powBroadcastFrame.SignedBroadcastPayload.BackwardOnion);
     }
 
-    public void AcceptBroadcast(string peerPublicKey, POWBroadcastFrame powBroadcastFrame, AcceptBroadcastResponse acceptBroadcastResponse)
+    public async Task AcceptBroadcastAsync(string peerPublicKey, POWBroadcastFrame powBroadcastFrame, AcceptBroadcastResponse acceptBroadcastResponse)
     {
         var abror = (from abx in this.nodeContext.Value.AcceptedBroadcasts
                        where abx.PublicKey == this.PublicKey
                        && abx.ReplierPublicKey == this.PublicKey
-                       && abx.PayloadId == powBroadcastFrame.BroadcastPayload.SignedRequestPayload.PayloadId
+                       && abx.PayloadId == powBroadcastFrame.SignedBroadcastPayload.SignedRequestPayload.Value.PayloadId
                        && abx.SettlerServiceUri == acceptBroadcastResponse.SettlerServiceUri
                        select abx).FirstOrDefault();
 
@@ -485,23 +448,22 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         {
             FlowLogger.NewMessage(this.PublicKey, Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), "getSecret");
             var settlerClient = this.SettlerSelector.GetSettlerClient(acceptBroadcastResponse.SettlerServiceUri);
-            var authToken = MakeSettlerAuthTokenAsync(acceptBroadcastResponse.SettlerServiceUri).Result;
-            var replyPaymentHash = settlerClient.GenerateReplyPaymentPreimageAsync(authToken, powBroadcastFrame.BroadcastPayload.SignedRequestPayload.PayloadId.ToString(),this.PublicKey).Result;
-            var replyInvoice = (LNDWalletClient.AddHodlInvoiceAsync(MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds)).Result.PaymentRequest;
+            var authToken = await MakeSettlerAuthTokenAsync(acceptBroadcastResponse.SettlerServiceUri);
+            var replyPaymentHash = await settlerClient.GenerateReplyPaymentPreimageAsync(authToken, powBroadcastFrame.SignedBroadcastPayload.SignedRequestPayload.Value.PayloadId.ToString(),this.PublicKey);
+            var replyInvoice =  (await LNDWalletClient.AddHodlInvoiceAsync(MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds)).PaymentRequest;
             FlowLogger.SetupParticipantWithAutoAlias(replyPaymentHash, "I",false);
             FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), replyPaymentHash, "hash");
             FlowLogger.NewMessage(this.PublicKey, replyPaymentHash, "create");
-            this.settlerMonitor.MonitorPreimage(
+            await this._settlerMonitor.MonitorPreimageAsync(
                 acceptBroadcastResponse.SettlerServiceUri,
                 replyPaymentHash);
-            var signedRequestPayloadSerialized = Crypto.SerializeObject(powBroadcastFrame.BroadcastPayload.SignedRequestPayload);
-            var replierCertificateSerialized = Crypto.SerializeObject(acceptBroadcastResponse.MyCertificate);
-            var settr = settlerClient.GenerateSettlementTrustAsync(authToken, Convert.ToBase64String(acceptBroadcastResponse.Message), replyInvoice, Convert.ToBase64String(signedRequestPayloadSerialized), Convert.ToBase64String(replierCertificateSerialized)).Result;
+            var signedRequestPayloadSerialized = Crypto.SerializeObject(powBroadcastFrame.SignedBroadcastPayload.SignedRequestPayload);
+            var settr = await settlerClient.GenerateSettlementTrustAsync(authToken, acceptBroadcastResponse.Properties, Convert.ToBase64String(acceptBroadcastResponse.Message), replyInvoice, Convert.ToBase64String(signedRequestPayloadSerialized));
             var settlementTrust = Crypto.DeserializeObject<SettlementTrust>(Convert.FromBase64String(settr));
 
             var signedSettlementPromise = settlementTrust.SettlementPromise;
             var networkInvoice = settlementTrust.NetworkInvoice;
-            var decodedNetworkInvoice = LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), networkInvoice).Result;
+            var decodedNetworkInvoice = await LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), networkInvoice);
             FlowLogger.SetupParticipantWithAutoAlias(decodedNetworkInvoice.PaymentHash, "I", false);
             FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), decodedNetworkInvoice.PaymentHash, "create");
             var encryptedReplyPayload = settlementTrust.EncryptedReplyPayload;
@@ -510,22 +472,22 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             {
                 PublicKey = this.PublicKey,
                 ReplierPublicKey = this.PublicKey,
-                PayloadId = powBroadcastFrame.BroadcastPayload.SignedRequestPayload.PayloadId,
+                PayloadId = powBroadcastFrame.SignedBroadcastPayload.SignedRequestPayload.Value.PayloadId,
                 SettlerServiceUri = acceptBroadcastResponse.SettlerServiceUri,
                 EncryptedReplyPayload = encryptedReplyPayload,
                 NetworkInvoice = networkInvoice,
                 SignedSettlementPromise = Crypto.SerializeObject(signedSettlementPromise)
             });
 
-            FlowLogger.SetupParticipantWithAutoAlias(powBroadcastFrame.BroadcastPayload.SignedRequestPayload.PayloadId.ToString()+"_"+this.PublicKey, "K", false);
-            FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), powBroadcastFrame.BroadcastPayload.SignedRequestPayload.PayloadId.ToString() + "_" + this.PublicKey, "create");
-            FlowLogger.NewMessage(this.PublicKey, powBroadcastFrame.BroadcastPayload.SignedRequestPayload.PayloadId.ToString() + "_" + this.PublicKey, "encrypts");
+            FlowLogger.SetupParticipantWithAutoAlias(powBroadcastFrame.SignedBroadcastPayload.SignedRequestPayload.Value.PayloadId.ToString()+"_"+this.PublicKey, "K", false);
+            FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), powBroadcastFrame.SignedBroadcastPayload.SignedRequestPayload.Value.PayloadId.ToString() + "_" + this.PublicKey, "create");
+            FlowLogger.NewMessage(this.PublicKey, powBroadcastFrame.SignedBroadcastPayload.SignedRequestPayload.Value.PayloadId.ToString() + "_" + this.PublicKey, "encrypts");
 
             responseFrame = new ReplyFrame()
             {
                 EncryptedReplyPayload = encryptedReplyPayload,
                 SignedSettlementPromise = signedSettlementPromise,
-                ForwardOnion = powBroadcastFrame.BroadcastPayload.BackwardOnion,
+                ForwardOnion = powBroadcastFrame.SignedBroadcastPayload.BackwardOnion,
                 NetworkInvoice = networkInvoice
             };
         }
@@ -535,98 +497,106 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             {
                 EncryptedReplyPayload = abror.EncryptedReplyPayload,
                 SignedSettlementPromise = Crypto.DeserializeObject<SettlementPromise>(abror.SignedSettlementPromise),
-                ForwardOnion = powBroadcastFrame.BroadcastPayload.BackwardOnion,
+                ForwardOnion = powBroadcastFrame.SignedBroadcastPayload.BackwardOnion,
                 NetworkInvoice = abror.NetworkInvoice
             };
         }
 
-        this.OnResponseFrame(null, peerPublicKey, responseFrame, newResponse: true);
+        await this.OnResponseFrameAsync(null, peerPublicKey, responseFrame, newResponse: true);
     }
 
-    public void OnResponseFrame(string messageId, string peerPublicKey, ReplyFrame responseFrame, bool newResponse = false)
+    public async Task OnResponseFrameAsync(string messageId, string peerPublicKey, ReplyFrame responseFrame, bool newResponse = false)
     {
-        var decodedNetworkInvoice = LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), responseFrame.NetworkInvoice).Result;
-        if (responseFrame.ForwardOnion.IsEmpty())
+        try
         {
-            FlowLogger.NewMessage(peerPublicKey, this.PublicKey, "reply");
-            ReplyPayload replyPayload = responseFrame.DecryptAndVerify(privateKey, SettlerSelector.GetPubKey(responseFrame.SignedSettlementPromise.ServiceUri), this.SettlerSelector);
-            if (replyPayload == null)
+            var decodedNetworkInvoice = await LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), responseFrame.NetworkInvoice);
+            if (responseFrame.ForwardOnion.IsEmpty())
             {
-                Trace.TraceError("reply payload mismatch");
-                if (messageId != null) MarkMessageAsDone(messageId);
-                return;
-            }
-            var payloadId = replyPayload.SignedRequestPayload.PayloadId;
-
-            settlerMonitor.MonitorSymmetricKey(responseFrame.SignedSettlementPromise.ServiceUri, payloadId, replyPayload.ReplierCertificate.PublicKey, Crypto.SerializeObject(replyPayload));
-
-            var decodedReplyInvoice = LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), replyPayload.ReplyInvoice).Result;
-
-            this.nodeContext.Value.AddObject(
-                new ReplyPayloadRow()
+                FlowLogger.NewMessage(peerPublicKey, this.PublicKey, "reply");
+                var settlerPubKey = await SettlerSelector.GetPubKeyAsync(responseFrame.SignedSettlementPromise.RequestersServiceUri);
+                var replyPayload = await responseFrame.DecryptAndVerifyAsync(privateKey, settlerPubKey, this.SettlerSelector);
+                if (replyPayload == null)
                 {
-                    ReplyId = Guid.NewGuid(),
-                    PublicKey = this.PublicKey,
-                    PayloadId = payloadId,
-                    ReplierPublicKey = replyPayload.ReplierCertificate.PublicKey,
-                    ReplyInvoice = replyPayload.ReplyInvoice,
-                    DecodedReplyInvoice = Crypto.SerializeObject(decodedReplyInvoice),
-                    NetworkInvoice = responseFrame.NetworkInvoice,
-                    DecodedNetworkInvoice = Crypto.SerializeObject(decodedNetworkInvoice),
-                    TheReplyPayload = Crypto.SerializeObject(replyPayload)
-                });
+                    Trace.TraceError("reply payload mismatch");
+                    if (messageId != null) MarkMessageAsDone(messageId);
+                    return;
+                }
+                var payloadId = replyPayload.Value.SignedRequestPayload.Value.PayloadId;
 
-            gigGossipNodeEvents.OnNewResponse(this, replyPayload, replyPayload.ReplyInvoice, decodedReplyInvoice, responseFrame.NetworkInvoice, decodedNetworkInvoice);
-        }
-        else
-        {
-            var topLayerPublicKey = responseFrame.ForwardOnion.Peel(privateKey);
-            if (!responseFrame.SignedSettlementPromise.Verify(responseFrame.EncryptedReplyPayload, this.SettlerSelector))
-            {
-                if (messageId != null) MarkMessageAsDone(messageId);
-                return;
+                await _settlerMonitor.MonitorSymmetricKeyAsync(responseFrame.SignedSettlementPromise.ServiceUri, replyPayload.Value.SignedRequestPayload.Id, payloadId, replyPayload.Id, Crypto.SerializeObject(replyPayload));
+
+                var decodedReplyInvoice = await LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), replyPayload.Value.ReplyInvoice);
+
+                this.nodeContext.Value.AddObject(
+                    new ReplyPayloadRow()
+                    {
+                        ReplyId = Guid.NewGuid(),
+                        PublicKey = this.PublicKey,
+                        PayloadId = payloadId,
+                        ReplierCertificateId = replyPayload.Id,
+                        ReplyInvoice = replyPayload.Value.ReplyInvoice,
+                        DecodedReplyInvoice = Crypto.SerializeObject(decodedReplyInvoice),
+                        NetworkInvoice = responseFrame.NetworkInvoice,
+                        DecodedNetworkInvoice = Crypto.SerializeObject(decodedNetworkInvoice),
+                        TheReplyPayload = Crypto.SerializeObject(replyPayload)
+                    });
+
+                gigGossipNodeEvents.OnNewResponse(this, replyPayload, replyPayload.Value.ReplyInvoice, decodedReplyInvoice, responseFrame.NetworkInvoice, decodedNetworkInvoice);
             }
-            if (!newResponse)
+            else
             {
-                FlowLogger.NewReply(peerPublicKey, this.PublicKey, "reply");
-                var settlerClient = this.SettlerSelector.GetSettlerClient(responseFrame.SignedSettlementPromise.ServiceUri);
-                var settok = MakeSettlerAuthTokenAsync(responseFrame.SignedSettlementPromise.ServiceUri).Result;
-
-                if (!settlerClient.ValidateRelatedPaymentHashesAsync(settok,
-                    responseFrame.SignedSettlementPromise.NetworkPaymentHash.AsHex(),
-                    decodedNetworkInvoice.PaymentHash).Result)
+                var topLayerPublicKey = responseFrame.ForwardOnion.Peel(privateKey);
+                if (!await responseFrame.SignedSettlementPromise.VerifyAsync(responseFrame.EncryptedReplyPayload, this.SettlerSelector))
                 {
                     if (messageId != null) MarkMessageAsDone(messageId);
                     return;
                 }
+                if (!newResponse)
+                {
+                    FlowLogger.NewReply(peerPublicKey, this.PublicKey, "reply");
+                    var settlerClient = this.SettlerSelector.GetSettlerClient(responseFrame.SignedSettlementPromise.ServiceUri);
+                    var settok = await MakeSettlerAuthTokenAsync(responseFrame.SignedSettlementPromise.ServiceUri);
 
-                var relatedNetworkPaymentHash = settlerClient.GenerateRelatedPreimageAsync(
-                    settok,
-                    decodedNetworkInvoice.PaymentHash).Result;
-
-                var networkInvoice = LNDWalletClient.AddHodlInvoiceAsync(
-                    this.MakeWalletAuthToken(),
-                    decodedNetworkInvoice.NumSatoshis + this.priceAmountForRouting,
-                    relatedNetworkPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds).Result;
-                FlowLogger.SetupParticipantWithAutoAlias(relatedNetworkPaymentHash, "I", false);
-                FlowLogger.NewMessage(this.PublicKey, relatedNetworkPaymentHash, "create");
-                this.lndWalletMonitor.MonitorInvoice(
-                    relatedNetworkPaymentHash,
-                    Crypto.SerializeObject(new InvoiceAcceptedData()
+                    if (!await settlerClient.ValidateRelatedPaymentHashesAsync(settok,
+                        responseFrame.SignedSettlementPromise.NetworkPaymentHash.AsHex(),
+                        decodedNetworkInvoice.PaymentHash))
                     {
-                        NetworkInvoice = responseFrame.NetworkInvoice,
-                        NetworkInvoicePaymentHash = decodedNetworkInvoice.PaymentHash,
-                        TotalSeconds = (int)invoicePaymentTimeout.TotalSeconds
-                    }));
-                this.settlerMonitor.MonitorPreimage(
-                    responseFrame.SignedSettlementPromise.ServiceUri,
-                    relatedNetworkPaymentHash);
-                responseFrame = responseFrame.DeepCopy();
-                responseFrame.NetworkInvoice = networkInvoice.PaymentRequest;
+                        if (messageId != null) MarkMessageAsDone(messageId);
+                        return;
+                    }
+
+                    var relatedNetworkPaymentHash = await settlerClient.GenerateRelatedPreimageAsync(
+                        settok,
+                        decodedNetworkInvoice.PaymentHash);
+
+                    var networkInvoice = await LNDWalletClient.AddHodlInvoiceAsync(
+                        this.MakeWalletAuthToken(),
+                        decodedNetworkInvoice.NumSatoshis + this.priceAmountForRouting,
+                        relatedNetworkPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds);
+                    FlowLogger.SetupParticipantWithAutoAlias(relatedNetworkPaymentHash, "I", false);
+                    FlowLogger.NewMessage(this.PublicKey, relatedNetworkPaymentHash, "create");
+                    await this._lndWalletMonitor.MonitorInvoiceAsync(
+                        relatedNetworkPaymentHash,
+                        Crypto.SerializeObject(new InvoiceAcceptedData()
+                        {
+                            NetworkInvoice = responseFrame.NetworkInvoice,
+                            NetworkInvoicePaymentHash = decodedNetworkInvoice.PaymentHash,
+                            TotalSeconds = (int)invoicePaymentTimeout.TotalSeconds
+                        }));
+                    await this._settlerMonitor.MonitorPreimageAsync(
+                        responseFrame.SignedSettlementPromise.ServiceUri,
+                        relatedNetworkPaymentHash);
+                    responseFrame = responseFrame.DeepCopy();
+                    responseFrame.NetworkInvoice = networkInvoice.PaymentRequest;
+                }
+                await SendMessageAsync(topLayerPublicKey, responseFrame, false, DateTime.Now + invoicePaymentTimeout);
             }
-            SendMessage(topLayerPublicKey, responseFrame, false, DateTime.Now + invoicePaymentTimeout);
+            if (messageId != null) MarkMessageAsDone(messageId);
         }
-        if (messageId != null) MarkMessageAsDone(messageId);
+        catch(Exception ex)
+        {
+            int x = 10;
+        }
     }
 
     public IQueryable<ReplyPayloadRow> GetReplyPayloads(Guid payloadId)
@@ -645,19 +615,19 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         }
     }
 
-    public void PayNetworkInvoice(InvoiceAcceptedData iac)
+    public async Task PayNetworkInvoiceAsync(InvoiceAcceptedData iac)
     {
-        if (lndWalletMonitor.IsPaymentMonitored(iac.NetworkInvoicePaymentHash))
+        if (_lndWalletMonitor.IsPaymentMonitored(iac.NetworkInvoicePaymentHash))
             return;
-        lndWalletMonitor.MonitorPayment(iac.NetworkInvoicePaymentHash, Crypto.SerializeObject(
+        await _lndWalletMonitor.MonitorPaymentAsync(iac.NetworkInvoicePaymentHash, Crypto.SerializeObject(
             new PaymentData()
             {
                 Invoice = iac.NetworkInvoice,
                 PaymentHash = iac.NetworkInvoicePaymentHash
             }));
-        LNDWalletClient.SendPaymentAsync(
+        await LNDWalletClient.SendPaymentAsync(
             MakeWalletAuthToken(), iac.NetworkInvoice, iac.TotalSeconds
-            ).Wait();
+            );
     }
 
     public void OnPaymentStatusChange(string status, byte[] data)
@@ -667,14 +637,14 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         FlowLogger.NewMessage(this.PublicKey, pay.PaymentHash, "pay_" + status);
     }
 
-    public void OnPreimageRevealed(Uri serviceUri, string phash, string preimage)
+    public async Task OnPreimageRevealedAsync(Uri serviceUri, string phash, string preimage)
     {
         try
         {
-            LNDWalletClient.SettleInvoiceAsync(
+            await LNDWalletClient.SettleInvoiceAsync(
                 MakeWalletAuthToken(),
                 preimage
-                ).Wait();
+                );
             FlowLogger.NewMessage(Encoding.Default.GetBytes(serviceUri.AbsoluteUri).AsHex(), phash, "revealed");
             FlowLogger.NewMessage(this.PublicKey, phash, "settled");
             gigGossipNodeEvents.OnInvoiceSettled(this, serviceUri, phash, preimage);
@@ -688,33 +658,32 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
     public void OnSymmetricKeyRevealed(byte[] data, string key)
     {
-        ReplyPayload replyPayload = Crypto.DeserializeObject<ReplyPayload>(data);
-        FlowLogger.NewMessage(this.PublicKey, replyPayload.SignedRequestPayload.PayloadId.ToString() + "_" + replyPayload.ReplierCertificate.PublicKey, "decrypt");
+        var replyPayload = Crypto.DeserializeObject<Certificate<ReplyPayloadValue>>(data);
         gigGossipNodeEvents.OnResponseReady(this, replyPayload, key);
     }
 
-    public void AcceptResponse(ReplyPayload replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    public async Task AcceptResponseAsync(Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
-        if (!lndWalletMonitor.IsPaymentMonitored(decodedNetworkInvoice.PaymentHash))
+        if (!_lndWalletMonitor.IsPaymentMonitored(decodedNetworkInvoice.PaymentHash))
         {
-            lndWalletMonitor.MonitorPayment(decodedNetworkInvoice.PaymentHash, Crypto.SerializeObject(
+            await _lndWalletMonitor.MonitorPaymentAsync(decodedNetworkInvoice.PaymentHash, Crypto.SerializeObject(
             new PaymentData()
             {
                 Invoice = networkInvoice,
                 PaymentHash = decodedNetworkInvoice.PaymentHash
             }));
-            LNDWalletClient.SendPaymentAsync(MakeWalletAuthToken(), networkInvoice, (int)this.invoicePaymentTimeout.TotalSeconds).Wait();
+            await LNDWalletClient.SendPaymentAsync(MakeWalletAuthToken(), networkInvoice, (int)this.invoicePaymentTimeout.TotalSeconds);
         }
 
-        if (!lndWalletMonitor.IsPaymentMonitored(decodedReplyInvoice.PaymentHash))
+        if (!_lndWalletMonitor.IsPaymentMonitored(decodedReplyInvoice.PaymentHash))
         {
-            lndWalletMonitor.MonitorPayment(decodedReplyInvoice.PaymentHash, Crypto.SerializeObject(
+            await _lndWalletMonitor.MonitorPaymentAsync(decodedReplyInvoice.PaymentHash, Crypto.SerializeObject(
             new PaymentData()
             {
                 Invoice = replyInvoice,
                 PaymentHash = decodedReplyInvoice.PaymentHash
             }));
-            LNDWalletClient.SendPaymentAsync(MakeWalletAuthToken(), replyInvoice, (int)this.invoicePaymentTimeout.TotalSeconds).Wait();
+            await LNDWalletClient.SendPaymentAsync(MakeWalletAuthToken(), replyInvoice, (int)this.invoicePaymentTimeout.TotalSeconds);
         }
     }
 
@@ -728,46 +697,43 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         this.nodeContext.Value.AddObject(new MessageDoneRow() { MessageId = messageId, PublicKey = this.PublicKey });
     }
 
-    public override void OnMessage(string messageId, string senderPublicKey, object frame)
+    public override async Task OnMessageAsync(string messageId, string senderPublicKey, object frame)
     {
         if (IsMessageDone(messageId))
             return; //Already Processed
 
         if (frame is AskForBroadcastFrame)
         {
-            OnAskForBroadcastFrame(messageId, senderPublicKey, (AskForBroadcastFrame)frame);
+            await OnAskForBroadcastFrameAsync(messageId, senderPublicKey, (AskForBroadcastFrame)frame);
         }
         else if (frame is POWBroadcastConditionsFrame)
         {
-            OnPOWBroadcastConditionsFrame(messageId, senderPublicKey, (POWBroadcastConditionsFrame)frame);
+            await OnPOWBroadcastConditionsFrameAsync(messageId, senderPublicKey, (POWBroadcastConditionsFrame)frame);
         }
         else if (frame is POWBroadcastFrame)
         {
-            OnPOWBroadcastFrame(messageId, senderPublicKey, (POWBroadcastFrame)frame);
+            await OnPOWBroadcastFrameAsync(messageId, senderPublicKey, (POWBroadcastFrame)frame);
         }
         else if (frame is ReplyFrame)
         {
-            OnResponseFrame(messageId, senderPublicKey, (ReplyFrame)frame);
+            await OnResponseFrameAsync(messageId, senderPublicKey, (ReplyFrame)frame);
         }
         else
         {
-            Trace.TraceError("unknown request: ", senderPublicKey, frame);
+            throw new GigGossipException(GigGossipNodeErrorCode.FrameTypeNotRegistered);
         }
 
     }
 
-    public Guid BroadcastTopic<T>(T topic, Certificate certificate)
+    public async Task<Certificate<RequestPayloadValue>> BroadcastTopicAsync<T>(T topic, Uri mysettlerUri, string[] properties)
     {
-        var topicId = Guid.NewGuid();
-        var t = new RequestPayload()
-        {
-            PayloadId = topicId,
-            Topic = Crypto.SerializeObject(topic),
-            SenderCertificate = certificate
-        };
-        t.Sign(this.privateKey);
-        this.Broadcast(t);
-        return topicId;
+        var t = Crypto.DeserializeObject<Certificate<RequestPayloadValue>>(
+            Convert.FromBase64String(
+                await this.SettlerSelector.GetSettlerClient(mysettlerUri)
+                    .GenerateRequestPayloadAsync(await MakeSettlerAuthTokenAsync(mysettlerUri),
+                        properties, Convert.ToBase64String(Crypto.SerializeObject(topic)))));
+        await this.BroadcastAsync(t);
+        return t;
     }
 
 }

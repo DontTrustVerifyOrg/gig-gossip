@@ -8,17 +8,12 @@ namespace NGigGossip4Nostr;
 /// Represents the payload of a reply message.
 /// </summary>
 [Serializable]
-public class ReplyPayload
+public class ReplyPayloadValue
 {
-    /// <summary>
-    /// Gets or sets the certificate of the replier.
-    /// </summary>
-    public required Certificate ReplierCertificate { get; set; }
-
     /// <summary>
     /// Gets or sets the signed request payload.
     /// </summary>
-    public required RequestPayload SignedRequestPayload { get; set; }
+    public required Certificate<RequestPayloadValue> SignedRequestPayload { get; set; }
 
     /// <summary>
     /// Gets or sets the encrypted reply message.
@@ -29,35 +24,5 @@ public class ReplyPayload
     /// Gets or sets the reply invoice.
     /// </summary>
     public required string ReplyInvoice { get; set; }
-
-    /// <summary>
-    /// Verifies the validity of the reply payload.
-    /// </summary>
-    /// <param name="caAccessor">
-    /// The certification authority accessor to use for verification.
-    /// </param>
-    /// <returns>
-    /// <c>true</c> if the verification succeeded; otherwise, <c>false</c>.
-    /// </returns>
-    /// <see cref="Certificate.Verify(ICertificationAuthorityAccessor)"/>
-    /// <see cref="RequestPayload.Verify(ECXOnlyPubKey)"/>
-    public bool Verify(ICertificationAuthorityAccessor caAccessor)
-    {
-        if (!this.ReplierCertificate.Verify(caAccessor))
-        {
-            return false;
-        }
-
-        if (!this.SignedRequestPayload.SenderCertificate.Verify(caAccessor))
-        {
-            return false;
-        }
-
-        if (!this.SignedRequestPayload.Verify(this.SignedRequestPayload.SenderCertificate.PublicKey.AsECXOnlyPubKey()))
-        {
-            return false;
-        }
-
-        return true;
-    }
 }
+

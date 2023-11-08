@@ -16,6 +16,11 @@ public class SettlementPromise : SignableObject
     public required Uri ServiceUri { get; set; }
 
     /// <summary>
+    /// Gets or sets the service URI of the Requester Settler.
+    /// </summary>
+    public required Uri RequestersServiceUri { get; set; }
+
+    /// <summary>
     /// Gets or sets the network payment hash.
     /// </summary>
     public required byte[] NetworkPaymentHash { get; set; }
@@ -36,9 +41,9 @@ public class SettlementPromise : SignableObject
     /// <param name="encryptedSignedReplyPayload">The encrypted signed reply payload.</param>
     /// <param name="caAccessor">The certification authority accessor.</param>
     /// <returns><c>true</c> if the verification was successful; otherwise, <c>false</c>.</returns>
-    public bool Verify(byte[] encryptedSignedReplyPayload, ICertificationAuthorityAccessor caAccessor)
+    public async Task<bool> VerifyAsync(byte[] encryptedSignedReplyPayload, ICertificationAuthorityAccessor caAccessor)
     {
-        if (!base.Verify(caAccessor.GetPubKey(ServiceUri)))
+        if (!base.Verify(await caAccessor.GetPubKeyAsync(ServiceUri)))
             return false;
 
         if (!Crypto.ComputeSha256(encryptedSignedReplyPayload).SequenceEqual(this.HashOfEncryptedReplyPayload))
@@ -71,6 +76,7 @@ public class SettlementPromise : SignableObject
         return new SettlementPromise()
         {
             ServiceUri = this.ServiceUri,
+            RequestersServiceUri = this.RequestersServiceUri,
             NetworkPaymentHash = this.NetworkPaymentHash.ToArray(),
             HashOfEncryptedReplyPayload = this.HashOfEncryptedReplyPayload.ToArray(),
             ReplyPaymentAmount = this.ReplyPaymentAmount,

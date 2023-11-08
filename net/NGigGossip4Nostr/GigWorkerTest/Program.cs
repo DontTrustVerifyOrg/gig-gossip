@@ -13,9 +13,9 @@ internal class Program
 
     static void Main(string[] args)
     {
-         //     new GigWorkerBasicTest.BasicTest(args).Run();
-         //new GigWorkerMediumTest.MediumTest(args).Run();
-         new GigWorkerComplexTest.ComplexTest(args).Run();
+        //new GigWorkerBasicTest.BasicTest(args).RunAsync().Wait();
+        new GigWorkerMediumTest.MediumTest(args).RunAsync().Wait();
+        //new GigWorkerComplexTest.ComplexTest(args).RunAsync().Wait();
     }
 
 }

@@ -163,6 +163,158 @@
         }
       }
     },
+    "/verifychannel": {
+      "get": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "summary": "Start verification of specific channel.",
+        "description": "Starts verification of specific channel.",
+        "operationId": "VerifyChannel",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pubkey",
+            "in": "query",
+            "description": "Public key of the subject.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Channel name (phone,email,...)",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "method",
+            "in": "query",
+            "description": "Method (sms,call,message)",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "value",
+            "in": "query",
+            "description": "Value of Channel for the method (phone number, email address).",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/submitchannelsecret": {
+      "get": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "summary": "Submits the secret code for the channel.",
+        "description": "Returns -1 if the secret is correct, otherwise the number of retires left is returned.",
+        "operationId": "SubmitChannelSecret",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pubkey",
+            "in": "query",
+            "description": "Public key of the subject.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Channel name (phone,email,...)",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "method",
+            "in": "query",
+            "description": "Method (sms,call,message)",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "value",
+            "in": "query",
+            "description": "Value of Channel for the method (phone number, email address).",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "secret",
+            "in": "query",
+            "description": "Secret received from the channel.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/revokeuserproperty": {
       "get": {
         "tags": [
@@ -204,167 +356,6 @@
         "responses": {
           "200": {
             "description": "OK"
-          }
-        }
-      }
-    },
-    "/issuecertificate": {
-      "get": {
-        "tags": [
-          "GigGossipSettlerAPI"
-        ],
-        "summary": "Issues a new Digital Certificate for the Subject.",
-        "description": "Issues a new Digital Certificate for the Subject. Only authorised users can issue the certificate.",
-        "operationId": "IssueCertificate",
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user including Subject.",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "query",
-            "description": "Public key of the Subject.",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "properties",
-            "in": "query",
-            "description": "List of properties for the certificate",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "string",
-                  "format": "byte"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/getcertificate": {
-      "get": {
-        "tags": [
-          "GigGossipSettlerAPI"
-        ],
-        "summary": "Returns an existing Digital Certificate for the Subject.",
-        "description": "Returns an existing Digital Certificate for the Subject. Only authorised users can get the certificate.",
-        "operationId": "GetCertificate",
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user including Subject.",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "query",
-            "description": "Public key of the Subject.",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "certid",
-            "in": "query",
-            "description": "Serial number of the certificate.",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "string",
-                  "format": "byte"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/listcertificates": {
-      "get": {
-        "tags": [
-          "GigGossipSettlerAPI"
-        ],
-        "summary": "Lists serial numbers of all Digital Certificate issued for the Subject.",
-        "description": "Lists serial numbers of all Digital Certificate issued for the Subject. Only authorised users can list certificates.",
-        "operationId": "ListCertificates",
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user including Subject.",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "query",
-            "description": "Public key of the Subject.",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "format": "uuid"
-                  }
-                }
-              }
-            }
           }
         }
       }
@@ -472,8 +463,8 @@
         "tags": [
           "GigGossipSettlerAPI"
         ],
-        "summary": "Validates if payment if the given paymentHash was generated by this settler and returns its hash..",
-        "description": "Generates new reply payment preimage for the lightning network HODL invoice. Allows implementing payment chains. This preimage is secret as long as the gig-job referenced paymentHash is not marked as settled. The method returns hash of this preimage.",
+        "summary": "Validates if given paymentHashes were generated by the same settler for the same gig.",
+        "description": "Validates if given paymentHashes were generated by the same settler for the same gig. Allows implementing payment chains. The method returns true if the condition is met, false otherwise.",
         "operationId": "ValidateRelatedPaymentHashes",
         "parameters": [
           {
@@ -499,6 +490,7 @@
           {
             "name": "paymentHash2",
             "in": "query",
+            "description": "Payment hash of related HODL invoice.",
             "required": true,
             "style": "form",
             "schema": {
@@ -564,6 +556,127 @@
         }
       }
     },
+    "/revealsymmetrickey": {
+      "get": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "summary": "Reveals symmetric key that customer can use to decrypt the message from gig-worker.",
+        "description": "Reveals symmetric key that customer can use to decrypt the message from gig-worker. This key is secret as long as the gig-job is not marked as accepted.",
+        "operationId": "RevealSymmetricKey",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorisation token for the communication.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "senderCertificateId",
+            "in": "query",
+            "description": "CertificateId of the sender.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "gigId",
+            "in": "query",
+            "description": "Gig-job identifier.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "repliperCertificateId",
+            "in": "query",
+            "description": "CertificateId of the replier.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/generaterequestpayload": {
+      "get": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "summary": "Genertes RequestPayload for the specific topic.",
+        "description": "Genertes RequestPayload for the specific topic.",
+        "operationId": "GenerateRequestPayload",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorisation token for the communication.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "properties",
+            "in": "query",
+            "description": "Requested properties of the sender.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "serialisedTopic",
+            "in": "query",
+            "description": "Topic",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/generatesettlementtrust": {
       "get": {
         "tags": [
@@ -584,9 +697,22 @@
             }
           },
           {
+            "name": "properties",
+            "in": "query",
+            "description": "Requested properties of the replier.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
             "name": "message",
             "in": "query",
-            "description": "Message to be delivered to the customer.",
+            "description": "Message to be encrypted",
             "required": true,
             "style": "form",
             "schema": {
@@ -612,16 +738,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "replierCertificateSerialized",
-            "in": "query",
-            "description": "Gig-worker certificate",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -638,19 +754,19 @@
         }
       }
     },
-    "/revealsymmetrickey": {
+    "/encryptobjectforcertificateid": {
       "get": {
         "tags": [
           "GigGossipSettlerAPI"
         ],
-        "summary": "Reveals symmetric key that customer can use to decrypt the message from gig-worker.",
-        "description": "Reveals symmetric key that customer can use to decrypt the message from gig-worker. This key is secret as long as the gig-job is not marked as accepted.",
-        "operationId": "RevealSymmetricKey",
+        "summary": "Encrypts the object using public key related to the specific certioficate id.",
+        "description": "Encrypts the object using public key related to the specific certioficate id.",
+        "operationId": "EncryptObjectForCertificateId",
         "parameters": [
           {
-            "name": "authToken",
+            "name": "certificateId",
             "in": "query",
-            "description": "Authorisation token for the communication.",
+            "description": "Certificate ID",
             "required": true,
             "style": "form",
             "schema": {
@@ -658,19 +774,9 @@
             }
           },
           {
-            "name": "gigId",
+            "name": "objectSerialized",
             "in": "query",
-            "description": "Gig-job identifier.",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "repliperPubKey",
-            "in": "query",
-            "description": "Public key of the replier.",
+            "description": "Serialized Object",
             "required": true,
             "style": "form",
             "schema": {
@@ -722,9 +828,9 @@
             }
           },
           {
-            "name": "repliperPubKey",
+            "name": "repliperCertificateId",
             "in": "query",
-            "description": "Public key of the replier.",
+            "description": "CertificateId of the replier.",
             "required": true,
             "style": "form",
             "schema": {

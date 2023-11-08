@@ -38,14 +38,11 @@ public class ReplyFrame
     /// <param name="pubKey">The public key for decryption.</param>
     /// <param name="caAccessor">The Certification Authority accessor used for verification.</param>
     /// <returns>Returns decrypted reply payload if verification is successful, otherwise returns null.</returns>
-    public ReplyPayload DecryptAndVerify(ECPrivKey privKey, ECXOnlyPubKey pubKey, ICertificationAuthorityAccessor caAccessor)
+    public async Task<Certificate<ReplyPayloadValue>> DecryptAndVerifyAsync(ECPrivKey privKey, ECXOnlyPubKey pubKey, ICertificationAuthorityAccessor caAccessor)
     {
-        ReplyPayload replyPayload = Crypto.DecryptObject<ReplyPayload>(this.EncryptedReplyPayload, privKey,pubKey);
+        var replyPayload = Crypto.DecryptObject<Certificate<ReplyPayloadValue>>(this.EncryptedReplyPayload, privKey, pubKey);
 
-        if (!replyPayload.ReplierCertificate.Verify(caAccessor))
-            throw new InvalidOperationException();
-
-        if (!replyPayload.Verify(caAccessor))
+        if (!await replyPayload.VerifyAsync(caAccessor))
             throw new InvalidOperationException();
 
         return replyPayload;
