@@ -116,7 +116,7 @@ services:
   settler_api:
     image: awazcognitum/gig-gossip-base:0.1
 
-    container_name: giggossip_wallet_api
+    container_name: giggossip_settler_api
     restart: on-failure
     working_dir: /work/gig-gossip/net/NGigGossip4Nostr/GigGossipSettlerAPI
     command: sh -c "dotnet build && dotnet ./bin/Debug/net7.0/GigGossipSettlerAPI.dll --basedir=/work/locallnd/.giggossip/"
