@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
 using NBitcoin;
+using NBitcoin.Protocol;
 using NBitcoin.RPC;
 using NBitcoin.Secp256k1;
 using Newtonsoft.Json.Linq;
@@ -325,17 +326,28 @@ public class Settler : CertificationAuthority
         return Crypto.EncryptObject(Crypto.DeserializeObject<Certificate<ReplyPayloadValue>>(bytes), pubkey.AsECXOnlyPubKey(), this._CaPrivateKey);
     }
 
-    public Certificate<RequestPayloadValue> GenerateRequestPayload(string senderspubkey, string[] sendersproperties, byte[] topic)
+    public Tuple<Certificate<RequestPayloadValue>, Certificate<CancelRequestPayloadValue>> GenerateRequestPayload(string senderspubkey, string[] sendersproperties, byte[] topic)
     {
-        return this.IssueCertificate<RequestPayloadValue>(
+        var guid = Guid.NewGuid();
+
+        var cert1 = this.IssueCertificate<RequestPayloadValue>(
             senderspubkey,
             sendersproperties,
             new RequestPayloadValue
             {
-                PayloadId = Guid.NewGuid(),
+                PayloadId = guid,
                 Topic = topic
             }
         );
+        var cert2 = this.IssueCertificate < CancelRequestPayloadValue>(
+            senderspubkey,
+            sendersproperties,
+            new CancelRequestPayloadValue
+            {
+                PayloadId = guid
+            }
+        );
+        return Tuple.Create(cert1, cert2);
     }
 
     public async Task ManageDisputeAsync(Guid tid, Guid repliercertificateId, bool open)

@@ -225,7 +225,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)
+    public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
         await me.PayNetworkInvoiceAsync(iac);
     }
@@ -252,6 +252,22 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
     public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
     {
     }
+
+    public void OnCancelBroadcast(GigGossipNode me, string peerPublicKey, CancelBroadcastFrame broadcastFrame)
+    {
+    }
+
+    public void OnNetworkInvoiceCancelled(GigGossipNode me, InvoiceData iac)
+    {
+    }
+
+    public void OnInvoiceAccepted(GigGossipNode me, InvoiceData iac)
+    {
+    }
+
+    public void OnInvoiceCancelled(GigGossipNode me, InvoiceData iac)
+    {
+    }
 }
 
 public class CustomerGossipNodeEvents : IGigGossipNodeEvents
@@ -264,7 +280,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     {
     }
 
-    public void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceAcceptedData iac)
+    public void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
     }
 
@@ -288,6 +304,22 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     }
 
     public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
+    {
+    }
+
+    public void OnCancelBroadcast(GigGossipNode me, string peerPublicKey, CancelBroadcastFrame broadcastFrame)
+    {
+    }
+
+    public void OnNetworkInvoiceCancelled(GigGossipNode me, InvoiceData iac)
+    {
+    }
+
+    public void OnInvoiceAccepted(GigGossipNode me, InvoiceData iac)
+    {
+    }
+
+    public void OnInvoiceCancelled(GigGossipNode me, InvoiceData iac)
     {
     }
 }

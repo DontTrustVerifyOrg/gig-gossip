@@ -10,7 +10,7 @@ public class POWBroadcastConditionsFrame
     /// <summary>
     /// Gets or sets the unique identifier (AskId) of the broadcast condition.
     /// </summary>
-    public required Guid AskId { get; set; }
+    public required Guid PayloadId { get; set; }
 
     /// <summary>
     /// Gets or sets the validity period of the broadcast condition.

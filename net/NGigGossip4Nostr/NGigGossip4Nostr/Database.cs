@@ -10,29 +10,7 @@ using NNostr.Client;
 namespace NGigGossip4Nostr;
 
 
-/// <summary>
-/// Represents a certificate issued for the Subject by Certification Authority.
-/// </summary>
-[PrimaryKey(nameof(PublicKey), nameof(CertificateId))]
-public class UserCertificate
-{
-    /// <summary>
-    /// The public key of the subject.
-    /// </summary>
-    [Column(Order = 1)]
-    public required string PublicKey { get; set; }
-
-    [Column(Order = 2)]
-    public required Guid CertificateId { get; set; }
-
-
-    /// <summary>
-    /// The certificate in byte array format.
-    /// </summary>
-    public required byte[] TheCertificate { get; set; }
-}
-
-[PrimaryKey(nameof(PublicKey), nameof(AskId))]
+[PrimaryKey(nameof(PublicKey), nameof(PayloadId))]
 public class BroadcastPayloadRow
 {
     /// <summary>
@@ -42,7 +20,7 @@ public class BroadcastPayloadRow
     public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public required Guid AskId { get; set; }
+    public required Guid PayloadId { get; set; }
 
     public required byte[] TheBroadcastPayload { get; set; }
 }
@@ -78,6 +56,21 @@ public class BroadcastHistoryRow
     public required string ContactPublicKey { get; set; }
 }
 
+[PrimaryKey(nameof(PublicKey), nameof(PayloadId), nameof(ContactPublicKey))]
+public class BroadcastCancelHistoryRow
+{
+    /// <summary>
+    /// The public key of the subject.
+    /// </summary>
+    [Column(Order = 1)]
+    public required string PublicKey { get; set; }
+
+    [Column(Order = 2)]
+    public required Guid PayloadId { get; set; }
+
+    [Column(Order = 3)]
+    public required string ContactPublicKey { get; set; }
+}
 
 [PrimaryKey(nameof(PublicKey), nameof(ReplyId))]
 public class ReplyPayloadRow
@@ -241,10 +234,10 @@ public class GigGossipNodeContext : DbContext
         this.connectionString = connectionString;
     }
 
-    public DbSet<UserCertificate> UserCertificates { get; set; }
-    public DbSet<BroadcastPayloadRow> BroadcastPayloadsByAskId { get; set; }
-    public DbSet<POWBroadcastConditionsFrameRow> POWBroadcastConditionsFrameRowByAskId { get; set; }
+    public DbSet<BroadcastPayloadRow> BroadcastPayloadsByPayloadId { get; set; }
+    public DbSet<POWBroadcastConditionsFrameRow> POWBroadcastConditionsFrameRowByPayloadId { get; set; }
     public DbSet<BroadcastHistoryRow> BroadcastHistory { get; set; }
+    public DbSet<BroadcastCancelHistoryRow> BroadcastCancelHistory { get; set; }
     public DbSet<ReplyPayloadRow> ReplyPayloads { get; set; }
     public DbSet<AcceptedBroadcastRow> AcceptedBroadcasts { get; set; }
     public DbSet<MonitoredInvoiceRow> MonitoredInvoices { get; set; }
@@ -268,14 +261,14 @@ public class GigGossipNodeContext : DbContext
         if (obj == null)
             throw new ArgumentNullException();
 
-        if (obj is UserCertificate)
-            return this.UserCertificates;
-        else if (obj is BroadcastPayloadRow)
-            return this.BroadcastPayloadsByAskId;
+        if (obj is BroadcastPayloadRow)
+            return this.BroadcastPayloadsByPayloadId;
         else if (obj is POWBroadcastConditionsFrameRow)
-            return this.POWBroadcastConditionsFrameRowByAskId;
+            return this.POWBroadcastConditionsFrameRowByPayloadId;
         else if (obj is BroadcastHistoryRow)
             return this.BroadcastHistory;
+        else if (obj is BroadcastCancelHistoryRow)
+            return this.BroadcastCancelHistory;
         else if (obj is ReplyPayloadRow)
             return this.ReplyPayloads;
         else if (obj is AcceptedBroadcastRow)
