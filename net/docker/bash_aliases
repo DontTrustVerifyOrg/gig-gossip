@@ -24,7 +24,7 @@ alias lncli2="docker exec -it giggossip_lightning_node_2 /work/lnd/lncli-debug -
 alias lncli3="docker exec -it giggossip_lightning_node_3 /work/lnd/lncli-debug -n regtest --lnddir=$LND_DIR --rpcserver=localhost:11010"
 
 
-docker run -it -v ./work/locallnd/.lnd:/work/locallnd/.lnd:ro --network=giggossip $GIGGOSSIP_BASE_IMAGE /work/lnd/lncli-debug -n regtest --lnddir=$LND_DIR --rpcserver=lightning_node_1:10009 getinfo
+# docker run -it -v ./work/locallnd/.lnd:/work/locallnd/.lnd:ro --network=giggossip $GIGGOSSIP_BASE_IMAGE /work/lnd/lncli-debug -n regtest --lnddir=$LND_DIR --rpcserver=lightning_node_1:10009 getinfo
 # gig-gossip
 
 export GIG_GOSSIP_DIR="/work/locallnd/.giggossip"
