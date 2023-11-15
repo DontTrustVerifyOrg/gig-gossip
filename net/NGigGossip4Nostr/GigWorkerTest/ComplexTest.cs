@@ -270,9 +270,9 @@ public class ComplexTest
 
 public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
 {
-    public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
+    public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
-        var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(broadcastFrame.TheBroadcastPayload.SignedRequestPayload.Value.Topic);
+        var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(broadcastFrame.SignedRequestPayload.Value.Topic);
         if (taxiTopic != null)
         {
             if (taxiTopic.FromGeohash.Length >= 7 &&
@@ -340,10 +340,10 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         this.settlerUri = settlerUri;
     }
 
-    public async void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
+    public async void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
         var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(
-            broadcastFrame.TheBroadcastPayload.SignedRequestPayload.Value.Topic);
+            broadcastFrame.SignedRequestPayload.Value.Topic);
 
         if (taxiTopic != null)
         {
@@ -411,7 +411,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     {
     }
 
-    public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
+    public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
     }
 
