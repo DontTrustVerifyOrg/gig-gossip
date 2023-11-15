@@ -26,7 +26,7 @@ namespace NGigGossip4Nostr
         {
             lock (logLines)
             {
-                logLines.Add(new LogLine() { Line = str, Moment = DateTime.Now });
+                logLines.Add(new LogLine() { Line = str, Moment = DateTime.UtcNow });
                 FlushLogLines();
             }
         }

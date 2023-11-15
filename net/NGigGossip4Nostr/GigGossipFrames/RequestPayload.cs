@@ -20,4 +20,8 @@ public class RequestPayloadValue
     /// </summary>
     public required byte[] Topic { get; set; }
 
+    /// <summary>
+    /// Gets or sets creation timestamp of the payload.
+    /// </summary>
+    public required DateTime Timestamp { get; set; }
 }

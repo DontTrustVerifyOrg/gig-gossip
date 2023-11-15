@@ -85,7 +85,7 @@ public class ComplexTest
         var settlerPubKey = settlerPrivKey.CreateXOnlyPubKey();
         var settlerClient = settlerSelector.GetSettlerClient(settlerAdminSettings.SettlerOpenApi);
         var gtok = await settlerClient.GetTokenAsync(settlerPubKey.AsHex());
-        var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.Now, gtok);
+        var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.UtcNow, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
         FlowLogger.SetupParticipantWithAutoAlias(Encoding.Default.GetBytes(settlerAdminSettings.SettlerOpenApi.AbsoluteUri).AsHex(), "settler", false);
@@ -138,7 +138,7 @@ public class ComplexTest
             await settlerClient.GiveUserPropertyAsync(
                     token, gigWorker.PublicKey,
                     "drive", val,
-                    (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
+                    (DateTime.UtcNow + TimeSpan.FromDays(1)).ToLongDateString()
                  );
 
             gigWorker.Init(
@@ -163,7 +163,7 @@ public class ComplexTest
             await settlerClient.GiveUserPropertyAsync(
                 token, customer.PublicKey,
                 "ride", val,
-                (DateTime.Now + TimeSpan.FromDays(1)).ToLongDateString()
+                (DateTime.UtcNow + TimeSpan.FromDays(1)).ToLongDateString()
              );
 
             customer.Init(
@@ -239,8 +239,8 @@ public class ComplexTest
             {
                 FromGeohash = fromGh,
                 ToGeohash = toGh,
-                PickupAfter = DateTime.Now,
-                DropoffBefore = DateTime.Now.AddMinutes(20)
+                PickupAfter = DateTime.UtcNow,
+                DropoffBefore = DateTime.UtcNow.AddMinutes(20)
             },
             gridNodeSettings.SettlerOpenApi, new string[] { "ride" });
 
@@ -272,12 +272,12 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
 {
     public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
     {
-        var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(broadcastFrame.SignedBroadcastPayload.SignedRequestPayload.Value.Topic);
+        var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(broadcastFrame.TheBroadcastPayload.SignedRequestPayload.Value.Topic);
         if (taxiTopic != null)
         {
             if (taxiTopic.FromGeohash.Length >= 7 &&
                    taxiTopic.ToGeohash.Length >= 7 &&
-                   taxiTopic.DropoffBefore >= DateTime.Now)
+                   taxiTopic.DropoffBefore >= DateTime.UtcNow)
             {
                 me.BroadcastToPeersAsync(peerPublicKey, broadcastFrame);
                 FlowLogger.NewEvent(me.PublicKey, "BroadcastToPeers");
@@ -343,7 +343,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
     public async void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, POWBroadcastFrame broadcastFrame)
     {
         var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(
-            broadcastFrame.SignedBroadcastPayload.SignedRequestPayload.Value.Topic);
+            broadcastFrame.TheBroadcastPayload.SignedRequestPayload.Value.Topic);
 
         if (taxiTopic != null)
         {

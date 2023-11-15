@@ -95,7 +95,7 @@ public static class Crypto
         var serialized = Convert.FromBase64String(TimedTokenBase64);
         TimedGuidToken timedToken = DeserializeObject<TimedGuidToken>(serialized);
         var ecpub = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(timedToken.PublicKey));
-        if ((DateTime.Now - timedToken.DateTime).TotalSeconds > seconds)
+        if ((DateTime.UtcNow - timedToken.DateTime).TotalSeconds > seconds)
             return null;
         var signature = timedToken.Signature;
         timedToken.Signature = null;

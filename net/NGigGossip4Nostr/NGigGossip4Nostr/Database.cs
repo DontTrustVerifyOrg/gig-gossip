@@ -9,37 +9,6 @@ using NNostr.Client;
 
 namespace NGigGossip4Nostr;
 
-
-[PrimaryKey(nameof(PublicKey), nameof(PayloadId))]
-public class BroadcastPayloadRow
-{
-    /// <summary>
-    /// The public key of the subject.
-    /// </summary>
-    [Column(Order = 1)]
-    public required string PublicKey { get; set; }
-
-    [Column(Order = 2)]
-    public required Guid PayloadId { get; set; }
-
-    public required byte[] TheBroadcastPayload { get; set; }
-}
-
-[PrimaryKey(nameof(PublicKey), nameof(AskId))]
-public class POWBroadcastConditionsFrameRow
-{
-    /// <summary>
-    /// The public key of the subject.
-    /// </summary>
-    [Column(Order = 1)]
-    public required string PublicKey { get; set; }
-
-    [Column(Order = 2)]
-    public required Guid AskId { get; set; }
-
-    public required byte[] ThePOWBroadcastConditionsFrame { get; set; }
-}
-
 [PrimaryKey(nameof(PublicKey), nameof(PayloadId), nameof(ContactPublicKey))]
 public class BroadcastHistoryRow
 {
@@ -94,7 +63,7 @@ public class ReplyPayloadRow
     public required byte[] DecodedReplyInvoice { get; set; }
 }
 
-[PrimaryKey(nameof(PublicKey), nameof(SettlerServiceUri), nameof(PayloadId), nameof(ReplierPublicKey))]
+[PrimaryKey(nameof(PublicKey), nameof(SettlerServiceUri), nameof(PayloadId), nameof(PeerPublicKey))]
 public class AcceptedBroadcastRow
 {
     /// <summary>
@@ -110,7 +79,7 @@ public class AcceptedBroadcastRow
     public required Guid PayloadId { get; set; }
 
     [Column(Order = 4)]
-    public required string ReplierPublicKey { get; set; }
+    public required string PeerPublicKey { get; set; }
 
     public required byte[] SignedSettlementPromise { get; set; }
     public required string NetworkInvoice { get; set; }
@@ -234,8 +203,6 @@ public class GigGossipNodeContext : DbContext
         this.connectionString = connectionString;
     }
 
-    public DbSet<BroadcastPayloadRow> BroadcastPayloadsByPayloadId { get; set; }
-    public DbSet<POWBroadcastConditionsFrameRow> POWBroadcastConditionsFrameRowByPayloadId { get; set; }
     public DbSet<BroadcastHistoryRow> BroadcastHistory { get; set; }
     public DbSet<BroadcastCancelHistoryRow> BroadcastCancelHistory { get; set; }
     public DbSet<ReplyPayloadRow> ReplyPayloads { get; set; }
@@ -261,11 +228,7 @@ public class GigGossipNodeContext : DbContext
         if (obj == null)
             throw new ArgumentNullException();
 
-        if (obj is BroadcastPayloadRow)
-            return this.BroadcastPayloadsByPayloadId;
-        else if (obj is POWBroadcastConditionsFrameRow)
-            return this.POWBroadcastConditionsFrameRowByPayloadId;
-        else if (obj is BroadcastHistoryRow)
+        if (obj is BroadcastHistoryRow)
             return this.BroadcastHistory;
         else if (obj is BroadcastCancelHistoryRow)
             return this.BroadcastCancelHistory;

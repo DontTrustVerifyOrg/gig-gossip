@@ -24,5 +24,10 @@ public class ReplyPayloadValue
     /// Gets or sets the reply invoice.
     /// </summary>
     public required string ReplyInvoice { get; set; }
+
+    /// <summary>
+    /// Gets or sets creation timestamp of the payload.
+    /// </summary>
+    public required DateTime Timestamp { get; set; }
 }
 

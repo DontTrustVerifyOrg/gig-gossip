@@ -103,7 +103,7 @@ public class Settler : CertificationAuthority
 
     public string MakeAuthToken()
     {
-        return Crypto.MakeSignedTimedToken(this._CaPrivateKey, DateTime.Now, this.walletTokenGuid);
+        return Crypto.MakeSignedTimedToken(this._CaPrivateKey, DateTime.UtcNow, this.walletTokenGuid);
     }
 
     public Guid GetTokenGuid(string pubkey)
@@ -175,13 +175,13 @@ public class Settler : CertificationAuthority
 
     public Certificate<T> IssueCertificate<T>(string pubkey, string[] properties, T data)
     {
-        var props = (from u in settlerContext.Value.UserProperties where u.PublicKey == pubkey && !u.IsRevoked && u.ValidTill >= DateTime.Now && properties.Contains(u.Name) select u).ToArray();
+        var props = (from u in settlerContext.Value.UserProperties where u.PublicKey == pubkey && !u.IsRevoked && u.ValidTill >= DateTime.UtcNow && properties.Contains(u.Name) select u).ToArray();
         var hasprops = new HashSet<string>(properties);
         if (!hasprops.SetEquals((from p in props select p.Name)))
             throw new SettlerException(SettlerErrorCode.PropertyNotGranted);
         var minDate = (from p in props select p.ValidTill).Min();
         var prp = (from p in props select p.Name).ToArray();
-        var cert = base.IssueCertificate<T>(prp, minDate, DateTime.Now, data);
+        var cert = base.IssueCertificate<T>(prp, minDate, DateTime.UtcNow, data);
         var certProps = (from p in props select new CertificateProperty() { CertificateId = cert.Id, PropertyId = p.PropertyId }).ToArray();
         settlerContext.Value.AddObjectRange(certProps);
         settlerContext.Value.AddObject(new UserCertificate() { PublicKey = pubkey, CertificateId = cert.Id, IsRevoked = false });
@@ -266,7 +266,8 @@ public class Settler : CertificationAuthority
             {
                 SignedRequestPayload = signedRequestPayload,
                 EncryptedReplyMessage = encryptedReplyMessage,
-                ReplyInvoice = replyInvoice
+                ReplyInvoice = replyInvoice,
+                Timestamp = DateTime.UtcNow,
             }
         );
 
@@ -336,7 +337,8 @@ public class Settler : CertificationAuthority
             new RequestPayloadValue
             {
                 PayloadId = guid,
-                Topic = topic
+                Topic = topic,
+                Timestamp = DateTime.UtcNow,
             }
         );
         var cert2 = this.IssueCertificate < CancelRequestPayloadValue>(
@@ -344,7 +346,8 @@ public class Settler : CertificationAuthority
             sendersproperties,
             new CancelRequestPayloadValue
             {
-                PayloadId = guid
+                PayloadId = guid,
+                Timestamp = DateTime.UtcNow,
             }
         );
         return Tuple.Create(cert1, cert2);
@@ -435,7 +438,7 @@ public class Settler : CertificationAuthority
                         {
                             gig.Status = GigStatus.Accepted;
                             gig.SubStatus = GigSubStatus.None;
-                            gig.DisputeDeadline = DateTime.Now+ this.disputeTimeout;
+                            gig.DisputeDeadline = DateTime.UtcNow+ this.disputeTimeout;
                             settlerContext.Value.SaveObject(gig);
                             await ScheduleGigAsync(gig);
                         }
@@ -459,7 +462,7 @@ public class Settler : CertificationAuthority
                     else if (gig.Status == GigStatus.Accepted)
                     {
                         FireOnSymmetricKeyReveal(gig.GigId, gig.ReplierCertificateId, gig.SymmetricKey);
-                        if (DateTime.Now >= gig.DisputeDeadline)
+                        if (DateTime.UtcNow >= gig.DisputeDeadline)
                         {
                             await SettleGigAsync(gig);
                         }
@@ -502,7 +505,7 @@ public class Settler : CertificationAuthority
                                     {
                                         gig.Status = GigStatus.Accepted;
                                         gig.SubStatus = GigSubStatus.None;
-                                        gig.DisputeDeadline = DateTime.Now + this.disputeTimeout;
+                                        gig.DisputeDeadline = DateTime.UtcNow + this.disputeTimeout;
                                         settlerContext.Value.SaveObject(gig);
                                         FireOnSymmetricKeyReveal(gig.GigId, gig.ReplierCertificateId, gig.SymmetricKey);
                                         await ScheduleGigAsync(gig);

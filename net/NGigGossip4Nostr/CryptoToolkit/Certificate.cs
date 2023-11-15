@@ -62,7 +62,7 @@ public class Certificate<T> : SignableObject
    /// <returns>Returns true if the certificate is valid, false otherwise.</returns>
    public async Task<bool> VerifyAsync(ICertificationAuthorityAccessor caAccessor)
    {
-       if (NotValidAfter >= DateTime.Now && NotValidBefore <= DateTime.Now)
+       if (NotValidAfter >= DateTime.UtcNow && NotValidBefore <= DateTime.UtcNow)
        {
            if (Verify(await caAccessor.GetPubKeyAsync(this.ServiceUri)))
                return true;

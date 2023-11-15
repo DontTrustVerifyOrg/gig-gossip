@@ -37,13 +37,13 @@ using (var httpClient = new HttpClient())
 
     var guid = await client.GetTokenAsync(pubkey);
 
-    var address= await client.NewAddressAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.Now, guid), CancellationToken.None);
+    var address= await client.NewAddressAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid), CancellationToken.None);
 
-    var ballance = await client.GetBalanceAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.Now, guid), CancellationToken.None);
+    var ballance = await client.GetBalanceAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid), CancellationToken.None);
 
-    var inv = await client.AddInvoiceAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.Now, guid), 1000, "", 8400, CancellationToken.None);
+    var inv = await client.AddInvoiceAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid), 1000, "", 8400, CancellationToken.None);
 
-    await client.SendPaymentAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.Now, guid), inv.PaymentRequest, 8400, CancellationToken.None);
+    await client.SendPaymentAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid), inv.PaymentRequest, 8400, CancellationToken.None);
 
 }
 

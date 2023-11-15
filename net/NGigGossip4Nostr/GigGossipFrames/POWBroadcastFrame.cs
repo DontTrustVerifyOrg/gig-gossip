@@ -9,21 +9,10 @@ namespace NGigGossip4Nostr;
 public class POWBroadcastFrame
 {
     /// <summary>
-    /// Gets or sets the unique identifier (AskId) for the broadcast frame.
-    /// </summary>
-    public required Guid AskId { get; set; }
-
-    /// <summary>
     /// Gets or sets the payload information for the broadcast frame.
     /// </summary>
-    /// <see cref="SignedBroadcastPayload"/>
-    public required BroadcastPayload SignedBroadcastPayload { get; set; }
-
-    /// <summary>
-    /// Gets or sets the ProofOfWork object associated with this broadcast frame.
-    /// </summary>
-    /// <see cref="ProofOfWork"/>
-    public required ProofOfWork ProofOfWork { get; set; }
+    /// <see cref="TheBroadcastPayload"/>
+    public required BroadcastPayload TheBroadcastPayload { get; set; }
 
     /// <summary>
     /// Verifies the integrity of the broadcast payload and the proof of work within the broadcast frame.
@@ -32,11 +21,6 @@ public class POWBroadcastFrame
     /// <returns>Returns true if verification is successful, otherwise returns false.</returns>
     public async Task<bool> VerifyAsync(ICertificationAuthorityAccessor caAccessor)
     {
-        if (!await this.SignedBroadcastPayload.SignedRequestPayload.VerifyAsync(caAccessor))
-        {
-            return false;
-        }
-
-        return this.ProofOfWork.Validate(this.SignedBroadcastPayload);
+        return await this.TheBroadcastPayload.SignedRequestPayload.VerifyAsync(caAccessor);
     }
 }
