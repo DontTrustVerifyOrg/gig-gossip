@@ -21,6 +21,7 @@ using GigGossipSettlerAPIClient;
 using System.IO;
 using static NBitcoin.Protocol.Behaviors.ChainBehavior;
 using System.Collections.Concurrent;
+using GigGossipFrames;
 
 [Serializable]
 public class InvoiceData
@@ -389,10 +390,10 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         try
         {
             var alreadyBroadcasted = (from abx in this.nodeContext.Value.AcceptedBroadcasts
-                         where abx.PublicKey == this.PublicKey
-                         && abx.PayloadId == powBroadcastFrame.SignedRequestPayload.Value.PayloadId
-                         && abx.SettlerServiceUri == acceptBroadcastResponse.SettlerServiceUri
-                         select abx).FirstOrDefault();
+                                      where abx.PublicKey == this.PublicKey
+                                      && abx.PayloadId == powBroadcastFrame.SignedRequestPayload.Value.PayloadId
+                                      && abx.SettlerServiceUri == acceptBroadcastResponse.SettlerServiceUri
+                                      select abx).FirstOrDefault();
 
             if (alreadyBroadcasted == null)
             {
@@ -564,6 +565,11 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         return (from rp in this.nodeContext.Value.ReplyPayloads where rp.PublicKey == this.PublicKey && rp.PayloadId == payloadId select rp);
     }
 
+    public IQueryable<AcceptedBroadcastRow> GetAcceptedBroadcasts(Guid payloadId)
+    {
+        return (from rp in this.nodeContext.Value.AcceptedBroadcasts where rp.PublicKey == this.PublicKey && rp.PayloadId == payloadId select rp);
+    }
+
 
     public void OnInvoiceStateChange(string state, byte[] data)
     {
@@ -676,7 +682,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         {
             await OnPOWBroadcastFrameAsync(messageId, senderPublicKey, (BroadcastFrame)frame);
         }
-        else if(frame is CancelBroadcastFrame)
+        else if (frame is CancelBroadcastFrame)
         {
             await OnCancelBroadcastFrameAsync(messageId, senderPublicKey, (CancelBroadcastFrame)frame);
         }
@@ -691,14 +697,14 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
     }
 
-    public async Task<Tuple<Certificate<RequestPayloadValue>, Certificate<CancelRequestPayloadValue>>> BroadcastTopicAsync<T>(T topic, Uri mysettlerUri, string[] properties)
+    public async Task<BroadcastTopicResponse> BroadcastTopicAsync<T>(T topic, Uri mysettlerUri, string[] properties)
     {
-        var t = Crypto.DeserializeObject<Tuple<Certificate<RequestPayloadValue>, Certificate<CancelRequestPayloadValue>>>(
+        var t = Crypto.DeserializeObject<BroadcastTopicResponse>(
             Convert.FromBase64String(
                 await this.SettlerSelector.GetSettlerClient(mysettlerUri)
                     .GenerateRequestPayloadAsync(await MakeSettlerAuthTokenAsync(mysettlerUri),
                         properties, Convert.ToBase64String(Crypto.SerializeObject(topic)))));
-        await this.BroadcastAsync(t.Item1);
+        await this.BroadcastAsync(t.SignedRequestPayload);
         return t;
     }
 

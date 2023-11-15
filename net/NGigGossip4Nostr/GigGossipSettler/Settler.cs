@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.ConstrainedExecution;
 using System.Xml.Linq;
 using CryptoToolkit;
+using GigGossipFrames;
 using GigLNDWalletAPIClient;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
@@ -327,7 +328,7 @@ public class Settler : CertificationAuthority
         return Crypto.EncryptObject(Crypto.DeserializeObject<Certificate<ReplyPayloadValue>>(bytes), pubkey.AsECXOnlyPubKey(), this._CaPrivateKey);
     }
 
-    public Tuple<Certificate<RequestPayloadValue>, Certificate<CancelRequestPayloadValue>> GenerateRequestPayload(string senderspubkey, string[] sendersproperties, byte[] topic)
+    public BroadcastTopicResponse GenerateRequestPayload(string senderspubkey, string[] sendersproperties, byte[] topic)
     {
         var guid = Guid.NewGuid();
 
@@ -341,7 +342,7 @@ public class Settler : CertificationAuthority
                 Timestamp = DateTime.UtcNow,
             }
         );
-        var cert2 = this.IssueCertificate < CancelRequestPayloadValue>(
+        var cert2 = this.IssueCertificate<CancelRequestPayloadValue>(
             senderspubkey,
             sendersproperties,
             new CancelRequestPayloadValue
@@ -350,7 +351,7 @@ public class Settler : CertificationAuthority
                 Timestamp = DateTime.UtcNow,
             }
         );
-        return Tuple.Create(cert1, cert2);
+        return new BroadcastTopicResponse { SignedRequestPayload = cert1, SignedCancelRequestPayload = cert2 };
     }
 
     public async Task ManageDisputeAsync(Guid tid, Guid repliercertificateId, bool open)

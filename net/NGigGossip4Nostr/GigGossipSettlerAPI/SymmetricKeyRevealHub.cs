@@ -49,10 +49,10 @@ public class SymmetricKeyRevealHub : Hub
     public void Monitor(string authToken, Guid gigId, Guid replierCertificateId)
     {
         var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
-        Singlethon.SymmetricKeys4UserPublicKey.AddItem(publicKey, Tuple.Create(gigId, replierCertificateId));
+        Singlethon.SymmetricKeys4UserPublicKey.AddItem(publicKey, new GigReplCert { GigId = gigId, ReplierCertificateId = replierCertificateId });
     }
 
-    public async IAsyncEnumerable<string> StreamAsync(string authToken,[EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
         while (true)
@@ -63,8 +63,8 @@ public class SymmetricKeyRevealHub : Hub
                 while (revealQueue.Count > 0)
                 {
                     var ic = revealQueue.Dequeue();
-                    if (Singlethon.SymmetricKeys4UserPublicKey.ContainsItem(publicKey, Tuple.Create(ic.GigId,ic.ReplierCertificateId) ))
-                        yield return ic.GigId.ToString() +"|"+ ic.ReplierCertificateId.ToString() + "|" + ic.SymmetricKey;
+                    if (Singlethon.SymmetricKeys4UserPublicKey.ContainsItem(publicKey, new GigReplCert { GigId = ic.GigId, ReplierCertificateId = ic.ReplierCertificateId }))
+                        yield return ic.GigId.ToString() + "|" + ic.ReplierCertificateId.ToString() + "|" + ic.SymmetricKey;
                 }
             }
         }
