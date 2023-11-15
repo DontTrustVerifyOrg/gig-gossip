@@ -63,7 +63,7 @@ public class ReplyPayloadRow
     public required byte[] DecodedReplyInvoice { get; set; }
 }
 
-[PrimaryKey(nameof(PublicKey), nameof(SettlerServiceUri), nameof(PayloadId), nameof(PeerPublicKey))]
+[PrimaryKey(nameof(PublicKey), nameof(SettlerServiceUri), nameof(PayloadId))]
 public class AcceptedBroadcastRow
 {
     /// <summary>
@@ -77,9 +77,6 @@ public class AcceptedBroadcastRow
 
     [Column(Order = 3)]
     public required Guid PayloadId { get; set; }
-
-    [Column(Order = 4)]
-    public required string PeerPublicKey { get; set; }
 
     public required byte[] SignedSettlementPromise { get; set; }
     public required string NetworkInvoice { get; set; }

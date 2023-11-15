@@ -70,6 +70,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
     protected TimeSpan timestampTolerance;
     protected TimeSpan invoicePaymentTimeout;
     protected int fanout;
+    private SemaphoreSlim alreadyBroadcastedSemaphore = new SemaphoreSlim(1, 1);
 
     public GigLNDWalletAPIClient.swaggerClient LNDWalletClient;
     private ConcurrentDictionary<Uri, SymmetricKeyRevealClient> settlerSymmetricKeyRevelClients = new();
@@ -280,6 +281,8 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
         var retcontacts = (from r in contacts.AsEnumerable().OrderBy(x => rnd.Next()).Take(this.fanout) select new BroadcastHistoryRow() { ContactPublicKey = r, PayloadId = payloadId, PublicKey = this.PublicKey });
         this.nodeContext.Value.AddObjectRange(retcontacts);
+        if (originatorPublicKey != null)
+            this.nodeContext.Value.AddObject(new BroadcastHistoryRow() { ContactPublicKey = originatorPublicKey, PayloadId = payloadId, PublicKey = this.PublicKey });
 
         return (from r in retcontacts select r.ContactPublicKey).ToList();
     }
@@ -381,70 +384,76 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
     public async Task AcceptBroadcastAsync(string peerPublicKey, BroadcastFrame powBroadcastFrame, AcceptBroadcastResponse acceptBroadcastResponse)
     {
-        var abror = (from abx in this.nodeContext.Value.AcceptedBroadcasts
-                     where abx.PublicKey == this.PublicKey
-                     && abx.PeerPublicKey == peerPublicKey
-                     && abx.PayloadId == powBroadcastFrame.SignedRequestPayload.Value.PayloadId
-                     && abx.SettlerServiceUri == acceptBroadcastResponse.SettlerServiceUri
-                     select abx).FirstOrDefault();
-
         ReplyFrame responseFrame;
-        if (abror == null)
+        await alreadyBroadcastedSemaphore.WaitAsync();
+        try
         {
-            FlowLogger.NewMessage(this.PublicKey, Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), "getSecret");
-            var settlerClient = this.SettlerSelector.GetSettlerClient(acceptBroadcastResponse.SettlerServiceUri);
-            var authToken = await MakeSettlerAuthTokenAsync(acceptBroadcastResponse.SettlerServiceUri);
-            var replyPaymentHash = await settlerClient.GenerateReplyPaymentPreimageAsync(authToken, powBroadcastFrame.SignedRequestPayload.Value.PayloadId.ToString(), this.PublicKey);
-            var replyInvoice = (await LNDWalletClient.AddHodlInvoiceAsync(MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds)).PaymentRequest;
-            FlowLogger.SetupParticipantWithAutoAlias(replyPaymentHash, "I", false);
-            FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), replyPaymentHash, "hash");
-            FlowLogger.NewMessage(this.PublicKey, replyPaymentHash, "create");
-            await this._settlerMonitor.MonitorPreimageAsync(
-                acceptBroadcastResponse.SettlerServiceUri,
-                replyPaymentHash);
-            var signedRequestPayloadSerialized = Crypto.SerializeObject(powBroadcastFrame.SignedRequestPayload);
-            var settr = await settlerClient.GenerateSettlementTrustAsync(authToken, acceptBroadcastResponse.Properties, Convert.ToBase64String(acceptBroadcastResponse.Message), replyInvoice, Convert.ToBase64String(signedRequestPayloadSerialized));
-            var settlementTrust = Crypto.DeserializeObject<SettlementTrust>(Convert.FromBase64String(settr));
+            var alreadyBroadcasted = (from abx in this.nodeContext.Value.AcceptedBroadcasts
+                         where abx.PublicKey == this.PublicKey
+                         && abx.PayloadId == powBroadcastFrame.SignedRequestPayload.Value.PayloadId
+                         && abx.SettlerServiceUri == acceptBroadcastResponse.SettlerServiceUri
+                         select abx).FirstOrDefault();
 
-            var signedSettlementPromise = settlementTrust.SettlementPromise;
-            var networkInvoice = settlementTrust.NetworkInvoice;
-            var decodedNetworkInvoice = await LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), networkInvoice);
-            FlowLogger.SetupParticipantWithAutoAlias(decodedNetworkInvoice.PaymentHash, "I", false);
-            FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), decodedNetworkInvoice.PaymentHash, "create");
-            var encryptedReplyPayload = settlementTrust.EncryptedReplyPayload;
-
-            this.nodeContext.Value.AddObject(new AcceptedBroadcastRow()
+            if (alreadyBroadcasted == null)
             {
-                PublicKey = this.PublicKey,
-                PeerPublicKey = peerPublicKey,
-                PayloadId = powBroadcastFrame.SignedRequestPayload.Value.PayloadId,
-                SettlerServiceUri = acceptBroadcastResponse.SettlerServiceUri,
-                EncryptedReplyPayload = encryptedReplyPayload,
-                NetworkInvoice = networkInvoice,
-                SignedSettlementPromise = Crypto.SerializeObject(signedSettlementPromise)
-            });
+                FlowLogger.NewMessage(this.PublicKey, Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), "getSecret");
+                var settlerClient = this.SettlerSelector.GetSettlerClient(acceptBroadcastResponse.SettlerServiceUri);
+                var authToken = await MakeSettlerAuthTokenAsync(acceptBroadcastResponse.SettlerServiceUri);
+                var replyPaymentHash = await settlerClient.GenerateReplyPaymentPreimageAsync(authToken, powBroadcastFrame.SignedRequestPayload.Value.PayloadId.ToString(), this.PublicKey);
+                var replyInvoice = (await LNDWalletClient.AddHodlInvoiceAsync(MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds)).PaymentRequest;
+                FlowLogger.SetupParticipantWithAutoAlias(replyPaymentHash, "I", false);
+                FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), replyPaymentHash, "hash");
+                FlowLogger.NewMessage(this.PublicKey, replyPaymentHash, "create");
+                await this._settlerMonitor.MonitorPreimageAsync(
+                    acceptBroadcastResponse.SettlerServiceUri,
+                    replyPaymentHash);
+                var signedRequestPayloadSerialized = Crypto.SerializeObject(powBroadcastFrame.SignedRequestPayload);
+                var settr = await settlerClient.GenerateSettlementTrustAsync(authToken, acceptBroadcastResponse.Properties, Convert.ToBase64String(acceptBroadcastResponse.Message), replyInvoice, Convert.ToBase64String(signedRequestPayloadSerialized));
+                var settlementTrust = Crypto.DeserializeObject<SettlementTrust>(Convert.FromBase64String(settr));
 
-            FlowLogger.SetupParticipantWithAutoAlias(powBroadcastFrame.SignedRequestPayload.Value.PayloadId.ToString() + "_" + this.PublicKey, "K", false);
-            FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), powBroadcastFrame.SignedRequestPayload.Value.PayloadId.ToString() + "_" + this.PublicKey, "create");
-            FlowLogger.NewMessage(this.PublicKey, powBroadcastFrame.SignedRequestPayload.Value.PayloadId.ToString() + "_" + this.PublicKey, "encrypts");
+                var signedSettlementPromise = settlementTrust.SettlementPromise;
+                var networkInvoice = settlementTrust.NetworkInvoice;
+                var decodedNetworkInvoice = await LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), networkInvoice);
+                FlowLogger.SetupParticipantWithAutoAlias(decodedNetworkInvoice.PaymentHash, "I", false);
+                FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), decodedNetworkInvoice.PaymentHash, "create");
+                var encryptedReplyPayload = settlementTrust.EncryptedReplyPayload;
 
-            responseFrame = new ReplyFrame()
+                this.nodeContext.Value.AddObject(new AcceptedBroadcastRow()
+                {
+                    PublicKey = this.PublicKey,
+                    PayloadId = powBroadcastFrame.SignedRequestPayload.Value.PayloadId,
+                    SettlerServiceUri = acceptBroadcastResponse.SettlerServiceUri,
+                    EncryptedReplyPayload = encryptedReplyPayload,
+                    NetworkInvoice = networkInvoice,
+                    SignedSettlementPromise = Crypto.SerializeObject(signedSettlementPromise)
+                });
+
+                FlowLogger.SetupParticipantWithAutoAlias(powBroadcastFrame.SignedRequestPayload.Value.PayloadId.ToString() + "_" + this.PublicKey, "K", false);
+                FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), powBroadcastFrame.SignedRequestPayload.Value.PayloadId.ToString() + "_" + this.PublicKey, "create");
+                FlowLogger.NewMessage(this.PublicKey, powBroadcastFrame.SignedRequestPayload.Value.PayloadId.ToString() + "_" + this.PublicKey, "encrypts");
+
+                responseFrame = new ReplyFrame()
+                {
+                    EncryptedReplyPayload = encryptedReplyPayload,
+                    SignedSettlementPromise = signedSettlementPromise,
+                    ForwardOnion = powBroadcastFrame.BackwardOnion,
+                    NetworkInvoice = networkInvoice
+                };
+            }
+            else
             {
-                EncryptedReplyPayload = encryptedReplyPayload,
-                SignedSettlementPromise = signedSettlementPromise,
-                ForwardOnion = powBroadcastFrame.BackwardOnion,
-                NetworkInvoice = networkInvoice
-            };
+                responseFrame = new ReplyFrame()
+                {
+                    EncryptedReplyPayload = alreadyBroadcasted.EncryptedReplyPayload,
+                    SignedSettlementPromise = Crypto.DeserializeObject<SettlementPromise>(alreadyBroadcasted.SignedSettlementPromise),
+                    ForwardOnion = powBroadcastFrame.BackwardOnion,
+                    NetworkInvoice = alreadyBroadcasted.NetworkInvoice
+                };
+            }
         }
-        else
+        finally
         {
-            responseFrame = new ReplyFrame()
-            {
-                EncryptedReplyPayload = abror.EncryptedReplyPayload,
-                SignedSettlementPromise = Crypto.DeserializeObject<SettlementPromise>(abror.SignedSettlementPromise),
-                ForwardOnion = powBroadcastFrame.BackwardOnion,
-                NetworkInvoice = abror.NetworkInvoice
-            };
+            alreadyBroadcastedSemaphore.Release();
         }
 
         await this.OnResponseFrameAsync(null, peerPublicKey, responseFrame, newResponse: true);
