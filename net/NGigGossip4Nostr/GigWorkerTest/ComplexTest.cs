@@ -24,34 +24,14 @@ public static class MainThreadControl
 
 public class ComplexTest
 {
-    string[] args;
 
-    IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
-    {
-        var basePath = Environment.GetEnvironmentVariable("GIGGOSSIP_BASEDIR");
-        if (basePath == null)
-            basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), defaultFolder);
-        foreach (var arg in args)
-            if (arg.StartsWith("--basedir"))
-                basePath = arg.Substring(arg.IndexOf('=') + 1).Trim().Replace("\"", "").Replace("\'", "");
-
-        var builder = new ConfigurationBuilder();
-        builder.SetBasePath(basePath)
-               .AddIniFile(iniName)
-               .AddEnvironmentVariables()
-               .AddCommandLine(args);
-
-        return builder.Build();
-    }
     NodeSettings gridNodeSettings;
     SettlerAdminSettings settlerAdminSettings;
     BitcoinSettings bitcoinSettings;
     ApplicationSettings applicationSettings;
 
-    public ComplexTest(string[] args)
+    public ComplexTest(IConfigurationRoot config)
     {
-        this.args = args;
-        var config = GetConfigurationRoot(".giggossip", "complextest.conf");
         gridNodeSettings = config.GetSection("gridnode").Get<NodeSettings>();
         settlerAdminSettings = config.GetSection("settleradmin").Get<SettlerAdminSettings>();
         bitcoinSettings = config.GetSection("bitcoin").Get<BitcoinSettings>();

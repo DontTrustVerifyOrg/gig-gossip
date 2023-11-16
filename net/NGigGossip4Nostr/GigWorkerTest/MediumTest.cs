@@ -22,34 +22,14 @@ public static class MainThreadControl
 
 public class MediumTest
 {
-    string[] args;
-
-    IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
-    {
-        var basePath = Environment.GetEnvironmentVariable("GIGGOSSIP_BASEDIR");
-        if (basePath == null)
-            basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), defaultFolder);
-        foreach (var arg in args)
-            if (arg.StartsWith("--basedir"))
-                basePath = arg.Substring(arg.IndexOf('=') + 1).Trim().Replace("\"", "").Replace("\'", "");
-
-        var builder = new ConfigurationBuilder();
-        builder.SetBasePath(basePath)
-               .AddIniFile(iniName)
-               .AddEnvironmentVariables()
-               .AddCommandLine(args);
-
-        return builder.Build();
-    }
+   
     NodeSettings gigWorkerSettings, customerSettings, gossiperSettings;
     SettlerAdminSettings settlerAdminSettings;
     BitcoinSettings bitcoinSettings;
     ApplicationSettings applicationSettings;
 
-    public MediumTest(string[] args)
+    public MediumTest(IConfigurationRoot config)
     {
-        this.args = args;
-        var config = GetConfigurationRoot(".giggossip", "mediumtest.conf");
         gigWorkerSettings = config.GetSection("gigworker").Get<NodeSettings>();
         customerSettings = config.GetSection("customer").Get<NodeSettings>();
         gossiperSettings = config.GetSection("gossiper").Get<NodeSettings>();
