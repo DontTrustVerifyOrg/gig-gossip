@@ -12,6 +12,11 @@ namespace NGigGossip4Nostr;
 
 public abstract class NostrNode
 {
+    const int HelloKind = 30127;
+    const int ContactListKind = 3;
+    const int RegularMessageKind = 4;
+    const int EphemeralMessageKind = 20004;
+
     CompositeNostrClient nostrClient;
     protected ECPrivKey privateKey;
     protected ECXOnlyPubKey publicKey;
@@ -54,6 +59,21 @@ public abstract class NostrNode
         public required object Frame;
     }
 
+    protected async Task SayHello(string title)
+    {
+        var newEvent = new NostrEvent()
+        {
+            Kind = HelloKind,
+            Content = "",
+            Tags = {
+                new NostrEventTag() { TagIdentifier = "relays", Data = NostrRelays.ToList() },
+                new NostrEventTag() { TagIdentifier = "d", Data = { title } },
+            },
+        };
+        await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
+        await nostrClient.PublishEvent(newEvent, CancellationToken.None);
+    }
+
     protected async Task PublishContactListAsync(Dictionary<string, NostrContact> contactList)
     {
         List<NostrEventTag> tags;
@@ -63,7 +83,7 @@ public abstract class NostrNode
         }
         var newEvent = new NostrEvent()
         {
-            Kind = 3,
+            Kind = ContactListKind,
             Content = "",
             Tags = tags,
         };
@@ -83,7 +103,7 @@ public abstract class NostrNode
             var part = ((idx + 1) * chunkSize < message.Length) ? message.Substring(idx * chunkSize, chunkSize) : message.Substring(idx * chunkSize);
             var newEvent = new NostrEvent()
             {
-                Kind = ephemeral ? 20004 : 4,
+                Kind = ephemeral ? EphemeralMessageKind : RegularMessageKind,
                 Content = part,
                 Tags = {
                     new NostrEventTag(){ TagIdentifier ="p", Data = { targetPublicKey } },
@@ -113,8 +133,9 @@ public abstract class NostrNode
 
     public abstract Task OnMessageAsync(string eventId, string senderPublicKey, object frame);
     public abstract void OnContactList(string eventId, Dictionary<string, NostrContact> contactList);
+    public abstract void OnHello(string eventId, string title, string senderPublicKey, string[] relays);
 
-    Thread? mainThread=null;
+    Thread? mainThread = null;
     CancellationTokenSource subscribeForEventsTokenSource = new CancellationTokenSource();
 
     protected async Task StartAsync(string[] nostrRelays)
@@ -128,17 +149,21 @@ public abstract class NostrNode
         var q = nostrClient.SubscribeForEvents(new[]{
                 new NostrSubscriptionFilter()
                 {
-                    Kinds = new []{3},
+                    Kinds = new []{HelloKind},
+                },
+                new NostrSubscriptionFilter()
+                {
+                    Kinds = new []{ContactListKind},
                     Authors = new []{ publicKey.ToHex() },
                 },
                 new NostrSubscriptionFilter()
                 {
-                    Kinds = new []{4},
+                    Kinds = new []{RegularMessageKind},
                     ReferencedPublicKeys = new []{ publicKey.ToHex() }
                 },
                 new NostrSubscriptionFilter()
                 {
-                    Kinds = new []{20004},
+                    Kinds = new []{EphemeralMessageKind},
                     ReferencedPublicKeys = new []{ publicKey.ToHex() }
                 }
             }, false, subscribeForEventsTokenSource.Token);
@@ -149,7 +174,9 @@ public abstract class NostrNode
             try
             {
                 await foreach (var nostrEvent in q)
-                    if (nostrEvent.Kind == 3)
+                    if (nostrEvent.Kind == HelloKind)
+                        ProcessHello(nostrEvent);
+                    else if (nostrEvent.Kind == ContactListKind)
                         ProcessContactList(nostrEvent);
                     else
                         await ProcessNewMessageAsync(nostrEvent);
@@ -227,6 +254,20 @@ public abstract class NostrNode
                 newCL[tag.Data[0]] = new NostrContact() { PublicKey = this.PublicKey, ContactPublicKey = tag.Data[0], Relay = tag.Data[1], Petname = tag.Data[2] };
         }
         OnContactList(nostrEvent.Id, newCL);
+    }
+
+    private void ProcessHello(NostrEvent nostrEvent)
+    {
+        var relays = new List<string>();
+        string title = "";
+        foreach (var tag in nostrEvent.Tags)
+        {
+            if (tag.TagIdentifier == "relays")
+                relays = tag.Data;
+            else if (tag.TagIdentifier == "d")
+                title = tag.Data[0];
+        }
+        OnHello(nostrEvent.Id, title, nostrEvent.PublicKey, relays.ToArray());
     }
 
 }

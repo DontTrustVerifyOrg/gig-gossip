@@ -56,7 +56,7 @@ public class LNDChannelManager
 				{
 					Trace.TraceError(ex.ToString());
 				}
-				Thread.Sleep(1000);
+				Thread.Sleep(60000);
 			}
 		});
 		mainThread.Start();

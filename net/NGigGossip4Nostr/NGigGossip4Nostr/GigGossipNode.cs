@@ -65,9 +65,6 @@ public class AcceptBroadcastResponse
 public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitorEvents
 {
     protected long priceAmountForRouting;
-    protected TimeSpan broadcastConditionsTimeout;
-    protected string broadcastConditionsPowScheme;
-    protected int broadcastConditionsPowComplexity;
     protected TimeSpan timestampTolerance;
     protected TimeSpan invoicePaymentTimeout;
     protected int fanout;
@@ -102,15 +99,11 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         nodeContext.Value.Database.EnsureCreated();
     }
 
-    public void Init(int fanout, long priceAmountForRouting, TimeSpan broadcastConditionsTimeout, string broadcastConditionsPowScheme,
-                           int broadcastConditionsPowComplexity, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
+    public void Init(int fanout, long priceAmountForRouting, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
                            GigLNDWalletAPIClient.swaggerClient lndWalletClient, HttpClient? httpClient = null)
     {
         this.fanout = fanout;
         this.priceAmountForRouting = priceAmountForRouting;
-        this.broadcastConditionsTimeout = broadcastConditionsTimeout;
-        this.broadcastConditionsPowScheme = broadcastConditionsPowScheme;
-        this.broadcastConditionsPowComplexity = broadcastConditionsPowComplexity;
         this.timestampTolerance = timestampTolerance;
         this.invoicePaymentTimeout = invoicePaymentTimeout;
 
@@ -126,23 +119,33 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
     public async Task StartAsync(string[] nostrRelays, IGigGossipNodeEvents gigGossipNodeEvents, HttpMessageHandler? httpMessageHandler = null)
     {
-        this.gigGossipNodeEvents = gigGossipNodeEvents;
+        if (LNDWalletClient == null)
+            throw new InvalidOperationException("Init was not called");
 
-        _walletToken = await LNDWalletClient.GetTokenAsync(this.PublicKey);
-        var token = MakeWalletAuthToken();
+        try
+        {
+            this.gigGossipNodeEvents = gigGossipNodeEvents;
 
-        InvoiceStateUpdatesClient = new InvoiceStateUpdatesClient(this.LNDWalletClient, httpMessageHandler);
-        await InvoiceStateUpdatesClient.ConnectAsync(token);
+            _walletToken = await LNDWalletClient.GetTokenAsync(this.PublicKey);
+            var token = MakeWalletAuthToken();
 
-        PaymentStatusUpdatesClient = new PaymentStatusUpdatesClient(this.LNDWalletClient, httpMessageHandler);
-        await PaymentStatusUpdatesClient.ConnectAsync(token);
+            InvoiceStateUpdatesClient = new InvoiceStateUpdatesClient(this.LNDWalletClient, httpMessageHandler);
+            await InvoiceStateUpdatesClient.ConnectAsync(token);
 
-        await _lndWalletMonitor.StartAsync();
+            PaymentStatusUpdatesClient = new PaymentStatusUpdatesClient(this.LNDWalletClient, httpMessageHandler);
+            await PaymentStatusUpdatesClient.ConnectAsync(token);
 
-        _settlerToken = new();
-        await _settlerMonitor.StartAsync();
+            await _lndWalletMonitor.StartAsync();
 
-        await base.StartAsync(nostrRelays);
+            _settlerToken = new();
+            await _settlerMonitor.StartAsync();
+
+            await base.StartAsync(nostrRelays);
+        }
+        catch(Exception ex)
+        {
+            throw;
+        }
     }
 
     public override void Stop()
@@ -613,7 +616,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         FlowLogger.NewMessage(this.PublicKey, pay.PaymentHash, "pay_" + status);
     }
 
-    public async Task OnPreimageRevealedAsync(Uri serviceUri, string phash, string preimage)
+    public async Task<bool> OnPreimageRevealedAsync(Uri serviceUri, string phash, string preimage)
     {
         try
         {
@@ -624,11 +627,11 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             FlowLogger.NewMessage(Encoding.Default.GetBytes(serviceUri.AbsoluteUri).AsHex(), phash, "revealed");
             FlowLogger.NewMessage(this.PublicKey, phash, "settled");
             gigGossipNodeEvents.OnInvoiceSettled(this, serviceUri, phash, preimage);
+            return true; 
         }
         catch (Exception ex)
-        {//invoice was not accepted or was cancelled
-         //            Trace.TraceError(ex.ToString());
-            Trace.TraceInformation("Invoice cannot be settled");
+        {
+            return false;
         }
     }
 

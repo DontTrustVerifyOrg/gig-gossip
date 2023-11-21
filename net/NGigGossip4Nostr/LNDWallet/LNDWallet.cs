@@ -99,20 +99,20 @@ public class LNDAccountManager
 
     public Guid RegisterPayout(long satoshis, string btcAddress, long txfee)
     {
-        if ((GetAccountBallance() - (long)txfee)< (long)satoshis)
+        if ((GetAccountBallance() - (long)txfee) < (long)satoshis)
             throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds);
 
         var myid = Guid.NewGuid();
 
-            walletContext.Value.AddObject(new LNDWallet.Payout()
-            {
-                PayoutId = myid,
-                BitcoinAddress = btcAddress,
-                PublicKey = PublicKey,
-                TxFee = txfee,
-                IsPending = true,
-                Satoshis = satoshis
-            });
+        walletContext.Value.AddObject(new LNDWallet.Payout()
+        {
+            PayoutId = myid,
+            BitcoinAddress = btcAddress,
+            PublicKey = PublicKey,
+            TxFee = txfee,
+            IsPending = true,
+            Satoshis = satoshis
+        });
         return myid;
     }
 

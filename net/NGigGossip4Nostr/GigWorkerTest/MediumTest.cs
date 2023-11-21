@@ -113,9 +113,6 @@ public class MediumTest
         gigWorker.Init(
             gigWorkerSettings.Fanout,
             gigWorkerSettings.PriceAmountForRouting,
-            TimeSpan.FromMilliseconds(gigWorkerSettings.BroadcastConditionsTimeoutMs),
-            gigWorkerSettings.BroadcastConditionsPowScheme,
-            gigWorkerSettings.BroadcastConditionsPowComplexity,
             TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(gigWorkerSettings.InvoicePaymentTimeoutSec),
             gigWorkerSettings.GetLndWalletClient(httpClient));
@@ -126,9 +123,6 @@ public class MediumTest
             node.Init(
             gossiperSettings.Fanout,
             gossiperSettings.PriceAmountForRouting,
-            TimeSpan.FromMilliseconds(gossiperSettings.BroadcastConditionsTimeoutMs),
-            gossiperSettings.BroadcastConditionsPowScheme,
-            gossiperSettings.BroadcastConditionsPowComplexity,
             TimeSpan.FromMilliseconds(gossiperSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(gossiperSettings.InvoicePaymentTimeoutSec),
             gossiperSettings.GetLndWalletClient(httpClient));
@@ -137,9 +131,6 @@ public class MediumTest
         customer.Init(
             customerSettings.Fanout,
             customerSettings.PriceAmountForRouting,
-            TimeSpan.FromMilliseconds(customerSettings.BroadcastConditionsTimeoutMs),
-            customerSettings.BroadcastConditionsPowScheme,
-            customerSettings.BroadcastConditionsPowComplexity,
             TimeSpan.FromMilliseconds(customerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(customerSettings.InvoicePaymentTimeoutSec),
             customerSettings.GetLndWalletClient(httpClient));
@@ -485,9 +476,6 @@ public class NodeSettings
     public required string PrivateKey { get; set; }
     public required Uri SettlerOpenApi { get; set; }
     public required long PriceAmountForRouting { get; set; }
-    public required long BroadcastConditionsTimeoutMs { get; set; }
-    public required string BroadcastConditionsPowScheme { get; set; }
-    public required int BroadcastConditionsPowComplexity { get; set; }
     public required long TimestampToleranceMs { get; set; }
     public required long InvoicePaymentTimeoutSec { get; set; }
     public required int ChunkSize { get; set; }

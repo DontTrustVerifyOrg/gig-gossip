@@ -14,7 +14,7 @@ namespace NGigGossip4Nostr
 {
     public interface ISettlerMonitorEvents
     {
-        public Task OnPreimageRevealedAsync(Uri settlerUri, string paymentHash, string preimage);
+        public Task<bool> OnPreimageRevealedAsync(Uri settlerUri, string paymentHash, string preimage);
         public void OnSymmetricKeyRevealed(byte[] data, string key);
     }
 

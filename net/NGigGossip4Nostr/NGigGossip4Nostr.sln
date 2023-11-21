@@ -39,6 +39,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OSRMTest", "OSRMTest\OSRMTe
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RideShareCLIApp", "RideShareCLIApp\RideShareCLIApp.csproj", "{F155F8F4-3EC0-4583-8F04-72786A2E0BF8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nominatim.API", "..\..\..\Nominatim.API\src\Nominatim.API\Nominatim.API.csproj", "{E55BB178-C14C-4B32-A496-488620A59449}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -117,6 +119,10 @@ Global
 		{F155F8F4-3EC0-4583-8F04-72786A2E0BF8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F155F8F4-3EC0-4583-8F04-72786A2E0BF8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F155F8F4-3EC0-4583-8F04-72786A2E0BF8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E55BB178-C14C-4B32-A496-488620A59449}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E55BB178-C14C-4B32-A496-488620A59449}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E55BB178-C14C-4B32-A496-488620A59449}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E55BB178-C14C-4B32-A496-488620A59449}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

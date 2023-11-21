@@ -14,6 +14,9 @@ internal class Program
 {
     public class Options
     {
+        [Option('d', "basedir", Required = false, HelpText = "Configuration folder dir")]
+        public string? BaseDir { get; set; }
+
         [Option('b', "basic", Required = false, HelpText = "Run basic test")]
         public bool Basic { get; set; }
 
@@ -22,9 +25,6 @@ internal class Program
 
         [Option('c', "complex", Required = false, HelpText = "Run complex test")]
         public bool Complex { get; set; }
-
-        [Option('d',"basedir", Required = false, HelpText = "Configuration folder dir")]
-        public string? BaseDir { get; set; }
     }
 
     static IConfigurationRoot GetConfigurationRoot(string? basePath, string[] args, string defaultFolder, string iniName)
@@ -47,14 +47,14 @@ internal class Program
     {
         var parserResult = new Parser(with => { with.IgnoreUnknownArguments = true; with.HelpWriter = null; })
             .ParseArguments<Options>(args)
-            .WithParsed(o =>
+            .WithParsed(async o =>
             {
                 if (o.Basic)
-                    new GigWorkerBasicTest.BasicTest(GetConfigurationRoot(o.BaseDir, args, ".giggossip", "basictest.conf")).RunAsync().Wait();
+                    await new GigWorkerBasicTest.BasicTest(GetConfigurationRoot(o.BaseDir, args, ".giggossip", "basictest.conf")).RunAsync();
                 if (o.Medium)
-                    new GigWorkerMediumTest.MediumTest(GetConfigurationRoot(o.BaseDir, args, ".giggossip", "mediumtest.conf")).RunAsync().Wait();
+                    await new GigWorkerMediumTest.MediumTest(GetConfigurationRoot(o.BaseDir, args, ".giggossip", "mediumtest.conf")).RunAsync();
                 if (o.Complex)
-                    new GigWorkerComplexTest.ComplexTest(GetConfigurationRoot(o.BaseDir, args, ".giggossip", "complextest.conf")).RunAsync().Wait();
+                    await new GigWorkerComplexTest.ComplexTest(GetConfigurationRoot(o.BaseDir, args, ".giggossip", "complextest.conf")).RunAsync();
             });
 
         if (parserResult.Tag == ParserResultType.NotParsed)

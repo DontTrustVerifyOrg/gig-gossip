@@ -124,9 +124,6 @@ public class ComplexTest
             gigWorker.Init(
                 gridNodeSettings.Fanout,
                 gridNodeSettings.PriceAmountForRouting,
-                TimeSpan.FromMilliseconds(gridNodeSettings.BroadcastConditionsTimeoutMs),
-                gridNodeSettings.BroadcastConditionsPowScheme,
-                gridNodeSettings.BroadcastConditionsPowComplexity,
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
                 gridNodeSettings.GetLndWalletClient(httpClient));
@@ -149,9 +146,6 @@ public class ComplexTest
             customer.Init(
                 gridNodeSettings.Fanout,
                 gridNodeSettings.PriceAmountForRouting,
-                TimeSpan.FromMilliseconds(gridNodeSettings.BroadcastConditionsTimeoutMs),
-                gridNodeSettings.BroadcastConditionsPowScheme,
-                gridNodeSettings.BroadcastConditionsPowComplexity,
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
                 gridNodeSettings.GetLndWalletClient(httpClient));
@@ -165,9 +159,6 @@ public class ComplexTest
             node.Value.Init(
                 gridNodeSettings.Fanout,
                 gridNodeSettings.PriceAmountForRouting,
-                TimeSpan.FromMilliseconds(gridNodeSettings.BroadcastConditionsTimeoutMs),
-                gridNodeSettings.BroadcastConditionsPowScheme,
-                gridNodeSettings.BroadcastConditionsPowComplexity,
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
                 gridNodeSettings.GetLndWalletClient(httpClient));
@@ -491,9 +482,6 @@ public class NodeSettings
     public required string PrivateKey { get; set; }
     public required Uri SettlerOpenApi { get; set; }
     public required long PriceAmountForRouting { get; set; }
-    public required long BroadcastConditionsTimeoutMs { get; set; }
-    public required string BroadcastConditionsPowScheme { get; set; }
-    public required int BroadcastConditionsPowComplexity { get; set; }
     public required long TimestampToleranceMs { get; set; }
     public required long InvoicePaymentTimeoutSec { get; set; }
     public required int ChunkSize { get; set; }
