@@ -52,6 +52,9 @@ public class RideShareCLIApp
 
     public RideShareCLIApp(ILogger logger, string id, string script, IConfigurationRoot config)
     {
+        if (id == null)
+            id = Prompt.Input<string>("Node Id");
+
         this.settings = new Settings(id, script, config);
         this.logger = logger;
 

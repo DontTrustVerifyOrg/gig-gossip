@@ -10,7 +10,7 @@ class Program
 
     public class Options
     {
-        [Option('i', "id", Required = true, HelpText = "Id of the player")]
+        [Option('i', "id", Required = false, HelpText = "Id of the player")]
         public string Id { get; set; }
 
         [Option('d', "basedir", Required = false, HelpText = "Configuration folder dir")]

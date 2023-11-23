@@ -57,7 +57,11 @@ Console.WriteLine(r.DisplayName);
 var querySearcher = _serviceProvider.GetService<QuerySearcher>();
 var r3 = await querySearcher.Search(new SearchQueryRequest
 {
-     queryString="12 Romford Frenchs", CountryCodeSearch="AU", LimitResults=100,
+    queryString = "Bennelong Point, Sydney NSW 2000",
+    CountryCodeSearch = "AU",
+    BreakdownAddressElements = true,
+    ShowAlternativeNames = true,
+    ShowExtraTags = true
 });
 
 Console.WriteLine(r3[0].DisplayName);

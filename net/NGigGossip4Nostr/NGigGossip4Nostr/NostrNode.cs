@@ -12,7 +12,7 @@ namespace NGigGossip4Nostr;
 
 public abstract class NostrNode
 {
-    const int HelloKind = 30127;
+    const int HelloKind = 10127;
     const int ContactListKind = 3;
     const int RegularMessageKind = 4;
     const int EphemeralMessageKind = 20004;
@@ -59,15 +59,13 @@ public abstract class NostrNode
         public required object Frame;
     }
 
-    protected async Task SayHello(string title)
+    protected async Task SayHelloAsync()
     {
         var newEvent = new NostrEvent()
         {
             Kind = HelloKind,
             Content = "",
             Tags = {
-                new NostrEventTag() { TagIdentifier = "relays", Data = NostrRelays.ToList() },
-                new NostrEventTag() { TagIdentifier = "d", Data = { title } },
             },
         };
         await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
@@ -133,7 +131,7 @@ public abstract class NostrNode
 
     public abstract Task OnMessageAsync(string eventId, string senderPublicKey, object frame);
     public abstract void OnContactList(string eventId, Dictionary<string, NostrContact> contactList);
-    public abstract void OnHello(string eventId, string title, string senderPublicKey, string[] relays);
+    public abstract void OnHello(string eventId, string senderPublicKeye);
 
     Thread? mainThread = null;
     CancellationTokenSource subscribeForEventsTokenSource = new CancellationTokenSource();
@@ -258,16 +256,7 @@ public abstract class NostrNode
 
     private void ProcessHello(NostrEvent nostrEvent)
     {
-        var relays = new List<string>();
-        string title = "";
-        foreach (var tag in nostrEvent.Tags)
-        {
-            if (tag.TagIdentifier == "relays")
-                relays = tag.Data;
-            else if (tag.TagIdentifier == "d")
-                title = tag.Data[0];
-        }
-        OnHello(nostrEvent.Id, title, nostrEvent.PublicKey, relays.ToArray());
+        OnHello(nostrEvent.Id, nostrEvent.PublicKey);
     }
 
 }

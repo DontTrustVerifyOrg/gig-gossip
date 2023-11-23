@@ -34,6 +34,10 @@ public class DirectCom : NostrNode
     {
     }
 
+    public override void OnHello(string eventId, string senderPublicKeye)
+    {
+    }
+
     public async override Task OnMessageAsync(string eventId, string senderPublicKey, object frame)
     {
         OnDirectMessage.Invoke(this, new DirectMessageEventArgs()

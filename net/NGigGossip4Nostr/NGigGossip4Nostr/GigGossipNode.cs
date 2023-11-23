@@ -68,6 +68,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
     protected TimeSpan timestampTolerance;
     protected TimeSpan invoicePaymentTimeout;
     protected int fanout;
+
     private SemaphoreSlim alreadyBroadcastedSemaphore = new SemaphoreSlim(1, 1);
 
     public GigLNDWalletAPIClient.swaggerClient LNDWalletClient;
@@ -99,7 +100,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         nodeContext.Value.Database.EnsureCreated();
     }
 
-    public void Init(int fanout, long priceAmountForRouting, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
+    public async void Init(int fanout, long priceAmountForRouting, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
                            GigLNDWalletAPIClient.swaggerClient lndWalletClient, HttpClient? httpClient = null)
     {
         this.fanout = fanout;
@@ -122,30 +123,25 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         if (LNDWalletClient == null)
             throw new InvalidOperationException("Init was not called");
 
-        try
-        {
-            this.gigGossipNodeEvents = gigGossipNodeEvents;
+        this.gigGossipNodeEvents = gigGossipNodeEvents;
 
-            _walletToken = await LNDWalletClient.GetTokenAsync(this.PublicKey);
-            var token = MakeWalletAuthToken();
+        _walletToken = await LNDWalletClient.GetTokenAsync(this.PublicKey);
+        var token = MakeWalletAuthToken();
 
-            InvoiceStateUpdatesClient = new InvoiceStateUpdatesClient(this.LNDWalletClient, httpMessageHandler);
-            await InvoiceStateUpdatesClient.ConnectAsync(token);
+        InvoiceStateUpdatesClient = new InvoiceStateUpdatesClient(this.LNDWalletClient, httpMessageHandler);
+        await InvoiceStateUpdatesClient.ConnectAsync(token);
 
-            PaymentStatusUpdatesClient = new PaymentStatusUpdatesClient(this.LNDWalletClient, httpMessageHandler);
-            await PaymentStatusUpdatesClient.ConnectAsync(token);
+        PaymentStatusUpdatesClient = new PaymentStatusUpdatesClient(this.LNDWalletClient, httpMessageHandler);
+        await PaymentStatusUpdatesClient.ConnectAsync(token);
 
-            await _lndWalletMonitor.StartAsync();
+        await _lndWalletMonitor.StartAsync();
 
-            _settlerToken = new();
-            await _settlerMonitor.StartAsync();
+        _settlerToken = new();
+        await _settlerMonitor.StartAsync();
 
-            await base.StartAsync(nostrRelays);
-        }
-        catch(Exception ex)
-        {
-            throw;
-        }
+        await base.StartAsync(nostrRelays);
+
+        await SayHelloAsync();
     }
 
     public override void Stop()
@@ -166,6 +162,12 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             from c in this.nodeContext.Value.NostrContacts where c.PublicKey == this.PublicKey select c);
             _contactList.Clear();
         }
+    }
+
+    public override void OnHello(string eventId, string senderPublicKey)
+    {
+        if (senderPublicKey != this.PublicKey)
+            AddContact(senderPublicKey, "");
     }
 
     public void AddContact(string contactPublicKey, string petname, string relay = "")
