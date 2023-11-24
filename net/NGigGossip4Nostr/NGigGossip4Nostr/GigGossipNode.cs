@@ -708,13 +708,17 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
     public async Task<BroadcastTopicResponse> BroadcastTopicAsync<T>(T topic, Uri mysettlerUri, string[] properties)
     {
-        var t = Crypto.DeserializeObject<BroadcastTopicResponse>(
-            Convert.FromBase64String(
-                await this.SettlerSelector.GetSettlerClient(mysettlerUri)
-                    .GenerateRequestPayloadAsync(await MakeSettlerAuthTokenAsync(mysettlerUri),
-                        properties, Convert.ToBase64String(Crypto.SerializeObject(topic)))));
-        await this.BroadcastAsync(t.SignedRequestPayload);
-        return t;
+        var settler = SettlerSelector.GetSettlerClient(mysettlerUri);
+        var token = await MakeSettlerAuthTokenAsync(mysettlerUri);
+        var topicByte = Crypto.SerializeObject(topic!);
+        var base64Topic = Convert.ToBase64String(topicByte);
+        var response = await settler.GenerateRequestPayloadAsync(token, properties, base64Topic);
+        var base64Response = Convert.FromBase64String(response);
+        var broadcastTopicResponse = Crypto.DeserializeObject<BroadcastTopicResponse>(base64Response);
+
+        await BroadcastAsync(broadcastTopicResponse!.SignedRequestPayload);
+
+        return broadcastTopicResponse;
     }
 
 }
