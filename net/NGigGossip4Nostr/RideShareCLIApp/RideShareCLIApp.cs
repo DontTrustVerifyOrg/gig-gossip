@@ -21,7 +21,6 @@ using Nominatim.API.Address;
 using Nominatim.API.Geocoders;
 using Nominatim.API.Models;
 using Sharprompt;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace RideShareCLIApp;
 
@@ -46,7 +45,7 @@ public class RideShareCLIApp
     ILogger logger;
     GigGossipNode gigGossipNode;
     HttpClient httpClient = new HttpClient();
-    GigGossipNodeEventSource gigGossipNodeEventSource = new GigGossipNodeEventSource();
+    IGigGossipNodeEventSource gigGossipNodeEventSource = new GigGossipNodeEventSource();
     QuerySearcher querySearcher;
     ForwardGeocoder forwardGeocoder;
 
@@ -67,6 +66,12 @@ public class RideShareCLIApp
             Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)).
             Replace("$ID", id));
 
+        gigGossipNodeEventSource.OnAcceptBroadcast += GigGossipNodeEventSource_OnAcceptBroadcast;
+        gigGossipNodeEventSource.OnNetworkInvoiceAccepted += GigGossipNodeEventSource_OnNetworkInvoiceAccepted;
+        gigGossipNodeEventSource.OnNewResponse += GigGossipNodeEventSource_OnNewResponse;
+        gigGossipNodeEventSource.OnResponseReady += GigGossipNodeEventSource_OnResponseReady;
+        gigGossipNodeEventSource.OnInvoiceAccepted += GigGossipNodeEventSource_OnInvoiceAccepted;
+
     }
 
     enum SecureStorageKeysEnum
@@ -84,6 +89,10 @@ public class RideShareCLIApp
         DriverMode,
         [Display(Name = "RequestRide")]
         RequestRide,
+        [Display(Name = "AcceptRide")]
+        AcceptRide,
+        [Display(Name = "AcceptDriver")]
+        AcceptDriver,
     }
 
     public enum NodeModeEnum
@@ -219,7 +228,7 @@ public class RideShareCLIApp
                 var mode = await GetNodeModeAsync();
                 if (mode != NodeModeEnum.Rider)
                 {
-                    logger.LogWarning("Current Driver Mode is " + mode);
+                    logger.LogWarning("Current Mode is " + mode);
                 }
                 else
                 {
@@ -228,12 +237,154 @@ public class RideShareCLIApp
                     logger.LogInformation("Dropoff location");
                     var toLocation = await PickLocationAsync();
                     var waitingTimeForPickupMinutes = Prompt.Input<int>("Waiting Time For Pickup In Minutes");
-                    var btr = await RequestRide(fromLocation, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes);
+                    requestedRide = await RequestRide(fromLocation, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes);
+                }
+            }
+            else if (cmd == CommandEnum.AcceptRide)
+            {
+                var mode = await GetNodeModeAsync();
+                if (mode != NodeModeEnum.Driver)
+                {
+                    logger.LogWarning("Current Mode is " + mode);
+                }
+                else
+                {
+                    int v = Prompt.Input<int>("Which one?");
+                    if(v>0 &&  v-1<listOfBroadcasts.Count)
+                    {
+                        int fee = Prompt.Input<int>("Fee");
+                        await AcceptRideAsync(v, fee);
+                    };
+                }
+            }
+            else if (cmd == CommandEnum.AcceptDriver)
+            {
+                var mode = await GetNodeModeAsync();
+                if (mode != NodeModeEnum.Rider)
+                {
+                    logger.LogWarning("Current Mode is " + mode);
+                }
+                else
+                {
+                    int v = Prompt.Input<int>("Which one?");
+                    if (v > 0 && v - 1 < listOfResponses.Count)
+                    {
+                        await AcceptDriverAsync(v);
+                    };
                 }
             }
         }
     }
 
+    BroadcastTopicResponse requestedRide = null;
+    List<AcceptBroadcastEventArgs> listOfBroadcasts = new();
+    Dictionary<Guid, string> broadcastSecrets = new();
+
+    private async Task AcceptRideAsync(int idx, long fee)
+    {
+        var e = listOfBroadcasts[idx];
+        
+
+        var secret = Crypto.GenerateRandomPreimage().AsHex();
+        broadcastSecrets[e.BroadcastFrame.SignedRequestPayload.Id] = secret;
+
+        var reply = new ConnectionReply()
+        {
+            PublicKey = e.GigGossipNode.PublicKey,
+            Relays = e.GigGossipNode.NostrRelays,
+            Secret = secret,
+        };
+
+        await e.GigGossipNode.AcceptBroadcastAsync(e.PeerPublicKey, e.BroadcastFrame,
+                        new AcceptBroadcastResponse()
+                        {
+                            Properties = settings.NodeSettings.GetDriverProperties(),
+                            Message = Crypto.SerializeObject(reply),
+                            Fee = fee,
+                            SettlerServiceUri = settings.NodeSettings.SettlerOpenApi,
+                        });
+    }
+
+    private async Task AcceptDriverAsync(int idx)
+    {
+        var e = listOfResponses[idx];
+        await e.GigGossipNode.AcceptResponseAsync(e.ReplyPayloadCert, e.ReplyInvoice, e.DecodedReplyInvoice, e.NetworkInvoice, e.DecodedNetworkInvoice);
+        await e.GigGossipNode.CancelBroadcastAsync(requestedRide.SignedCancelRequestPayload);
+    }
+
+    private async void GigGossipNodeEventSource_OnNetworkInvoiceAccepted(object? sender, NetworkInvoiceAcceptedEventArgs e)
+    {
+        logger.LogInformation("Network Invoice Accepted");
+        await e.GigGossipNode.PayNetworkInvoiceAsync(e.InvoiceData);
+    }
+
+    private async void GigGossipNodeEventSource_OnAcceptBroadcast(object? sender, AcceptBroadcastEventArgs e)
+    {
+        var mode = await GetNodeModeAsync();
+
+        if (mode == NodeModeEnum.Rider)
+        {
+            var taxiTopic = Crypto.DeserializeObject<RideTopic>(
+                e.BroadcastFrame.SignedRequestPayload.Value.Topic);
+
+            if (taxiTopic != null)
+            {
+                listOfBroadcasts.Add(e);
+                logger.LogInformation((listOfBroadcasts.Count + 1).ToString() + "|" + taxiTopic.FromGeohash + "->" + taxiTopic.ToGeohash + ":" + taxiTopic.PickupAfter.ToString() + taxiTopic.PickupBefore.ToString());
+            }
+        }
+        else
+        {
+            var taxiTopic = Crypto.DeserializeObject<RideTopic>(e.BroadcastFrame.SignedRequestPayload.Value.Topic);
+            if (taxiTopic != null)
+            {
+                if (taxiTopic.FromGeohash.Length <= settings.NodeSettings.GeohashPrecision &&
+                       taxiTopic.ToGeohash.Length <= settings.NodeSettings.GeohashPrecision)
+                {
+                    await e.GigGossipNode.BroadcastToPeersAsync(e.PeerPublicKey, e.BroadcastFrame);
+                }
+            }
+        }
+    }
+
+    List<NewResponseEventArgs> listOfResponses = new();
+
+    private async void GigGossipNodeEventSource_OnNewResponse(object? sender, NewResponseEventArgs e)
+    {
+        var mode = await GetNodeModeAsync();
+
+        if (mode == NodeModeEnum.Rider)
+        {
+            logger.LogInformation((listOfResponses.Count + 1).ToString() + "|"+ e.DecodedReplyInvoice.NumSatoshis.ToString());
+            listOfResponses.Add(e);
+        }
+    }
+
+    private async void GigGossipNodeEventSource_OnResponseReady(object? sender, ResponseReadyEventArgs e)
+    {
+        var mode = await GetNodeModeAsync();
+
+        if (mode == NodeModeEnum.Rider)
+        {
+            directCom.Stop();
+            await directCom.StartAsync(e.Reply.Relays);
+            await directCom.SendMessageAsync(e.Reply.PublicKey, new AckFrame() { Secret = e.Reply.Secret }, true);
+        }
+    }
+
+    DirectCom directCom;
+
+    private async void GigGossipNodeEventSource_OnInvoiceAccepted(object? sender, InvoiceAcceptedEventArgs e)
+    {
+        var mode = await GetNodeModeAsync();
+
+        if (mode == NodeModeEnum.Driver)
+        {
+            //cancell all the others
+            directCom.Stop();
+            await directCom.StartAsync(e.GigGossipNode.NostrRelays);
+        }
+    }
 
     async Task StartAsync()
     {
@@ -270,8 +421,21 @@ public class RideShareCLIApp
 
         await gigGossipNode.StartAsync(
             settings.NodeSettings.GetNostrRelays(),
-            gigGossipNodeEventSource.GigGossipNodeEvents);
+            ((GigGossipNodeEventSource) gigGossipNodeEventSource).GigGossipNodeEvents);
 
+        directCom = new DirectCom(await GetPrivateKeyAsync(), settings.NodeSettings.ChunkSize);
+        directCom.RegisterFrameType<LocationFrame>();
+        directCom.OnDirectMessage += DirectCom_OnDirectMessage;
+    }
+
+    private void DirectCom_OnDirectMessage(object? sender, DirectMessageEventArgs e)
+    {
+        if (e.Frame is LocationFrame locationFrame)
+        {
+        }
+        else if (e.Frame is AckFrame ackframe)
+        {
+        }
     }
 
     async Task ValidatePhoneNumber(string phoneNumber)

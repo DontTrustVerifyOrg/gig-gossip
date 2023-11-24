@@ -19,13 +19,17 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
         {
             GigGossipNode = me,
             PeerPublicKey = peerPublicKey,
-            BroadcastFrame = broadcastFrame,
+            BroadcastFrame = broadcastFrame
         });
     }
 
     public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
-        await me.PayNetworkInvoiceAsync(iac);
+        _gigGossipNodeEventSource.FireOnNetworkInvoiceAccepted(new NetworkInvoiceAcceptedEventArgs
+        {
+            GigGossipNode = me,
+            InvoiceData = iac
+        });
     }
 
     public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
@@ -54,13 +58,13 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
     {
-        var taxiReply = Crypto.DeserializeObject<ConnectionReply>(Crypto.SymmetricDecrypt<byte[]>(
+        var connectionReply = Crypto.DeserializeObject<ConnectionReply>(Crypto.SymmetricDecrypt<byte[]>(
             key.AsBytes(),
             replyPayload.Value.EncryptedReplyMessage));
         _gigGossipNodeEventSource.FireOnResponseReady(new ResponseReadyEventArgs()
         {
             GigGossipNode = me,
-            Reply = taxiReply
+            Reply = connectionReply
         });
     }
 
@@ -76,22 +80,39 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnCancelBroadcast(GigGossipNode me, string peerPublicKey, CancelBroadcastFrame broadcastFrame)
     {
-        throw new NotImplementedException();
+        _gigGossipNodeEventSource.FireOnCancelBroadcast(new CancelBroadcastEventArgs
+        {
+            GigGossipNode = me,
+            CancelBroadcastFrame = broadcastFrame,
+            PeerPublicKey = peerPublicKey
+        });
     }
 
     public void OnNetworkInvoiceCancelled(GigGossipNode me, InvoiceData iac)
     {
-        throw new NotImplementedException();
+        _gigGossipNodeEventSource.FireOnNetworkInvoiceCancelled(new NetworkInvoiceCancelledEventArgs
+        {
+            GigGossipNode = me,
+            InvoiceData = iac
+        });
     }
 
     public void OnInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
-        throw new NotImplementedException();
+        _gigGossipNodeEventSource.FireOnInvoiceAccepted(new InvoiceAcceptedEventArgs
+        {
+            GigGossipNode = me,
+            InvoiceData = iac
+        });
     }
 
     public void OnInvoiceCancelled(GigGossipNode me, InvoiceData iac)
     {
-        throw new NotImplementedException();
+        _gigGossipNodeEventSource.FireOnInvoiceAccepted(new InvoiceAcceptedEventArgs
+        {
+            GigGossipNode = me,
+            InvoiceData = iac
+        });
     }
 }
 

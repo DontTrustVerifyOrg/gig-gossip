@@ -241,7 +241,7 @@ public class ComplexTest
 
 public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
 {
-    public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame)
+    public async void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
         var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(broadcastFrame.SignedRequestPayload.Value.Topic);
         if (taxiTopic != null)
@@ -250,7 +250,7 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
                    taxiTopic.ToGeohash.Length >= 7 &&
                    taxiTopic.DropoffBefore >= DateTime.UtcNow)
             {
-                me.BroadcastToPeersAsync(peerPublicKey, broadcastFrame);
+                await me.BroadcastToPeersAsync(peerPublicKey, broadcastFrame);
                 FlowLogger.NewEvent(me.PublicKey, "BroadcastToPeers");
             }
         }

@@ -6,10 +6,19 @@ namespace RideShareCLIApp;
 
 public interface IGigGossipNodeEventSource
 {
+    public event EventHandler<AcceptBroadcastEventArgs> OnAcceptBroadcast;
+
     public event EventHandler<NewResponseEventArgs> OnNewResponse;
     public event EventHandler<ResponseReadyEventArgs> OnResponseReady;
-    public event EventHandler<AcceptBroadcastEventArgs> OnAcceptBroadcast;
+    public event EventHandler<CancelBroadcastEventArgs> OnCancelBroadcast;
+
+    public event EventHandler<NetworkInvoiceAcceptedEventArgs> OnNetworkInvoiceAccepted;
+    public event EventHandler<NetworkInvoiceCancelledEventArgs> OnNetworkInvoiceCancelled;
+
+    public event EventHandler<InvoiceAcceptedEventArgs> OnInvoiceAccepted;
     public event EventHandler<InvoiceSettledEventArgs> OnInvoiceSettled;
+    public event EventHandler<InvoiceCancelledEventArgs> OnInvoiceCancelled;
+
     public event EventHandler<PaymentStatusChangeEventArgs> OnPaymentStatusChange;
 }
 
@@ -18,6 +27,12 @@ public class AcceptBroadcastEventArgs : EventArgs
     public required GigGossipNode GigGossipNode;
     public required string PeerPublicKey;
     public required BroadcastFrame BroadcastFrame;
+}
+
+public class NetworkInvoiceAcceptedEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required InvoiceData InvoiceData;
 }
 
 public class NewResponseEventArgs : EventArgs
@@ -50,3 +65,27 @@ public class PaymentStatusChangeEventArgs : EventArgs
     public required PaymentData PaymentData;
 }
 
+public class CancelBroadcastEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required string PeerPublicKey;
+    public required CancelBroadcastFrame CancelBroadcastFrame;
+}
+
+public class NetworkInvoiceCancelledEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required InvoiceData InvoiceData;
+}
+
+public class InvoiceAcceptedEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required InvoiceData InvoiceData;
+}
+
+public class InvoiceCancelledEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required InvoiceData InvoiceData;
+}
