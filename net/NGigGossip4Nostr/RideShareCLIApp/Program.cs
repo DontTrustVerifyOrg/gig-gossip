@@ -1,7 +1,9 @@
-﻿using CommandLine;
+﻿using System.Reflection;
+using CommandLine;
 using CommandLine.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Spectre.Console;
 
 namespace RideShareCLIApp;
 
@@ -16,11 +18,13 @@ class Program
         [Option('d', "basedir", Required = false, HelpText = "Configuration folder dir")]
         public string? BaseDir { get; set; }
 
+        /*
         [Option('s', "script", Required = false, HelpText = "Script to run")]
         public string Script { get; set; }
 
         [Option('v', "verbose", Required = false, HelpText = "Enable verbose output.")]
         public bool Verbose { get; set; }
+        *///NOT YET
     }
 
     static IConfigurationRoot GetConfigurationRoot(string? basePath, string[] args, string defaultFolder, string iniName)
@@ -46,28 +50,30 @@ class Program
             .ParseArguments<Options>(args)
             .WithParsed(options =>
             {
-                var loggerFactory = LoggerFactory.Create(builder =>
-                {
-                    builder
-                    .ClearProviders()
-                        .AddConsole()
-                        .AddDebug();
-
-                    if (options.Verbose)
-                    {
-                        builder.SetMinimumLevel(LogLevel.Debug);
-                    }
-                });
-
-                var logger = loggerFactory.CreateLogger<Program>();
-
                 try
                 {
-                    new RideShareCLIApp(logger, options.Id, options.Script, GetConfigurationRoot(options.BaseDir, args, ".giggossip", "ridesharecli.conf")).RunAsync().Wait();
+                    var assembly = Assembly.GetExecutingAssembly();
+                    var resourceName = "RideShareCLIApp.speed.flf";
+
+                    AnsiConsole.WriteLine(assembly.FullName);
+                    AnsiConsole.MarkupLine("[bold orange1]Gig-Gossip[/] protocol [italic blue]https://gig-gossip.org[/]");
+                    AnsiConsole.MarkupLine("[bold](C) Don't Trust Verify[/] [italic blue]https://donttrustverify.org[/]");
+                    using Stream stream = assembly.GetManifestResourceStream(resourceName);
+                    var font = FigletFont.Load(stream);
+                    AnsiConsole.Write(
+                        new FigletText(font, "rideshare")
+                            .LeftJustified()
+                            .Color(Color.Green1));
+
+                    AnsiConsole.WriteLine();
+
+                    new RideShareCLIApp(options.Id, GetConfigurationRoot(options.BaseDir, args, ".giggossip", "ridesharecli.conf")).RunAsync().Wait();
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex.GetExceptionFootprints());
+                    AnsiConsole.WriteException(ex,
+                        ExceptionFormats.ShortenPaths | ExceptionFormats.ShortenTypes |
+                        ExceptionFormats.ShortenMethods | ExceptionFormats.ShowLinks);
                     throw;
                 }
             });

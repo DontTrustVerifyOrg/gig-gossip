@@ -7,7 +7,6 @@ namespace RideShareCLIApp
 {
 	public class Settings
 	{
-        public string Script;
         public string Id;
 
         public NodeSettings NodeSettings;
@@ -15,9 +14,8 @@ namespace RideShareCLIApp
         public BitcoinSettings BitcoinSettings;
         public ApplicationSettings ApplicationSettings;
 
-        public Settings(string id, string script, IConfigurationRoot config)
+        public Settings(string id, IConfigurationRoot config)
         {
-            this.Script = script;
             this.Id = id;
             NodeSettings = config.GetSection("node").Get<NodeSettings>();
             SettlerAdminSettings = config.GetSection("settleradmin").Get<SettlerAdminSettings>();

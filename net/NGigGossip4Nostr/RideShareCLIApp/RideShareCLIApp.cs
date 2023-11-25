@@ -21,6 +21,8 @@ using Nominatim.API.Address;
 using Nominatim.API.Geocoders;
 using Nominatim.API.Models;
 using Sharprompt;
+using Spectre;
+using Spectre.Console;
 
 namespace RideShareCLIApp;
 
@@ -42,20 +44,18 @@ public sealed class DefaultHttpClientFactory : IHttpClientFactory, IDisposable
 public class RideShareCLIApp
 {
     Settings settings;
-    ILogger logger;
     GigGossipNode gigGossipNode;
     HttpClient httpClient = new HttpClient();
     IGigGossipNodeEventSource gigGossipNodeEventSource = new GigGossipNodeEventSource();
     QuerySearcher querySearcher;
     ForwardGeocoder forwardGeocoder;
 
-    public RideShareCLIApp(ILogger logger, string id, string script, IConfigurationRoot config)
+    public RideShareCLIApp(string id, IConfigurationRoot config)
     {
         if (id == null)
             id = Prompt.Input<string>("Node Id");
 
-        this.settings = new Settings(id, script, config);
-        this.logger = logger;
+        this.settings = new Settings(id, config);
 
         var webInterface = new Nominatim.API.Web.NominatimWebInterface(new DefaultHttpClientFactory());
         this.querySearcher = new QuerySearcher(webInterface);
@@ -218,7 +218,7 @@ public class RideShareCLIApp
             else if (cmd == CommandEnum.DriverMode)
             {
                 var mode = await GetNodeModeAsync();
-                logger.LogInformation("Current Node Mode is " + mode);
+                AnsiConsole.WriteLine("Current Node Mode is " + mode);
                 var newMode = Prompt.Select<NodeModeEnum>("Select new mode");
                 if (mode != newMode)
                     await SetNodeModeAsync(newMode);
@@ -228,13 +228,13 @@ public class RideShareCLIApp
                 var mode = await GetNodeModeAsync();
                 if (mode != NodeModeEnum.Rider)
                 {
-                    logger.LogWarning("Current Mode is " + mode);
+                    AnsiConsole.WriteLine("Current Mode is " + mode);
                 }
                 else
                 {
-                    logger.LogInformation("Pickup location");
+                    AnsiConsole.WriteLine("Pickup location");
                     var fromLocation = await PickLocationAsync();
-                    logger.LogInformation("Dropoff location");
+                    AnsiConsole.WriteLine("Dropoff location");
                     var toLocation = await PickLocationAsync();
                     var waitingTimeForPickupMinutes = Prompt.Input<int>("Waiting Time For Pickup In Minutes");
                     requestedRide = await RequestRide(fromLocation, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes);
@@ -245,7 +245,7 @@ public class RideShareCLIApp
                 var mode = await GetNodeModeAsync();
                 if (mode != NodeModeEnum.Driver)
                 {
-                    logger.LogWarning("Current Mode is " + mode);
+                    AnsiConsole.MarkupLine("[red]Current Mode is " + mode +"[/]" );
                 }
                 else
                 {
@@ -262,7 +262,7 @@ public class RideShareCLIApp
                 var mode = await GetNodeModeAsync();
                 if (mode != NodeModeEnum.Rider)
                 {
-                    logger.LogWarning("Current Mode is " + mode);
+                    AnsiConsole.MarkupLine("[red]Current Mode is " + mode + "[/]");
                 }
                 else
                 {
@@ -314,7 +314,7 @@ public class RideShareCLIApp
 
     private async void GigGossipNodeEventSource_OnNetworkInvoiceAccepted(object? sender, NetworkInvoiceAcceptedEventArgs e)
     {
-        logger.LogInformation("Network Invoice Accepted");
+        AnsiConsole.WriteLine("Network Invoice Accepted");
         await e.GigGossipNode.PayNetworkInvoiceAsync(e.InvoiceData);
     }
 
@@ -330,7 +330,7 @@ public class RideShareCLIApp
             if (taxiTopic != null)
             {
                 listOfBroadcasts.Add(e);
-                logger.LogInformation((listOfBroadcasts.Count + 1).ToString() + "|" + taxiTopic.FromGeohash + "->" + taxiTopic.ToGeohash + ":" + taxiTopic.PickupAfter.ToString() + taxiTopic.PickupBefore.ToString());
+                AnsiConsole.WriteLine((listOfBroadcasts.Count + 1).ToString() + "|" + taxiTopic.FromGeohash + "->" + taxiTopic.ToGeohash + ":" + taxiTopic.PickupAfter.ToString() + taxiTopic.PickupBefore.ToString());
             }
         }
         else
@@ -355,7 +355,7 @@ public class RideShareCLIApp
 
         if (mode == NodeModeEnum.Rider)
         {
-            logger.LogInformation((listOfResponses.Count + 1).ToString() + "|"+ e.DecodedReplyInvoice.NumSatoshis.ToString());
+            AnsiConsole.WriteLine((listOfResponses.Count + 1).ToString() + "|"+ e.DecodedReplyInvoice.NumSatoshis.ToString());
             listOfResponses.Add(e);
         }
     }
@@ -392,20 +392,20 @@ public class RideShareCLIApp
         if (privateKey == null)
         {
             var mnemonic = Crypto.GenerateMnemonic().Split(" ");
-            logger.LogInformation($"Initializing private key for {settings.Id}");
-            logger.LogInformation(string.Join(" ", mnemonic));
+            AnsiConsole.WriteLine($"Initializing private key for {settings.Id}");
+            AnsiConsole.WriteLine(string.Join(" ", mnemonic));
             privateKey = Crypto.DeriveECPrivKeyFromMnemonic(string.Join(" ", mnemonic));
             await SetPrivateKeyAsync(privateKey);
         }
         else
         {
-            logger.LogInformation($"Loading private key for {settings.Id}");
+            AnsiConsole.WriteLine($"Loading private key for {settings.Id}");
         }
 
-        logger.LogInformation(privateKey.AsHex());
+        AnsiConsole.WriteLine(privateKey.AsHex());
 
         var mode = await SecureStorage.Default.GetAsync(SecureStorageKeysEnum.NodeMode.ToString(), NodeModeEnum.Rider.ToString());
-        logger.LogInformation("Node mode is " + mode);
+        AnsiConsole.WriteLine("Node mode is " + mode);
 
         gigGossipNode = new GigGossipNode(
             settings.NodeSettings.ConnectionString.Replace("$ID", settings.Id),

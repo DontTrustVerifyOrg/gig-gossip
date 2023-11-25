@@ -21,6 +21,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="7.0.0" />
     <PackageReference Include="Sharprompt" Version="2.4.5" />
+    <PackageReference Include="Spectre.Console" Version="0.48.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NGigGossip4Nostr\NGigGossip4Nostr.csproj" />
@@ -32,10 +33,15 @@
     <None Remove="Services\" />
     <None Remove="Models\" />
     <None Remove="Services\Giggossip\" />
+    <None Remove="speed.flf" />
+    <None Remove="ANSI Regular.flf" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Services\" />
     <Folder Include="Models\" />
     <Folder Include="Services\Giggossip\" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="speed.flf" />
   </ItemGroup>
 </Project>
