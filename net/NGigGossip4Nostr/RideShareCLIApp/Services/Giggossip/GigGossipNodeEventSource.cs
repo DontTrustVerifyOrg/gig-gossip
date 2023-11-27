@@ -23,6 +23,7 @@ public class GigGossipNodeEventSource : IGigGossipNodeEventSource
 
     public event EventHandler<PaymentStatusChangeEventArgs> OnPaymentStatusChange;
 
+    public event EventHandler<NewContactEventArgs> OnNewContact;
 
     public readonly GigGossipNodeEvents GigGossipNodeEvents;
 
@@ -40,5 +41,6 @@ public class GigGossipNodeEventSource : IGigGossipNodeEventSource
     public void FireOnInvoiceCancelled(InvoiceCancelledEventArgs args) => OnInvoiceCancelled?.Invoke(this, args);
 
     public void FireOnPaymentStatusChange(PaymentStatusChangeEventArgs args) => OnPaymentStatusChange?.Invoke(this, args);
-}
 
+    public void FireOnNewContact(NewContactEventArgs args) => OnNewContact?.Invoke(this, args);
+}

@@ -6,6 +6,7 @@ using CryptoToolkit;
 using System.Threading;
 using NBitcoin.RPC;
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 
 namespace NGigGossip4Nostr;
 
@@ -138,54 +139,47 @@ public abstract class NostrNode
 
     protected async Task StartAsync(string[] nostrRelays)
     {
-        if (mainThread != null)
-            throw new InvalidOperationException("Nostr Node already started");
-
         NostrRelays = nostrRelays;
         nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
         await nostrClient.ConnectAndWaitUntilConnected();
-        var q = nostrClient.SubscribeForEvents(new[]{
-                new NostrSubscriptionFilter()
-                {
-                    Kinds = new []{HelloKind},
-                },
-                new NostrSubscriptionFilter()
-                {
-                    Kinds = new []{ContactListKind},
-                    Authors = new []{ publicKey.ToHex() },
-                },
-                new NostrSubscriptionFilter()
-                {
-                    Kinds = new []{RegularMessageKind},
-                    ReferencedPublicKeys = new []{ publicKey.ToHex() }
-                },
-                new NostrSubscriptionFilter()
-                {
-                    Kinds = new []{EphemeralMessageKind},
-                    ReferencedPublicKeys = new []{ publicKey.ToHex() }
-                }
-            }, false, subscribeForEventsTokenSource.Token);
+        nostrClient.EventsReceived += NostrClient_EventsReceived;
+        await nostrClient.CreateSubscription("giggossip", new[]{
+                        new NostrSubscriptionFilter()
+                        {
+                            Kinds = new []{HelloKind},
+                        },
+                        new NostrSubscriptionFilter()
+                        {
+                            Kinds = new []{ContactListKind},
+                            Authors = new []{ publicKey.ToHex() },
+                        },
+                        new NostrSubscriptionFilter()
+                        {
+                            Kinds = new []{RegularMessageKind},
+                            ReferencedPublicKeys = new []{ publicKey.ToHex() }
+                        },
+                        new NostrSubscriptionFilter()
+                        {
+                            Kinds = new []{EphemeralMessageKind},
+                            ReferencedPublicKeys = new []{ publicKey.ToHex() }
+                        }
+                    });
+    }
 
-        mainThread = new Thread(async () =>
+    private async void NostrClient_EventsReceived(object? sender, (string subscriptionId, NostrEvent[] events) e)
+    {
+        if (e.subscriptionId == "giggossip")
         {
-
-            try
+            foreach (var nostrEvent in e.events)
             {
-                await foreach (var nostrEvent in q)
-                    if (nostrEvent.Kind == HelloKind)
-                        ProcessHello(nostrEvent);
-                    else if (nostrEvent.Kind == ContactListKind)
-                        ProcessContactList(nostrEvent);
-                    else
-                        await ProcessNewMessageAsync(nostrEvent);
+                if (nostrEvent.Kind == HelloKind)
+                    ProcessHello(nostrEvent);
+                else if (nostrEvent.Kind == ContactListKind)
+                    ProcessContactList(nostrEvent);
+                else
+                    await ProcessNewMessageAsync(nostrEvent);
             }
-            catch (Exception e)
-            {
-                Trace.TraceError(e.ToString());
-            }
-
-        });
-        mainThread.Start();
+        }
     }
 
     public virtual void Stop()

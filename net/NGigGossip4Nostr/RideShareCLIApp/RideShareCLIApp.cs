@@ -94,6 +94,7 @@ public class RideShareCLIApp
         gigGossipNodeEventSource.OnNetworkInvoiceCancelled += GigGossipNodeEventSource_OnNetworkInvoiceCancelled;
         gigGossipNodeEventSource.OnPaymentStatusChange += GigGossipNodeEventSource_OnPaymentStatusChange;
         gigGossipNodeEventSource.OnInvoiceSettled += GigGossipNodeEventSource_OnInvoiceSettled;
+        gigGossipNodeEventSource.OnNewContact += GigGossipNodeEventSource_OnNewContact;
     }
 
     private void GigGossipNodeEventSource_OnInvoiceSettled(object? sender, InvoiceSettledEventArgs e)
@@ -311,11 +312,16 @@ public class RideShareCLIApp
             }
             else if (cmd == CommandEnum.RequestRide)
             {
+                /*
                 AnsiConsole.WriteLine("Pickup location");
                 var fromLocation = await PickLocationAsync("pickup");
                 AnsiConsole.WriteLine("Dropoff location");
                 var toLocation = await PickLocationAsync("dropoff");
                 var waitingTimeForPickupMinutes = Prompt.Input<int>("Waiting Time For Pickup In Minutes");
+                */
+                var fromLocation = new Location(0, 0);
+                var toLocation = new Location(1, 1);
+                int waitingTimeForPickupMinutes = 12;
                 requestedRide = await RequestRide(fromLocation, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes);
 
                 receivedResponses = new();
@@ -418,9 +424,15 @@ public class RideShareCLIApp
         }
     }
 
+    private void GigGossipNodeEventSource_OnNewContact(object? sender, NewContactEventArgs e)
+    {
+        AnsiConsole.WriteLine("New contact :" + e.PublicKey);
+    }
 
     private async void GigGossipNodeEventSource_OnNewResponse(object? sender, NewResponseEventArgs e)
     {
+        if (receivedResponsesTable == null)
+            return;
         var desc = describeResponse(e);
         receivedResponses.Add(e);
         receivedResponsesIdxesForPaymentHashes[e.DecodedReplyInvoice.PaymentHash] = receivedResponses.Count - 1;
@@ -430,31 +442,36 @@ public class RideShareCLIApp
 
     private async void GigGossipNodeEventSource_OnResponseReady(object? sender, ResponseReadyEventArgs e)
     {
-        directCom.Stop();
-        await directCom.StartAsync(e.Reply.Relays);
-        await directCom.SendMessageAsync(e.Reply.PublicKey, new AckFrame() { Secret = e.Reply.Secret }, true);
+//        directCom.Stop();
+//        await directCom.StartAsync(e.Reply.Relays);
+//        await directCom.SendMessageAsync(e.Reply.PublicKey, new AckFrame() { Secret = e.Reply.Secret }, true);
     }
 
 
     private async void GigGossipNodeEventSource_OnInvoiceAccepted(object? sender, InvoiceAcceptedEventArgs e)
     {
-        if (!e.InvoiceData.IsNetworkInvoice)
+        if (inDriverMode)
         {
-            var hashes = (from br in e.GigGossipNode.GetAcceptedBroadcasts()
-                          select Crypto.DeserializeObject<PayReq>(br.DecodedReplyInvoice).PaymentHash).ToList();
+            if (!e.InvoiceData.IsNetworkInvoice)
+            {
+                var hashes = (from br in e.GigGossipNode.GetAcceptedBroadcasts()
+                              select Crypto.DeserializeObject<PayReq>(br.DecodedReplyInvoice).PaymentHash).ToList();
 
-            foreach (var bbr in (from hash in hashes where hash != e.InvoiceData.PaymentHash select hash))
-                e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), bbr);
+                foreach (var bbr in (from hash in hashes where hash != e.InvoiceData.PaymentHash select hash))
+                    e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), bbr);
 
-            receivedBroadcastsTable.Exit();
+                receivedBroadcastsTable.Exit();
 
-            directCom.Stop();
-            await directCom.StartAsync(e.GigGossipNode.NostrRelays);
+                directCom.Stop();
+                await directCom.StartAsync(e.GigGossipNode.NostrRelays);
+            }
         }
     }
 
     private void GigGossipNodeEventSource_OnInvoiceCancelled(object? sender, InvoiceCancelledEventArgs e)
     {
+        if (!receivedResponsesIdxesForPaymentHashes.ContainsKey(e.InvoiceData.PaymentHash))
+            return;
         if (!e.InvoiceData.IsNetworkInvoice)
         {
             var idx = receivedResponsesIdxesForPaymentHashes[e.InvoiceData.PaymentHash];
@@ -466,6 +483,8 @@ public class RideShareCLIApp
 
     private void GigGossipNodeEventSource_OnCancelBroadcast(object? sender, CancelBroadcastEventArgs e)
     {
+        if (!receivedBroadcastIdxesForPayloadIds.ContainsKey(e.CancelBroadcastFrame.SignedCancelRequestPayload.Id))
+            return;
         var idx = receivedBroadcastIdxesForPayloadIds[e.CancelBroadcastFrame.SignedCancelRequestPayload.Id];
         receivedBroadcasts.RemoveAt(idx);
         receivedBroadcastsFees.RemoveAt(idx);
@@ -489,8 +508,6 @@ public class RideShareCLIApp
             AnsiConsole.WriteLine($"Loading private key for {settings.Id}");
         }
 
-        AnsiConsole.WriteLine(privateKey.AsHex());
-
         gigGossipNode = new GigGossipNode(
             settings.NodeSettings.ConnectionString.Replace("$ID", settings.Id),
             privateKey,
@@ -511,8 +528,16 @@ public class RideShareCLIApp
         directCom.RegisterFrameType<LocationFrame>();
         directCom.OnDirectMessage += DirectCom_OnDirectMessage;
 
+        AnsiConsole.WriteLine("privkey:" + privateKey.AsHex());
+        AnsiConsole.WriteLine("pubkey :" + gigGossipNode.PublicKey);
+
         var ballanceOfCustomer = await gigGossipNode.LNDWalletClient.GetBalanceAsync(gigGossipNode.MakeWalletAuthToken());
         AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
+
+        var contactList = gigGossipNode.LoadContactList();
+        AnsiConsole.WriteLine("Contacts:");
+        foreach (var contact in contactList)
+            AnsiConsole.WriteLine("contact :" + contact);
     }
 
     private void DirectCom_OnDirectMessage(object? sender, DirectMessageEventArgs e)

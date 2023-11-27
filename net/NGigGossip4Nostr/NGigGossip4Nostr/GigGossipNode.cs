@@ -52,6 +52,8 @@ public interface IGigGossipNodeEvents
     public void OnInvoiceCancelled(GigGossipNode me, InvoiceData iac);
     public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage);
     public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata);
+
+    public void OnNewContact(GigGossipNode me, string pubkey);
 }
 
 public class AcceptBroadcastResponse
@@ -188,6 +190,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             {
                 _contactList[c.ContactPublicKey] = c;
                 this.nodeContext.Value.AddObject(c);
+                this.gigGossipNodeEvents.OnNewContact(this, c.ContactPublicKey);
             }
         }
     }
@@ -202,17 +205,18 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         await this.PublishContactListAsync(cl);
     }
 
-    public void LoadContactList()
+    public List<string> LoadContactList()
     {
         lock (_contactList)
         {
             var mycontacts = (from c in this.nodeContext.Value.NostrContacts where c.PublicKey == this.PublicKey select c);
             foreach (var c in mycontacts)
                 _contactList[c.ContactPublicKey] = c;
+            return _contactList.Keys.ToList();
         }
     }
 
-    public List<string> GetContacts()
+    public List<string> GetContactList()
     {
         lock (_contactList)
         {
@@ -231,6 +235,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                 {
                     toadd.Add(c);
                     _contactList[c.ContactPublicKey] = c;
+                    this.gigGossipNodeEvents.OnNewContact(this, c.ContactPublicKey);
                 }
             }
             if (toadd.Count > 0)
@@ -277,7 +282,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
     public List<string> GetBroadcastContactList(Guid payloadId, string? originatorPublicKey)
     {
         var rnd = new Random();
-        var contacts = new HashSet<string>(GetContacts());
+        var contacts = new HashSet<string>(GetContactList());
         var alreadyBroadcasted = (from inc in this.nodeContext.Value.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.PayloadId == payloadId select inc.ContactPublicKey).ToList();
         contacts.ExceptWith(alreadyBroadcasted);
         if (originatorPublicKey != null)
@@ -411,6 +416,17 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                 FlowLogger.SetupParticipantWithAutoAlias(replyPaymentHash, "I", false);
                 FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), replyPaymentHash, "hash");
                 FlowLogger.NewMessage(this.PublicKey, replyPaymentHash, "create");
+                decodedReplyInvoice = await LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), replyInvoice);
+                await this._lndWalletMonitor.MonitorInvoiceAsync(
+                    decodedReplyInvoice.PaymentHash,
+                    Crypto.SerializeObject(new InvoiceData()
+                    {
+                        IsNetworkInvoice = false,
+                        Invoice = replyInvoice,
+                        PaymentHash = decodedReplyInvoice.PaymentHash,
+                        TotalSeconds = (int)invoicePaymentTimeout.TotalSeconds
+                    }));
+
                 await this._settlerMonitor.MonitorPreimageAsync(
                     acceptBroadcastResponse.SettlerServiceUri,
                     replyPaymentHash);
@@ -425,7 +441,6 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                 FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), decodedNetworkInvoice.PaymentHash, "create");
                 var encryptedReplyPayload = settlementTrust.EncryptedReplyPayload;
 
-                decodedReplyInvoice = await LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), replyInvoice);
 
                 this.nodeContext.Value.AddObject(new AcceptedBroadcastRow()
                 {

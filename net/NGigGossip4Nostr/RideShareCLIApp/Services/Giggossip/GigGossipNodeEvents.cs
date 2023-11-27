@@ -114,5 +114,14 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
             InvoiceData = iac
         });
     }
+
+    public void OnNewContact(GigGossipNode me, string pubkey)
+    {
+        _gigGossipNodeEventSource.FireOnNewContact(new NewContactEventArgs
+        {
+            GigGossipNode = me,
+            PublicKey = pubkey
+        });
+    }
 }
 

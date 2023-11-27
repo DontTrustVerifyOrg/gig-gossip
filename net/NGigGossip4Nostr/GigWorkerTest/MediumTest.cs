@@ -292,6 +292,10 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
     public void OnInvoiceCancelled(GigGossipNode me, InvoiceData iac)
     {
     }
+
+    public void OnNewContact(GigGossipNode me, string pubkey)
+    {
+    }
 }
 
 public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
@@ -365,6 +369,10 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
     }
 
     public void OnInvoiceCancelled(GigGossipNode me, InvoiceData iac)
+    {
+    }
+
+    public void OnNewContact(GigGossipNode me, string pubkey)
     {
     }
 }
@@ -452,6 +460,10 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     }
 
     public void OnInvoiceCancelled(GigGossipNode me, InvoiceData iac)
+    {
+    }
+
+    public void OnNewContact(GigGossipNode me, string pubkey)
     {
     }
 }

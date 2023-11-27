@@ -20,6 +20,7 @@ public interface IGigGossipNodeEventSource
     public event EventHandler<InvoiceCancelledEventArgs> OnInvoiceCancelled;
 
     public event EventHandler<PaymentStatusChangeEventArgs> OnPaymentStatusChange;
+    public event EventHandler<NewContactEventArgs> OnNewContact;
 }
 
 public class AcceptBroadcastEventArgs : EventArgs
@@ -88,4 +89,10 @@ public class InvoiceCancelledEventArgs : EventArgs
 {
     public required GigGossipNode GigGossipNode;
     public required InvoiceData InvoiceData;
+}
+
+public class NewContactEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required string PublicKey;
 }
