@@ -231,7 +231,7 @@ public class ComplexTest
         foreach (var nod_idx in gridShapeIter.MultiCartesian())
         {
             var node_name = nod_name_f(nod_idx);
-            things[node_name].Stop();
+            things[node_name].StopAsync();
         }
 
         FlowLogger.Stop();

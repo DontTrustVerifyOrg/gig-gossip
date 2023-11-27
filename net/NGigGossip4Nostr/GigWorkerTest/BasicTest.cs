@@ -166,8 +166,8 @@ public class BasicTest
                 Monitor.Wait(MainThreadControl.Ctrl);
         }
 
-        gigWorker.Stop();
-        customer.Stop();
+        gigWorker.StopAsync();
+        customer.StopAsync();
 
         FlowLogger.Stop();
     }

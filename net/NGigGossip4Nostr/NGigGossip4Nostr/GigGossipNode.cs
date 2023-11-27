@@ -146,9 +146,9 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         await SayHelloAsync();
     }
 
-    public override void Stop()
+    public override async Task StopAsync()
     {
-        base.Stop();
+        await base.StopAsync();
         this._lndWalletMonitor.Stop();
         this._settlerMonitor.Stop();
     }

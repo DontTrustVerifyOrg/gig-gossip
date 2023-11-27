@@ -462,7 +462,7 @@ public class RideShareCLIApp
 
                 receivedBroadcastsTable.Exit();
 
-                directCom.Stop();
+                directCom.StopAsync();
                 await directCom.StartAsync(e.GigGossipNode.NostrRelays);
             }
         }

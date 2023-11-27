@@ -182,14 +182,11 @@ public abstract class NostrNode
         }
     }
 
-    public virtual void Stop()
+    public virtual async Task StopAsync()
     {
-        if (mainThread != null)
-        {
-            subscribeForEventsTokenSource.Cancel();
-            mainThread.Join();
-            mainThread = null;
-        }
+        await nostrClient.CloseSubscription("giggossip");
+        await nostrClient.Disconnect();
+        nostrClient.Dispose();
     }
 
     private ConcurrentDictionary<string, ConcurrentDictionary<int, string>> _partial_messages = new();

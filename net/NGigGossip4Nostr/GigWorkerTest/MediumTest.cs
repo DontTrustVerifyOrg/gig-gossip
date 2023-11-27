@@ -221,10 +221,10 @@ public class MediumTest
                 Monitor.Wait(MainThreadControl.Ctrl);
         }
 
-        gigWorker.Stop();
+        gigWorker.StopAsync();
         foreach (var node in gossipers)
-            node.Stop();
-        customer.Stop();
+            node.StopAsync();
+        customer.StopAsync();
 
         FlowLogger.Stop();
     }
