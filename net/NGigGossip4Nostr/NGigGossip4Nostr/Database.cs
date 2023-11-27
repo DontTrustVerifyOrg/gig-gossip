@@ -80,9 +80,12 @@ public class AcceptedBroadcastRow
 
     public required byte[] SignedSettlementPromise { get; set; }
     public required string NetworkInvoice { get; set; }
+
     public required byte[] EncryptedReplyPayload { get; set; }
 
     public required string ReplyInvoice { get; set; }
+    public required byte[] DecodedNetworkInvoice { get; set; }
+    public required byte[] DecodedReplyInvoice { get; set; }
 }
 
 

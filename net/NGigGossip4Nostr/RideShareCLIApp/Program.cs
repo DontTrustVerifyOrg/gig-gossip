@@ -18,13 +18,6 @@ class Program
         [Option('d', "basedir", Required = false, HelpText = "Configuration folder dir")]
         public string? BaseDir { get; set; }
 
-        /*
-        [Option('s', "script", Required = false, HelpText = "Script to run")]
-        public string Script { get; set; }
-
-        [Option('v', "verbose", Required = false, HelpText = "Enable verbose output.")]
-        public bool Verbose { get; set; }
-        *///NOT YET
     }
 
     static IConfigurationRoot GetConfigurationRoot(string? basePath, string[] args, string defaultFolder, string iniName)
@@ -54,10 +47,9 @@ class Program
                 {
                     var assembly = Assembly.GetExecutingAssembly();
                     var resourceName = "RideShareCLIApp.speed.flf";
-
                     AnsiConsole.WriteLine(assembly.FullName);
-                    AnsiConsole.MarkupLine("[bold orange1]Gig-Gossip[/] protocol [italic blue]https://gig-gossip.org[/]");
-                    AnsiConsole.MarkupLine("[bold](C) Don't Trust Verify[/] [italic blue]https://donttrustverify.org[/]");
+                    AnsiConsole.MarkupLine("\t[bold orange1]Gig-Gossip[/] protocol [link]https://gig-gossip.org[/]");
+                    AnsiConsole.MarkupLine("\t[bold](C) Don't Trust Verify[/] [link]https://donttrustverify.org[/]");
                     using Stream stream = assembly.GetManifestResourceStream(resourceName);
                     var font = FigletFont.Load(stream);
                     AnsiConsole.Write(

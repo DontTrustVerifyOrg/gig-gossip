@@ -388,10 +388,10 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             backwardOnion: broadcastFrame.BackwardOnion);
     }
 
-    public async Task<string> AcceptBroadcastAsync(string peerPublicKey, BroadcastFrame broadcastFrame, AcceptBroadcastResponse acceptBroadcastResponse)
+    public async Task<PayReq> AcceptBroadcastAsync(string peerPublicKey, BroadcastFrame broadcastFrame, AcceptBroadcastResponse acceptBroadcastResponse)
     {
         ReplyFrame responseFrame;
-        string replyInvoice;
+        PayReq decodedReplyInvoice;
         await alreadyBroadcastedSemaphore.WaitAsync();
         try
         {
@@ -407,7 +407,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                 var settlerClient = this.SettlerSelector.GetSettlerClient(acceptBroadcastResponse.SettlerServiceUri);
                 var authToken = await MakeSettlerAuthTokenAsync(acceptBroadcastResponse.SettlerServiceUri);
                 var replyPaymentHash = await settlerClient.GenerateReplyPaymentPreimageAsync(authToken, broadcastFrame.SignedRequestPayload.Value.PayloadId.ToString(), this.PublicKey);
-                replyInvoice = (await LNDWalletClient.AddHodlInvoiceAsync(MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds)).PaymentRequest;
+                var replyInvoice = (await LNDWalletClient.AddHodlInvoiceAsync(MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds)).PaymentRequest;
                 FlowLogger.SetupParticipantWithAutoAlias(replyPaymentHash, "I", false);
                 FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), replyPaymentHash, "hash");
                 FlowLogger.NewMessage(this.PublicKey, replyPaymentHash, "create");
@@ -425,6 +425,8 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                 FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), decodedNetworkInvoice.PaymentHash, "create");
                 var encryptedReplyPayload = settlementTrust.EncryptedReplyPayload;
 
+                decodedReplyInvoice = await LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), replyInvoice);
+
                 this.nodeContext.Value.AddObject(new AcceptedBroadcastRow()
                 {
                     PublicKey = this.PublicKey,
@@ -434,6 +436,8 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
                     NetworkInvoice = networkInvoice,
                     SignedSettlementPromise = Crypto.SerializeObject(signedSettlementPromise),
                     ReplyInvoice = replyInvoice,
+                    DecodedNetworkInvoice = Crypto.SerializeObject(decodedNetworkInvoice),
+                    DecodedReplyInvoice = Crypto.SerializeObject(decodedReplyInvoice),
                 });
 
                 FlowLogger.SetupParticipantWithAutoAlias(broadcastFrame.SignedRequestPayload.Value.PayloadId.ToString() + "_" + this.PublicKey, "K", false);
@@ -450,7 +454,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
             }
             else
             {
-                replyInvoice = alreadyBroadcasted.ReplyInvoice;
+                decodedReplyInvoice = Crypto.DeserializeObject<PayReq>(alreadyBroadcasted.DecodedReplyInvoice);
                 responseFrame = new ReplyFrame()
                 {
                     EncryptedReplyPayload = alreadyBroadcasted.EncryptedReplyPayload,
@@ -466,7 +470,7 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
         }
 
         await this.OnResponseFrameAsync(null, peerPublicKey, responseFrame, newResponse: true);
-        return replyInvoice;
+        return decodedReplyInvoice;
     }
 
     public async Task OnResponseFrameAsync(string messageId, string peerPublicKey, ReplyFrame responseFrame, bool newResponse = false)
@@ -569,6 +573,16 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
 
     }
 
+    public IQueryable<ReplyPayloadRow> GetReplyPayloads()
+    {
+        return (from rp in this.nodeContext.Value.ReplyPayloads where rp.PublicKey == this.PublicKey select rp);
+    }
+
+    public IQueryable<AcceptedBroadcastRow> GetAcceptedBroadcasts()
+    {
+        return (from rp in this.nodeContext.Value.AcceptedBroadcasts where rp.PublicKey == this.PublicKey select rp);
+    }
+
     public IQueryable<ReplyPayloadRow> GetReplyPayloads(Guid payloadId)
     {
         return (from rp in this.nodeContext.Value.ReplyPayloads where rp.PublicKey == this.PublicKey && rp.PayloadId == payloadId select rp);
@@ -578,7 +592,6 @@ public class GigGossipNode : NostrNode, ILNDWalletMonitorEvents, ISettlerMonitor
     {
         return (from rp in this.nodeContext.Value.AcceptedBroadcasts where rp.PublicKey == this.PublicKey && rp.PayloadId == payloadId select rp);
     }
-
 
     public void OnInvoiceStateChange(string state, byte[] data)
     {
