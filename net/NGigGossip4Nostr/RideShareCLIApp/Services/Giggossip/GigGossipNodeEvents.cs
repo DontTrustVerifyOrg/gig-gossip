@@ -64,6 +64,7 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
         _gigGossipNodeEventSource.FireOnResponseReady(new ResponseReadyEventArgs()
         {
             GigGossipNode = me,
+            RequestPayloadId = replyPayload.Value.SignedRequestPayload.Id,
             Reply = connectionReply
         });
     }

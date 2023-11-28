@@ -48,6 +48,7 @@ public class NewResponseEventArgs : EventArgs
 public class ResponseReadyEventArgs : EventArgs
 {
     public required GigGossipNode GigGossipNode;
+    public required Guid RequestPayloadId;
     public required ConnectionReply Reply;
 }
 

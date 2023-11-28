@@ -27,7 +27,6 @@
     <ProjectReference Include="..\NGigGossip4Nostr\NGigGossip4Nostr.csproj" />
     <ProjectReference Include="..\GigGossipSettlerAPIClient\GigGossipSettlerAPIClient.csproj" />
     <ProjectReference Include="..\GigLNDWalletApiClientCLI\GigLNDWalletApiClientCLI.csproj" />
-    <ProjectReference Include="..\..\..\..\Nominatim.API\src\Nominatim.API\Nominatim.API.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Remove="Services\" />

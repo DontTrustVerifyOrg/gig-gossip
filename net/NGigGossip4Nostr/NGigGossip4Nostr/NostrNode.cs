@@ -134,11 +134,10 @@ public abstract class NostrNode
     public abstract void OnContactList(string eventId, Dictionary<string, NostrContact> contactList);
     public abstract void OnHello(string eventId, string senderPublicKeye);
 
-    Thread? mainThread = null;
-    CancellationTokenSource subscribeForEventsTokenSource = new CancellationTokenSource();
-
     protected async Task StartAsync(string[] nostrRelays)
     {
+        if (nostrClient != null)
+            await StopAsync();
         NostrRelays = nostrRelays;
         nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
         await nostrClient.ConnectAndWaitUntilConnected();

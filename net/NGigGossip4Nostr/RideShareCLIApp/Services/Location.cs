@@ -19,4 +19,9 @@ public class Location
         Latitude = point.Latitude;
         Longitude = point.Longitude;
     }
+
+    public override string ToString()
+    {
+        return $"Geo({Longitude},{Latitude})";
+    }
 }
