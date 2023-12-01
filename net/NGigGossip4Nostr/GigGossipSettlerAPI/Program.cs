@@ -1,24 +1,25 @@
-﻿using System;
-using NBitcoin.Secp256k1;
-using NGigGossip4Nostr;
-using CryptoToolkit;
-using Microsoft.AspNetCore.Builder;
-using GigLNDWalletAPIClient;
-using Microsoft.AspNetCore.Mvc;
-using System.Reflection;
-using Microsoft.AspNetCore.SignalR.Client;
+﻿using CryptoToolkit;
 using GigGossipSettler;
 using GigGossipSettlerAPI;
-using System.Xml.Linq;
+using GigGossipSettlerAPI.Config;
+using GigLNDWalletAPIClient;
+using NBitcoin.Secp256k1;
+using NGigGossip4Nostr;
+using System.Reflection;
 using System.Text;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    c.IncludeXmlComments(xmlPath);
     c.EnableAnnotations();
 });
 builder.Services.AddSignalR();
@@ -38,37 +39,28 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseHsts();
 
-IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
-{
-    var basePath = Environment.GetEnvironmentVariable("GIGGOSSIP_BASEDIR");
-    if (basePath == null)
-        basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), defaultFolder);
-    foreach (var arg in args)
-        if (arg.StartsWith("--basedir"))
-            basePath = arg.Substring(arg.IndexOf('=') + 1).Trim().Replace("\"", "").Replace("\'", "");
-
-    var builder = new ConfigurationBuilder();
-    builder.SetBasePath(basePath)
-           .AddIniFile(iniName)
-           .AddEnvironmentVariables()
-           .AddCommandLine(args);
-
-    return builder.Build();
-}
-
-var config = GetConfigurationRoot(".giggossip", "settler.conf");
-var settlerSettings = config.GetSection("settler").Get<SettlerSettings>();
 
 
-var caPrivateKey = settlerSettings.SettlerPrivateKey.AsECPrivKey();
+var settlerSettings = builder.Configuration.GetSection(SettlerConfig.SectionName).Get<SettlerConfig>();
+ECPrivKey caPrivateKey = settlerSettings.SettlerPrivateKey.AsECPrivKey();
 
 var httpClient = new HttpClient();
 var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.AbsoluteUri, httpClient);
 
 
-Singlethon.Settler = new Settler(settlerSettings.ServiceUri, new SimpleSettlerSelector(httpClient) , caPrivateKey, settlerSettings.PriceAmountForSettlement, TimeSpan.FromSeconds(settlerSettings.InvoicePaymentTimeoutSec),TimeSpan.FromSeconds(settlerSettings.DisputeTimeoutSec));
+Singlethon.Settler = new Settler(
+    settlerSettings.ServiceUri,
+    new SimpleSettlerSelector(httpClient),
+    caPrivateKey, settlerSettings.PriceAmountForSettlement,
+    TimeSpan.FromSeconds(settlerSettings.InvoicePaymentTimeoutSec),
+    TimeSpan.FromSeconds(settlerSettings.DisputeTimeoutSec)
+    );
+
 await Singlethon.Settler.InitAsync(lndWalletClient, settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)), false);
 await Singlethon.Settler.StartAsync();
+
+
+
 
 app.MapGet("/getcapublickey", () =>
 {
@@ -462,15 +454,4 @@ public record Result<T>
     public T? Value { get; set; } = default;
     public SettlerErrorCode ErrorCode { get; set; } = SettlerErrorCode.Ok;
     public string ErrorMessage { get; set; } = "";
-}
-
-public class SettlerSettings
-{
-    public required Uri ServiceUri { get; set; }
-    public required Uri GigWalletOpenApi { get; set; }
-    public required long PriceAmountForSettlement { get; set; }
-    public required string ConnectionString { get; set; }
-    public required string SettlerPrivateKey { get; set; }
-    public required long InvoicePaymentTimeoutSec { get; set; }
-    public required long DisputeTimeoutSec { get; set; }
 }
