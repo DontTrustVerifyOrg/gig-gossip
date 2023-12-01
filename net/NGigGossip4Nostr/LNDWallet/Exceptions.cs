@@ -58,7 +58,7 @@ public static class Extensions
 public class LNDWalletException : Exception
 {
     /// <summary>Represents the error code of the exception.</summary>
-    LNDWalletErrorCode ErrorCode { get; set; }
+    public LNDWalletErrorCode ErrorCode { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LNDWalletException"/> class with a specified error code.

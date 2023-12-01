@@ -25,10 +25,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GigGossipSettler\GigGossipSettler.csproj">
+    <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj">
       <GlobalPropertiesToRemove></GlobalPropertiesToRemove>
     </ProjectReference>
-    <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj">
+    <ProjectReference Include="..\GigGossipSettler\GigGossipSettler.csproj">
       <GlobalPropertiesToRemove></GlobalPropertiesToRemove>
     </ProjectReference>
   </ItemGroup>

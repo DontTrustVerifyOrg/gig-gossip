@@ -31,8 +31,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string",
-                  "format": "uuid"
+                  "$ref": "#/components/schemas/GuidResult"
                 }
               }
             }
@@ -66,8 +65,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "integer",
-                  "format": "int64"
+                  "$ref": "#/components/schemas/Int64Result"
                 }
               }
             }
@@ -99,9 +97,9 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/StringResult"
                 }
               }
             }
@@ -167,8 +165,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string",
-                  "format": "uuid"
+                  "$ref": "#/components/schemas/GuidResult"
                 }
               }
             }
@@ -234,7 +231,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvoiceRet"
+                  "$ref": "#/components/schemas/InvoiceRetResult"
                 }
               }
             }
@@ -310,7 +307,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvoiceRet"
+                  "$ref": "#/components/schemas/InvoiceRetResult"
                 }
               }
             }
@@ -354,7 +351,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PayReq"
+                  "$ref": "#/components/schemas/PayReqResult"
                 }
               }
             }
@@ -405,7 +402,14 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
           }
         }
       }
@@ -442,7 +446,14 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
           }
         }
       }
@@ -479,7 +490,14 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
           }
         }
       }
@@ -518,9 +536,9 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/StringResult"
                 }
               }
             }
@@ -562,9 +580,9 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/StringResult"
                 }
               }
             }
@@ -587,6 +605,23 @@
           },
           "isKnown": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GuidResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "errorCode": {
+            "$ref": "#/components/schemas/LNDWalletErrorCode"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -617,6 +652,23 @@
         },
         "additionalProperties": false
       },
+      "Int64Result": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "errorCode": {
+            "$ref": "#/components/schemas/LNDWalletErrorCode"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "InvoiceRet": {
         "type": "object",
         "properties": {
@@ -630,6 +682,34 @@
           }
         },
         "additionalProperties": false
+      },
+      "InvoiceRetResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/InvoiceRet"
+          },
+          "errorCode": {
+            "$ref": "#/components/schemas/LNDWalletErrorCode"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "LNDWalletErrorCode": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "type": "integer",
+        "format": "int32"
       },
       "PayReq": {
         "type": "object",
@@ -701,6 +781,35 @@
         },
         "additionalProperties": false
       },
+      "PayReqResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/PayReq"
+          },
+          "errorCode": {
+            "$ref": "#/components/schemas/LNDWalletErrorCode"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Result": {
+        "type": "object",
+        "properties": {
+          "errorCode": {
+            "$ref": "#/components/schemas/LNDWalletErrorCode"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "RouteHint": {
         "type": "object",
         "properties": {
@@ -711,6 +820,23 @@
             },
             "nullable": true,
             "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "StringResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "nullable": true
+          },
+          "errorCode": {
+            "$ref": "#/components/schemas/LNDWalletErrorCode"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false

@@ -35,15 +35,15 @@ using (var httpClient = new HttpClient())
 
     string pubkey = ecpriv.CreateXOnlyPubKey().AsHex();
 
-    var guid = await client.GetTokenAsync(pubkey);
+    var guid = WalletAPIResult.Get<Guid>(await client.GetTokenAsync(pubkey));
 
-    var address= await client.NewAddressAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid), CancellationToken.None);
+    var address= WalletAPIResult.Get<string>(await client.NewAddressAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid), CancellationToken.None));
 
-    var ballance = await client.GetBalanceAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid), CancellationToken.None);
+    var ballance = WalletAPIResult.Get<long>(await client.GetBalanceAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid), CancellationToken.None));
 
-    var inv = await client.AddInvoiceAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid), 1000, "", 8400, CancellationToken.None);
+    var inv = WalletAPIResult.Get<InvoiceRet>(await client.AddInvoiceAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid), 1000, "", 8400, CancellationToken.None));
 
-    await client.SendPaymentAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid), inv.PaymentRequest, 8400, CancellationToken.None);
+    WalletAPIResult.Check(await client.SendPaymentAsync(Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid), inv.PaymentRequest, 8400, CancellationToken.None));
 
 }
 

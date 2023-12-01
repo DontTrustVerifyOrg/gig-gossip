@@ -3,12 +3,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using CryptoToolkit;
+using GigGossipSettlerAPIClient;
 using Microsoft.EntityFrameworkCore;
-using NBitcoin;
-using NBitcoin.Secp256k1;
-using Newtonsoft.Json.Linq;
-using static System.Collections.Specialized.BitVector32;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace NGigGossip4Nostr
 {
@@ -100,7 +96,7 @@ namespace NGigGossip4Nostr
                 {
                     var serviceUri = kv.ServiceUri;
                     var phash = kv.PaymentHash;
-                    var preimage = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash);
+                    var preimage = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash));
                     if (!string.IsNullOrWhiteSpace(preimage))
                     {
                         await gigGossipNode.OnPreimageRevealedAsync(serviceUri, phash, preimage);
@@ -119,7 +115,7 @@ namespace NGigGossip4Nostr
                 {
                     var serviceUri = kv.ServiceUri;
                     var tid = kv.PayloadId;
-                    var key = await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), kv.SenderCertificateId.ToString(), tid.ToString(), kv.ReplierCertificateId.ToString());
+                    var key = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), kv.SenderCertificateId.ToString(), tid.ToString(), kv.ReplierCertificateId.ToString()));
                     if (!string.IsNullOrWhiteSpace(key))
                     {
                         gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);

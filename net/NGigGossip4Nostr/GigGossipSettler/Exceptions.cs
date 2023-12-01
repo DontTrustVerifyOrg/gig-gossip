@@ -54,7 +54,7 @@ public class SettlerException : Exception
     /// <summary>
     /// Gets and sets <see cref="SettlerErrorCode"/> associated with this exception.
     /// </summary>
-    SettlerErrorCode ErrorCode { get; set; }
+    public SettlerErrorCode ErrorCode { get; set; }
 
     /// <summary>
     /// Initializes a new instance of SettlerException with specified error code.

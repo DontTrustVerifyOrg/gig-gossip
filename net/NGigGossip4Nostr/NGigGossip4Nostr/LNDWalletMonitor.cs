@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using CryptoToolkit;
+using GigLNDWalletAPIClient;
 using NBitcoin.Secp256k1;
 using Newtonsoft.Json.Linq;
 using static System.Net.WebRequestMethods;
@@ -81,7 +82,7 @@ namespace NGigGossip4Nostr
 
                 foreach (var inv in invToMon)
                 {
-                    var state = await gigGossipNode.LNDWalletClient.GetInvoiceStateAsync(gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash);
+                    var state = WalletAPIResult.Get<string>(await gigGossipNode.LNDWalletClient.GetInvoiceStateAsync(gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash));
                     if (state != inv.InvoiceState)
                     {
                         gigGossipNode.OnInvoiceStateChange(state, inv.Data);
@@ -99,13 +100,20 @@ namespace NGigGossip4Nostr
 
                 foreach (var pay in payToMon)
                 {
-                    var status = await gigGossipNode.LNDWalletClient.GetPaymentStatusAsync(gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash);
-                    if (status != pay.PaymentStatus)
-                    {
-                        gigGossipNode.OnPaymentStatusChange(status, pay.Data);
-                        pay.PaymentStatus = status;
-                        gigGossipNode.nodeContext.Value.SaveObject(pay);
-                    }
+					try
+					{
+						var status = WalletAPIResult.Get<string>(await gigGossipNode.LNDWalletClient.GetPaymentStatusAsync(gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash));
+						if (status != pay.PaymentStatus)
+						{
+							gigGossipNode.OnPaymentStatusChange(status, pay.Data);
+							pay.PaymentStatus = status;
+							gigGossipNode.nodeContext.Value.SaveObject(pay);
+						}
+					}
+					catch(GigLNDWalletAPIException ex)
+					{
+						Trace.TraceWarning(ex.Message);
+					}
                 }
             }
 

@@ -22,6 +22,8 @@ builder.Services.AddSwaggerGen(c =>
     c.EnableAnnotations();
 });
 builder.Services.AddSignalR();
+builder.Services.AddProblemDetails();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -32,6 +34,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+app.UseHsts();
 
 IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
 {
@@ -67,7 +72,14 @@ await Singlethon.Settler.StartAsync();
 
 app.MapGet("/getcapublickey", () =>
 {
-    return Singlethon.Settler.CaXOnlyPublicKey.AsHex();
+    try
+    { 
+        return new Result<string>(Singlethon.Settler.CaXOnlyPublicKey.AsHex());
+    }
+    catch (SettlerException ex)
+    {
+        return new Result<string>(ex.ErrorCode);
+    }
 })
 .WithName("GetCaPublicKey")
 .WithSummary("Public key of this Certification Authority.")
@@ -76,7 +88,14 @@ app.MapGet("/getcapublickey", () =>
 
 app.MapGet("/iscertificaterevoked", (Guid certid) =>
 {
-    return Singlethon.Settler.IsCertificateRevoked(certid);
+    try
+    {
+        return new Result<bool>(Singlethon.Settler.IsCertificateRevoked(certid));
+    }
+    catch (SettlerException ex)
+    {
+        return new Result<bool>(ex.ErrorCode);
+    }
 })
 .WithName("IsCertificateRevoked")
 .WithSummary("Is the certificate revoked by this Certification Authority.")
@@ -90,7 +109,14 @@ app.MapGet("/iscertificaterevoked", (Guid certid) =>
 
 app.MapGet("/gettoken", (string pubkey) =>
 {
-    return Singlethon.Settler.GetTokenGuid(pubkey);
+    try
+    {
+        return new Result<Guid>(Singlethon.Settler.GetTokenGuid(pubkey));
+    }
+    catch (SettlerException ex)
+    {
+        return new Result<Guid>(ex.ErrorCode);
+    }
 })
 .WithName("GetToken")
 .WithSummary("Creates authorisation token guid")
@@ -103,8 +129,16 @@ app.MapGet("/gettoken", (string pubkey) =>
 
 app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, string value, DateTime validTill) =>
 {
-    Singlethon.Settler.ValidateAuthToken(authToken);
-    Singlethon.Settler.GiveUserProperty(pubkey, name, Convert.FromBase64String(value), validTill);
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.GiveUserProperty(pubkey, name, Convert.FromBase64String(value), validTill);
+        return new Result();
+    }
+    catch (SettlerException ex)
+    {
+        return new Result(ex.ErrorCode);
+    }
 })
 .WithName("GiveUserProperty")
 .WithSummary("Grants a property to the subject.")
@@ -121,7 +155,15 @@ app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, s
 
 app.MapGet("/verifychannel", (string authToken, string pubkey, string name, string method, string value) =>
 {
-    Singlethon.Settler.ValidateAuthToken(authToken);
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+        return new Result();
+    }
+    catch (SettlerException ex)
+    {
+        return new Result(ex.ErrorCode);
+    }
 })
 .WithName("VerifyChannel")
 .WithSummary("Start verification of specific channel.")
@@ -138,9 +180,16 @@ app.MapGet("/verifychannel", (string authToken, string pubkey, string name, stri
 
 app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name, string method, string value, string secret) =>
 {
-    Singlethon.Settler.ValidateAuthToken(authToken);
-    Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
-    return -1;
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
+        return new Result<int>(-1);
+    }
+    catch(SettlerException ex)
+    {
+        return new Result<int>(ex.ErrorCode);
+    }
 })
 .WithName("SubmitChannelSecret")
 .WithSummary("Submits the secret code for the channel.")
@@ -159,8 +208,16 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
 
 app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name) =>
 {
-    Singlethon.Settler.ValidateAuthToken(authToken);
-    Singlethon.Settler.RevokeUserProperty(pubkey, name);
+    try
+    { 
+        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.RevokeUserProperty(pubkey, name);
+        return new Result();
+    }
+    catch (SettlerException ex)
+    {
+        return new Result(ex.ErrorCode);
+    }
 })
 .WithDescription("Revokes a property from the subject (e.g. driving licence is taken by the police). Only authorised users can revoke the property.")
 .WithOpenApi(g =>
@@ -173,8 +230,15 @@ app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name)
 
 app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid gigId, string repliperPubKey) =>
 {
-    var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-    return Singlethon.Settler.GenerateReplyPaymentPreimage(pubkey, gigId, repliperPubKey);
+    try
+    {
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        return new Result<string>(Singlethon.Settler.GenerateReplyPaymentPreimage(pubkey, gigId, repliperPubKey));
+    }
+    catch (SettlerException ex)
+    {
+        return new Result<string>(ex.ErrorCode);
+    }
 })
 .WithName("GenerateReplyPaymentPreimage")
 .WithSummary("Generates new reply payment preimage and returns its hash.")
@@ -189,8 +253,15 @@ app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid gigId, strin
 
 app.MapGet("/generaterelatedpreimage", (string authToken, string paymentHash) =>
 {
-    var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-    return Singlethon.Settler.GenerateRelatedPreimage(pubkey, paymentHash);
+    try
+    {
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        return new Result<string>(Singlethon.Settler.GenerateRelatedPreimage(pubkey, paymentHash));
+    }
+    catch (SettlerException ex)
+    {
+        return new Result<string>(ex.ErrorCode);
+    }
 })
 .WithName("GenerateRelatedPreimage")
 .WithSummary("Generates new payment preimage that is related to the given paymentHash and returns its hash..")
@@ -204,8 +275,15 @@ app.MapGet("/generaterelatedpreimage", (string authToken, string paymentHash) =>
 
 app.MapGet("/validaterelatedpaymenthashes", (string authToken, string paymentHash1,string paymentHash2) =>
 {
-    var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-    return Singlethon.Settler.ValidateRelatedPaymentHashes(pubkey, paymentHash1,paymentHash2);
+    try
+    {
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        return new Result<bool>(Singlethon.Settler.ValidateRelatedPaymentHashes(pubkey, paymentHash1, paymentHash2));
+    }
+    catch (SettlerException ex)
+    {
+        return new Result<bool>(ex.ErrorCode);
+    }
 })
 .WithName("ValidateRelatedPaymentHashes")
 .WithSummary("Validates if given paymentHashes were generated by the same settler for the same gig.")
@@ -220,8 +298,15 @@ app.MapGet("/validaterelatedpaymenthashes", (string authToken, string paymentHas
 
 app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
 {
-    var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-    return Singlethon.Settler.RevealPreimage(pubkey, paymentHash);
+    try
+    {
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        return new Result<string>(Singlethon.Settler.RevealPreimage(pubkey, paymentHash));
+    }
+    catch (SettlerException ex)
+    {
+        return new Result<string>(ex.ErrorCode);
+    }
 })
 .WithName("RevealPreimage")
 .WithSummary("Reveals payment preimage of the specific paymentHash")
@@ -235,8 +320,15 @@ app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
 
 app.MapGet("/revealsymmetrickey", (string authToken, Guid senderCertificateId, Guid gigId, Guid repliperCertificateId) =>
 {
-    var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-    return Singlethon.Settler.RevealSymmetricKey(senderCertificateId, gigId, repliperCertificateId);
+    try
+    {
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        return new Result<string>(Singlethon.Settler.RevealSymmetricKey(senderCertificateId, gigId, repliperCertificateId));
+    }
+    catch (SettlerException ex)
+    {
+        return new Result<string>(ex.ErrorCode);
+    }
 })
 .WithName("RevealSymmetricKey")
 .WithSummary("Reveals symmetric key that customer can use to decrypt the message from gig-worker.")
@@ -252,9 +344,16 @@ app.MapGet("/revealsymmetrickey", (string authToken, Guid senderCertificateId, G
 
 app.MapGet("/generaterequestpayload", (string authToken, string[] properties, string serialisedTopic) =>
 {
-    var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-    var st = Singlethon.Settler.GenerateRequestPayload(pubkey, properties, Convert.FromBase64String(serialisedTopic));
-    return Convert.ToBase64String(Crypto.SerializeObject(st));
+    try
+    {
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        var st = Singlethon.Settler.GenerateRequestPayload(pubkey, properties, Convert.FromBase64String(serialisedTopic));
+        return new Result<string>(Convert.ToBase64String(Crypto.SerializeObject(st)));
+    }
+    catch (SettlerException ex)
+    {
+        return new Result<string>(ex.ErrorCode);
+    }
 })
 .WithName("GenerateRequestPayload")
 .WithSummary("Genertes RequestPayload for the specific topic.")
@@ -269,10 +368,17 @@ app.MapGet("/generaterequestpayload", (string authToken, string[] properties, st
 
 app.MapGet("/generatesettlementtrust", async (string authToken, string[] properties, string message, string replyinvoice, string signedRequestPayloadSerialized) =>
 {
-    var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-    var signedRequestPayload = Crypto.DeserializeObject<Certificate<RequestPayloadValue>>(Convert.FromBase64String(signedRequestPayloadSerialized));
-    var st =  await Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, properties, Convert.FromBase64String(message), replyinvoice, signedRequestPayload);
-    return Convert.ToBase64String(Crypto.SerializeObject(st));
+    try
+    {
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        var signedRequestPayload = Crypto.DeserializeObject<Certificate<RequestPayloadValue>>(Convert.FromBase64String(signedRequestPayloadSerialized));
+        var st = await Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, properties, Convert.FromBase64String(message), replyinvoice, signedRequestPayload);
+        return new Result<string>(Convert.ToBase64String(Crypto.SerializeObject(st)));
+    }
+    catch (SettlerException ex)
+    {
+        return new Result<string>(ex.ErrorCode);
+    }
 })
 .WithName("GenerateSettlementTrust")
 .WithSummary("Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.")
@@ -289,8 +395,15 @@ app.MapGet("/generatesettlementtrust", async (string authToken, string[] propert
 
 app.MapGet("/encryptobjectforcertificateid", (Guid certificateId, string objectSerialized) =>
 {
-    byte[] encryptedReplyPayload = Singlethon.Settler.EncryptObjectForCertificateId(Convert.FromBase64String(objectSerialized), certificateId);
-    return Convert.ToBase64String(encryptedReplyPayload);
+    try
+    {
+        byte[] encryptedReplyPayload = Singlethon.Settler.EncryptObjectForCertificateId(Convert.FromBase64String(objectSerialized), certificateId);
+        return new Result<string>(Convert.ToBase64String(encryptedReplyPayload));
+    }
+    catch (SettlerException ex)
+    {
+        return new Result<string>(ex.ErrorCode);
+    }
 })
 .WithName("EncryptObjectForCertificateId")
 .WithSummary("Encrypts the object using public key related to the specific certioficate id.")
@@ -304,8 +417,16 @@ app.MapGet("/encryptobjectforcertificateid", (Guid certificateId, string objectS
 
 app.MapGet("/managedispute", async (string authToken, Guid gigId, Guid repliperCertificateId, bool open) =>
 {
-    Singlethon.Settler.ValidateAuthToken(authToken);
-    await Singlethon.Settler.ManageDisputeAsync(gigId, repliperCertificateId, open);
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+        await Singlethon.Settler.ManageDisputeAsync(gigId, repliperCertificateId, open);
+        return new Result();
+    }
+    catch (SettlerException ex)
+    {
+        return new Result(ex.ErrorCode);
+    }
 })
 .WithName("ManageDispute")
 .WithSummary("Allows opening and closing disputes.")
@@ -323,6 +444,25 @@ app.MapHub<PreimageRevealHub>("/preimagereveal");
 app.MapHub<SymmetricKeyRevealHub>("/symmetrickeyreveal");
 
 app.Run(settlerSettings.ServiceUri.AbsoluteUri);
+
+[Serializable]
+public record Result
+{
+    public Result() { }
+    public Result(SettlerErrorCode errorCode) { ErrorCode = errorCode; ErrorMessage = errorCode.Message(); }
+    public SettlerErrorCode ErrorCode { get; set; } = SettlerErrorCode.Ok;
+    public string ErrorMessage { get; set; } = "";
+}
+
+[Serializable]
+public record Result<T>
+{
+    public Result(T value) { Value = value; }
+    public Result(SettlerErrorCode errorCode) { ErrorCode = errorCode; ErrorMessage = errorCode.Message(); }
+    public T? Value { get; set; } = default;
+    public SettlerErrorCode ErrorCode { get; set; } = SettlerErrorCode.Ok;
+    public string ErrorMessage { get; set; } = "";
+}
 
 public class SettlerSettings
 {

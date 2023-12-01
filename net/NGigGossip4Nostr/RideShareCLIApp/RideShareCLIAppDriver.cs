@@ -13,13 +13,9 @@ public partial class RideShareCLIApp
     Dictionary<Guid, int> receivedBroadcastIdxesForPayloadIds = new();
     Dictionary<Guid, string> directSecrets = new();
 
-    const string DATE_FORMAT = "'yyyy'-'MM'-'dd'T'HH':'mm'";
+    const string DATE_FORMAT = "dd MMM HH:mm";
 
-    private static string describeBroadcast(AcceptBroadcastEventArgs e)
-    {
-        var taxiTopic = Crypto.DeserializeObject<RideTopic>(e.BroadcastFrame.SignedRequestPayload.Value.Topic);
-        return taxiTopic.FromGeohash + "(" + taxiTopic.PickupAfter.ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore - taxiTopic.PickupAfter).TotalMinutes).ToString() + ") ->" + taxiTopic.ToGeohash;
-    }
+    Dictionary<Guid, long> feesPerBroadcastId = new();
 
     private async void GigGossipNodeEventSource_OnAcceptBroadcast(object? sender, AcceptBroadcastEventArgs e)
     {
@@ -28,9 +24,15 @@ public partial class RideShareCLIApp
         {
             if (taxiTopic != null)
             {
-                long fee = 100;
-                var desc = describeBroadcast(e);
-                receivedBroadcastsTable.AddRow(new string[] { "", desc, fee.ToString() });
+                if(!feesPerBroadcastId.ContainsKey(e.BroadcastFrame.SignedRequestPayload.Id))
+                    feesPerBroadcastId[e.BroadcastFrame.SignedRequestPayload.Id]= Random.Shared.NextInt64(1000,2000);
+                long fee = feesPerBroadcastId[e.BroadcastFrame.SignedRequestPayload.Id];
+
+                var from = taxiTopic.FromGeohash;
+                var tim = "(" + taxiTopic.PickupAfter.ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore - taxiTopic.PickupAfter).TotalMinutes).ToString() + ")";
+                var to = taxiTopic.ToGeohash;
+
+                receivedBroadcastsTable.AddRow(new string[] { "",from,tim,to, fee.ToString(), e.BroadcastFrame.SignedRequestPayload.Id.ToString() });
                 receivedBroadcasts.Add(e);
                 receivedBroadcastsFees.Add(fee);
                 receivedBroadcastIdxesForPayloadIds[e.BroadcastFrame.SignedRequestPayload.Id] = receivedBroadcasts.Count - 1;
@@ -90,7 +92,7 @@ public partial class RideShareCLIApp
                 if (hash2br.ContainsKey(e.InvoiceData.PaymentHash))
                 {
                     foreach (var bbr in (from hash in hashes where hash != e.InvoiceData.PaymentHash select hash))
-                        e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), bbr);
+                        WalletAPIResult.Check(await e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), bbr));
 
                     await directCom.StartAsync(e.GigGossipNode.NostrRelays);
                 }
@@ -118,9 +120,9 @@ public partial class RideShareCLIApp
         receivedBroadcastsTable.Exit();
         riderInTheCar = false;
         var pubkey = directPubkeys[requestPayloadId];
-        for (int i =0;i<5;i++)
+        for (int i =5;i>0;i--)
         {
-            AnsiConsole.WriteLine("I am driving to meet rider");
+            AnsiConsole.MarkupLine($"({i}) I am [orange1]driving[/] to meet rider");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 RequestPayloadId = requestPayloadId,
@@ -130,10 +132,10 @@ public partial class RideShareCLIApp
             }, true);
             Thread.Sleep(1000);
         }
-        AnsiConsole.WriteLine("I have arrived");
+        AnsiConsole.MarkupLine("I have [orange1]arrived[/]");
         while (!riderInTheCar)
         {
-            AnsiConsole.WriteLine("I am waiting for rider");
+            AnsiConsole.MarkupLine("I am [orange1]waiting[/] for rider");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 RequestPayloadId = requestPayloadId,
@@ -143,10 +145,10 @@ public partial class RideShareCLIApp
             }, true);
             Thread.Sleep(1000);
         }
-        AnsiConsole.WriteLine("Rider in the car");
-        for (int i = 0; i < 5; i++)
+        AnsiConsole.MarkupLine("Rider [orange1]in the car[/]");
+        for(int i = 5; i > 0; i--)
         {
-            AnsiConsole.WriteLine("We are going togheter");
+            AnsiConsole.MarkupLine($"({i}) We are going [orange1]togheter[/]");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 RequestPayloadId = requestPayloadId,
@@ -156,7 +158,7 @@ public partial class RideShareCLIApp
             }, true);
             Thread.Sleep(1000);
         }
-        AnsiConsole.WriteLine("We have reached the destination");
+        AnsiConsole.MarkupLine("We have [orange1]reached[/] the destination");
         await directCom.SendMessageAsync(pubkey, new LocationFrame
         {
             RequestPayloadId = requestPayloadId,
@@ -164,7 +166,7 @@ public partial class RideShareCLIApp
             Message = "Thank you",
             RideState = RideState.RiderDroppedOff,
         }, true);
-        AnsiConsole.WriteLine("Good bye");
+        AnsiConsole.MarkupLine("Good [orange1]bye[/]");
     }
 
     private async Task OnAckFrame(string senderPublicKey, AckFrame ackframe)

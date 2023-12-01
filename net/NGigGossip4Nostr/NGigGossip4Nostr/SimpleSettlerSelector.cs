@@ -27,7 +27,7 @@ public class SimpleSettlerSelector : ISettlerSelector
 
     public async Task<ECXOnlyPubKey> GetPubKeyAsync(Uri serviceUri)
     {
-        return (await GetSettlerClient(serviceUri).GetCaPublicKeyAsync()).AsECXOnlyPubKey();
+        return SettlerAPIResult.Get<string>(await GetSettlerClient(serviceUri).GetCaPublicKeyAsync()).AsECXOnlyPubKey();
     }
 
     public GigGossipSettlerAPIClient.swaggerClient GetSettlerClient(Uri serviceUri)
@@ -37,7 +37,7 @@ public class SimpleSettlerSelector : ISettlerSelector
 
     public async Task<bool> IsRevokedAsync(Uri serviceUri, Guid id)
     {
-        return await revokedCertificates.GetOrAddAsync(id, async (id) => await GetSettlerClient(serviceUri).IsCertificateRevokedAsync(id.ToString()));
+        return await revokedCertificates.GetOrAddAsync(id, async (id) => SettlerAPIResult.Get<bool>(await GetSettlerClient(serviceUri).IsCertificateRevokedAsync(id.ToString())));
     }
 }
 

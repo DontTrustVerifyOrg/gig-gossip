@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using CryptoToolkit;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin.Protocol;
@@ -283,7 +284,27 @@ public class GigGossipNodeContext : DbContext
     {
         this.Type2DbSet(obj!).Add(obj);
         this.SaveChanges();
+
         this.ChangeTracker.Clear();
+    }
+
+    public bool TryAddObject<T>(T obj)
+    {
+        this.Type2DbSet(obj!).Add(obj);
+        try
+        {
+            this.SaveChanges();
+            return true;
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+        {
+            return false;
+            //failed to add
+        }
+        finally
+        {
+            this.ChangeTracker.Clear();
+        }
     }
 
     public void AddObjectRange<T>(IEnumerable<T> range)
@@ -293,6 +314,27 @@ public class GigGossipNodeContext : DbContext
         this.Type2DbSet(range.First()!).AddRange(range);
         this.SaveChanges();
         this.ChangeTracker.Clear();
+    }
+
+    public bool TryAddObjectRange<T>(IEnumerable<T> range)
+    {
+        if (range.Count() == 0)
+            return true;
+        this.Type2DbSet(range.First()!).AddRange(range);
+        try
+        {
+            this.SaveChanges();
+            return true;
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+        {
+            return false;
+            //failed to add
+        }
+        finally
+        {
+            this.ChangeTracker.Clear();
+        }
     }
 
 }

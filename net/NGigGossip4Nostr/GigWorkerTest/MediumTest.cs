@@ -11,6 +11,7 @@ using System.Reflection;
 using NGeoHash;
 using NBitcoin.RPC;
 using GigLNDWalletAPIClient;
+using GigGossipSettlerAPIClient;
 
 namespace GigWorkerMediumTest;
 
@@ -64,7 +65,7 @@ public class MediumTest
         var settlerPrivKey = settlerAdminSettings.PrivateKey.AsECPrivKey();
         var settlerPubKey = settlerPrivKey.CreateXOnlyPubKey();
         var settlerClient = settlerSelector.GetSettlerClient(settlerAdminSettings.SettlerOpenApi);
-        var gtok = await settlerClient.GetTokenAsync(settlerPubKey.AsHex());
+        var gtok = SettlerAPIResult.Get<Guid>(await settlerClient.GetTokenAsync(settlerPubKey.AsHex()));
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.UtcNow, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
@@ -78,11 +79,11 @@ public class MediumTest
 
         FlowLogger.SetupParticipant(gigWorker.PublicKey, "GigWorker", true);
 
-        await settlerClient.GiveUserPropertyAsync(
+        SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
                 token, gigWorker.PublicKey,
                 "drive", val,
                 (DateTime.UtcNow + TimeSpan.FromDays(1)).ToLongDateString()
-             );
+             ));
 
         var gossipers = new List<GigGossipNode>();
         for (int i = 0; i < applicationSettings.NumberOfGossipers; i++)
@@ -104,11 +105,11 @@ public class MediumTest
 
         FlowLogger.SetupParticipant(customer.PublicKey, "Customer", true);
 
-        await settlerClient.GiveUserPropertyAsync(
+        SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
             token, customer.PublicKey,
             "ride", val,
             (DateTime.UtcNow + TimeSpan.FromDays(1)).ToLongDateString()
-         );
+         ));
 
         gigWorker.Init(
             gigWorkerSettings.Fanout,
@@ -147,10 +148,10 @@ public class MediumTest
 
         async Task TopupNode(GigGossipNode node, long minAmout,long topUpAmount)
         {
-            var ballanceOfCustomer = await node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken());
+            var ballanceOfCustomer = WalletAPIResult.Get<long>(await node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken()));
             if (ballanceOfCustomer < minAmout)
             {
-                var newBitcoinAddressOfCustomer = await node.LNDWalletClient.NewAddressAsync(node.MakeWalletAuthToken());
+                var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await node.LNDWalletClient.NewAddressAsync(node.MakeWalletAuthToken()));
                 bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, bitcoinSettings.GetNetwork()), new NBitcoin.Money(topUpAmount));
             }
         }
@@ -167,11 +168,11 @@ public class MediumTest
 
         do
         {
-            if (await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()) >= minAmount)
+            if (WalletAPIResult.Get<long>(await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken())) >= minAmount)
             {
             outer:
                 foreach (var node in gossipers)
-                    if (await node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken()) < minAmount)
+                    if (WalletAPIResult.Get<long>(await node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken())) < minAmount)
                     {
                         Thread.Sleep(1000);
                         goto outer;

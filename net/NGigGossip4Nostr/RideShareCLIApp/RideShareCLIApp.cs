@@ -10,6 +10,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using CryptoToolkit;
 using GigGossipFrames;
+using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -174,12 +175,12 @@ public partial class RideShareCLIApp
             {
                 var bitcoinClient = settings.BitcoinSettings.NewRPCClient();
 
-                var ballanceOfCustomer = await gigGossipNode.LNDWalletClient.GetBalanceAsync(gigGossipNode.MakeWalletAuthToken());
+                var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.LNDWalletClient.GetBalanceAsync(gigGossipNode.MakeWalletAuthToken()));
                 AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
                 var topUpAmount = Prompt.Input<int>("How much top up");
                 if(topUpAmount > 0)
                 {
-                    var newBitcoinAddressOfCustomer = await gigGossipNode.LNDWalletClient.NewAddressAsync(gigGossipNode.MakeWalletAuthToken());
+                    var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await gigGossipNode.LNDWalletClient.NewAddressAsync(gigGossipNode.MakeWalletAuthToken()));
                     bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, settings.BitcoinSettings.GetNetwork()), new NBitcoin.Money(topUpAmount));
                 }
             }
@@ -196,7 +197,7 @@ public partial class RideShareCLIApp
                 receivedBroadcasts = new();
                 receivedBroadcastsFees = new();
                 receivedBroadcastIdxesForPayloadIds = new();
-                receivedBroadcastsTable = new DataTable(new string[] { "Sent", "Order", "MyFee" });
+                receivedBroadcastsTable = new DataTable(new string[] { "Sent", "From","Time","To", "MyFee","JobId" });
                 receivedBroadcastsTable.OnKeyPressed+= async (o,e)=>
                     {
                         var me = (DataTable)o;
@@ -235,13 +236,13 @@ public partial class RideShareCLIApp
             }
             else if (cmd == CommandEnum.RequestRide)
             {
-                var fromLocation = new Location(0, 0);
-                var toLocation = new Location(1, 1);
+                var fromLocation = new Location(Random.Shared.NextDouble(), Random.Shared.NextDouble());
+                var toLocation = new Location(Random.Shared.NextDouble(), Random.Shared.NextDouble());
                 int waitingTimeForPickupMinutes = 12;
                 requestedRide = await RequestRide(fromLocation, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes);
 
                 receivedResponses = new();
-                receivedResponsesTable = new DataTable(new string[] {"Order", "Fee" });
+                receivedResponsesTable = new DataTable(new string[] { "From", "Time", "To", "DriverFee","NetworkFee", "JobId" });
                 receivedResponsesTable.OnKeyPressed += async (o, e) =>
                 {
                     var me = (DataTable)o;
@@ -310,7 +311,7 @@ public partial class RideShareCLIApp
         AnsiConsole.WriteLine("privkey:" + privateKey.AsHex());
         AnsiConsole.WriteLine("pubkey :" + gigGossipNode.PublicKey);
 
-        var ballanceOfCustomer = await gigGossipNode.LNDWalletClient.GetBalanceAsync(gigGossipNode.MakeWalletAuthToken());
+        var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.LNDWalletClient.GetBalanceAsync(gigGossipNode.MakeWalletAuthToken()));
         AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
 
         var contactList = gigGossipNode.LoadContactList();
@@ -345,14 +346,14 @@ public partial class RideShareCLIApp
     {
         var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.SettlerAdminSettings.SettlerOpenApi);
         var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.SettlerAdminSettings.SettlerOpenApi);
-        await settlerClient.VerifyChannelAsync(authToken, (await GetPublicKeyAsync()).AsHex(), "PhoneNumber", "SMS", phoneNumber);
+        SettlerAPIResult.Check(await settlerClient.VerifyChannelAsync(authToken, (await GetPublicKeyAsync()).AsHex(), "PhoneNumber", "SMS", phoneNumber));
     }
 
     async Task<int> SubmitPhoneNumberSecret(string phoneNumber, string secret)
     {
         var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.SettlerAdminSettings.SettlerOpenApi);
         var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.SettlerAdminSettings.SettlerOpenApi);
-        return await settlerClient.SubmitChannelSecretAsync(authToken, (await GetPublicKeyAsync()).AsHex(), "PhoneNumber", "SMS", phoneNumber, secret);
+        return SettlerAPIResult.Get<int>(await settlerClient.SubmitChannelSecretAsync(authToken, (await GetPublicKeyAsync()).AsHex(), "PhoneNumber", "SMS", phoneNumber, secret));
     }
 
 

@@ -6,6 +6,7 @@ using NGeoHash;
 using Spectre.Console;
 using NBitcoin;
 using System.Diagnostics;
+using CryptoToolkit;
 
 namespace RideShareCLIApp;
 
@@ -34,11 +35,6 @@ public partial class RideShareCLIApp
 
     }
 
-    private static string describeResponse(NewResponseEventArgs e)
-    {
-        return e.ReplyPayloadCert.Properties[0] + "|" + e.ReplyPayloadCert.ServiceUri;
-    }
-
     private async Task AcceptDriverAsync(int idx)
     {
         var e = receivedResponses[idx];
@@ -50,11 +46,17 @@ public partial class RideShareCLIApp
     {
         if (receivedResponsesTable == null)
             return;
-        var desc = describeResponse(e);
         receivedResponses.Add(e);
         receivedResponsesIdxesForPaymentHashes[e.DecodedReplyInvoice.PaymentHash] = receivedResponses.Count - 1;
-        var fee = e.DecodedReplyInvoice.NumSatoshis + e.DecodedNetworkInvoice.NumSatoshis;
-        receivedResponsesTable.AddRow(new string[] { desc, fee.ToString() });
+        var fee = e.DecodedReplyInvoice.NumSatoshis;
+        var netfee = e.DecodedNetworkInvoice.NumSatoshis;
+
+        var taxiTopic = Crypto.DeserializeObject<RideTopic>(e.ReplyPayloadCert.Value.SignedRequestPayload.Value.Topic);
+        var from = taxiTopic.FromGeohash;
+        var tim = "(" + taxiTopic.PickupAfter.ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore - taxiTopic.PickupAfter).TotalMinutes).ToString() + ")";
+        var to = taxiTopic.ToGeohash;
+
+        receivedResponsesTable.AddRow(new string[] { from,tim,to, fee.ToString(), netfee.ToString(), e.ReplyPayloadCert.Value.SignedRequestPayload.Id.ToString() });
     }
 
     private async void GigGossipNodeEventSource_OnResponseReady(object? sender, ResponseReadyEventArgs e)
@@ -86,6 +88,7 @@ public partial class RideShareCLIApp
         driverApproached = false;
         riderDroppedOff = false;
         var pubkey = directPubkeys[requestPayloadId];
+        AnsiConsole.MarkupLine("I am [orange1]sending[/] my location to the driver");
         await directCom.SendMessageAsync(pubkey, new AckFrame()
         {
             RequestPayloadId = requestPayloadId,
@@ -95,7 +98,7 @@ public partial class RideShareCLIApp
         }, true);
         while(!driverApproached)
         {
-            AnsiConsole.WriteLine("rider waiting");
+            AnsiConsole.MarkupLine("I am [orange1]waiting[/] for the driver");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 RequestPayloadId = requestPayloadId,
@@ -107,7 +110,7 @@ public partial class RideShareCLIApp
         }
         while (!riderDroppedOff)
         {
-            AnsiConsole.WriteLine("rider in the car");
+            AnsiConsole.MarkupLine("I am [orange1]in the car[/]");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 RequestPayloadId = requestPayloadId,
@@ -117,7 +120,7 @@ public partial class RideShareCLIApp
             }, true);
             Thread.Sleep(1000);
         }
-        AnsiConsole.WriteLine("rider droppedoff");
+        AnsiConsole.MarkupLine("I have reached the [orange1]destination[/]");
     }
 
     private async Task OnDriverLocation(string senderPublicKey, LocationFrame locationFrame)

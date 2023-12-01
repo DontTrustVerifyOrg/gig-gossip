@@ -18,6 +18,7 @@ builder.Services.AddSwaggerGen(c =>
     c.EnableAnnotations();
 });
 builder.Services.AddSignalR();
+builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
@@ -29,6 +30,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+app.UseHsts();
 
 IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
 {
@@ -76,9 +80,16 @@ LNDChannelManager channelManager = new LNDChannelManager(
     walletSettings.EstimatedTxFee);
 channelManager.Start();
 
-app.MapGet("/gettoken",(string pubkey) =>
+app.MapGet("/gettoken", (string pubkey) =>
 {
-    return Singlethon.LNDWalletManager.GetTokenGuid(pubkey);
+    try
+    {
+        return new Result<Guid>(Singlethon.LNDWalletManager.GetTokenGuid(pubkey));
+    }
+    catch (LNDWalletException ex)
+    {
+        return new Result<Guid>(ex.ErrorCode);
+    }
 })
 .WithName("GetToken")
 .WithSummary("Creates authorisation token guid")
@@ -91,7 +102,14 @@ app.MapGet("/gettoken",(string pubkey) =>
 
 app.MapGet("/getbalance",(string authToken) =>
 {
-    return Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetAccountBallance();
+    try
+    {
+        return new Result<long>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetAccountBallance());
+    }
+    catch (LNDWalletException ex)
+    {
+        return new Result<long>(ex.ErrorCode);
+    }
 })
 .WithName("GetBalance")
 .WithSummary("Balance of the account")
@@ -104,7 +122,14 @@ app.MapGet("/getbalance",(string authToken) =>
 
 app.MapGet("/newaddress", (string authToken) =>
 {
-    return Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).NewAddress(walletSettings.NewAddressTxFee);
+    try
+    {
+        return new Result<string>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).NewAddress(walletSettings.NewAddressTxFee));
+    }
+    catch (LNDWalletException ex)
+    {
+        return new Result<string>(ex.ErrorCode);
+    }
 })
 .WithName("NewAddress")
 .WithSummary("New topup Bitcoin address")
@@ -117,7 +142,14 @@ app.MapGet("/newaddress", (string authToken) =>
 
 app.MapGet("/registerpayout", (string authToken,long satoshis,string btcAddress,long txfee) =>
 {
-    return Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).RegisterPayout(satoshis, btcAddress, txfee);
+    try
+    {
+        return new Result<Guid>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).RegisterPayout(satoshis, btcAddress, txfee));
+    }
+    catch(LNDWalletException ex) 
+    {
+        return new Result<Guid>(ex.ErrorCode);
+    }
 })
 .WithName("RegisterPayout")
 .WithSummary("Register for payout to Chain")
@@ -133,10 +165,17 @@ app.MapGet("/registerpayout", (string authToken,long satoshis,string btcAddress,
 
 app.MapGet("/addinvoice", (string authToken, long satoshis, string memo, long expiry) =>
 {
-    var acc = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
-    var ph = acc.AddInvoice(satoshis, memo, walletSettings.AddInvoiceTxFee, expiry).PaymentRequest;
-    var pa = acc.DecodeInvoice(ph);
-    return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
+    try
+    {
+        var acc = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
+        var ph = acc.AddInvoice(satoshis, memo, walletSettings.AddInvoiceTxFee, expiry).PaymentRequest;
+        var pa = acc.DecodeInvoice(ph);
+        return new Result<InvoiceRet>(new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph });
+    }
+    catch (LNDWalletException ex)
+    {
+        return new Result<InvoiceRet>(ex.ErrorCode);
+    }
 })
 .WithName("AddInvoice")
 .WithSummary("Creates a new lightning network invoice")
@@ -152,11 +191,18 @@ app.MapGet("/addinvoice", (string authToken, long satoshis, string memo, long ex
 
 app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, string memo, long expiry) =>
 {
-    var hashb = hash.AsBytes();
-    var acc = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
-    var ph = acc.AddHodlInvoice(satoshis, memo, hashb, walletSettings.AddInvoiceTxFee, expiry).PaymentRequest;
-    var pa = acc.DecodeInvoice(ph);
-    return new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph };
+    try
+    {
+        var hashb = hash.AsBytes();
+        var acc = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
+        var ph = acc.AddHodlInvoice(satoshis, memo, hashb, walletSettings.AddInvoiceTxFee, expiry).PaymentRequest;
+        var pa = acc.DecodeInvoice(ph);
+        return new Result<InvoiceRet>(new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph });
+    }
+    catch (LNDWalletException ex)
+    {
+        return new Result<InvoiceRet>(ex.ErrorCode);
+    }
 })
 .WithName("AddHodlInvoice")
 .WithSummary("Creates a new lightning network HODL invoice")
@@ -173,7 +219,14 @@ app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, str
 
 app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
 {
-    return Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).DecodeInvoice(paymentRequest);
+    try
+    {
+        return new Result<Lnrpc.PayReq>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).DecodeInvoice(paymentRequest));
+    }
+    catch (LNDWalletException ex)
+    {
+        return new Result<Lnrpc.PayReq>(ex.ErrorCode);
+    }
 })
 .WithName("DecodeInvoice")
 .WithSummary("Decodes the given payment request and returns its details")
@@ -188,7 +241,15 @@ app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
 
 app.MapGet("/sendpayment", (string authToken, string paymentrequest, int timeout) =>
 {
-    Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SendPayment(paymentrequest, timeout, walletSettings.SendPaymentTxFee, walletSettings.FeeLimit);
+    try
+    {
+        Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SendPayment(paymentrequest, timeout, walletSettings.SendPaymentTxFee, walletSettings.FeeLimit);
+        return new Result();
+    }
+    catch (LNDWalletException ex)
+    {
+        return new Result(ex.ErrorCode);
+    }
 })
 .WithName("SendPayment")
 .WithSummary("Sends a payment via lightning network for the given payment request")
@@ -203,7 +264,15 @@ app.MapGet("/sendpayment", (string authToken, string paymentrequest, int timeout
 
 app.MapGet("/settleinvoice", (string authToken, string preimage) =>
 {
-    Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SettleInvoice(preimage.AsBytes());
+    try
+    {
+        Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SettleInvoice(preimage.AsBytes());
+        return new Result();
+    }
+    catch (LNDWalletException ex)
+    {
+        return new Result(ex.ErrorCode);
+    }
 })
 .WithName("SettleInvoice")
 .WithSummary("SettleInvoice settles an accepted invoice.")
@@ -217,7 +286,15 @@ app.MapGet("/settleinvoice", (string authToken, string preimage) =>
 
 app.MapGet("/cancelinvoice", (string authToken, string paymenthash) =>
 {
-    Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CancelInvoice(paymenthash);
+    try
+    {
+        Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CancelInvoice(paymenthash);
+        return new Result();
+    }
+    catch (LNDWalletException ex)
+    {
+        return new Result(ex.ErrorCode);
+    }
 })
 .WithName("CancelInvoice")
 .WithSummary("Cancels the invoice identified by the given payment hash")
@@ -231,7 +308,14 @@ app.MapGet("/cancelinvoice", (string authToken, string paymenthash) =>
 
 app.MapGet("/getinvoicestate", (string authToken, string paymenthash) =>
 {
-    return Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetInvoiceState(paymenthash).ToString();
+    try
+    {
+        return new Result<string>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetInvoiceState(paymenthash).ToString());
+    }
+    catch (LNDWalletException ex)
+    {
+        return new Result<string>(ex.ErrorCode);
+    }
 })
 .WithName("GetInvoiceState")
 .WithSummary("Returns a state of the invoice identified by the given payment hash")
@@ -245,7 +329,14 @@ app.MapGet("/getinvoicestate", (string authToken, string paymenthash) =>
 
 app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
 {
-    return Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetPaymentStatus(paymenthash).ToString();
+    try
+    {
+        return new Result<string>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetPaymentStatus(paymenthash).ToString());
+    }
+    catch (LNDWalletException ex)
+    {
+        return new Result<string>(ex.ErrorCode);
+    }
 })
 .WithName("GetPaymentStatus")
 .WithSummary("Returns a status of the payment identified by the given payment hash")
@@ -261,6 +352,25 @@ app.MapHub<InvoiceStateUpdatesHub>("/invoicestateupdates");
 app.MapHub<PaymentStatusUpdatesHub>("/paymentstatusupdates");
 
 app.Run(walletSettings.ServiceUri.AbsoluteUri);
+
+[Serializable]
+public record Result
+{
+    public Result() {}
+    public Result(LNDWalletErrorCode errorCode) { ErrorCode = errorCode; ErrorMessage = errorCode.Message(); }
+    public LNDWalletErrorCode ErrorCode { get; set; } = LNDWalletErrorCode.Ok;
+    public string ErrorMessage { get; set; } = "";
+}
+
+[Serializable]
+public record Result<T>
+{
+    public Result(T value) { Value = value; }
+    public Result(LNDWalletErrorCode errorCode) { ErrorCode = errorCode; ErrorMessage = errorCode.Message(); }
+    public T? Value { get; set; } = default;
+    public LNDWalletErrorCode ErrorCode { get; set; } = LNDWalletErrorCode.Ok;
+    public string ErrorMessage { get; set; } = "";
+}
 
 public record InvoiceRet
 {

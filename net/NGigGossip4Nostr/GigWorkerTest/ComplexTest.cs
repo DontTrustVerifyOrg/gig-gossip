@@ -13,6 +13,7 @@ using NBitcoin.RPC;
 using GigLNDWalletAPIClient;
 using GigWorkerTest;
 using NBitcoin.Protocol;
+using GigGossipSettlerAPIClient;
 
 namespace GigWorkerComplexTest;
 
@@ -64,7 +65,7 @@ public class ComplexTest
         var settlerPrivKey = settlerAdminSettings.PrivateKey.AsECPrivKey();
         var settlerPubKey = settlerPrivKey.CreateXOnlyPubKey();
         var settlerClient = settlerSelector.GetSettlerClient(settlerAdminSettings.SettlerOpenApi);
-        var gtok = await settlerClient.GetTokenAsync(settlerPubKey.AsHex());
+        var gtok = SettlerAPIResult.Get<Guid>(await settlerClient.GetTokenAsync(settlerPubKey.AsHex()));
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.UtcNow, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
@@ -115,11 +116,11 @@ public class ComplexTest
         {
             var kv = thingsList.Dequeue();
             var gigWorker = kv.Value;
-            await settlerClient.GiveUserPropertyAsync(
+            SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
                     token, gigWorker.PublicKey,
                     "drive", val,
                     (DateTime.UtcNow + TimeSpan.FromDays(1)).ToLongDateString()
-                 );
+                 ));
 
             gigWorker.Init(
                 gridNodeSettings.Fanout,
@@ -137,11 +138,11 @@ public class ComplexTest
         {
             var kv = thingsList.Dequeue();
             var customer = kv.Value;
-            await settlerClient.GiveUserPropertyAsync(
+            SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
                 token, customer.PublicKey,
                 "ride", val,
                 (DateTime.UtcNow + TimeSpan.FromDays(1)).ToLongDateString()
-             );
+             ));
 
             customer.Init(
                 gridNodeSettings.Fanout,
@@ -170,10 +171,10 @@ public class ComplexTest
 
         async Task TopupNodeAsync(GigGossipNode node, long minAmout,long topUpAmount)
         {
-            var ballanceOfCustomer = await node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken());
+            var ballanceOfCustomer = WalletAPIResult.Get<long>(await node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken()));
             if (ballanceOfCustomer < minAmout)
             {
-                var newBitcoinAddressOfCustomer = await node.LNDWalletClient.NewAddressAsync(node.MakeWalletAuthToken());
+                var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await node.LNDWalletClient.NewAddressAsync(node.MakeWalletAuthToken()));
                 bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, bitcoinSettings.GetNetwork()), new NBitcoin.Money(topUpAmount));
             }
         }
@@ -193,7 +194,7 @@ public class ComplexTest
         {
         outer:
             foreach (var node in things.Values)
-                if (await node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken()) < minAmount)
+                if (WalletAPIResult.Get<long>(await node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken())) < minAmount)
                 {
                     Thread.Sleep(1000);
                     goto outer;
