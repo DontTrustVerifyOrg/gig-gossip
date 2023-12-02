@@ -1,12 +1,8 @@
-﻿
-using System.Reflection;
-using System.Text.Json.Nodes;
-using System.Threading;
-using CryptoToolkit;
+﻿using CryptoToolkit;
 using GigLNDWalletAPI;
+using GigLNDWalletAPI.Config;
 using LNDClient;
 using LNDWallet;
-using Swashbuckle.AspNetCore.Annotations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,27 +30,9 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseHsts();
 
-IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
-{
-    var basePath = Environment.GetEnvironmentVariable("GIGGOSSIP_BASEDIR");
-    if (basePath == null)
-        basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), defaultFolder);
-    foreach (var arg in args)
-        if (arg.StartsWith("--basedir"))
-            basePath = arg.Substring(arg.IndexOf('=') + 1).Trim().Replace("\"", "").Replace("\'", "");
 
-    var builder = new ConfigurationBuilder();
-    builder.SetBasePath(basePath)
-           .AddIniFile(iniName)
-           .AddEnvironmentVariables()
-           .AddCommandLine(args);
-
-    return builder.Build();
-}
-
-var config = GetConfigurationRoot(".giggossip", "wallet.conf");
-var walletSettings = config.GetSection("wallet").Get<WalletSettings>();
-var lndConf = config.GetSection("lnd").Get<LndSettings>();
+var walletSettings = builder.Configuration.GetSection(WalletConfig.SectionName).Get<WalletConfig>();
+var lndConf = builder.Configuration.GetSection(LndConfig.SectionName).Get<LndConfig>();
 
 while (true)
 {
@@ -75,7 +53,7 @@ Singlethon.LNDWalletManager.Start();
 
 LNDChannelManager channelManager = new LNDChannelManager(
     Singlethon.LNDWalletManager,
-    lndConf.GetFriendNodes(),
+    lndConf.FriendNodes.ToList(),
     lndConf.MaxSatoshisPerChannel,
     walletSettings.EstimatedTxFee);
 channelManager.Start();
@@ -376,26 +354,4 @@ public record InvoiceRet
 {
     public string PaymentRequest { get; set; }
     public string PaymentHash { get; set; }
-}
-
-public class WalletSettings
-{
-    public Uri ServiceUri { get; set; }
-    public string ConnectionString { get; set; }
-    public long NewAddressTxFee { get; set; }
-    public long AddInvoiceTxFee { get; set; }
-    public long SendPaymentTxFee { get; set; }
-    public long FeeLimit { get; set; }
-    public long EstimatedTxFee { get; set; }
-}
-
-public class LndSettings : LND.NodeSettings
-{
-    public string FriendNodes { get; set; }
-    public long MaxSatoshisPerChannel { get; set; }
-
-    public List<string> GetFriendNodes()
-    {
-        return (from s in JsonArray.Parse(FriendNodes).AsArray() select s.GetValue<string>()).ToList();
-    }
 }
