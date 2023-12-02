@@ -84,6 +84,7 @@ namespace GigGossipSettlerAPI.Controllers
         {
             //TODO:shouldnt this return something??
             Singlethon.Settler.ValidateAuthToken(authToken);
+            throw new NotImplementedException();
         }
 
         /// <summary>

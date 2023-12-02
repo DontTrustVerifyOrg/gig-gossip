@@ -1,27 +1,25 @@
 ﻿using System;
-namespace GigGossipSettler;
 
-public enum SettlerErrorCode { 
-    /// <summary>
-    /// Represents successful operation.
-    /// </summary>
-    Ok = 0, 
+namespace GigGossipSettler.Exceptions;
+
+public enum SettlerErrorCode
+{
     /// <summary>
     /// Represents invalid or expired authentication token.
     /// </summary>
-    InvalidToken = 1, 
+    InvalidToken = 1,
     /// <summary>
     /// Property was not granted to the subject.
     /// </summary>
-    PropertyNotGranted = 2, 
+    PropertyNotGranted = 2,
     /// <summary>
     /// Unknown certificate was detected.
     /// </summary>
-    UnknownCertificate = 3, 
+    UnknownCertificate = 3,
     /// <summary>
     /// Unknown preimage was detected.
     /// </summary>
-    UnknownPreimage = 4 
+    UnknownPreimage = 4
 }
 
 public static class SettlerErrorCodeExtensions
@@ -60,11 +58,11 @@ public class SettlerException : Exception
     /// Initializes a new instance of SettlerException with specified error code.
     /// </summary>
     /// <param name="settlerErrorCode">The error code associated with this exception.</param>
-   public SettlerException(SettlerErrorCode settlerErrorCode) : base(settlerErrorCode.Message())
+    public SettlerException(SettlerErrorCode settlerErrorCode) : base(settlerErrorCode.Message())
     {
         ErrorCode = settlerErrorCode;
     }
- 
+
     /// <summary>
     /// Initializes a new instance of SettlerException with specified error code and custom message.
     /// </summary>

@@ -1,7 +1,9 @@
 ﻿using CryptoToolkit;
 using GigGossipSettler;
+using GigGossipSettler.Exceptions;
 using GigGossipSettlerAPI;
 using GigGossipSettlerAPI.Config;
+using GigGossipSettlerAPI.Middlewares;
 using GigLNDWalletAPIClient;
 using NBitcoin.Secp256k1;
 using NGigGossip4Nostr;
@@ -25,6 +27,7 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
 
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -35,7 +38,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseExceptionHandler();
+app.UseMiddleware<ErrorHandlerMiddleware>();
 app.UseStatusCodePages();
 app.UseHsts();
 
@@ -442,7 +445,7 @@ public record Result
 {
     public Result() { }
     public Result(SettlerErrorCode errorCode) { ErrorCode = errorCode; ErrorMessage = errorCode.Message(); }
-    public SettlerErrorCode ErrorCode { get; set; } = SettlerErrorCode.Ok;
+    public SettlerErrorCode ErrorCode { get; set; }
     public string ErrorMessage { get; set; } = "";
 }
 
@@ -452,6 +455,6 @@ public record Result<T>
     public Result(T value) { Value = value; }
     public Result(SettlerErrorCode errorCode) { ErrorCode = errorCode; ErrorMessage = errorCode.Message(); }
     public T? Value { get; set; } = default;
-    public SettlerErrorCode ErrorCode { get; set; } = SettlerErrorCode.Ok;
+    public SettlerErrorCode ErrorCode { get; set; }
     public string ErrorMessage { get; set; } = "";
 }

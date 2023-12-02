@@ -1,25 +1,14 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.ConstrainedExecution;
-using System.Xml.Linq;
-using CryptoToolkit;
+﻿using CryptoToolkit;
 using GigGossipFrames;
+using GigGossipSettler.Exceptions;
 using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
-using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Internal;
-using NBitcoin;
-using NBitcoin.Protocol;
-using NBitcoin.RPC;
 using NBitcoin.Secp256k1;
-using Newtonsoft.Json.Linq;
 using NGigGossip4Nostr;
 using Quartz;
 using Quartz.Impl;
-using Quartz.Spi;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using System.Diagnostics;
 
 namespace GigGossipSettler;
 
@@ -124,11 +113,11 @@ public class Settler : CertificationAuthority
     {
         var timedToken = CryptoToolkit.Crypto.VerifySignedTimedToken(authTokenBase64, 120.0);
         if (timedToken == null)
-            throw new SettlerException(SettlerErrorCode.InvalidToken);
+            throw new InvalidAuthTokenException();
 
         var tk = (from token in settlerContext.Value.Tokens where token.PublicKey == timedToken.Value.PublicKey && token.TokenId == timedToken.Value.Guid select token).FirstOrDefault();
         if (tk == null)
-            throw new SettlerException(SettlerErrorCode.InvalidToken);
+            throw new InvalidAuthTokenException();
 
         return tk.PublicKey;
     }
@@ -180,7 +169,7 @@ public class Settler : CertificationAuthority
         var props = (from u in settlerContext.Value.UserProperties where u.PublicKey == pubkey && !u.IsRevoked && u.ValidTill >= DateTime.UtcNow && properties.Contains(u.Name) select u).ToArray();
         var hasprops = new HashSet<string>(properties);
         if (!hasprops.SetEquals((from p in props select p.Name)))
-            throw new SettlerException(SettlerErrorCode.PropertyNotGranted);
+            throw new PropertyNotGrantedException();
         var minDate = (from p in props select p.ValidTill).Min();
         var prp = (from p in props select p.Name).ToArray();
         var cert = base.IssueCertificate<T>(prp, minDate, DateTime.UtcNow, data);
@@ -256,7 +245,7 @@ public class Settler : CertificationAuthority
         var decodedInv = WalletAPIResult.Get<PayReq>(await lndWalletClient.DecodeInvoiceAsync(MakeAuthToken(), replyInvoice));
         var invPaymentHash = decodedInv.PaymentHash;
         if ((from pi in settlerContext.Value.Preimages where pi.GigId == signedRequestPayload.Value.PayloadId && pi.PaymentHash == invPaymentHash select pi).FirstOrDefault() == null)
-            throw new SettlerException(SettlerErrorCode.UnknownPreimage);
+            throw new UnknownPreimageException();
 
         byte[] key = Crypto.GenerateSymmetricKey();
         byte[] encryptedReplyMessage = Crypto.SymmetricEncrypt(key, message);
@@ -390,7 +379,7 @@ public class Settler : CertificationAuthority
     {
         var replierpubkey = (from cert in this.settlerContext.Value.UserCertificates where cert.CertificateId==gig.ReplierCertificateId && !cert.IsRevoked select cert.PublicKey).FirstOrDefault();
         if (replierpubkey == null)
-            throw new SettlerException(SettlerErrorCode.UnknownPreimage);
+            throw new UnknownPreimageException();
         var preims = (from pi in this.settlerContext.Value.Preimages where pi.ReplierPublicKey == replierpubkey && pi.GigId == gig.GigId select pi).ToList();
         foreach (var pi in preims)
             pi.IsRevealed = true;
@@ -403,7 +392,7 @@ public class Settler : CertificationAuthority
         this.settlerContext.Value.SaveObject(gig);
         var settletPi = (from pi in preims where pi.PublicKey == this.CaXOnlyPublicKey.AsHex() select pi).FirstOrDefault();
         if (settletPi == null)
-            throw new SettlerException(SettlerErrorCode.UnknownPreimage);
+            throw new UnknownPreimageException();
         WalletAPIResult.Check(await this.lndWalletClient.SettleInvoiceAsync(this.MakeAuthToken(), settletPi.Preimage)); // settle settlers network invoice
     }
 
