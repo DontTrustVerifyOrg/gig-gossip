@@ -5,7 +5,7 @@ namespace GigGossipSettlerAPIClient
 	public class SymmetricKeyRevealClient
 	{
         swaggerClient swaggerClient;
-        HubConnection connection;
+        public HubConnection Connection;
 
         public SymmetricKeyRevealClient(swaggerClient swaggerClient)
 		{
@@ -14,21 +14,20 @@ namespace GigGossipSettlerAPIClient
 
 		public async Task ConnectAsync(string authToken)
 		{
-            connection = new HubConnectionBuilder()
+            Connection = new HubConnectionBuilder()
                 .WithUrl(swaggerClient.BaseUrl + "symmetrickeyreveal?authtoken=" + Uri.EscapeDataString(authToken))
-                .WithAutomaticReconnect()
                 .Build();
-            await connection.StartAsync();
+            await Connection.StartAsync();
         }
 
         public async Task MonitorAsync(string authToken, Guid gigId, Guid replierCertificateId)
         {
-            await connection.SendAsync("Monitor", authToken, gigId, replierCertificateId);
+            await Connection.SendAsync("Monitor", authToken, gigId, replierCertificateId);
         }
 
         public IAsyncEnumerable<string> StreamAsync(string authToken, CancellationToken cancellationToken)
         {
-            return connection.StreamAsync<string>("StreamAsync", authToken, cancellationToken);
+            return Connection.StreamAsync<string>("StreamAsync", authToken, cancellationToken);
         }
     }
 }

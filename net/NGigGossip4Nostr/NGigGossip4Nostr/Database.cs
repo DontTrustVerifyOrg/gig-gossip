@@ -288,6 +288,14 @@ public class GigGossipNodeContext : DbContext
         this.ChangeTracker.Clear();
     }
 
+    public void RemoveObject<T>(T obj)
+    {
+        this.Type2DbSet(obj!).Remove(obj);
+        this.SaveChanges();
+
+        this.ChangeTracker.Clear();
+    }
+
     public bool TryAddObject<T>(T obj)
     {
         this.Type2DbSet(obj!).Add(obj);

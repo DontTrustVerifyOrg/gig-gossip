@@ -203,7 +203,9 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
     public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
-        await me.PayNetworkInvoiceAsync(iac);
+        var paymentResult=await me.PayNetworkInvoiceAsync(iac);
+        if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
+            Console.WriteLine(paymentResult);
     }
 
     public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
@@ -271,7 +273,9 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     public async void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
         FlowLogger.NewEvent(me.PublicKey, "AcceptResponse");
-        await me.AcceptResponseAsync(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
+        var paymentResult = await me.AcceptResponseAsync(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
+        if(paymentResult!= GigLNDWalletAPIErrorCode.Ok)
+            Console.WriteLine(paymentResult);
     }
     public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
     {

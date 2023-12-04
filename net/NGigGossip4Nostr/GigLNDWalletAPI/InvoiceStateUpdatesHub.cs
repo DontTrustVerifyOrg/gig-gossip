@@ -52,6 +52,12 @@ public class InvoiceStateUpdatesHub : Hub
         Singlethon.InvoiceHashes4ConnectionId.AddItem(account.PublicKey, paymentHash);
     }
 
+    public void StopMonitoring(string authToken, string paymentHash)
+    {
+        var account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
+        Singlethon.InvoiceHashes4ConnectionId.RemoveItem(account.PublicKey, paymentHash);
+    }
+
     public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);

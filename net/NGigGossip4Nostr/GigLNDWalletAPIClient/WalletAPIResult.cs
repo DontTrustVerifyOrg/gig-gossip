@@ -20,6 +20,9 @@ public enum GigLNDWalletAPIErrorCode
 
     /// <summary>Indicates that the payout has already been completed.</summary>
     PayoutAlreadyCompleted = 5,
+
+    /// <summary>Indicates that the payment was already executed.</summary>
+    AlreadyPayed = 6,
 }
 
 [Serializable]
@@ -41,6 +44,11 @@ public class GigLNDWalletAPIException : Exception
 
 public static class WalletAPIResult
 {
+    public static GigLNDWalletAPIErrorCode Status(dynamic t)
+    {
+        return (GigLNDWalletAPIErrorCode)((int)t.ErrorCode);
+    }
+
     public static void Check(dynamic t)
     {
         if ((int)t.ErrorCode != (int)GigLNDWalletAPIErrorCode.Ok)

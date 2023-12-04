@@ -236,6 +236,10 @@ public partial class RideShareCLIApp
             }
             else if (cmd == CommandEnum.RequestRide)
             {
+                if(requestedRide!=null)
+                {
+                    AnsiConsole.MarkupLine("[red]Ride in progress[/]");
+                }
                 var fromLocation = new Location(Random.Shared.NextDouble(), Random.Shared.NextDouble());
                 var toLocation = new Location(Random.Shared.NextDouble(), Random.Shared.NextDouble());
                 int waitingTimeForPickupMinutes = 12;
@@ -263,7 +267,11 @@ public partial class RideShareCLIApp
     private async void GigGossipNodeEventSource_OnNetworkInvoiceAccepted(object? sender, NetworkInvoiceAcceptedEventArgs e)
     {
         AnsiConsole.WriteLine("Network Invoice Accepted");
-        await e.GigGossipNode.PayNetworkInvoiceAsync(e.InvoiceData);
+        var paymentResult = await e.GigGossipNode.PayNetworkInvoiceAsync(e.InvoiceData);
+        if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
+        {
+            Console.WriteLine(paymentResult);
+        }
     }
 
     private void GigGossipNodeEventSource_OnNewContact(object? sender, NewContactEventArgs e)

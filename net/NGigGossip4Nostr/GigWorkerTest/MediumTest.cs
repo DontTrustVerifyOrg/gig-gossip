@@ -257,7 +257,11 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
 
     public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
-        await me.PayNetworkInvoiceAsync(iac);
+        var paymentResult = await me.PayNetworkInvoiceAsync(iac);
+        if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
+        {
+            Console.WriteLine(paymentResult);
+        }
         lock (MainThreadControl.Ctrl)
         {
             MainThreadControl.Counter++;
@@ -328,7 +332,11 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
     public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
-        await me.PayNetworkInvoiceAsync(iac);
+        var paymentResult = await me.PayNetworkInvoiceAsync(iac);
+        if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
+        {
+            Console.WriteLine(paymentResult);
+        }
         lock (MainThreadControl.Ctrl)
         {
             MainThreadControl.Counter++;
@@ -398,7 +406,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         lock (this)
         {
             if (timer == null)
-                timer = new Timer((o) => {
+                timer = new Timer(async (o) => {
                     timer.Change(Timeout.Infinite, Timeout.Infinite);
                     var new_cnt = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Value.PayloadId).Count();
                     if (new_cnt == old_cnt)
@@ -406,12 +414,17 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                         var resps = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Value.PayloadId).ToList();
                         resps.Sort((a, b) => (int)(Crypto.DeserializeObject<PayReq>(a.DecodedNetworkInvoice).NumSatoshis - Crypto.DeserializeObject<PayReq>(b.DecodedNetworkInvoice).NumSatoshis));
                         var win = resps[0];
-                        me.AcceptResponseAsync(
+                        var paymentResult = await me.AcceptResponseAsync(
                             Crypto.DeserializeObject<Certificate<ReplyPayloadValue>>(win.TheReplyPayload),
                             win.ReplyInvoice,
                             Crypto.DeserializeObject<PayReq>(win.DecodedReplyInvoice),
                             win.NetworkInvoice,
                             Crypto.DeserializeObject<PayReq>(win.DecodedNetworkInvoice));
+                        if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
+                        {
+                            Console.WriteLine(paymentResult);
+                            return;
+                        }
                         FlowLogger.NewEvent(me.PublicKey, "AcceptResponse");
                     }
                     else

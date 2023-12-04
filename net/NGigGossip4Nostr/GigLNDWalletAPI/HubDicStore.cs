@@ -47,6 +47,20 @@ namespace GigLNDWalletAPI
             }
         }
 
+        public void RemoveItem(string connectionId, T item)
+        {
+            lock (Item4PublicKey)
+            {
+                if (Item4PublicKey.ContainsKey(connectionId))
+                    Item4PublicKey[connectionId].Remove(item);
+            }
+            lock (PublicKeys4Items)
+            {
+                if (PublicKeys4Items.ContainsKey(item))
+                    PublicKeys4Items[item].Remove(connectionId);
+            }
+        }
+
         public bool ContainsItem(string connectionId,T item)
         {
             lock (Item4PublicKey)

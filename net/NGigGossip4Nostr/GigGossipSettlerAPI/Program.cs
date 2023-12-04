@@ -43,8 +43,28 @@ app.UseStatusCodePages();
 app.UseHsts();
 
 
+IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
+{
+    var basePath = Environment.GetEnvironmentVariable("GIGGOSSIP_BASEDIR");
+    if (basePath == null)
+        basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), defaultFolder);
+    foreach (var arg in args)
+        if (arg.StartsWith("--basedir"))
+            basePath = arg.Substring(arg.IndexOf('=') + 1).Trim().Replace("\"", "").Replace("\'", "");
 
-var settlerSettings = builder.Configuration.GetSection(SettlerConfig.SectionName).Get<SettlerConfig>();
+    var builder = new ConfigurationBuilder();
+    builder.SetBasePath(basePath)
+           .AddIniFile(iniName)
+           .AddEnvironmentVariables()
+           .AddCommandLine(args);
+
+    return builder.Build();
+}
+
+var config = GetConfigurationRoot(".giggossip", "settler.conf");
+var settlerSettings = config.GetSection("settler").Get<SettlerSettings>();
+//var settlerSettings = builder.Configuration.GetSection(SettlerConfig.SectionName).Get<SettlerConfig>();
+
 ECPrivKey caPrivateKey = settlerSettings.SettlerPrivateKey.AsECPrivKey();
 
 var httpClient = new HttpClient();
@@ -59,7 +79,7 @@ Singlethon.Settler = new Settler(
     TimeSpan.FromSeconds(settlerSettings.DisputeTimeoutSec)
     );
 
-await Singlethon.Settler.InitAsync(lndWalletClient, settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)), false);
+await Singlethon.Settler.InitAsync(lndWalletClient, settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
 await Singlethon.Settler.StartAsync();
 
 
@@ -457,4 +477,15 @@ public record Result<T>
     public T? Value { get; set; } = default;
     public SettlerErrorCode ErrorCode { get; set; }
     public string ErrorMessage { get; set; } = "";
+}
+
+public class SettlerSettings
+{
+    public required Uri ServiceUri { get; set; }
+    public required Uri GigWalletOpenApi { get; set; }
+    public required long PriceAmountForSettlement { get; set; }
+    public required string ConnectionString { get; set; }
+    public required string SettlerPrivateKey { get; set; }
+    public required long InvoicePaymentTimeoutSec { get; set; }
+    public required long DisputeTimeoutSec { get; set; }
 }

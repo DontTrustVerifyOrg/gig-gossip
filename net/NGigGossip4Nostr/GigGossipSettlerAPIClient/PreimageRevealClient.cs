@@ -5,7 +5,7 @@ namespace GigGossipSettlerAPIClient
 	public class PreimageRevealClient
 	{
         swaggerClient swaggerClient;
-        HubConnection connection;
+        public HubConnection Connection;
 
         public PreimageRevealClient(swaggerClient swaggerClient)
 		{
@@ -14,21 +14,20 @@ namespace GigGossipSettlerAPIClient
 
 		public async Task ConnectAsync(string authToken)
 		{
-            connection = new HubConnectionBuilder()
+            Connection = new HubConnectionBuilder()
                 .WithUrl(swaggerClient.BaseUrl + "preimagereveal?authtoken=" + Uri.EscapeDataString(authToken))
-                .WithAutomaticReconnect()
                 .Build();
-            await connection.StartAsync();
+            await Connection.StartAsync();
         }
 
         public async Task MonitorAsync(string authToken, string paymentHash)
         {
-            await connection.SendAsync("Monitor", authToken, paymentHash);
+            await Connection.SendAsync("Monitor", authToken, paymentHash);
         }
 
         public IAsyncEnumerable<string> StreamAsync(string authToken, CancellationToken cancellationToken)
         {
-            return connection.StreamAsync<string>("StreamAsync", authToken, cancellationToken);
+            return Connection.StreamAsync<string>("StreamAsync", authToken, cancellationToken);
         }
     }
 }

@@ -7,6 +7,7 @@ using Spectre.Console;
 using NBitcoin;
 using System.Diagnostics;
 using CryptoToolkit;
+using GigLNDWalletAPIClient;
 
 namespace RideShareCLIApp;
 
@@ -38,8 +39,12 @@ public partial class RideShareCLIApp
     private async Task AcceptDriverAsync(int idx)
     {
         var e = receivedResponses[idx];
-        await e.GigGossipNode.AcceptResponseAsync(e.ReplyPayloadCert, e.ReplyInvoice, e.DecodedReplyInvoice, e.NetworkInvoice, e.DecodedNetworkInvoice);
-        await e.GigGossipNode.CancelBroadcastAsync(requestedRide.SignedCancelRequestPayload);
+        var paymentResult = await e.GigGossipNode.AcceptResponseAsync(e.ReplyPayloadCert, e.ReplyInvoice, e.DecodedReplyInvoice, e.NetworkInvoice, e.DecodedNetworkInvoice);
+        if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
+        {
+            AnsiConsole.MarkupLine($"[red]{paymentResult}[/]");
+            return;
+        }
     }
 
     private async void GigGossipNodeEventSource_OnNewResponse(object? sender, NewResponseEventArgs e)
@@ -61,6 +66,7 @@ public partial class RideShareCLIApp
 
     private async void GigGossipNodeEventSource_OnResponseReady(object? sender, ResponseReadyEventArgs e)
     {
+        await e.GigGossipNode.CancelBroadcastAsync(requestedRide.SignedCancelRequestPayload);
         await directCom.StartAsync(e.Reply.Relays);
         directPubkeys[e.RequestPayloadId] = e.Reply.PublicKey;
         new Thread(() => RiderJourneyAsync(e.RequestPayloadId,e.Reply.Secret)).Start();
@@ -121,6 +127,7 @@ public partial class RideShareCLIApp
             Thread.Sleep(1000);
         }
         AnsiConsole.MarkupLine("I have reached the [orange1]destination[/]");
+        requestedRide = null;
     }
 
     private async Task OnDriverLocation(string senderPublicKey, LocationFrame locationFrame)
