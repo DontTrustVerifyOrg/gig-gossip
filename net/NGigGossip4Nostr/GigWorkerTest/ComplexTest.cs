@@ -88,27 +88,6 @@ public class ComplexTest
             things[nn].ClearContacts();
         }
 
-        var already = new HashSet<string>();
-        foreach (var nod_idx in gridShapeIter.MultiCartesian())
-        {
-            var node_name = nod_name_f(nod_idx);
-            for (int k = 0; k < nod_idx.Length; k++)
-            {
-                var nod1_idx = nod_idx.Select((x, i) => i == k ? (x + 1) % gridShape[k] : x);
-                var node_name_1 = nod_name_f(nod1_idx);
-                if (already.Contains(node_name + ":" + node_name_1))
-                    continue;
-                if (already.Contains(node_name_1 + ":" + node_name))
-                    continue;
-
-                things[node_name].AddContact(things[node_name_1].PublicKey, node_name_1);
-                things[node_name_1].AddContact(things[node_name].PublicKey, node_name);
-                already.Add(node_name + ":" + node_name_1);
-                already.Add(node_name_1 + ":" + node_name);
-                Console.WriteLine(node_name + "<->" + node_name_1);
-            }
-        }
-
         var rnd = new Random();
         var thingsList = new Queue<KeyValuePair<string,GigGossipNode>>(things.ToList().OrderBy(a => rnd.Next()));
 
@@ -133,6 +112,7 @@ public class ComplexTest
             FlowLogger.SetupParticipant(gigWorker.PublicKey, kv.Key+":GigWorker", true);
         }
 
+        
         var customers = new List<GigGossipNode>();
         for (int i = 0; i < applicationSettings.NumMessages; i++)
         {
@@ -168,6 +148,26 @@ public class ComplexTest
             FlowLogger.SetupParticipant(node.Value.PublicKey, node.Key, true);
         }
 
+        var already = new HashSet<string>();
+        foreach (var nod_idx in gridShapeIter.MultiCartesian())
+        {
+            var node_name = nod_name_f(nod_idx);
+            for (int k = 0; k < nod_idx.Length; k++)
+            {
+                var nod1_idx = nod_idx.Select((x, i) => i == k ? (x + 1) % gridShape[k] : x);
+                var node_name_1 = nod_name_f(nod1_idx);
+                if (already.Contains(node_name + ":" + node_name_1))
+                    continue;
+                if (already.Contains(node_name_1 + ":" + node_name))
+                    continue;
+
+                things[node_name].AddContact(things[node_name_1].PublicKey, node_name_1);
+                things[node_name_1].AddContact(things[node_name].PublicKey, node_name);
+                already.Add(node_name + ":" + node_name_1);
+                already.Add(node_name_1 + ":" + node_name);
+                Console.WriteLine(node_name + "<->" + node_name_1);
+            }
+        }
 
         async Task TopupNodeAsync(GigGossipNode node, long minAmout,long topUpAmount)
         {
@@ -414,10 +414,10 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                 timer = new Timer(async (o) =>
                 {
                     timer.Change(Timeout.Infinite, Timeout.Infinite);
-                    var new_cnt = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Value.PayloadId).Count();
+                    var new_cnt = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Id).Count();
                     if (new_cnt == old_cnt)
                     {
-                        var resps = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Value.PayloadId).ToList();
+                        var resps = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Id).ToList();
                         resps.Sort((a, b) => (int)(Crypto.DeserializeObject<PayReq>(a.DecodedNetworkInvoice).NumSatoshis - Crypto.DeserializeObject<PayReq>(b.DecodedNetworkInvoice).NumSatoshis));
                         var win = resps[0];
                         var paymentResult = await me.AcceptResponseAsync(
@@ -505,7 +505,6 @@ public class NodeSettings
     public required string ConnectionString { get; set; }
     public required Uri GigWalletOpenApi { get; set; }
     public required string NostrRelays { get; set; }
-    public required string PrivateKey { get; set; }
     public required Uri SettlerOpenApi { get; set; }
     public required long PriceAmountForRouting { get; set; }
     public required long TimestampToleranceMs { get; set; }

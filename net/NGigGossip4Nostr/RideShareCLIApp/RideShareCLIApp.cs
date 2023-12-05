@@ -332,9 +332,9 @@ public partial class RideShareCLIApp
     {
         if (e.Frame is LocationFrame locationFrame)
         {
-            if (directPubkeys.ContainsKey(locationFrame.RequestPayloadId))
+            if (directPubkeys.ContainsKey(locationFrame.SignedRequestPayloadId))
             {
-                var pubkey = directPubkeys[locationFrame.RequestPayloadId];
+                var pubkey = directPubkeys[locationFrame.SignedRequestPayloadId];
                 if (pubkey == e.SenderPublicKey)
                 {
                     if (inDriverMode)

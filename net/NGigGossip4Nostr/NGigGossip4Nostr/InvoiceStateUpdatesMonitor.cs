@@ -145,7 +145,8 @@ namespace NGigGossip4Nostr
                         //stream closed
                         return;
                     }
-                    catch (Microsoft.AspNetCore.SignalR.HubException)
+                    catch (Exception ex) when (ex is Microsoft.AspNetCore.SignalR.HubException ||
+                                               ex is TimeoutException)
                     {
                         NotifyClientIsConnected(false);
                         Trace.TraceWarning("Hub disconnected " + gigGossipNode.LNDWalletClient.BaseUrl + "/invoicestateupdates, reconnecting");

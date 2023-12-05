@@ -32,7 +32,12 @@ public class Certificate<T> : SignableObject
    /// The Uri of the Certification Authority service
    /// </summary>
    public required Uri ServiceUri { get; set; }
-   
+
+    /// <summary>
+    /// Kind of the certificate
+    /// </summary>
+    public required string Kind { get; set; }
+
    /// <summary>
    /// Serial number of the certificate
    /// </summary>
@@ -118,11 +123,12 @@ public class CertificationAuthority
    /// <param name="notValidAfter">The date after which the certificate is not valid.</param>
    /// <param name="notValidBefore">The date before which the certificate is not valid.</param>
    /// <returns>A new certificate signed and issued by the Certification Authority for the Subject.</returns>
-   public Certificate<T> IssueCertificate<T>(string[] properties, DateTime notValidAfter, DateTime notValidBefore, T value)
+   protected Certificate<T> IssueCertificate<T>(string kind, Guid id, string[] properties, DateTime notValidAfter, DateTime notValidBefore, T value)
    {
        var certificate = new Certificate<T>
        {
-           Id = Guid.NewGuid(),
+           Kind = kind,
+           Id = id,
            ServiceUri = ServiceUri,
            Properties = properties,
            NotValidAfter = notValidAfter,

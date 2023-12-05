@@ -47,12 +47,19 @@ public class UserProperty
 /// <summary>
 /// Certificate to property (1 to many) relationship.
 /// </summary>
+[PrimaryKey(nameof(Kind), nameof(CertificateId))]
 public class CertificateProperty
 {
     /// <summary>
-    /// The unique identidier of the certificate.
+    /// kind of the certificate.
     /// </summary>
-    [Key]
+    [Column(Order = 1)]
+    public required string Kind { get; set; }
+
+    /// <summary>
+    /// The identifier of the certificate.
+    /// </summary>
+    [Column(Order = 2)]
     public required Guid CertificateId { get; set; }
 
     /// <summary>
@@ -64,12 +71,19 @@ public class CertificateProperty
 /// <summary>
 /// Represents a certificate issued for the Subject by Certification Authority.
 /// </summary>
+[PrimaryKey(nameof(Kind), nameof(CertificateId))]
 public class UserCertificate
 {
     /// <summary>
-    /// The unique identifier of the certificate.
+    /// kind of the certificate.
     /// </summary>
-    [Key]
+    [Column(Order = 1)]
+    public required string Kind { get; set; }
+
+    /// <summary>
+    /// The identifier of the certificate.
+    /// </summary>
+    [Column(Order = 2)]
     public required Guid CertificateId { get; set; }
  
      /// <summary>
@@ -95,9 +109,9 @@ public class InvoicePreimage
     public required string PaymentHash { get; set; }
 
     /// <summary>
-    /// The PayloadID of the gig-job.
+    /// The ID of the gig-job.
     /// </summary>
-    public required Guid GigId { get; set; }
+    public required Guid SignedRequestPayloadId { get; set; }
 
     /// <summary>
     /// The public key of the replier.
@@ -142,14 +156,14 @@ public enum GigSubStatus
 /// <summary>
 /// A gig job
 /// </summary>
-[PrimaryKey(nameof(GigId), nameof(ReplierCertificateId))]
+[PrimaryKey(nameof(SignedRequestPayloadId), nameof(ReplierCertificateId))]
 public class Gig
 {
     /// <summary>
-    /// The PayloadId of the gig.
+    /// The Id of the gig.
     /// </summary>
     [Column(Order = 1)]
-    public required Guid GigId { get; set; }
+    public required Guid SignedRequestPayloadId { get; set; }
 
     /// <summary>
     /// The public key of the replier.

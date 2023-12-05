@@ -58,7 +58,7 @@ public class SettlerMonitor
     public async Task<bool> MonitorSymmetricKeyAsync(Uri serviceUri, Guid senderCertificateId, Guid tid, Guid replierCertificateId, byte[] data)
     {
         if ((from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
-             where i.PayloadId == tid && i.PublicKey == this.gigGossipNode.PublicKey
+             where i.SignedRequestPayloadId == tid && i.PublicKey == this.gigGossipNode.PublicKey
              select i).FirstOrDefault() != null)
             return false;
 
@@ -70,7 +70,7 @@ public class SettlerMonitor
             PublicKey = this.gigGossipNode.PublicKey,
             ReplierCertificateId = replierCertificateId,
             ServiceUri = serviceUri,
-            PayloadId = tid,
+            SignedRequestPayloadId = tid,
             Data = data,
             SymmetricKey = null
         };
@@ -121,7 +121,7 @@ public class SettlerMonitor
             foreach (var kv in kToMon)
             {
                 var serviceUri = kv.ServiceUri;
-                var tid = kv.PayloadId;
+                var tid = kv.SignedRequestPayloadId;
                 var key = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), kv.SenderCertificateId.ToString(), tid.ToString(), kv.ReplierCertificateId.ToString()));
                 if (!string.IsNullOrWhiteSpace(key))
                 {
@@ -152,7 +152,7 @@ public class SettlerMonitor
                         var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
                                       where i.PublicKey == this.gigGossipNode.PublicKey
                                       && i.Preimage == null
-                                      && i.ServiceUri==serviceUri
+                                      && i.ServiceUri == serviceUri
                                       select i).ToList();
 
                         foreach (var kv in pToMon)
@@ -181,7 +181,7 @@ public class SettlerMonitor
                                       select i).FirstOrDefault();
                         if (pToMon != null)
                         {
-                            await gigGossipNode.OnPreimageRevealedAsync(pToMon.ServiceUri,pToMon.PaymentHash, preimage);
+                            await gigGossipNode.OnPreimageRevealedAsync(pToMon.ServiceUri, pToMon.PaymentHash, preimage);
                             pToMon.Preimage = preimage;
                             gigGossipNode.nodeContext.Value.SaveObject(pToMon);
                         }
@@ -192,7 +192,8 @@ public class SettlerMonitor
                     //stream closed
                     return;
                 }
-                catch (Microsoft.AspNetCore.SignalR.HubException)
+                catch (Exception ex) when (ex is Microsoft.AspNetCore.SignalR.HubException ||
+                                           ex is TimeoutException)
                 {
                     this.gigGossipNode.DisposePreimageRevealClient(serviceUri);
                     Trace.TraceWarning("Timeout on " + serviceUri.AbsolutePath + "/revealpreimage, reconnecting");
@@ -232,7 +233,7 @@ public class SettlerMonitor
 
                         foreach (var kv in kToMon)
                         {
-                            var tid = kv.PayloadId;
+                            var tid = kv.SignedRequestPayloadId;
                             var key = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), kv.SenderCertificateId.ToString(), tid.ToString(), kv.ReplierCertificateId.ToString()));
                             if (!string.IsNullOrWhiteSpace(key))
                             {
@@ -251,7 +252,7 @@ public class SettlerMonitor
                         var symkey = pp[2];
                         var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
                                       where i.PublicKey == this.gigGossipNode.PublicKey
-                                      && i.PayloadId == gigId
+                                      && i.SignedRequestPayloadId == gigId
                                       && i.ReplierCertificateId == repliercertificateid
                                       && i.SymmetricKey == null
                                       select i).FirstOrDefault();
@@ -269,7 +270,8 @@ public class SettlerMonitor
                     //stream closed
                     return;
                 }
-                catch (Microsoft.AspNetCore.SignalR.HubException)
+                catch (Exception ex) when (ex is Microsoft.AspNetCore.SignalR.HubException ||
+                                           ex is TimeoutException)
                 {
                     this.gigGossipNode.DisposeSymmetricKeyRevealClient(serviceUri);
                     Trace.TraceWarning("Timeout on " + serviceUri.AbsolutePath + "/revealsymmetrickey, reconnecting");

@@ -11,11 +11,6 @@ namespace NGigGossip4Nostr;
 public class RequestPayloadValue
 {
     /// <summary>
-    /// Gets or sets the identifier of the payload.
-    /// </summary>
-    public required Guid PayloadId { get; set; }
-
-    /// <summary>
     /// Gets or sets the topic of the payload.
     /// </summary>
     public required byte[] Topic { get; set; }

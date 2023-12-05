@@ -10,7 +10,7 @@ using NNostr.Client;
 
 namespace NGigGossip4Nostr;
 
-[PrimaryKey(nameof(PublicKey), nameof(PayloadId), nameof(ContactPublicKey))]
+[PrimaryKey(nameof(PublicKey), nameof(SignedRequestPayloadId), nameof(ContactPublicKey))]
 public class BroadcastHistoryRow
 {
     /// <summary>
@@ -20,13 +20,13 @@ public class BroadcastHistoryRow
     public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public required Guid PayloadId { get; set; }
+    public required Guid SignedRequestPayloadId { get; set; }
 
     [Column(Order = 3)]
     public required string ContactPublicKey { get; set; }
 }
 
-[PrimaryKey(nameof(PublicKey), nameof(PayloadId), nameof(ContactPublicKey))]
+[PrimaryKey(nameof(PublicKey), nameof(SignedRequestPayloadId), nameof(ContactPublicKey))]
 public class BroadcastCancelHistoryRow
 {
     /// <summary>
@@ -36,7 +36,7 @@ public class BroadcastCancelHistoryRow
     public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public required Guid PayloadId { get; set; }
+    public required Guid SignedRequestPayloadId { get; set; }
 
     [Column(Order = 3)]
     public required string ContactPublicKey { get; set; }
@@ -54,7 +54,7 @@ public class ReplyPayloadRow
     [Column(Order = 2)]
     public required Guid ReplyId { get; set; }
 
-    public required Guid PayloadId { get; set; }
+    public required Guid SignedRequestPayloadId { get; set; }
 
     public required Guid ReplierCertificateId { get; set; }
     public required byte[] TheReplyPayload { get; set; }
@@ -64,7 +64,7 @@ public class ReplyPayloadRow
     public required byte[] DecodedReplyInvoice { get; set; }
 }
 
-[PrimaryKey(nameof(PublicKey), nameof(SettlerServiceUri), nameof(PayloadId))]
+[PrimaryKey(nameof(PublicKey), nameof(SettlerServiceUri), nameof(SignedRequestPayloadId))]
 public class AcceptedBroadcastRow
 {
     /// <summary>
@@ -77,7 +77,7 @@ public class AcceptedBroadcastRow
     public required Uri SettlerServiceUri { get; set; }
 
     [Column(Order = 3)]
-    public required Guid PayloadId { get; set; }
+    public required Guid SignedRequestPayloadId { get; set; }
 
     public required byte[] SignedSettlementPromise { get; set; }
     public required string NetworkInvoice { get; set; }
@@ -138,7 +138,7 @@ public class MonitoredPreimageRow
     public required string? Preimage { get; set; }
 }
 
-[PrimaryKey(nameof(PublicKey), nameof(PayloadId), nameof(ReplierCertificateId))]
+[PrimaryKey(nameof(PublicKey), nameof(SignedRequestPayloadId), nameof(ReplierCertificateId))]
 public class MonitoredSymmetricKeyRow
 {
     /// <summary>
@@ -148,7 +148,7 @@ public class MonitoredSymmetricKeyRow
     public required string PublicKey { get; set; }
 
     [Column(Order = 2)]
-    public required Guid PayloadId { get; set; }
+    public required Guid SignedRequestPayloadId { get; set; }
 
     [Column(Order = 3)]
     public required Guid ReplierCertificateId { get; set; }

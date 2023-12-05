@@ -18,6 +18,9 @@ public partial class RideShareCLIApp
     DataTable receivedResponsesTable = null;
     Dictionary<string, int> receivedResponsesIdxesForPaymentHashes = new();
 
+    bool driverApproached;
+    bool riderDroppedOff;
+
     async Task<BroadcastTopicResponse> RequestRide(Location fromLocation, Location toLocation, int precision, int waitingTimeForPickupMinutes)
     {
         var fromGh = GeoHash.Encode(latitude: fromLocation.Latitude, longitude: fromLocation.Longitude, numberOfChars: precision);
@@ -44,6 +47,7 @@ public partial class RideShareCLIApp
         {
             AnsiConsole.MarkupLine($"[red]{paymentResult}[/]");
             return;
+
         }
     }
 
@@ -66,10 +70,13 @@ public partial class RideShareCLIApp
 
     private async void GigGossipNodeEventSource_OnResponseReady(object? sender, ResponseReadyEventArgs e)
     {
-        await e.GigGossipNode.CancelBroadcastAsync(requestedRide.SignedCancelRequestPayload);
-        await directCom.StartAsync(e.Reply.Relays);
-        directPubkeys[e.RequestPayloadId] = e.Reply.PublicKey;
-        new Thread(() => RiderJourneyAsync(e.RequestPayloadId,e.Reply.Secret)).Start();
+        if (e.RequestPayloadId == requestedRide.SignedRequestPayload.Id)
+        {
+            await e.GigGossipNode.CancelBroadcastAsync(requestedRide.SignedCancelRequestPayload);
+            await directCom.StartAsync(e.Reply.Relays);
+            directPubkeys[e.RequestPayloadId] = e.Reply.PublicKey;
+            new Thread(() => RiderJourneyAsync(e.RequestPayloadId, e.Reply.Secret)).Start();
+        }
     }
 
     private void GigGossipNodeEventSource_OnInvoiceCancelled(object? sender, InvoiceCancelledEventArgs e)
@@ -86,8 +93,6 @@ public partial class RideShareCLIApp
     }
 
 
-    bool driverApproached;
-    bool riderDroppedOff;
     private async Task RiderJourneyAsync(Guid requestPayloadId,string secret)
     {
         receivedResponsesTable.Exit();
@@ -97,7 +102,7 @@ public partial class RideShareCLIApp
         AnsiConsole.MarkupLine("I am [orange1]sending[/] my location to the driver");
         await directCom.SendMessageAsync(pubkey, new AckFrame()
         {
-            RequestPayloadId = requestPayloadId,
+            SignedRequestPayloadId = requestPayloadId,
             Location = new Location(),
             Message = "Ok,here I am",
             Secret = secret,
@@ -107,7 +112,7 @@ public partial class RideShareCLIApp
             AnsiConsole.MarkupLine("I am [orange1]waiting[/] for the driver");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
-                RequestPayloadId = requestPayloadId,
+                SignedRequestPayloadId = requestPayloadId,
                 Location = new Location(),
                 Message = "I am waiting",
                 RideState = RideState.RiderWaitingForDriver
@@ -119,7 +124,7 @@ public partial class RideShareCLIApp
             AnsiConsole.MarkupLine("I am [orange1]in the car[/]");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
-                RequestPayloadId = requestPayloadId,
+                SignedRequestPayloadId = requestPayloadId,
                 Location = new Location(),
                 Message = "I am in the car",
                 RideState = RideState.RidingTogheter
@@ -132,15 +137,19 @@ public partial class RideShareCLIApp
 
     private async Task OnDriverLocation(string senderPublicKey, LocationFrame locationFrame)
     {
-        var pubkey = directPubkeys[locationFrame.RequestPayloadId];
-        AnsiConsole.WriteLine("driver location:" + senderPublicKey + "|" + locationFrame.RideState.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
-        if (locationFrame.RideState == RideState.DriverWaitingForRider)
+        if (requestedRide == null)
+            return;
+        if (locationFrame.SignedRequestPayloadId == requestedRide.SignedRequestPayload.Id)
         {
-            driverApproached = true;
-        }
-        else if (locationFrame.RideState == RideState.RiderDroppedOff)
-        {
-            riderDroppedOff = true;
+            AnsiConsole.WriteLine("driver location:" + senderPublicKey + "|" + locationFrame.RideState.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
+            if (locationFrame.RideState == RideState.DriverWaitingForRider)
+            {
+                driverApproached = true;
+            }
+            else if (locationFrame.RideState == RideState.RiderDroppedOff)
+            {
+                riderDroppedOff = true;
+            }
         }
     }
 

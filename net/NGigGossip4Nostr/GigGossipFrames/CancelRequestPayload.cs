@@ -11,11 +11,6 @@ namespace NGigGossip4Nostr;
 public class CancelRequestPayloadValue
 {
     /// <summary>
-    /// Gets or sets the identifier of the payload.
-    /// </summary>
-    public required Guid PayloadId { get; set; }
-
-    /// <summary>
     /// Gets or sets creation timestamp of the payload.
     /// </summary>
     public required DateTime Timestamp { get; set; }

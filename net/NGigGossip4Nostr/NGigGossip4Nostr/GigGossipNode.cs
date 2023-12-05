@@ -289,22 +289,22 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             await client.Connection.DisposeAsync();
     }
 
-    public List<string> GetBroadcastContactList(Guid payloadId, string? originatorPublicKey)
+    public List<string> GetBroadcastContactList(Guid signedrequestpayloadId, string? originatorPublicKey)
     {
 
         var rnd = new Random();
         var contacts = new HashSet<string>(GetContactList());
-        var alreadyBroadcasted = (from inc in this.nodeContext.Value.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.PayloadId == payloadId select inc.ContactPublicKey).ToList();
+        var alreadyBroadcasted = (from inc in this.nodeContext.Value.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey).ToList();
         contacts.ExceptWith(alreadyBroadcasted);
         if (originatorPublicKey != null)
             contacts.ExceptWith(new string[] { originatorPublicKey });
         if (contacts.Count == 0)
             return new List<string>();
 
-        var retcontacts = (from r in contacts.AsEnumerable().OrderBy(x => rnd.Next()).Take(this.fanout) select new BroadcastHistoryRow() { ContactPublicKey = r, PayloadId = payloadId, PublicKey = this.PublicKey });
+        var retcontacts = (from r in contacts.AsEnumerable().OrderBy(x => rnd.Next()).Take(this.fanout) select new BroadcastHistoryRow() { ContactPublicKey = r, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
         this.nodeContext.Value.TryAddObjectRange(retcontacts);
         if (originatorPublicKey != null)
-            this.nodeContext.Value.TryAddObject(new BroadcastHistoryRow() { ContactPublicKey = originatorPublicKey, PayloadId = payloadId, PublicKey = this.PublicKey });
+            this.nodeContext.Value.TryAddObject(new BroadcastHistoryRow() { ContactPublicKey = originatorPublicKey, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
 
         return (from r in retcontacts select r.ContactPublicKey).ToList();
     }
@@ -315,7 +315,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                         OnionRoute? backwardOnion = null)
     {
 
-        var tobroadcast = GetBroadcastContactList(requestPayload.Value.PayloadId, originatorPublicKey);
+        var tobroadcast = GetBroadcastContactList(requestPayload.Id, originatorPublicKey);
         if (tobroadcast.Count == 0)
         {
             Trace.TraceInformation("already broadcasted");
@@ -336,18 +336,18 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public List<string> GetBroadcastCancelContactList(Guid payloadId)
+    public List<string> GetBroadcastCancelContactList(Guid signedrequestpayloadId)
     {
-        var alreadyBroadcastCanceled = (from inc in this.nodeContext.Value.BroadcastCancelHistory where inc.PublicKey == this.PublicKey && inc.PayloadId == payloadId select inc.ContactPublicKey).ToList();
-        var alreadyBroadcasted = new HashSet<string>((from inc in this.nodeContext.Value.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.PayloadId == payloadId select inc.ContactPublicKey));
+        var alreadyBroadcastCanceled = (from inc in this.nodeContext.Value.BroadcastCancelHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey).ToList();
+        var alreadyBroadcasted = new HashSet<string>((from inc in this.nodeContext.Value.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey));
         alreadyBroadcasted.ExceptWith(alreadyBroadcastCanceled);
-        this.nodeContext.Value.AddObjectRange((from r in alreadyBroadcasted select new BroadcastCancelHistoryRow() { ContactPublicKey = r, PayloadId = payloadId, PublicKey = this.PublicKey }));
+        this.nodeContext.Value.AddObjectRange((from r in alreadyBroadcasted select new BroadcastCancelHistoryRow() { ContactPublicKey = r, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey }));
         return alreadyBroadcasted.ToList();
     }
 
     public async Task CancelBroadcastAsync(Certificate<CancelRequestPayloadValue> cancelRequestPayload)
     {
-        var tobroadcast = GetBroadcastCancelContactList(cancelRequestPayload.Value.PayloadId);
+        var tobroadcast = GetBroadcastCancelContactList(cancelRequestPayload.Id);
         foreach (var peerPublicKey in tobroadcast)
         {
             CancelBroadcastFrame cancelBroadcastFrame = new CancelBroadcastFrame()
@@ -413,7 +413,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         {
             var alreadyBroadcasted = (from abx in this.nodeContext.Value.AcceptedBroadcasts
                                       where abx.PublicKey == this.PublicKey
-                                      && abx.PayloadId == broadcastFrame.SignedRequestPayload.Value.PayloadId
+                                      && abx.SignedRequestPayloadId == broadcastFrame.SignedRequestPayload.Id
                                       && abx.SettlerServiceUri == acceptBroadcastResponse.SettlerServiceUri
                                       select abx).FirstOrDefault();
 
@@ -422,7 +422,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 FlowLogger.NewMessage(this.PublicKey, Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), "getSecret");
                 var settlerClient = this.SettlerSelector.GetSettlerClient(acceptBroadcastResponse.SettlerServiceUri);
                 var authToken = await MakeSettlerAuthTokenAsync(acceptBroadcastResponse.SettlerServiceUri);
-                var replyPaymentHash = SettlerAPIResult.Get<string>(await settlerClient.GenerateReplyPaymentPreimageAsync(authToken, broadcastFrame.SignedRequestPayload.Value.PayloadId.ToString(), this.PublicKey));
+                var replyPaymentHash = SettlerAPIResult.Get<string>(await settlerClient.GenerateReplyPaymentPreimageAsync(authToken, broadcastFrame.SignedRequestPayload.Id.ToString(), this.PublicKey));
                 var replyInvoice = WalletAPIResult.Get<InvoiceRet>(await LNDWalletClient.AddHodlInvoiceAsync(MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds)).PaymentRequest;
                 FlowLogger.SetupParticipantWithAutoAlias(replyPaymentHash, "I", false);
                 FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), replyPaymentHash, "hash");
@@ -456,7 +456,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 this.nodeContext.Value.AddObject(new AcceptedBroadcastRow()
                 {
                     PublicKey = this.PublicKey,
-                    PayloadId = broadcastFrame.SignedRequestPayload.Value.PayloadId,
+                    SignedRequestPayloadId = broadcastFrame.SignedRequestPayload.Id,
                     SettlerServiceUri = acceptBroadcastResponse.SettlerServiceUri,
                     EncryptedReplyPayload = encryptedReplyPayload,
                     NetworkInvoice = networkInvoice,
@@ -466,9 +466,9 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                     DecodedReplyInvoice = Crypto.SerializeObject(decodedReplyInvoice),
                 });
 
-                FlowLogger.SetupParticipantWithAutoAlias(broadcastFrame.SignedRequestPayload.Value.PayloadId.ToString() + "_" + this.PublicKey, "K", false);
-                FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), broadcastFrame.SignedRequestPayload.Value.PayloadId.ToString() + "_" + this.PublicKey, "create");
-                FlowLogger.NewMessage(this.PublicKey, broadcastFrame.SignedRequestPayload.Value.PayloadId.ToString() + "_" + this.PublicKey, "encrypts");
+                FlowLogger.SetupParticipantWithAutoAlias(broadcastFrame.SignedRequestPayload.Id.ToString() + "_" + this.PublicKey, "K", false);
+                FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), broadcastFrame.SignedRequestPayload.Id.ToString() + "_" + this.PublicKey, "create");
+                FlowLogger.NewMessage(this.PublicKey, broadcastFrame.SignedRequestPayload.Id.ToString() + "_" + this.PublicKey, "encrypts");
 
                 responseFrame = new ReplyFrame()
                 {
@@ -514,9 +514,9 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 if (messageId != null) MarkMessageAsDone(messageId);
                 return;
             }
-            var payloadId = replyPayload.Value.SignedRequestPayload.Value.PayloadId;
+            var signedrequestpayloadId = replyPayload.Value.SignedRequestPayload.Id;
 
-            await _settlerMonitor.MonitorSymmetricKeyAsync(responseFrame.SignedSettlementPromise.ServiceUri, replyPayload.Value.SignedRequestPayload.Id, payloadId, replyPayload.Id, Crypto.SerializeObject(replyPayload));
+            await _settlerMonitor.MonitorSymmetricKeyAsync(responseFrame.SignedSettlementPromise.ServiceUri, replyPayload.Value.SignedRequestPayload.Id, signedrequestpayloadId, replyPayload.Id, Crypto.SerializeObject(replyPayload));
 
             var decodedReplyInvoice = WalletAPIResult.Get<PayReq>(await LNDWalletClient.DecodeInvoiceAsync(MakeWalletAuthToken(), replyPayload.Value.ReplyInvoice));
 
@@ -535,7 +535,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 {
                     ReplyId = Guid.NewGuid(),
                     PublicKey = this.PublicKey,
-                    PayloadId = payloadId,
+                    SignedRequestPayloadId = signedrequestpayloadId,
                     ReplierCertificateId = replyPayload.Id,
                     ReplyInvoice = replyPayload.Value.ReplyInvoice,
                     DecodedReplyInvoice = Crypto.SerializeObject(decodedReplyInvoice),
@@ -609,14 +609,14 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         return (from rp in this.nodeContext.Value.AcceptedBroadcasts where rp.PublicKey == this.PublicKey select rp);
     }
 
-    public IQueryable<ReplyPayloadRow> GetReplyPayloads(Guid payloadId)
+    public IQueryable<ReplyPayloadRow> GetReplyPayloads(Guid signedrequestpayloadId)
     {
-        return (from rp in this.nodeContext.Value.ReplyPayloads where rp.PublicKey == this.PublicKey && rp.PayloadId == payloadId select rp);
+        return (from rp in this.nodeContext.Value.ReplyPayloads where rp.PublicKey == this.PublicKey && rp.SignedRequestPayloadId == signedrequestpayloadId select rp);
     }
 
-    public IQueryable<AcceptedBroadcastRow> GetAcceptedBroadcasts(Guid payloadId)
+    public IQueryable<AcceptedBroadcastRow> GetAcceptedBroadcasts(Guid signedrequestpayloadId)
     {
-        return (from rp in this.nodeContext.Value.AcceptedBroadcasts where rp.PublicKey == this.PublicKey && rp.PayloadId == payloadId select rp);
+        return (from rp in this.nodeContext.Value.AcceptedBroadcasts where rp.PublicKey == this.PublicKey && rp.SignedRequestPayloadId == signedrequestpayloadId select rp);
     }
 
     public void OnInvoiceStateChange(string state, byte[] data)

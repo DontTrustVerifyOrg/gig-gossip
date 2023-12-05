@@ -1,6 +1,7 @@
 ﻿using System;
 using CryptoToolkit;
 using GigLNDWalletAPIClient;
+using NGigGossip4Nostr;
 using Spectre.Console;
 
 namespace RideShareCLIApp;
@@ -16,6 +17,9 @@ public partial class RideShareCLIApp
     const string DATE_FORMAT = "dd MMM HH:mm";
 
     Dictionary<Guid, long> feesPerBroadcastId = new();
+
+    Guid ActiveSignedRequestPayloadId = Guid.Empty;
+    bool riderInTheCar;
 
     private async void GigGossipNodeEventSource_OnAcceptBroadcast(object? sender, AcceptBroadcastEventArgs e)
     {
@@ -77,6 +81,7 @@ public partial class RideShareCLIApp
 
     }
 
+
     private async void GigGossipNodeEventSource_OnInvoiceAccepted(object? sender, InvoiceAcceptedEventArgs e)
     {
         if (inDriverMode)
@@ -94,6 +99,7 @@ public partial class RideShareCLIApp
                     foreach (var bbr in (from hash in hashes where hash != e.InvoiceData.PaymentHash select hash))
                         WalletAPIResult.Check(await e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), bbr));
 
+                    ActiveSignedRequestPayloadId = hash2br[e.InvoiceData.PaymentHash].SignedRequestPayloadId;
                     await directCom.StartAsync(e.GigGossipNode.NostrRelays);
                 }
             }
@@ -106,6 +112,8 @@ public partial class RideShareCLIApp
     {
         if (!receivedBroadcastIdxesForPayloadIds.ContainsKey(e.CancelBroadcastFrame.SignedCancelRequestPayload.Id))
             return;
+        if (e.CancelBroadcastFrame.SignedCancelRequestPayload.Id == ActiveSignedRequestPayloadId)
+            return;
         var idx = receivedBroadcastIdxesForPayloadIds[e.CancelBroadcastFrame.SignedCancelRequestPayload.Id];
         receivedBroadcasts.RemoveAt(idx);
         receivedBroadcastsFees.RemoveAt(idx);
@@ -113,7 +121,6 @@ public partial class RideShareCLIApp
         receivedBroadcastsTable.RemoveRow(idx);
     }
 
-    bool riderInTheCar;
 
     private async Task DriverJourneyAsync(Guid requestPayloadId)
     {
@@ -125,7 +132,7 @@ public partial class RideShareCLIApp
             AnsiConsole.MarkupLine($"({i}) I am [orange1]driving[/] to meet rider");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
-                RequestPayloadId = requestPayloadId,
+                SignedRequestPayloadId = requestPayloadId,
                 Location = new Location(),
                 Message = "I am going",
                 RideState = RideState.DriverApproaching,
@@ -138,7 +145,7 @@ public partial class RideShareCLIApp
             AnsiConsole.MarkupLine("I am [orange1]waiting[/] for rider");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
-                RequestPayloadId = requestPayloadId,
+                SignedRequestPayloadId = requestPayloadId,
                 Location = new Location(),
                 Message = "I am waiting",
                 RideState = RideState.DriverWaitingForRider,
@@ -151,7 +158,7 @@ public partial class RideShareCLIApp
             AnsiConsole.MarkupLine($"({i}) We are going [orange1]togheter[/]");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
-                RequestPayloadId = requestPayloadId,
+                SignedRequestPayloadId = requestPayloadId,
                 Location = new Location(),
                 Message = "We are driving",
                 RideState = RideState.RidingTogheter,
@@ -161,34 +168,45 @@ public partial class RideShareCLIApp
         AnsiConsole.MarkupLine("We have [orange1]reached[/] the destination");
         await directCom.SendMessageAsync(pubkey, new LocationFrame
         {
-            RequestPayloadId = requestPayloadId,
+            SignedRequestPayloadId = requestPayloadId,
             Location = new Location(),
             Message = "Thank you",
             RideState = RideState.RiderDroppedOff,
         }, true);
         AnsiConsole.MarkupLine("Good [orange1]bye[/]");
+        ActiveSignedRequestPayloadId = Guid.Empty;
     }
 
     private async Task OnAckFrame(string senderPublicKey, AckFrame ackframe)
     {
-        if (directSecrets.ContainsKey(ackframe.RequestPayloadId))
+        if (ActiveSignedRequestPayloadId == Guid.Empty)
+            return;
+        if (ackframe.SignedRequestPayloadId == ActiveSignedRequestPayloadId)
         {
-            if (directSecrets[ackframe.RequestPayloadId] == ackframe.Secret)
+            if (directSecrets.ContainsKey(ackframe.SignedRequestPayloadId))
             {
-                directPubkeys[ackframe.RequestPayloadId] = senderPublicKey;
-                AnsiConsole.WriteLine("driver ack:" + senderPublicKey);
-                new Thread(()=>DriverJourneyAsync(ackframe.RequestPayloadId)).Start();
+                if (directSecrets[ackframe.SignedRequestPayloadId] == ackframe.Secret)
+                {
+                    directPubkeys[ackframe.SignedRequestPayloadId] = senderPublicKey;
+                    AnsiConsole.WriteLine("rider ack:" + senderPublicKey);
+                    new Thread(() => DriverJourneyAsync(ackframe.SignedRequestPayloadId)).Start();
+                }
             }
         }
     }
 
     private async Task OnRiderLocation(string senderPublicKey, LocationFrame locationFrame)
     {
-        var pubkey = directPubkeys[locationFrame.RequestPayloadId];
-        AnsiConsole.WriteLine("rider location:" + senderPublicKey + "|" + locationFrame.RideState.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
-        if (locationFrame.RideState == RideState.RidingTogheter)
+        if (ActiveSignedRequestPayloadId == Guid.Empty)
+            return;
+        if (locationFrame.SignedRequestPayloadId == ActiveSignedRequestPayloadId)
         {
-            riderInTheCar = true;
+            var pubkey = directPubkeys[locationFrame.SignedRequestPayloadId];
+            AnsiConsole.WriteLine("rider location:" + senderPublicKey + "|" + locationFrame.RideState.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
+            if (locationFrame.RideState == RideState.RidingTogheter)
+            {
+                riderInTheCar = true;
+            }
         }
     }
 }

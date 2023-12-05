@@ -24,7 +24,7 @@ public class ConnectionReply
 [Serializable]
 public class AckFrame
 {
-    public required Guid RequestPayloadId { get; set; }
+    public required Guid SignedRequestPayloadId { get; set; }
     public required string Secret { get; set; }
     public required Location Location { get; set; }
     public required string Message { get; set; }
@@ -46,7 +46,7 @@ public enum RideState
 [Serializable]
 public class LocationFrame
 {
-    public required Guid RequestPayloadId { get; set; }
+    public required Guid SignedRequestPayloadId { get; set; }
     public required Location Location { get; set; }
     public required string Message { get; set; }
     public required RideState RideState { get; set; }
