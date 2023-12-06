@@ -8,64 +8,43 @@ namespace GigGossipSettlerAPI;
 
 public class SymmetricKeyRevealHub : Hub
 {
-    AsyncMonitor asyncRevealMonitor;
-    Queue<SymmetricKeyRevealEventArgs> revealQueue = new();
-    public SymmetricKeyRevealHub()
-    {
-        asyncRevealMonitor = new AsyncMonitor();
-        Singlethon.Settler.OnSymmetricKeyReveal += Settler_OnSymmetricKeyReveal;
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-            Singlethon.Settler.OnSymmetricKeyReveal -= Settler_OnSymmetricKeyReveal;
-        base.Dispose(disposing);
-    }
-
-    private void Settler_OnSymmetricKeyReveal(object sender, SymmetricKeyRevealEventArgs e)
-    {
-        using (asyncRevealMonitor.Enter())
-        {
-            revealQueue.Enqueue(e);
-            asyncRevealMonitor.PulseAll();
-        }
-    }
-
     public override async Task OnConnectedAsync()
     {
         var authToken = Context?.GetHttpContext()?.Request.Query["authtoken"].First();
         var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
         Context.Items["publicKey"] = publicKey;
+        Singlethon.SymmetricKeyAsyncComQueue4ConnectionId.TryAdd(Context.ConnectionId, new AsyncComQueue<SymmetricKeyRevealEventArgs>());
         await base.OnConnectedAsync();
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        Singlethon.SymmetricKeys4UserPublicKey.RemoveConnection((string)Context.Items["publicKey"]);
+        Singlethon.SymmetricKeyAsyncComQueue4ConnectionId.TryRemove(Context.ConnectionId, out _);
         await base.OnDisconnectedAsync(exception);
     }
 
-    public void Monitor(string authToken, Guid gigId, Guid replierCertificateId)
+    public void Monitor(string authToken, Guid signedRequestPayload, Guid replierCertificateId)
     {
-        var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
-        Singlethon.SymmetricKeys4UserPublicKey.AddItem(publicKey, new GigReplCert { GigId = gigId, ReplierCertificateId = replierCertificateId });
+        string publicKey;
+        lock (Singlethon.Settler)
+            publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
+
+        Singlethon.SymmetricKeys4UserPublicKey.AddItem(publicKey, new GigReplCert { SignerRequestPayloadId = signedRequestPayload, ReplierCertificateId = replierCertificateId });
     }
 
     public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
-        while (true)
+        string publicKey;
+        lock (Singlethon.Settler)
+            publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
+
+        AsyncComQueue<SymmetricKeyRevealEventArgs> asyncCom;
+        if (Singlethon.SymmetricKeyAsyncComQueue4ConnectionId.TryGetValue(Context.ConnectionId, out asyncCom))
         {
-            using (await asyncRevealMonitor.EnterAsync(cancellationToken))
+            await foreach (var ic in asyncCom.DequeueAsync(cancellationToken))
             {
-                await asyncRevealMonitor.WaitAsync(cancellationToken);
-                while (revealQueue.Count > 0)
-                {
-                    var ic = revealQueue.Dequeue();
-                    if (Singlethon.SymmetricKeys4UserPublicKey.ContainsItem(publicKey, new GigReplCert { GigId = ic.GigId, ReplierCertificateId = ic.ReplierCertificateId }))
-                        yield return ic.GigId.ToString() + "|" + ic.ReplierCertificateId.ToString() + "|" + ic.SymmetricKey;
-                }
+                if (Singlethon.SymmetricKeys4UserPublicKey.ContainsItem(publicKey, new GigReplCert { SignerRequestPayloadId = ic.SignedRequestPayloadId, ReplierCertificateId = ic.ReplierCertificateId }))
+                    yield return ic.SignedRequestPayloadId.ToString() + "|" + ic.ReplierCertificateId.ToString() + "|" + ic.SymmetricKey;
             }
         }
     }

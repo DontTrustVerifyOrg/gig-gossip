@@ -172,11 +172,6 @@ public class Gig
     public required Guid ReplierCertificateId { get; set; }
 
     /// <summary>
-    /// The public key of the sender.
-    /// </summary>
-    public required Guid SenderCertificateId { get; set; }
-
-    /// <summary>
     /// The symmetric key.
     /// </summary>
     public required string SymmetricKey { get; set; }

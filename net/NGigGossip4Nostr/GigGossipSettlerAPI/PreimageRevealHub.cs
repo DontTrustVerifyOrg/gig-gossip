@@ -8,64 +8,44 @@ namespace GigGossipSettlerAPI;
 
 public class PreimageRevealHub : Hub
 {
-    AsyncMonitor asyncRevealMonitor;
-    Queue<PreimageRevealEventArgs> revealQueue = new();
-    public PreimageRevealHub()
-    {
-        asyncRevealMonitor = new AsyncMonitor();
-        Singlethon.Settler.OnPreimageReveal += Settler_OnPreimageReveal;
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-            Singlethon.Settler.OnPreimageReveal -= Settler_OnPreimageReveal;
-        base.Dispose(disposing);
-    }
-
-    private void Settler_OnPreimageReveal(object sender, PreimageRevealEventArgs e)
-    {
-        using (asyncRevealMonitor.Enter())
-        {
-            revealQueue.Enqueue(e);
-            asyncRevealMonitor.PulseAll();
-        }
-    }
 
     public override async Task OnConnectedAsync()
     {
         var authToken = Context?.GetHttpContext()?.Request.Query["authtoken"].First();
         var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
         Context.Items["publicKey"] = publicKey;
+        Singlethon.PreimagesAsyncComQueue4ConnectionId.TryAdd(Context.ConnectionId, new AsyncComQueue<PreimageRevealEventArgs>());
         await base.OnConnectedAsync();
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        Singlethon.Preimages4UserPublicKey.RemoveConnection((string)Context.Items["publicKey"]);
+        Singlethon.PreimagesAsyncComQueue4ConnectionId.TryRemove(Context.ConnectionId, out _);
         await base.OnDisconnectedAsync(exception);
     }
 
     public void Monitor(string authToken,string paymentHash)
     {
-        var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
+        string publicKey;
+        lock (Singlethon.Settler)
+            publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
+
         Singlethon.Preimages4UserPublicKey.AddItem(publicKey, paymentHash);
     }
 
     public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
-        while (true)
+        string publicKey;
+        lock (Singlethon.Settler)
+            publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
+
+        AsyncComQueue<PreimageRevealEventArgs> asyncCom;
+        if (Singlethon.PreimagesAsyncComQueue4ConnectionId.TryGetValue(Context.ConnectionId, out asyncCom))
         {
-            using (await asyncRevealMonitor.EnterAsync(cancellationToken))
+            await foreach (var ic in asyncCom.DequeueAsync(cancellationToken))
             {
-                await asyncRevealMonitor.WaitAsync(cancellationToken);
-                while (revealQueue.Count > 0)
-                {
-                    var ic = revealQueue.Dequeue();
-                    if (Singlethon.Preimages4UserPublicKey.ContainsItem(publicKey, ic.PaymentHash))
-                        yield return ic.PaymentHash + "|" + ic.Preimage;
-                }
+                if (Singlethon.Preimages4UserPublicKey.ContainsItem(publicKey, ic.PaymentHash))
+                    yield return ic.PaymentHash + "|" + ic.Preimage;
             }
         }
     }

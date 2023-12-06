@@ -270,16 +270,18 @@ public class LNDAccountManager
     {
         var hash = Crypto.ComputePaymentHash(preimage);
         var paymentHash = hash.AsHex();
-        var selfTransQuery = (from inv in walletContext.Value.Invoices
+        var invoice = (from inv in walletContext.Value.Invoices
                               where inv.PaymentHash == paymentHash && inv.IsSelfManaged
-                              select inv);
+                              select inv).FirstOrDefault();
 
-        if (selfTransQuery.ExecuteUpdate(
-            i => i
-            .SetProperty(a => a.State, a => InvoiceState.Settled)
-            .SetProperty(a => a.Preimage, a => preimage)
-            ) > 0)
+        if(invoice!=null)
         {
+            if (invoice.PublicKey != PublicKey)
+                throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
+
+            invoice.State = InvoiceState.Settled;
+            invoice.Preimage = preimage;
+            walletContext.Value.SaveObject(invoice);
             eventSource.FireOnInvoiceStateChanged(paymentHash, InvoiceState.Settled);
             var selfPayQuery = (from pay in walletContext.Value.Payments
                                 where pay.PaymentHash == paymentHash && pay.IsSelfManaged
@@ -300,16 +302,17 @@ public class LNDAccountManager
     public void CancelInvoice(string paymentHash)
     {
         var hash = paymentHash.AsBytes();
-        var selfTransQuery = (from inv in walletContext.Value.Invoices
-                              where inv.PaymentHash == paymentHash && inv.IsSelfManaged
-                              select inv);
+        var invoice = (from inv in walletContext.Value.Invoices
+                       where inv.PaymentHash == paymentHash && inv.IsSelfManaged
+                       select inv).FirstOrDefault();
 
-        if (selfTransQuery.ExecuteUpdate(
-            i => i
-            .SetProperty(a => a.State, a => InvoiceState.Cancelled)
-            ) > 0)
+        if (invoice != null)
         {
-            eventSource.FireOnInvoiceStateChanged(paymentHash, InvoiceState.Cancelled);
+            if (invoice.PublicKey != PublicKey)
+                throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
+            invoice.State = InvoiceState.Cancelled;
+            walletContext.Value.SaveObject(invoice);
+
             var selfPayQuery = (from pay in walletContext.Value.Payments
                                 where pay.PaymentHash == paymentHash && pay.IsSelfManaged
                                 select pay);

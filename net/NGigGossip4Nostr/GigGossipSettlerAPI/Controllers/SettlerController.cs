@@ -205,15 +205,14 @@ namespace GigGossipSettlerAPI.Controllers
         ///     Reveals symmetric key that customer can use to decrypt the message from gig-worker. This key is secret as long as the gig-job is not marked as accepted.
         /// </remarks>
         /// <param name="authToken">Authorisation token for the communication.</param>
-        /// <param name="senderCertificateId">CertificateId of the sender.</param>
-        /// <param name="gigId">Gig-job identifier.</param>
+        /// <param name="signedRequestPayloadId">CertificateId of the sender.</param>
         /// <param name="repliperCertificateId">CertificateId of the replier.</param>
         /// <returns></returns>
         [HttpGet("revealsymmetrickey")]
-        public string RevealSymmetricKey(string authToken, Guid senderCertificateId, Guid gigId, Guid repliperCertificateId)
+        public string RevealSymmetricKey(string authToken, Guid signedRequestPayloadId, Guid repliperCertificateId)
         {
             var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-            return Singlethon.Settler.RevealSymmetricKey(senderCertificateId, gigId, repliperCertificateId);
+            return Singlethon.Settler.RevealSymmetricKey(signedRequestPayloadId, repliperCertificateId);
         }
 
         /// <summary>

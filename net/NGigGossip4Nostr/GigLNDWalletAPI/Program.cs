@@ -2,6 +2,7 @@
 using CryptoToolkit;
 using GigLNDWalletAPI;
 using GigLNDWalletAPI.Config;
+using Grpc.Core;
 using LNDClient;
 using LNDWallet;
 
@@ -273,6 +274,10 @@ app.MapGet("/settleinvoice", (string authToken, string preimage) =>
     {
         return new Result(ex.ErrorCode);
     }
+    catch (RpcException) 
+    {
+        return new Result(LNDWalletErrorCode.OperationFailed);
+    }
 })
 .WithName("SettleInvoice")
 .WithSummary("SettleInvoice settles an accepted invoice.")
@@ -294,6 +299,10 @@ app.MapGet("/cancelinvoice", (string authToken, string paymenthash) =>
     catch (LNDWalletException ex)
     {
         return new Result(ex.ErrorCode);
+    }
+    catch (RpcException)
+    {
+        return new Result(LNDWalletErrorCode.OperationFailed);
     }
 })
 .WithName("CancelInvoice")

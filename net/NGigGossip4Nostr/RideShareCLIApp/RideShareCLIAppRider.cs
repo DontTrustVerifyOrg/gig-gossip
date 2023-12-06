@@ -95,7 +95,6 @@ public partial class RideShareCLIApp
 
     private async Task RiderJourneyAsync(Guid requestPayloadId,string secret)
     {
-        receivedResponsesTable.Exit();
         driverApproached = false;
         riderDroppedOff = false;
         var pubkey = directPubkeys[requestPayloadId];
@@ -106,7 +105,8 @@ public partial class RideShareCLIApp
             Location = new Location(),
             Message = "Ok,here I am",
             Secret = secret,
-        }, true);
+        }, false, DateTime.UtcNow+ this.gigGossipNode.InvoicePaymentTimeout);
+
         while(!driverApproached)
         {
             AnsiConsole.MarkupLine("I am [orange1]waiting[/] for the driver");
@@ -116,7 +116,7 @@ public partial class RideShareCLIApp
                 Location = new Location(),
                 Message = "I am waiting",
                 RideState = RideState.RiderWaitingForDriver
-            }, true);
+            }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
         while (!riderDroppedOff)
@@ -128,7 +128,7 @@ public partial class RideShareCLIApp
                 Location = new Location(),
                 Message = "I am in the car",
                 RideState = RideState.RidingTogheter
-            }, true);
+            }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
         AnsiConsole.MarkupLine("I have reached the [orange1]destination[/]");

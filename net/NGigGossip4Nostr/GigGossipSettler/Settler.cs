@@ -22,7 +22,7 @@ public delegate void PreimageRevealEventHandler(object sender, PreimageRevealEve
 
 public class SymmetricKeyRevealEventArgs : EventArgs
 {
-    public required Guid GigId { get; set; }
+    public required Guid SignedRequestPayloadId { get; set; }
     public required Guid ReplierCertificateId { get; set; }
     public required string SymmetricKey { get; set; }
 }
@@ -32,15 +32,18 @@ public class Settler : CertificationAuthority
 {
     public event SymmetricKeyRevealEventHandler OnSymmetricKeyReveal;
 
-    public void FireOnSymmetricKeyReveal(Guid gidId, Guid replierCertificateId, string symmetricKey)
+    public void FireOnSymmetricKeyReveal(Guid signedRequestPayloadId, Guid replierCertificateId, string symmetricKey)
     {
-        if (OnSymmetricKeyReveal != null)
-            OnSymmetricKeyReveal.Invoke(this, new SymmetricKeyRevealEventArgs()
-            {
-                SymmetricKey = symmetricKey,
-                GigId = gidId,
-                ReplierCertificateId = replierCertificateId,
-            });;
+        lock (this)
+        {
+            if (OnSymmetricKeyReveal != null)
+                OnSymmetricKeyReveal.Invoke(this, new SymmetricKeyRevealEventArgs()
+                {
+                    SymmetricKey = symmetricKey,
+                    SignedRequestPayloadId = signedRequestPayloadId,
+                    ReplierCertificateId = replierCertificateId,
+                }); ;
+        }
     }
 
     public event PreimageRevealEventHandler OnPreimageReveal;
@@ -247,9 +250,9 @@ public class Settler : CertificationAuthority
             return preimage.Preimage;
     }
 
-    public string RevealSymmetricKey(Guid sendercertificateid, Guid tid, Guid repliercertificateid)
+    public string RevealSymmetricKey(Guid signedRequestPayloadId,  Guid repliercertificateid)
     {
-        var symkey = (from g in settlerContext.Value.Gigs where g.SenderCertificateId == sendercertificateid && g.ReplierCertificateId == repliercertificateid && g.SignedRequestPayloadId == tid && g.Status == GigStatus.Accepted select g).FirstOrDefault();
+        var symkey = (from g in settlerContext.Value.Gigs where g.ReplierCertificateId == repliercertificateid && g.SignedRequestPayloadId == signedRequestPayloadId && g.Status == GigStatus.Accepted select g).FirstOrDefault();
         if (symkey == null)
             return "";
         else
@@ -288,7 +291,6 @@ public class Settler : CertificationAuthority
 
         settlerContext.Value.AddObject(new Gig()
         {
-            SenderCertificateId = signedRequestPayload.Id,
             ReplierCertificateId = replyPayload.Id,
             SignedRequestPayloadId = signedRequestPayload.Id,
             SymmetricKey = key.AsHex(),
@@ -409,12 +411,17 @@ public class Settler : CertificationAuthority
         var settletPi = (from pi in preims where pi.PublicKey == this.CaXOnlyPublicKey.AsHex() select pi).FirstOrDefault();
         if (settletPi == null)
             throw new UnknownPreimageException();
-        WalletAPIResult.Check(await this.lndWalletClient.SettleInvoiceAsync(this.MakeAuthToken(), settletPi.Preimage)); // settle settlers network invoice
+        var status = WalletAPIResult.Status(await this.lndWalletClient.SettleInvoiceAsync(this.MakeAuthToken(), settletPi.Preimage)); // settle settlers network invoice
+        if (status != GigLNDWalletAPIErrorCode.Ok)
+            Trace.TraceWarning("SettleGigAsync failed");
     }
 
     public async Task ScheduleGigAsync(Gig gig)
     {
-        IJobDetail job = JobBuilder.Create<GigAcceptedJob>().UsingJobData("GigId", gig.SignedRequestPayloadId).WithIdentity(gig.SignedRequestPayloadId.ToString()).Build();
+        IJobDetail job = JobBuilder.Create<GigAcceptedJob>().
+                                    UsingJobData("GigId", gig.SignedRequestPayloadId).
+                                    WithIdentity(gig.SignedRequestPayloadId.ToString()).
+                                    Build();
         ITrigger trigger = TriggerBuilder.Create().StartAt(gig.DisputeDeadline).Build();
         await scheduler.ScheduleJob(job, trigger);
     }

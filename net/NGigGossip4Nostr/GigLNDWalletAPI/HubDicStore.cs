@@ -15,63 +15,63 @@ namespace GigLNDWalletAPI
 		{
 		}
 
-        public void RemoveConnection(string connectionId)
+        public void RemoveConnection(string id)
         {
             lock (Item4PublicKey)
             {
                 lock (PublicKeys4Items)
                 {
-                    if (Item4PublicKey.ContainsKey(connectionId))
-                        foreach (var payhash in Item4PublicKey[connectionId])
-                            PublicKeys4Items[payhash].Remove(connectionId);
+                    if (Item4PublicKey.ContainsKey(id))
+                        foreach (var payhash in Item4PublicKey[id])
+                            PublicKeys4Items[payhash].Remove(id);
                 }
-                if (Item4PublicKey.ContainsKey(connectionId))
-                    Item4PublicKey.Remove(connectionId);
+                if (Item4PublicKey.ContainsKey(id))
+                    Item4PublicKey.Remove(id);
             }
         }
 
-        public void AddItem(string connectionId,T item)
+        public void AddItem(string id,T item)
         {
             lock (Item4PublicKey)
             {
-                if (!Item4PublicKey.ContainsKey(connectionId))
-                    Item4PublicKey[connectionId] = new();
-                Item4PublicKey[connectionId].Add(item);
+                if (!Item4PublicKey.ContainsKey(id))
+                    Item4PublicKey[id] = new();
+                Item4PublicKey[id].Add(item);
 
             }
             lock (PublicKeys4Items)
             {
                 if (!PublicKeys4Items.ContainsKey(item))
                     PublicKeys4Items[item] = new();
-                PublicKeys4Items[item].Add(connectionId);
+                PublicKeys4Items[item].Add(id);
             }
         }
 
-        public void RemoveItem(string connectionId, T item)
+        public void RemoveItem(string id, T item)
         {
             lock (Item4PublicKey)
             {
-                if (Item4PublicKey.ContainsKey(connectionId))
-                    Item4PublicKey[connectionId].Remove(item);
+                if (Item4PublicKey.ContainsKey(id))
+                    Item4PublicKey[id].Remove(item);
             }
             lock (PublicKeys4Items)
             {
                 if (PublicKeys4Items.ContainsKey(item))
-                    PublicKeys4Items[item].Remove(connectionId);
+                    PublicKeys4Items[item].Remove(id);
             }
         }
 
-        public bool ContainsItem(string connectionId,T item)
+        public bool ContainsItem(string id,T item)
         {
             lock (Item4PublicKey)
             {
-                if (Item4PublicKey.ContainsKey(connectionId))
-                    return Item4PublicKey[connectionId].Contains(item);
+                if (Item4PublicKey.ContainsKey(id))
+                    return Item4PublicKey[id].Contains(item);
             }
             return false;
         }
 
-        public HashSet<string> PublicKeysForItem(T item)
+        public HashSet<string> IdsForItem(T item)
         {
             lock (PublicKeys4Items)
                 if (PublicKeys4Items.ContainsKey(item))

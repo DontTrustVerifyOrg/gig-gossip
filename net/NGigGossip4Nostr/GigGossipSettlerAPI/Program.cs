@@ -38,7 +38,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseMiddleware<ErrorHandlerMiddleware>();
+//app.UseMiddleware<ErrorHandlerMiddleware>();
 app.UseStatusCodePages();
 app.UseHsts();
 
@@ -80,10 +80,19 @@ Singlethon.Settler = new Settler(
     );
 
 await Singlethon.Settler.InitAsync(lndWalletClient, settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+Singlethon.Settler.OnSymmetricKeyReveal += (sender, e) =>
+    {
+        foreach (var asyncCom in Singlethon.SymmetricKeyAsyncComQueue4ConnectionId.Values)
+            asyncCom.Enqueue(e);
+    };
+
+Singlethon.Settler.OnPreimageReveal+= (sender, e) =>
+    {
+        foreach (var asyncCom in Singlethon.PreimagesAsyncComQueue4ConnectionId.Values)
+            asyncCom.Enqueue(e);
+    };
+
 await Singlethon.Settler.StartAsync();
-
-
-
 
 app.MapGet("/getcapublickey", () =>
 {
@@ -333,12 +342,12 @@ app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
     return g;
 });
 
-app.MapGet("/revealsymmetrickey", (string authToken, Guid senderCertificateId, Guid gigId, Guid repliperCertificateId) =>
+app.MapGet("/revealsymmetrickey", (string authToken, Guid signedRequestPayloadId,Guid repliperCertificateId) =>
 {
     try
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-        return new Result<string>(Singlethon.Settler.RevealSymmetricKey(senderCertificateId, gigId, repliperCertificateId));
+        return new Result<string>(Singlethon.Settler.RevealSymmetricKey(signedRequestPayloadId, repliperCertificateId));
     }
     catch (SettlerException ex)
     {
@@ -351,9 +360,8 @@ app.MapGet("/revealsymmetrickey", (string authToken, Guid senderCertificateId, G
 .WithOpenApi(g =>
 {
     g.Parameters[0].Description = "Authorisation token for the communication.";
-    g.Parameters[1].Description = "CertificateId of the sender.";
-    g.Parameters[2].Description = "Gig-job identifier.";
-    g.Parameters[3].Description = "CertificateId of the replier.";
+    g.Parameters[1].Description = "Request Payload Id.";
+    g.Parameters[2].Description = "Replier.";
     return g;
 });
 

@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Net.WebSockets;
 using CryptoToolkit;
 using GigLNDWalletAPIClient;
 using NBitcoin.Secp256k1;
@@ -195,7 +196,8 @@ public class InvoiceStateUpdatesMonitor
                     return;
                 }
                 catch (Exception ex) when (ex is Microsoft.AspNetCore.SignalR.HubException ||
-                                           ex is TimeoutException)
+                                           ex is TimeoutException ||
+                                           ex is WebSocketException)
                 {
                     NotifyClientIsConnected(false);
                     Trace.TraceWarning("Hub disconnected " + settler.lndWalletClient.BaseUrl + "/invoicestateupdates, reconnecting");

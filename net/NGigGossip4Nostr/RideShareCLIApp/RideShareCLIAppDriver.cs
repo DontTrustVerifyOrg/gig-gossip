@@ -24,32 +24,32 @@ public partial class RideShareCLIApp
     private async void GigGossipNodeEventSource_OnAcceptBroadcast(object? sender, AcceptBroadcastEventArgs e)
     {
         var taxiTopic = Crypto.DeserializeObject<RideTopic>(e.BroadcastFrame.SignedRequestPayload.Value.Topic);
+        if (taxiTopic == null)
+            return;
+
         if (inDriverMode)
         {
-            if (taxiTopic != null)
-            {
-                if(!feesPerBroadcastId.ContainsKey(e.BroadcastFrame.SignedRequestPayload.Id))
-                    feesPerBroadcastId[e.BroadcastFrame.SignedRequestPayload.Id]= Random.Shared.NextInt64(1000,2000);
-                long fee = feesPerBroadcastId[e.BroadcastFrame.SignedRequestPayload.Id];
+            if (!feesPerBroadcastId.ContainsKey(e.BroadcastFrame.SignedRequestPayload.Id))
+                feesPerBroadcastId[e.BroadcastFrame.SignedRequestPayload.Id] = Random.Shared.NextInt64(1000, 2000);
 
-                var from = taxiTopic.FromGeohash;
-                var tim = "(" + taxiTopic.PickupAfter.ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore - taxiTopic.PickupAfter).TotalMinutes).ToString() + ")";
-                var to = taxiTopic.ToGeohash;
+            long fee = feesPerBroadcastId[e.BroadcastFrame.SignedRequestPayload.Id];
 
-                receivedBroadcastsTable.AddRow(new string[] { "",from,tim,to, fee.ToString(), e.BroadcastFrame.SignedRequestPayload.Id.ToString() });
-                receivedBroadcasts.Add(e);
-                receivedBroadcastsFees.Add(fee);
-                receivedBroadcastIdxesForPayloadIds[e.BroadcastFrame.SignedRequestPayload.Id] = receivedBroadcasts.Count - 1;
-                return;
-            }
+            var from = taxiTopic.FromGeohash;
+            var tim = "(" + taxiTopic.PickupAfter.ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore - taxiTopic.PickupAfter).TotalMinutes).ToString() + ")";
+            var to = taxiTopic.ToGeohash;
+
+            receivedBroadcastsTable.AddRow(new string[] { "", from, tim, to, fee.ToString(), e.BroadcastFrame.SignedRequestPayload.Id.ToString() });
+            receivedBroadcasts.Add(e);
+            receivedBroadcastsFees.Add(fee);
+            receivedBroadcastIdxesForPayloadIds[e.BroadcastFrame.SignedRequestPayload.Id] = receivedBroadcasts.Count - 1;
+            return;
         }
-        if (taxiTopic != null)
+
+        else
         {
-            if (taxiTopic.FromGeohash.Length <= settings.NodeSettings.GeohashPrecision &&
-                   taxiTopic.ToGeohash.Length <= settings.NodeSettings.GeohashPrecision)
-            {
-                await e.GigGossipNode.BroadcastToPeersAsync(e.PeerPublicKey, e.BroadcastFrame);
-            }
+//            if (taxiTopic.FromGeohash.Length <= settings.NodeSettings.GeohashPrecision &&
+//                   taxiTopic.ToGeohash.Length <= settings.NodeSettings.GeohashPrecision)
+//                await e.GigGossipNode.BroadcastToPeersAsync(e.PeerPublicKey, e.BroadcastFrame);
         }
     }
 
@@ -96,10 +96,11 @@ public partial class RideShareCLIApp
 
                 if (hash2br.ContainsKey(e.InvoiceData.PaymentHash))
                 {
+                    ActiveSignedRequestPayloadId = hash2br[e.InvoiceData.PaymentHash].SignedRequestPayloadId;
+
                     foreach (var bbr in (from hash in hashes where hash != e.InvoiceData.PaymentHash select hash))
                         WalletAPIResult.Check(await e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), bbr));
 
-                    ActiveSignedRequestPayloadId = hash2br[e.InvoiceData.PaymentHash].SignedRequestPayloadId;
                     await directCom.StartAsync(e.GigGossipNode.NostrRelays);
                 }
             }
@@ -112,8 +113,6 @@ public partial class RideShareCLIApp
     {
         if (!receivedBroadcastIdxesForPayloadIds.ContainsKey(e.CancelBroadcastFrame.SignedCancelRequestPayload.Id))
             return;
-        if (e.CancelBroadcastFrame.SignedCancelRequestPayload.Id == ActiveSignedRequestPayloadId)
-            return;
         var idx = receivedBroadcastIdxesForPayloadIds[e.CancelBroadcastFrame.SignedCancelRequestPayload.Id];
         receivedBroadcasts.RemoveAt(idx);
         receivedBroadcastsFees.RemoveAt(idx);
@@ -124,7 +123,6 @@ public partial class RideShareCLIApp
 
     private async Task DriverJourneyAsync(Guid requestPayloadId)
     {
-        receivedBroadcastsTable.Exit();
         riderInTheCar = false;
         var pubkey = directPubkeys[requestPayloadId];
         for (int i =5;i>0;i--)
@@ -136,7 +134,7 @@ public partial class RideShareCLIApp
                 Location = new Location(),
                 Message = "I am going",
                 RideState = RideState.DriverApproaching,
-            }, true);
+            },  false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
         AnsiConsole.MarkupLine("I have [orange1]arrived[/]");
@@ -149,7 +147,7 @@ public partial class RideShareCLIApp
                 Location = new Location(),
                 Message = "I am waiting",
                 RideState = RideState.DriverWaitingForRider,
-            }, true);
+            }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
         AnsiConsole.MarkupLine("Rider [orange1]in the car[/]");
@@ -162,7 +160,7 @@ public partial class RideShareCLIApp
                 Location = new Location(),
                 Message = "We are driving",
                 RideState = RideState.RidingTogheter,
-            }, true);
+            }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
         AnsiConsole.MarkupLine("We have [orange1]reached[/] the destination");
@@ -172,9 +170,10 @@ public partial class RideShareCLIApp
             Location = new Location(),
             Message = "Thank you",
             RideState = RideState.RiderDroppedOff,
-        }, true);
+        }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
         AnsiConsole.MarkupLine("Good [orange1]bye[/]");
         ActiveSignedRequestPayloadId = Guid.Empty;
+        inDriverMode = false;
     }
 
     private async Task OnAckFrame(string senderPublicKey, AckFrame ackframe)
@@ -189,6 +188,7 @@ public partial class RideShareCLIApp
                 {
                     directPubkeys[ackframe.SignedRequestPayloadId] = senderPublicKey;
                     AnsiConsole.WriteLine("rider ack:" + senderPublicKey);
+                    receivedBroadcastsTable.Exit();
                     new Thread(() => DriverJourneyAsync(ackframe.SignedRequestPayloadId)).Start();
                 }
             }

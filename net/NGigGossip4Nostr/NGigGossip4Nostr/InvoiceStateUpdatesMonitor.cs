@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Net.WebSockets;
 using CryptoToolkit;
 using GigLNDWalletAPIClient;
 using NBitcoin.Secp256k1;
@@ -80,7 +81,7 @@ namespace NGigGossip4Nostr
             {
                 await this.InvoiceStateUpdatesClient.MonitorAsync(gigGossipNode.MakeWalletAuthToken(), phash);
             }
-            catch (Microsoft.AspNetCore.SignalR.HubException)
+            catch
             {
                 gigGossipNode.nodeContext.Value.RemoveObject(obj);
                 throw;
@@ -146,7 +147,8 @@ namespace NGigGossip4Nostr
                         return;
                     }
                     catch (Exception ex) when (ex is Microsoft.AspNetCore.SignalR.HubException ||
-                                               ex is TimeoutException)
+                                               ex is TimeoutException ||
+                                               ex is WebSocketException)
                     {
                         NotifyClientIsConnected(false);
                         Trace.TraceWarning("Hub disconnected " + gigGossipNode.LNDWalletClient.BaseUrl + "/invoicestateupdates, reconnecting");

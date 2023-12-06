@@ -153,8 +153,6 @@ public class MonitoredSymmetricKeyRow
     [Column(Order = 3)]
     public required Guid ReplierCertificateId { get; set; }
 
-    public required Guid SenderCertificateId { get; set; }
-
     public required Uri ServiceUri { get; set; }
     public string? SymmetricKey { get; set; }
     public required byte[] Data { get; set; }

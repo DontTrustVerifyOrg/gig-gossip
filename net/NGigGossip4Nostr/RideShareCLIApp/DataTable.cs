@@ -116,56 +116,64 @@ class DataTable
 
         blinker.Start();
 
-        while (true)
+        try
         {
-            if (data.Count > 0)
-                if (blinker.Elapsed.Milliseconds > 500)
-                {
-                    blink = !blink;
-                    HighlightRow(selectionIdx, blink, false);
-                    blinker.Restart();
-                }
-            if (Console.KeyAvailable)
+            while (true)
             {
-                var k = Console.ReadKey().Key;
-                var oldSelectionIdx = selectionIdx;
                 if (data.Count > 0)
-                    if (k == ConsoleKey.DownArrow)
+                    if (blinker.Elapsed.Milliseconds > 500)
                     {
-                        selectionIdx += 1;
-                        if (selectionIdx >= table.Rows.Count - 1)
-                            selectionIdx = table.Rows.Count - 1;
-                    }
-                if (data.Count > 0)
-                    if (k == ConsoleKey.UpArrow)
-                    {
-                        selectionIdx -= 1;
-                        if (selectionIdx < 0)
-                            selectionIdx = 0;
-                    }
-                if (data.Count > 0)
-                {
-                    if (OnKeyPressed != null)
-                        OnKeyPressed(this, new KeyPressedEventArgs() { Key = k, Line = selectionIdx });
-                }
-                else if (k == ConsoleKey.Escape)
-                {
-                    if (OnKeyPressed != null)
-                        OnKeyPressed(this, new KeyPressedEventArgs() { Key = k, Line = selectionIdx });
-                }
-                if (endLoop)
-                    return;
-                if (oldSelectionIdx != selectionIdx)
-                    lock (table)
-                    {
-                        blink = true;
-                        HighlightRow(oldSelectionIdx, false, true);
+                        blink = !blink;
                         HighlightRow(selectionIdx, blink, false);
-                        Monitor.PulseAll(table);
                         blinker.Restart();
                     }
+                if (endLoop)
+                    throw new OperationCanceledException();
+                if (Console.KeyAvailable)
+                {
+                    var k = Console.ReadKey().Key;
+                    var oldSelectionIdx = selectionIdx;
+                    if (data.Count > 0)
+                        if (k == ConsoleKey.DownArrow)
+                        {
+                            selectionIdx += 1;
+                            if (selectionIdx >= table.Rows.Count - 1)
+                                selectionIdx = table.Rows.Count - 1;
+                        }
+                    if (data.Count > 0)
+                        if (k == ConsoleKey.UpArrow)
+                        {
+                            selectionIdx -= 1;
+                            if (selectionIdx < 0)
+                                selectionIdx = 0;
+                        }
+                    if (data.Count > 0)
+                    {
+                        if (OnKeyPressed != null)
+                            OnKeyPressed(this, new KeyPressedEventArgs() { Key = k, Line = selectionIdx });
+                    }
+                    else if (k == ConsoleKey.Escape)
+                    {
+                        if (OnKeyPressed != null)
+                            OnKeyPressed(this, new KeyPressedEventArgs() { Key = k, Line = selectionIdx });
+                    }
+                    if (oldSelectionIdx != selectionIdx)
+                        lock (table)
+                        {
+                            blink = true;
+                            HighlightRow(oldSelectionIdx, false, true);
+                            HighlightRow(selectionIdx, blink, false);
+                            Monitor.PulseAll(table);
+                            blinker.Restart();
+                        }
+                }
+                else
+                    Thread.Sleep(10);
             }
-
+        }
+        catch(OperationCanceledException)
+        {
+            //exit
         }
     }
 

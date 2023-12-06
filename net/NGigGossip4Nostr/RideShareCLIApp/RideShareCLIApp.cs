@@ -232,18 +232,16 @@ public partial class RideShareCLIApp
                     };
 
                 receivedBroadcastsTable.Start();
-                inDriverMode = false;
             }
             else if (cmd == CommandEnum.RequestRide)
             {
-                if(requestedRide!=null)
+                if(ActiveSignedRequestPayloadId!=Guid.Empty)
                 {
                     AnsiConsole.MarkupLine("[red]Ride in progress[/]");
                 }
                 var fromLocation = new Location(Random.Shared.NextDouble(), Random.Shared.NextDouble());
                 var toLocation = new Location(Random.Shared.NextDouble(), Random.Shared.NextDouble());
                 int waitingTimeForPickupMinutes = 12;
-                requestedRide = await RequestRide(fromLocation, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes);
 
                 receivedResponses = new();
                 receivedResponsesTable = new DataTable(new string[] { "From", "Time", "To", "DriverFee","NetworkFee", "JobId" });
@@ -253,12 +251,14 @@ public partial class RideShareCLIApp
                     if (e.Key == ConsoleKey.Enter)
                     {
                         await AcceptDriverAsync(me.SelectedRowIdx);
+                        me.Exit();
                     }
                     if (e.Key == ConsoleKey.Escape)
                     {
                         me.Exit();
                     }
                 };
+                requestedRide = await RequestRide(fromLocation, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes);
                 receivedResponsesTable.Start();
             }
         }

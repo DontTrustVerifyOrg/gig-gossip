@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Net.WebSockets;
 using GigLNDWalletAPIClient;
 
 namespace NGigGossip4Nostr;
@@ -81,7 +82,7 @@ public class PaymentStatusUpdatesMonitor
         {
             await this.PaymentStatusUpdatesClient.MonitorAsync(gigGossipNode.MakeWalletAuthToken(), phash);
         }
-        catch (Microsoft.AspNetCore.SignalR.HubException)
+        catch
         {
             gigGossipNode.nodeContext.Value.RemoveObject(obj);
             throw;
@@ -96,15 +97,8 @@ public class PaymentStatusUpdatesMonitor
         if (o == null)
             return;
 
-        try
-        {
-            await this.PaymentStatusUpdatesClient.StopMonitoringAsync(gigGossipNode.MakeWalletAuthToken(), phash);
-            gigGossipNode.nodeContext.Value.RemoveObject(o);
-        }
-        catch (Microsoft.AspNetCore.SignalR.HubException)
-        {
-            throw;
-        }
+        await this.PaymentStatusUpdatesClient.StopMonitoringAsync(gigGossipNode.MakeWalletAuthToken(), phash);
+        gigGossipNode.nodeContext.Value.RemoveObject(o);
     }
 
 
@@ -174,7 +168,8 @@ public class PaymentStatusUpdatesMonitor
                     return;
                 }
                 catch (Exception ex) when (ex is Microsoft.AspNetCore.SignalR.HubException ||
-                           ex is TimeoutException)
+                                           ex is TimeoutException ||
+                                           ex is WebSocketException)
                 {
                     NotifyClientIsConnected(false);
                     Trace.TraceWarning("Hub disconnected " + gigGossipNode.LNDWalletClient.BaseUrl + "/paymentstatusupdates, reconnecting");

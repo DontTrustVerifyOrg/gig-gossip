@@ -24,6 +24,9 @@ public enum LNDWalletErrorCode
 
     /// <summary>Indicates that the payout has already been completed.</summary>
     PayoutAlreadyCompleted = 5,
+
+    /// <summary>Indicates that operation failed</summary>
+    OperationFailed = 6,
 }
 
 /// <summary>
@@ -38,6 +41,7 @@ public static class Extensions
         "Unknown payment",
         "Unknown invoice",
         "Payout is already completed",
+        "Operation failed",
     };
 
     /// <summary>

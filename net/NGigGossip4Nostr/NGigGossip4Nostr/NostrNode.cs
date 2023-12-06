@@ -25,6 +25,7 @@ public abstract class NostrNode
     private int chunkSize;
     public string[] NostrRelays { get; private set; }
     private Dictionary<string, Type> _registeredFrameTypes = new();
+    private string subscriptionId;
 
     public NostrNode(ECPrivKey privateKey, int chunkSize)
     {
@@ -142,7 +143,8 @@ public abstract class NostrNode
         nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
         await nostrClient.ConnectAndWaitUntilConnected();
         nostrClient.EventsReceived += NostrClient_EventsReceived;
-        await nostrClient.CreateSubscription("giggossip", new[]{
+        subscriptionId = Guid.NewGuid().ToString();
+        await nostrClient.CreateSubscription(subscriptionId, new[]{
                         new NostrSubscriptionFilter()
                         {
                             Kinds = new []{HelloKind},
@@ -167,7 +169,7 @@ public abstract class NostrNode
 
     private async void NostrClient_EventsReceived(object? sender, (string subscriptionId, NostrEvent[] events) e)
     {
-        if (e.subscriptionId == "giggossip")
+        if (e.subscriptionId == subscriptionId)
         {
             foreach (var nostrEvent in e.events)
             {
@@ -183,7 +185,7 @@ public abstract class NostrNode
 
     public virtual async Task StopAsync()
     {
-        await nostrClient.CloseSubscription("giggossip");
+        await nostrClient.CloseSubscription(subscriptionId);
         await nostrClient.Disconnect();
         nostrClient.Dispose();
     }
@@ -209,7 +211,10 @@ public abstract class NostrNode
                 {
                     var t = GetFrameType(tagDic["t"][0]);
                     if (t == null)
+                    {
+                        Trace.TraceWarning("Unrecognised Frame detected");
                         return;
+                    }
                     var frame = Crypto.DeserializeObject(Convert.FromBase64String(msg), t);
                     await this.OnMessageAsync(idx, nostrEvent.PublicKey, frame);
                 }
@@ -224,7 +229,10 @@ public abstract class NostrNode
                             var txt = string.Join("", new SortedDictionary<int, string>(inner_dic).Values);
                             var t = GetFrameType(tagDic["t"][0]);
                             if (t == null)
+                            {
+                                Trace.TraceWarning("Unrecognised Frame detected");
                                 return;
+                            }
                             var frame = Crypto.DeserializeObject(Convert.FromBase64String(txt), t);
                             await this.OnMessageAsync(idx, nostrEvent.PublicKey, frame);
                         }
