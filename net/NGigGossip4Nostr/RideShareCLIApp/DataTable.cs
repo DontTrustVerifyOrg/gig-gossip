@@ -62,12 +62,15 @@ class DataTable
         }
     }
 
-    public void RemoveRow(int idx)
+    public void InactivateRow(int idx)
     {
         lock (table)
         {
-            table.RemoveRow(idx);
-            data.RemoveAt(idx);
+            var row = data[idx];
+            for (int i = 0; i < table.Columns.Count; i++)
+            {
+                table.UpdateCell(idx, i, "[white on gray]" + row[idx] + "[/]");
+            }
             Monitor.PulseAll(table);
         }
     }

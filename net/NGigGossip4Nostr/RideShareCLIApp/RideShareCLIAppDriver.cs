@@ -44,12 +44,11 @@ public partial class RideShareCLIApp
             receivedBroadcastIdxesForPayloadIds[e.BroadcastFrame.SignedRequestPayload.Id] = receivedBroadcasts.Count - 1;
             return;
         }
-
         else
         {
-//            if (taxiTopic.FromGeohash.Length <= settings.NodeSettings.GeohashPrecision &&
-//                   taxiTopic.ToGeohash.Length <= settings.NodeSettings.GeohashPrecision)
-//                await e.GigGossipNode.BroadcastToPeersAsync(e.PeerPublicKey, e.BroadcastFrame);
+            if (taxiTopic.FromGeohash.Length <= settings.NodeSettings.GeohashPrecision &&
+                   taxiTopic.ToGeohash.Length <= settings.NodeSettings.GeohashPrecision)
+                await e.GigGossipNode.BroadcastToPeersAsync(e.PeerPublicKey, e.BroadcastFrame);
         }
     }
 
@@ -117,7 +116,7 @@ public partial class RideShareCLIApp
         receivedBroadcasts.RemoveAt(idx);
         receivedBroadcastsFees.RemoveAt(idx);
         receivedBroadcastIdxesForPayloadIds.Remove(e.CancelBroadcastFrame.SignedCancelRequestPayload.Id);
-        receivedBroadcastsTable.RemoveRow(idx);
+        receivedBroadcastsTable.InactivateRow(idx);
     }
 
 

@@ -87,7 +87,7 @@ public partial class RideShareCLIApp
         {
             var idx = receivedResponsesIdxesForPaymentHashes[e.InvoiceData.PaymentHash];
             receivedResponses.RemoveAt(idx);
-            receivedResponsesTable.RemoveRow(idx);
+            receivedResponsesTable.InactivateRow(idx);
             receivedResponsesIdxesForPaymentHashes.Remove(e.InvoiceData.PaymentHash);
         }
     }
