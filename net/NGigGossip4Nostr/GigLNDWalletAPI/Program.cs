@@ -72,6 +72,19 @@ Singlethon.LNDWalletManager = new LNDWalletManager(
     walletSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)),
     lndConf,
     deleteDb: false);
+
+Singlethon.LNDWalletManager.OnInvoiceStateChanged += (sender, e) =>
+{
+    foreach (var asyncCom in Singlethon.InvoiceAsyncComQueue4ConnectionId.Values)
+        asyncCom.Enqueue(e);
+};
+
+Singlethon.LNDWalletManager.OnPaymentStatusChanged += (sender, e) =>
+{
+    foreach (var asyncCom in Singlethon.PaymentAsyncComQueue4ConnectionId.Values)
+        asyncCom.Enqueue(e);
+};
+
 Singlethon.LNDWalletManager.Start();
 
 LNDChannelManager channelManager = new LNDChannelManager(
