@@ -14,9 +14,10 @@ namespace RideShareCLIApp;
 public partial class RideShareCLIApp
 {
     BroadcastTopicResponse requestedRide = null;
-    List<NewResponseEventArgs> receivedResponses = new();
+    Dictionary<string,List<NewResponseEventArgs>> receivedResponsesForPaymentHashes = new();
+    Dictionary<string, int> receivedResponseIdxesForPaymentHashes = new();
+    Dictionary<string, Guid> driverIdxesForPaymentHashes = new();
     DataTable receivedResponsesTable = null;
-    Dictionary<string, int> receivedResponsesIdxesForPaymentHashes = new();
 
     bool driverApproached;
     bool riderDroppedOff;
@@ -41,13 +42,16 @@ public partial class RideShareCLIApp
 
     private async Task AcceptDriverAsync(int idx)
     {
-        var e = receivedResponses[idx];
+        var paymentHash = receivedResponsesTable.GetCell(idx, 0);
+
+        var evs = receivedResponsesForPaymentHashes[paymentHash];
+        var e = evs.Aggregate((curMin, x) => (curMin == null || x.DecodedNetworkInvoice.NumSatoshis < curMin.DecodedNetworkInvoice.NumSatoshis) ? x : curMin);
+
         var paymentResult = await e.GigGossipNode.AcceptResponseAsync(e.ReplyPayloadCert, e.ReplyInvoice, e.DecodedReplyInvoice, e.NetworkInvoice, e.DecodedNetworkInvoice);
         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
         {
             AnsiConsole.MarkupLine($"[red]{paymentResult}[/]");
             return;
-
         }
     }
 
@@ -55,17 +59,32 @@ public partial class RideShareCLIApp
     {
         if (receivedResponsesTable == null)
             return;
-        receivedResponses.Add(e);
-        receivedResponsesIdxesForPaymentHashes[e.DecodedReplyInvoice.PaymentHash] = receivedResponses.Count - 1;
-        var fee = e.DecodedReplyInvoice.NumSatoshis;
-        var netfee = e.DecodedNetworkInvoice.NumSatoshis;
 
-        var taxiTopic = Crypto.DeserializeObject<RideTopic>(e.ReplyPayloadCert.Value.SignedRequestPayload.Value.Topic);
-        var from = taxiTopic.FromGeohash;
-        var tim = "(" + taxiTopic.PickupAfter.ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore - taxiTopic.PickupAfter).TotalMinutes).ToString() + ")";
-        var to = taxiTopic.ToGeohash;
+        string paymentHash = e.DecodedReplyInvoice.PaymentHash;
 
-        receivedResponsesTable.AddRow(new string[] { from,tim,to, fee.ToString(), netfee.ToString(), e.ReplyPayloadCert.Value.SignedRequestPayload.Id.ToString() });
+        if (!receivedResponsesForPaymentHashes.ContainsKey(paymentHash))
+        {
+            receivedResponsesForPaymentHashes[paymentHash] = new List<NewResponseEventArgs> { e };
+            receivedResponseIdxesForPaymentHashes[paymentHash] = receivedResponsesForPaymentHashes.Count - 1;
+            var fee = e.DecodedReplyInvoice.NumSatoshis;
+            var netfee = e.DecodedNetworkInvoice.NumSatoshis;
+
+            var taxiTopic = Crypto.DeserializeObject<RideTopic>(e.ReplyPayloadCert.Value.SignedRequestPayload.Value.Topic);
+            var from = taxiTopic.FromGeohash;
+            var tim = "(" + taxiTopic.PickupAfter.ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore - taxiTopic.PickupAfter).TotalMinutes).ToString() + ")";
+            var to = taxiTopic.ToGeohash;
+
+            receivedResponsesTable.AddRow(new string[] { paymentHash, e.ReplyPayloadCert.Id.ToString(), "1", from, tim, to, fee.ToString(), netfee.ToString() });
+
+        }
+        else
+        {
+            receivedResponsesForPaymentHashes[paymentHash].Add(e);
+            receivedResponsesTable.UpdateCell(receivedResponseIdxesForPaymentHashes[paymentHash], 2, receivedResponsesForPaymentHashes[paymentHash].Count.ToString());
+            var minNetPr=(from ev in receivedResponsesForPaymentHashes[paymentHash] select ev.DecodedNetworkInvoice.NumSatoshis).Min();
+            receivedResponsesTable.UpdateCell(receivedResponseIdxesForPaymentHashes[paymentHash], 7, minNetPr.ToString());
+        }
+
     }
 
     private async void GigGossipNodeEventSource_OnResponseReady(object? sender, ResponseReadyEventArgs e)
@@ -81,14 +100,12 @@ public partial class RideShareCLIApp
 
     private void GigGossipNodeEventSource_OnInvoiceCancelled(object? sender, InvoiceCancelledEventArgs e)
     {
-        if (!receivedResponsesIdxesForPaymentHashes.ContainsKey(e.InvoiceData.PaymentHash))
+        if (!receivedResponseIdxesForPaymentHashes.ContainsKey(e.InvoiceData.PaymentHash))
             return;
         if (!e.InvoiceData.IsNetworkInvoice)
         {
-            var idx = receivedResponsesIdxesForPaymentHashes[e.InvoiceData.PaymentHash];
-            receivedResponses.RemoveAt(idx);
+            var idx = receivedResponseIdxesForPaymentHashes[e.InvoiceData.PaymentHash];
             receivedResponsesTable.InactivateRow(idx);
-            receivedResponsesIdxesForPaymentHashes.Remove(e.InvoiceData.PaymentHash);
         }
     }
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using CryptoToolkit;
 using GigLNDWalletAPIClient;
+using NBitcoin.Secp256k1;
 using NGigGossip4Nostr;
 using Spectre.Console;
 
@@ -8,16 +9,16 @@ namespace RideShareCLIApp;
 
 public partial class RideShareCLIApp
 {
-    List<AcceptBroadcastEventArgs> receivedBroadcasts = new();
-    List<long> receivedBroadcastsFees = new();
-    DataTable receivedBroadcastsTable = null;
+    Dictionary<Guid,List<AcceptBroadcastEventArgs>> receivedBroadcastsForPayloadId = new();
     Dictionary<Guid, int> receivedBroadcastIdxesForPayloadIds = new();
+    Dictionary<Guid,long> receivedBroadcastsFees = new();
     Dictionary<Guid, string> directSecrets = new();
+    DataTable receivedBroadcastsTable = null;
 
     const string DATE_FORMAT = "dd MMM HH:mm";
 
     Dictionary<Guid, long> feesPerBroadcastId = new();
-
+    
     Guid ActiveSignedRequestPayloadId = Guid.Empty;
     bool riderInTheCar;
 
@@ -29,19 +30,26 @@ public partial class RideShareCLIApp
 
         if (inDriverMode)
         {
-            if (!feesPerBroadcastId.ContainsKey(e.BroadcastFrame.SignedRequestPayload.Id))
-                feesPerBroadcastId[e.BroadcastFrame.SignedRequestPayload.Id] = Random.Shared.NextInt64(1000, 2000);
+            Guid id = e.BroadcastFrame.SignedRequestPayload.Id;
 
-            long fee = feesPerBroadcastId[e.BroadcastFrame.SignedRequestPayload.Id];
+            if (!feesPerBroadcastId.ContainsKey(id))
+            {
+                long fee = Random.Shared.NextInt64(1000, 2000);
+                feesPerBroadcastId[id] = fee;
 
-            var from = taxiTopic.FromGeohash;
-            var tim = "(" + taxiTopic.PickupAfter.ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore - taxiTopic.PickupAfter).TotalMinutes).ToString() + ")";
-            var to = taxiTopic.ToGeohash;
-
-            receivedBroadcastsTable.AddRow(new string[] { "", from, tim, to, fee.ToString(), e.BroadcastFrame.SignedRequestPayload.Id.ToString() });
-            receivedBroadcasts.Add(e);
-            receivedBroadcastsFees.Add(fee);
-            receivedBroadcastIdxesForPayloadIds[e.BroadcastFrame.SignedRequestPayload.Id] = receivedBroadcasts.Count - 1;
+                var from = taxiTopic.FromGeohash;
+                var tim = "(" + taxiTopic.PickupAfter.ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore - taxiTopic.PickupAfter).TotalMinutes).ToString() + ")";
+                var to = taxiTopic.ToGeohash;
+                receivedBroadcastsForPayloadId[id] = new List<AcceptBroadcastEventArgs> { e };
+                receivedBroadcastsFees[id] = fee;
+                receivedBroadcastIdxesForPayloadIds[id] = receivedBroadcastsForPayloadId.Count - 1;
+                receivedBroadcastsTable.AddRow(new string[] { "", id.ToString(), "1", from, tim, to, fee.ToString() });
+            }
+            else
+            {
+                receivedBroadcastsForPayloadId[id].Add(e);
+                receivedBroadcastsTable.UpdateCell(receivedBroadcastIdxesForPayloadIds[id],2, receivedBroadcastsForPayloadId[id].Count.ToString());
+            }
             return;
         }
         else
@@ -54,20 +62,24 @@ public partial class RideShareCLIApp
 
     private async Task AcceptRideAsync(int idx)
     {
-        var e = receivedBroadcasts[idx];
-        var fee = receivedBroadcastsFees[idx];
+        var id = Guid.Parse(receivedBroadcastsTable.GetCell(idx, 1));
+
+        var evs = receivedBroadcastsForPayloadId[id];
+        var fee = receivedBroadcastsFees[id];
 
         var secret = Crypto.GenerateRandomPreimage().AsHex();
-        directSecrets[e.BroadcastFrame.SignedRequestPayload.Id] = secret;
+        directSecrets[id] = secret;
 
-        var reply = new ConnectionReply()
+        foreach (var e in evs)
         {
-            PublicKey = e.GigGossipNode.PublicKey,
-            Relays = e.GigGossipNode.NostrRelays,
-            Secret = secret,
-        };
+            var reply = new ConnectionReply()
+            {
+                PublicKey = e.GigGossipNode.PublicKey,
+                Relays = e.GigGossipNode.NostrRelays,
+                Secret = secret,
+            };
 
-        await e.GigGossipNode.AcceptBroadcastAsync(e.PeerPublicKey, e.BroadcastFrame,
+            await e.GigGossipNode.AcceptBroadcastAsync(e.PeerPublicKey, e.BroadcastFrame,
                         new AcceptBroadcastResponse()
                         {
                             Properties = settings.NodeSettings.GetDriverProperties(),
@@ -75,9 +87,7 @@ public partial class RideShareCLIApp
                             Fee = fee,
                             SettlerServiceUri = settings.NodeSettings.SettlerOpenApi,
                         });
-
-        receivedBroadcastIdxesForPayloadIds[e.BroadcastFrame.SignedRequestPayload.Id] = idx;
-
+        }
     }
 
 
@@ -113,9 +123,6 @@ public partial class RideShareCLIApp
         if (!receivedBroadcastIdxesForPayloadIds.ContainsKey(e.CancelBroadcastFrame.SignedCancelRequestPayload.Id))
             return;
         var idx = receivedBroadcastIdxesForPayloadIds[e.CancelBroadcastFrame.SignedCancelRequestPayload.Id];
-        receivedBroadcasts.RemoveAt(idx);
-        receivedBroadcastsFees.RemoveAt(idx);
-        receivedBroadcastIdxesForPayloadIds.Remove(e.CancelBroadcastFrame.SignedCancelRequestPayload.Id);
         receivedBroadcastsTable.InactivateRow(idx);
     }
 

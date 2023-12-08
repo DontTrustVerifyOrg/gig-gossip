@@ -14,6 +14,7 @@ class DataTable
 {
     Table table;
     List<string[]> data = new();
+    List<bool> active = new();
     int selectionIdx = 0;
     bool endLoop = false;
     Thread thread = null;
@@ -58,18 +59,38 @@ class DataTable
         {
             table.AddRow(row);
             data.Add(row);
+            active.Add(true);
             Monitor.PulseAll(table);
         }
     }
 
-    public void InactivateRow(int idx)
+    public void InactivateRow(int idx,bool delete=true)
     {
         lock (table)
         {
+            active[idx] = false;
             var row = data[idx];
+
+            if (selectionIdx == idx)
+            {
+                do
+                {
+                    selectionIdx -= 1;
+                    if (selectionIdx < 0)
+                    {
+                        selectionIdx = 0;
+                        break;
+                    }
+                }
+                while (!active[selectionIdx]);
+            }
+
             for (int i = 0; i < table.Columns.Count; i++)
             {
-                table.UpdateCell(idx, i, "[white on gray]" + row[idx] + "[/]");
+                if(delete)
+                    table.UpdateCell(idx, i, "[white on gray]" + row[i] + "[/]");
+                else
+                    table.UpdateCell(idx, i, "[orange1 on gray]" + row[i] + "[/]");
             }
             Monitor.PulseAll(table);
         }
@@ -79,6 +100,8 @@ class DataTable
     {
         lock (table)
         {
+            if (!active[idx])
+                return;
             var row = data[idx];
             for (int i = 0; i < table.Columns.Count; i++)
             {
@@ -139,16 +162,30 @@ class DataTable
                     if (data.Count > 0)
                         if (k == ConsoleKey.DownArrow)
                         {
-                            selectionIdx += 1;
-                            if (selectionIdx >= table.Rows.Count - 1)
-                                selectionIdx = table.Rows.Count - 1;
+                            do
+                            { 
+                                selectionIdx += 1;
+                                if (selectionIdx >= table.Rows.Count - 1)
+                                {
+                                    selectionIdx = table.Rows.Count - 1;
+                                    break;
+                                }
+                            }
+                            while (!active[selectionIdx]);
                         }
                     if (data.Count > 0)
                         if (k == ConsoleKey.UpArrow)
                         {
-                            selectionIdx -= 1;
-                            if (selectionIdx < 0)
-                                selectionIdx = 0;
+                            do
+                            {
+                                selectionIdx -= 1;
+                                if (selectionIdx < 0)
+                                { 
+                                    selectionIdx = 0;
+                                    break;
+                                }
+                            }
+                            while (!active[selectionIdx]);
                         }
                     if (data.Count > 0)
                     {

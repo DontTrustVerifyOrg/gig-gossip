@@ -194,10 +194,9 @@ public partial class RideShareCLIApp
                 AnsiConsole.MarkupLine("[blue]ESC[/] to leave the driver mode.");
 
 
-                receivedBroadcasts = new();
+                receivedBroadcastsForPayloadId = new();
                 receivedBroadcastsFees = new();
-                receivedBroadcastIdxesForPayloadIds = new();
-                receivedBroadcastsTable = new DataTable(new string[] { "Sent", "From","Time","To", "MyFee","JobId" });
+                receivedBroadcastsTable = new DataTable(new string[] { "Sent", "JobId", "NoBrd", "From","Time","To", "MyFee" });
                 receivedBroadcastsTable.OnKeyPressed+= async (o,e)=>
                     {
                         var me = (DataTable)o;
@@ -207,22 +206,25 @@ public partial class RideShareCLIApp
                             {
                                 await AcceptRideAsync(me.SelectedRowIdx);
                                 me.UpdateCell(me.SelectedRowIdx, 0, "sent");
+                                me.InactivateRow(me.SelectedRowIdx,false);
                             }
                         }
                         if (e.Key == ConsoleKey.LeftArrow)
                         {
                             if (me.GetCell(me.SelectedRowIdx,0) != "sent")
                             {
-                                receivedBroadcastsFees[me.SelectedRowIdx] -= 1;
-                                me.UpdateCell(me.SelectedRowIdx, 2, receivedBroadcastsFees[me.SelectedRowIdx].ToString());
+                                var id = Guid.Parse(me.GetCell(me.SelectedRowIdx, 1));
+                                receivedBroadcastsFees[id] -= 1;
+                                me.UpdateCell(me.SelectedRowIdx, 6, receivedBroadcastsFees[id].ToString());
                             }
                         }
                         if(e.Key == ConsoleKey.RightArrow)
                         {
                             if (me.GetCell(me.SelectedRowIdx, 0) != "sent")
                             {
-                                receivedBroadcastsFees[me.SelectedRowIdx] += 1;
-                                me.UpdateCell(me.SelectedRowIdx, 2, receivedBroadcastsFees[me.SelectedRowIdx].ToString());
+                                var id = Guid.Parse(me.GetCell(me.SelectedRowIdx, 1));
+                                receivedBroadcastsFees[id] -= 1;
+                                me.UpdateCell(me.SelectedRowIdx, 6, receivedBroadcastsFees[id].ToString());
                             }
                         }
                         if(e.Key== ConsoleKey.Escape)
@@ -243,8 +245,10 @@ public partial class RideShareCLIApp
                 var toLocation = new Location(Random.Shared.NextDouble(), Random.Shared.NextDouble());
                 int waitingTimeForPickupMinutes = 12;
 
-                receivedResponses = new();
-                receivedResponsesTable = new DataTable(new string[] { "From", "Time", "To", "DriverFee","NetworkFee", "JobId" });
+                receivedResponseIdxesForPaymentHashes = new();
+                receivedResponsesForPaymentHashes = new();
+                driverIdxesForPaymentHashes = new();
+                receivedResponsesTable = new DataTable(new string[] { "PaymentHash", "DriverId", "NoResp", "From", "Time", "To", "DriverFee","NetworkFee" });
                 receivedResponsesTable.OnKeyPressed += async (o, e) =>
                 {
                     var me = (DataTable)o;
