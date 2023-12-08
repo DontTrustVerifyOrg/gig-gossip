@@ -60,29 +60,32 @@ public partial class RideShareCLIApp
         if (receivedResponsesTable == null)
             return;
 
-        string paymentHash = e.DecodedReplyInvoice.PaymentHash;
-
-        if (!receivedResponsesForPaymentHashes.ContainsKey(paymentHash))
+        lock (receivedResponsesForPaymentHashes)
         {
-            receivedResponsesForPaymentHashes[paymentHash] = new List<NewResponseEventArgs> { e };
-            receivedResponseIdxesForPaymentHashes[paymentHash] = receivedResponsesForPaymentHashes.Count - 1;
-            var fee = e.DecodedReplyInvoice.NumSatoshis;
-            var netfee = e.DecodedNetworkInvoice.NumSatoshis;
+            string paymentHash = e.DecodedReplyInvoice.PaymentHash;
 
-            var taxiTopic = Crypto.DeserializeObject<RideTopic>(e.ReplyPayloadCert.Value.SignedRequestPayload.Value.Topic);
-            var from = taxiTopic.FromGeohash;
-            var tim = "(" + taxiTopic.PickupAfter.ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore - taxiTopic.PickupAfter).TotalMinutes).ToString() + ")";
-            var to = taxiTopic.ToGeohash;
+            if (!receivedResponsesForPaymentHashes.ContainsKey(paymentHash))
+            {
+                receivedResponsesForPaymentHashes[paymentHash] = new List<NewResponseEventArgs> { e };
+                receivedResponseIdxesForPaymentHashes[paymentHash] = receivedResponsesForPaymentHashes.Count - 1;
+                var fee = e.DecodedReplyInvoice.NumSatoshis;
+                var netfee = e.DecodedNetworkInvoice.NumSatoshis;
 
-            receivedResponsesTable.AddRow(new string[] { paymentHash, e.ReplyPayloadCert.Id.ToString(), "1", from, tim, to, fee.ToString(), netfee.ToString() });
+                var taxiTopic = Crypto.DeserializeObject<RideTopic>(e.ReplyPayloadCert.Value.SignedRequestPayload.Value.Topic);
+                var from = taxiTopic.FromGeohash;
+                var tim = "(" + taxiTopic.PickupAfter.ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore - taxiTopic.PickupAfter).TotalMinutes).ToString() + ")";
+                var to = taxiTopic.ToGeohash;
 
-        }
-        else
-        {
-            receivedResponsesForPaymentHashes[paymentHash].Add(e);
-            receivedResponsesTable.UpdateCell(receivedResponseIdxesForPaymentHashes[paymentHash], 2, receivedResponsesForPaymentHashes[paymentHash].Count.ToString());
-            var minNetPr=(from ev in receivedResponsesForPaymentHashes[paymentHash] select ev.DecodedNetworkInvoice.NumSatoshis).Min();
-            receivedResponsesTable.UpdateCell(receivedResponseIdxesForPaymentHashes[paymentHash], 7, minNetPr.ToString());
+                receivedResponsesTable.AddRow(new string[] { paymentHash, e.ReplyPayloadCert.Id.ToString(), "1", from, tim, to, fee.ToString(), netfee.ToString() });
+
+            }
+            else
+            {
+                receivedResponsesForPaymentHashes[paymentHash].Add(e);
+                receivedResponsesTable.UpdateCell(receivedResponseIdxesForPaymentHashes[paymentHash], 2, receivedResponsesForPaymentHashes[paymentHash].Count.ToString());
+                var minNetPr = (from ev in receivedResponsesForPaymentHashes[paymentHash] select ev.DecodedNetworkInvoice.NumSatoshis).Min();
+                receivedResponsesTable.UpdateCell(receivedResponseIdxesForPaymentHashes[paymentHash], 7, minNetPr.ToString());
+            }
         }
 
     }
@@ -100,12 +103,15 @@ public partial class RideShareCLIApp
 
     private void GigGossipNodeEventSource_OnInvoiceCancelled(object? sender, InvoiceCancelledEventArgs e)
     {
-        if (!receivedResponseIdxesForPaymentHashes.ContainsKey(e.InvoiceData.PaymentHash))
-            return;
-        if (!e.InvoiceData.IsNetworkInvoice)
+        lock (receivedResponsesForPaymentHashes)
         {
-            var idx = receivedResponseIdxesForPaymentHashes[e.InvoiceData.PaymentHash];
-            receivedResponsesTable.InactivateRow(idx);
+            if (!receivedResponseIdxesForPaymentHashes.ContainsKey(e.InvoiceData.PaymentHash))
+                return;
+            if (!e.InvoiceData.IsNetworkInvoice)
+            {
+                var idx = receivedResponseIdxesForPaymentHashes[e.InvoiceData.PaymentHash];
+                receivedResponsesTable.InactivateRow(idx);
+            }
         }
     }
 
