@@ -10,6 +10,7 @@ public class DirectMessageEventArgs : EventArgs
     public required string EventId;
     public required string SenderPublicKey;
     public required object Frame { get; set; }
+    public required bool IsNew { get; set; }
 }
 
 public class DirectCom : NostrNode
@@ -30,21 +31,22 @@ public class DirectCom : NostrNode
 
     public event EventHandler<DirectMessageEventArgs> OnDirectMessage;
 
-    public override void OnContactList(string eventId, Dictionary<string, NostrContact> contactList)
+    public override void OnContactList(string eventId, bool isNew, Dictionary<string, NostrContact> contactList)
     {
     }
 
-    public override void OnHello(string eventId, string senderPublicKeye)
+    public override void OnHello(string eventId, bool isNew, string senderPublicKeye)
     {
     }
 
-    public async override Task OnMessageAsync(string eventId, string senderPublicKey, object frame)
+    public async override Task OnMessageAsync(string eventId, bool isNew, string senderPublicKey, object frame)
     {
         OnDirectMessage.Invoke(this, new DirectMessageEventArgs()
         {
             EventId = eventId,
             SenderPublicKey = senderPublicKey,
-            Frame = frame
+            Frame = frame,
+            IsNew = isNew,
         });
     }
 }

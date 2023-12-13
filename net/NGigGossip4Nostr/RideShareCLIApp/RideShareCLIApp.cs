@@ -336,15 +336,18 @@ public partial class RideShareCLIApp
     {
         if (e.Frame is LocationFrame locationFrame)
         {
-            if (directPubkeys.ContainsKey(locationFrame.SignedRequestPayloadId))
+            if (e.IsNew)
             {
-                var pubkey = directPubkeys[locationFrame.SignedRequestPayloadId];
-                if (pubkey == e.SenderPublicKey)
+                if (directPubkeys.ContainsKey(locationFrame.SignedRequestPayloadId))
                 {
-                    if (inDriverMode)
-                        await OnRiderLocation(e.SenderPublicKey, locationFrame);
-                    else
-                        await OnDriverLocation(e.SenderPublicKey, locationFrame);
+                    var pubkey = directPubkeys[locationFrame.SignedRequestPayloadId];
+                    if (pubkey == e.SenderPublicKey)
+                    {
+                        if (inDriverMode)
+                            await OnRiderLocation(e.SenderPublicKey, locationFrame);
+                        else
+                            await OnDriverLocation(e.SenderPublicKey, locationFrame);
+                    }
                 }
             }
         }

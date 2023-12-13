@@ -26,6 +26,9 @@ public abstract class NostrNode
     public string[] NostrRelays { get; private set; }
     private Dictionary<string, Type> _registeredFrameTypes = new();
     private string subscriptionId;
+    private bool eoseReceived = false;
+    private SemaphoreSlim eventSemSlim = new(1, 1);
+
 
     public NostrNode(ECPrivKey privateKey, int chunkSize)
     {
@@ -131,9 +134,9 @@ public abstract class NostrNode
         return evid;
     }
 
-    public abstract Task OnMessageAsync(string eventId, string senderPublicKey, object frame);
-    public abstract void OnContactList(string eventId, Dictionary<string, NostrContact> contactList);
-    public abstract void OnHello(string eventId, string senderPublicKeye);
+    public abstract Task OnMessageAsync(string eventId, bool isNew, string senderPublicKey, object frame);
+    public abstract void OnContactList(string eventId, bool isNew, Dictionary<string, NostrContact> contactList);
+    public abstract void OnHello(string eventId, bool isNew, string senderPublicKeye);
 
     protected async Task StartAsync(string[] nostrRelays)
     {
@@ -141,8 +144,10 @@ public abstract class NostrNode
             await StopAsync();
         NostrRelays = nostrRelays;
         nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
+        this.eoseReceived = false;
         await nostrClient.ConnectAndWaitUntilConnected();
         nostrClient.EventsReceived += NostrClient_EventsReceived;
+        nostrClient.EoseReceived += NostrClient_EoseReceived;
         subscriptionId = Guid.NewGuid().ToString();
         await nostrClient.CreateSubscription(subscriptionId, new[]{
                         new NostrSubscriptionFilter()
@@ -167,18 +172,42 @@ public abstract class NostrNode
                     });
     }
 
+    private async void NostrClient_EoseReceived(object? sender, string subscriptionId)
+    {
+        if (subscriptionId == this.subscriptionId)
+        {
+            await eventSemSlim.WaitAsync();
+            try
+            {
+                this.eoseReceived = true;
+            }
+            finally
+            {
+                eventSemSlim.Release();
+            }
+        }
+    }
+
     private async void NostrClient_EventsReceived(object? sender, (string subscriptionId, NostrEvent[] events) e)
     {
         if (e.subscriptionId == subscriptionId)
         {
-            foreach (var nostrEvent in e.events)
+            await eventSemSlim.WaitAsync();
+            try
             {
-                if (nostrEvent.Kind == HelloKind)
-                    ProcessHello(nostrEvent);
-                else if (nostrEvent.Kind == ContactListKind)
-                    ProcessContactList(nostrEvent);
-                else
-                    await ProcessNewMessageAsync(nostrEvent);
+                foreach (var nostrEvent in e.events)
+                {
+                    if (nostrEvent.Kind == HelloKind)
+                        ProcessHello(nostrEvent);
+                    else if (nostrEvent.Kind == ContactListKind)
+                        ProcessContactList(nostrEvent);
+                    else
+                        await ProcessNewMessageAsync(nostrEvent);
+                }
+            }
+            finally
+            {
+                eventSemSlim.Release();
             }
         }
     }
@@ -216,7 +245,7 @@ public abstract class NostrNode
                         return;
                     }
                     var frame = Crypto.DeserializeObject(Convert.FromBase64String(msg), t);
-                    await this.OnMessageAsync(idx, nostrEvent.PublicKey, frame);
+                    await this.OnMessageAsync(idx, eoseReceived, nostrEvent.PublicKey, frame);
                 }
                 else
                 {
@@ -234,7 +263,7 @@ public abstract class NostrNode
                                 return;
                             }
                             var frame = Crypto.DeserializeObject(Convert.FromBase64String(txt), t);
-                            await this.OnMessageAsync(idx, nostrEvent.PublicKey, frame);
+                            await this.OnMessageAsync(idx, eoseReceived, nostrEvent.PublicKey, frame);
                         }
                     }
                 }
@@ -249,12 +278,12 @@ public abstract class NostrNode
             if (tag.TagIdentifier == "p")
                 newCL[tag.Data[0]] = new NostrContact() { PublicKey = this.PublicKey, ContactPublicKey = tag.Data[0], Relay = tag.Data[1], Petname = tag.Data[2] };
         }
-        OnContactList(nostrEvent.Id, newCL);
+        OnContactList(nostrEvent.Id, eoseReceived, newCL);
     }
 
     private void ProcessHello(NostrEvent nostrEvent)
     {
-        OnHello(nostrEvent.Id, nostrEvent.PublicKey);
+        OnHello(nostrEvent.Id, eoseReceived, nostrEvent.PublicKey);
     }
 
 }

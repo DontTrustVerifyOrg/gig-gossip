@@ -162,7 +162,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public override void OnHello(string eventId, string senderPublicKey)
+    public override void OnHello(string eventId, bool isNew, string senderPublicKey)
     {
         if (senderPublicKey != this.PublicKey)
             AddContact(senderPublicKey, "");
@@ -220,7 +220,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public override void OnContactList(string eventId, Dictionary<string, NostrContact> contactList)
+    public override void OnContactList(string eventId, bool isNew, Dictionary<string, NostrContact> contactList)
     {
         lock (_contactList)
         {
@@ -735,7 +735,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         this.nodeContext.Value.AddObject(new MessageDoneRow() { MessageId = messageId, PublicKey = this.PublicKey });
     }
 
-    public override async Task OnMessageAsync(string messageId, string senderPublicKey, object frame)
+    public override async Task OnMessageAsync(string messageId, bool isNew, string senderPublicKey, object frame)
     {
         if (IsMessageDone(messageId))
             return; //Already Processed
