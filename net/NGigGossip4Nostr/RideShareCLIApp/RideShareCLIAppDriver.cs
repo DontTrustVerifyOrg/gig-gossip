@@ -187,16 +187,16 @@ public partial class RideShareCLIApp
     {
         if (ActiveSignedRequestPayloadId == Guid.Empty)
             return;
-        if (ackframe.SignedRequestPayloadId == ActiveSignedRequestPayloadId)
+        if (ackframe.Parameters.SignedRequestPayloadId == ActiveSignedRequestPayloadId)
         {
-            if (directSecrets.ContainsKey(ackframe.SignedRequestPayloadId))
+            if (directSecrets.ContainsKey(ackframe.Parameters.SignedRequestPayloadId))
             {
-                if (directSecrets[ackframe.SignedRequestPayloadId] == ackframe.Secret)
+                if (directSecrets[ackframe.Parameters.SignedRequestPayloadId] == ackframe.Secret)
                 {
-                    directPubkeys[ackframe.SignedRequestPayloadId] = senderPublicKey;
+                    directPubkeys[ackframe.Parameters.SignedRequestPayloadId] = senderPublicKey;
                     AnsiConsole.WriteLine("rider ack:" + senderPublicKey);
                     receivedBroadcastsTable.Exit();
-                    new Thread(() => DriverJourneyAsync(ackframe.SignedRequestPayloadId)).Start();
+                    new Thread(() => DriverJourneyAsync(ackframe.Parameters.SignedRequestPayloadId)).Start();
                 }
             }
         }

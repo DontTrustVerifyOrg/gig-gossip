@@ -129,9 +129,8 @@ public partial class RideShareCLIApp
         AnsiConsole.MarkupLine("I am [orange1]sending[/] my location to the driver");
         await directCom.SendMessageAsync(pubkey, new AckFrame()
         {
-            SignedRequestPayloadId = requestPayloadId,
             Secret = secret,
-            Parameters = new DetailedParameters { FromAddress = "from address", FromLocation = fromLocation, ToAddress = "to address", ToLocation = toLocation }
+            Parameters = new DetailedParameters { SignedRequestPayloadId = requestPayloadId, FromAddress = "from address", FromLocation = fromLocation, ToAddress = "to address", ToLocation = toLocation }
         }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
 
         while(!driverApproached)
