@@ -1,20 +1,20 @@
-﻿namespace RideShareCLIApp;
+﻿namespace RideShareFrames;
 
-public class Location
+public class GeoLocation
 {
     public double Latitude { get; set; }
 
     public double Longitude { get; set; }
-    public Location()
+    public GeoLocation()
     {
     }
-    public Location(double latitude, double longitude)
+    public GeoLocation(double latitude, double longitude)
     {
         Latitude = latitude;
         Longitude = longitude;
     }
 
-    public Location(Location point)
+    public GeoLocation(GeoLocation point)
     {
         Latitude = point.Latitude;
         Longitude = point.Longitude;
@@ -22,6 +22,6 @@ public class Location
 
     public override string ToString()
     {
-        return $"Geo({Longitude},{Latitude})";
+        return $"GeoLocation({Longitude},{Latitude})";
     }
 }

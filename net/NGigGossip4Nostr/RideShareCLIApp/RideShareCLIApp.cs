@@ -22,6 +22,7 @@ using NBitcoin.RPC;
 using NBitcoin.Secp256k1;
 using NGeoHash;
 using NGigGossip4Nostr;
+using RideShareFrames;
 using Sharprompt;
 using Spectre;
 using Spectre.Console;
@@ -241,8 +242,8 @@ public partial class RideShareCLIApp
                 {
                     AnsiConsole.MarkupLine("[red]Ride in progress[/]");
                 }
-                var fromLocation = new Location(Random.Shared.NextDouble(), Random.Shared.NextDouble());
-                var toLocation = new Location(Random.Shared.NextDouble(), Random.Shared.NextDouble());
+                var fromLocation = new GeoLocation(Random.Shared.NextDouble(), Random.Shared.NextDouble());
+                var toLocation = new GeoLocation(Random.Shared.NextDouble(), Random.Shared.NextDouble());
                 int waitingTimeForPickupMinutes = 12;
 
                 receivedResponseIdxesForPaymentHashes = new();

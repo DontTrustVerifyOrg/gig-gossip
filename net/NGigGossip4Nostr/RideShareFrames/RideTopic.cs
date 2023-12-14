@@ -1,8 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace RideShareCLIApp;
-
-
+namespace RideShareFrames;
 
 [Serializable]
 public class RideTopic
@@ -24,30 +22,34 @@ public class ConnectionReply
 [Serializable]
 public class AckFrame
 {
-    public required Guid SignedRequestPayloadId { get; set; }
     public required string Secret { get; set; }
-    public required Location Location { get; set; }
-    public required string Message { get; set; }
+    public required DetailedParameters Parameters { get; set; }
+}
+
+[Serializable]
+public class DetailedParameters
+{
+    public required Guid SignedRequestPayloadId { get; set; }
+    public GeoLocation FromLocation { get; set; }
+    public GeoLocation ToLocation { get; set; }
+    public string FromAddress { get; set; }
+    public string ToAddress { get; set; }
 }
 
 [Serializable]
 public enum RideState
 {
-    Unknown = 0,
-    DriverApproaching = 1,
-    RiderApproaching = 2,
-    DriverWaitingForRider = 3,
-    RiderWaitingForDriver = 4,
-    RiderPickedUp = 5,
-    RidingTogheter = 6,
-    RiderDroppedOff = 7,
+    Started = 0,
+    DriverWaitingForRider = 1,
+    RiderPickedUp = 2,
+    RiderDroppedOff = 3,
 }
 
 [Serializable]
 public class LocationFrame
 {
     public required Guid SignedRequestPayloadId { get; set; }
-    public required Location Location { get; set; }
+    public required GeoLocation Location { get; set; }
     public required string Message { get; set; }
     public required RideState RideState { get; set; }
 }

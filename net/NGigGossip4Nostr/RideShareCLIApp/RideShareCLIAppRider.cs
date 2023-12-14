@@ -8,12 +8,15 @@ using NBitcoin;
 using System.Diagnostics;
 using CryptoToolkit;
 using GigLNDWalletAPIClient;
+using RideShareFrames;
 
 namespace RideShareCLIApp;
 
 public partial class RideShareCLIApp
 {
     BroadcastTopicResponse requestedRide = null;
+    GeoLocation fromLocation;
+    GeoLocation toLocation;
     Dictionary<string,List<NewResponseEventArgs>> receivedResponsesForPaymentHashes = new();
     Dictionary<string, int> receivedResponseIdxesForPaymentHashes = new();
     Dictionary<string, Guid> driverIdxesForPaymentHashes = new();
@@ -22,10 +25,12 @@ public partial class RideShareCLIApp
     bool driverApproached;
     bool riderDroppedOff;
 
-    async Task<BroadcastTopicResponse> RequestRide(Location fromLocation, Location toLocation, int precision, int waitingTimeForPickupMinutes)
+    async Task<BroadcastTopicResponse> RequestRide(GeoLocation fromLocation, GeoLocation toLocation, int precision, int waitingTimeForPickupMinutes)
     {
         var fromGh = GeoHash.Encode(latitude: fromLocation.Latitude, longitude: fromLocation.Longitude, numberOfChars: precision);
         var toGh = GeoHash.Encode(latitude: toLocation.Latitude, longitude: toLocation.Longitude, numberOfChars: precision);
+        this.fromLocation = fromLocation;
+        this.toLocation = toLocation;
 
         return await gigGossipNode.BroadcastTopicAsync(
             topic: new RideTopic
@@ -125,10 +130,9 @@ public partial class RideShareCLIApp
         await directCom.SendMessageAsync(pubkey, new AckFrame()
         {
             SignedRequestPayloadId = requestPayloadId,
-            Location = new Location(),
-            Message = "Ok,here I am",
             Secret = secret,
-        }, false, DateTime.UtcNow+ this.gigGossipNode.InvoicePaymentTimeout);
+            Parameters = new DetailedParameters { FromAddress = "from address", FromLocation = fromLocation, ToAddress = "to address", ToLocation = toLocation }
+        }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
 
         while(!driverApproached)
         {
@@ -136,9 +140,9 @@ public partial class RideShareCLIApp
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 SignedRequestPayloadId = requestPayloadId,
-                Location = new Location(),
+                Location = new GeoLocation(),
                 Message = "I am waiting",
-                RideState = RideState.RiderWaitingForDriver
+                RideState = RideState.Started
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
@@ -148,9 +152,9 @@ public partial class RideShareCLIApp
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 SignedRequestPayloadId = requestPayloadId,
-                Location = new Location(),
+                Location = new GeoLocation(),
                 Message = "I am in the car",
-                RideState = RideState.RidingTogheter
+                RideState = RideState.RiderPickedUp
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }

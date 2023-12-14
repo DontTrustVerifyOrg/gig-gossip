@@ -1,6 +1,7 @@
 ﻿using CryptoToolkit;
 using GigLNDWalletAPIClient;
 using NGigGossip4Nostr;
+using RideShareFrames;
 
 namespace RideShareCLIApp;
 
