@@ -373,7 +373,7 @@ app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
 app.MapHub<InvoiceStateUpdatesHub>("/invoicestateupdates");
 app.MapHub<PaymentStatusUpdatesHub>("/paymentstatusupdates");
 
-app.Run(walletSettings.ServiceUri.AbsoluteUri);
+app.Run(walletSettings.ListenHost.AbsoluteUri);
 
 [Serializable]
 public record Result
@@ -402,6 +402,7 @@ public record InvoiceRet
 
 public class WalletSettings
 {
+    public Uri ListenHost { get; set; }
     public Uri ServiceUri { get; set; }
     public string ConnectionString { get; set; }
     public long NewAddressTxFee { get; set; }

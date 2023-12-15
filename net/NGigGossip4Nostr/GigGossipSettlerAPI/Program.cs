@@ -466,7 +466,7 @@ app.MapGet("/managedispute", async (string authToken, Guid gigId, Guid repliperC
 app.MapHub<PreimageRevealHub>("/preimagereveal");
 app.MapHub<SymmetricKeyRevealHub>("/symmetrickeyreveal");
 
-app.Run(settlerSettings.ServiceUri.AbsoluteUri);
+app.Run(settlerSettings.ListenHost.AbsoluteUri);
 
 [Serializable]
 public record Result
@@ -489,6 +489,7 @@ public record Result<T>
 
 public class SettlerSettings
 {
+    public required Uri ListenHost { get; set; }
     public required Uri ServiceUri { get; set; }
     public required Uri GigWalletOpenApi { get; set; }
     public required long PriceAmountForSettlement { get; set; }
