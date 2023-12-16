@@ -126,43 +126,56 @@ public partial class RideShareCLIApp
         receivedBroadcastsTable.InactivateRow(idx);
     }
 
-
-    private async Task DriverJourneyAsync(Guid requestPayloadId)
+    private static IEnumerable<(int idx, GeoLocation location)> GeoSteps(GeoLocation from, GeoLocation to, int steps)
     {
-        var pubkey = directPubkeys[requestPayloadId];
-        for (int i =5;i>0;i--)
+        for (int i = 0; i <= steps; i++)
         {
-            AnsiConsole.MarkupLine($"({i}) I am [orange1]driving[/] to meet rider");
+            var delta = i / (double)steps;
+            yield return (steps-i, new GeoLocation(from.Latitude + (to.Latitude - from.Latitude) * delta, from.Longitude + (to.Longitude - from.Longitude) * delta));
+        }
+    }
+
+    private async Task DriverJourneyAsync(DetailedParameters detparams)
+    {
+        var keys = new List<string>(MockData.FakeAddresses.Keys);
+        var myAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+        var myStartLocation = new GeoLocation(MockData.FakeAddresses[myAddress].Latitude, MockData.FakeAddresses[myAddress].Longitude);
+
+        var requestPayloadId = detparams.SignedRequestPayloadId;
+        var pubkey = directPubkeys[requestPayloadId];
+        foreach (var (idx, location) in GeoSteps(myStartLocation, detparams.FromLocation, 5))
+        {
+            AnsiConsole.MarkupLine($"({idx}) I am [orange1]driving[/] to meet rider");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 SignedRequestPayloadId = requestPayloadId,
-                Location = new GeoLocation(),
+                Location = location,
                 Message = "I am going",
                 RideState = RideState.Started,
-            },  false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
+            }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
         AnsiConsole.MarkupLine("I have [orange1]arrived[/]");
-        for (int i = 5; i > 0; i--)
+        for (int i = 3; i > 0; i--)
         {
             AnsiConsole.MarkupLine($"({i}) I am [orange1]waiting[/] for rider");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 SignedRequestPayloadId = requestPayloadId,
-                Location = new GeoLocation(),
+                Location = detparams.FromLocation,
                 Message = "I am waiting",
                 RideState = RideState.DriverWaitingForRider,
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
         AnsiConsole.MarkupLine("Rider [orange1]in the car[/]");
-        for(int i = 5; i > 0; i--)
+        foreach(var(idx, location) in GeoSteps(detparams.FromLocation, detparams.ToLocation, 10))
         {
-            AnsiConsole.MarkupLine($"({i}) We are going [orange1]togheter[/]");
+            AnsiConsole.MarkupLine($"({idx}) We are going [orange1]togheter[/]");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 SignedRequestPayloadId = requestPayloadId,
-                Location = new GeoLocation(),
+                Location = location,
                 Message = "We are driving",
                 RideState = RideState.RiderPickedUp,
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
@@ -172,7 +185,7 @@ public partial class RideShareCLIApp
         await directCom.SendMessageAsync(pubkey, new LocationFrame
         {
             SignedRequestPayloadId = requestPayloadId,
-            Location = new GeoLocation(),
+            Location = detparams.ToLocation,
             Message = "Thank you",
             RideState = RideState.RiderDroppedOff,
         }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
@@ -194,7 +207,7 @@ public partial class RideShareCLIApp
                     directPubkeys[ackframe.Parameters.SignedRequestPayloadId] = senderPublicKey;
                     AnsiConsole.WriteLine("rider ack:" + senderPublicKey);
                     receivedBroadcastsTable.Exit();
-                    new Thread(() => DriverJourneyAsync(ackframe.Parameters.SignedRequestPayloadId)).Start();
+                    new Thread(() => DriverJourneyAsync(ackframe.Parameters)).Start();
                 }
             }
         }

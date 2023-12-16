@@ -65,3 +65,29 @@ var r3 = await querySearcher.Search(new SearchQueryRequest
 });
 
 Console.WriteLine(r3[0].DisplayName);
+
+
+string[] addresses = new string[]
+{
+    "Bennelong Point, Sydney NSW 2000",
+    "Keith Smith Ave, Mascot NSW 2020",
+    "Driver Ave, Moore Park NSW 2021",
+    "632 King St, Erskineville NSW 2043",
+    "44 Stuart St, Manly NSW 2095",
+};
+
+foreach(var addr in addresses)
+{
+    var rx = await querySearcher.Search(new SearchQueryRequest
+    {
+        queryString = addr,
+        CountryCodeSearch = "AU",
+        BreakdownAddressElements = true,
+        ShowAlternativeNames = true,
+        ShowExtraTags = true
+    });
+    Console.WriteLine(addr);
+    Console.WriteLine(rx[0].Latitude);
+    Console.WriteLine(rx[0].Longitude);
+    Console.WriteLine();
+}

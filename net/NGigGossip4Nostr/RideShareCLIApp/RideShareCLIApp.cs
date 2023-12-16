@@ -89,8 +89,6 @@ public partial class RideShareCLIApp
     {
         [Display(Name = "Exit App")]
         Exit,
-        [Display(Name = "Mine some blocks")]
-        MineBlocks,
         [Display(Name = "Top up")]
         TopUp,
         [Display(Name = "Enter Driver Mode")]
@@ -154,12 +152,12 @@ public partial class RideShareCLIApp
                 if (cmd == CommandEnum.Exit)
                     break;
             }
-            else if(cmd == CommandEnum.TopUp)
+            else if (cmd == CommandEnum.TopUp)
             {
                 var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.LNDWalletClient.GetBalanceAsync(gigGossipNode.MakeWalletAuthToken()));
                 AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
                 var topUpAmount = Prompt.Input<int>("How much top up");
-                if(topUpAmount > 0)
+                if (topUpAmount > 0)
                 {
                     var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await gigGossipNode.LNDWalletClient.NewAddressAsync(gigGossipNode.MakeWalletAuthToken()));
                     gigGossipNode.LNDWalletClient.TopUpAndMine6BlocksAsync(newBitcoinAddressOfCustomer, topUpAmount);
@@ -177,8 +175,8 @@ public partial class RideShareCLIApp
 
                 receivedBroadcastsForPayloadId = new();
                 receivedBroadcastsFees = new();
-                receivedBroadcastsTable = new DataTable(new string[] { "Sent", "JobId", "NoBrd", "From","Time","To", "MyFee" });
-                receivedBroadcastsTable.OnKeyPressed+= async (o,e)=>
+                receivedBroadcastsTable = new DataTable(new string[] { "Sent", "JobId", "NoBrd", "From", "Time", "To", "MyFee" });
+                receivedBroadcastsTable.OnKeyPressed += async (o, e) =>
                     {
                         var me = (DataTable)o;
                         if (e.Key == ConsoleKey.Enter)
@@ -187,19 +185,10 @@ public partial class RideShareCLIApp
                             {
                                 await AcceptRideAsync(me.SelectedRowIdx);
                                 me.UpdateCell(me.SelectedRowIdx, 0, "sent");
-                                me.InactivateRow(me.SelectedRowIdx,false);
+                                me.InactivateRow(me.SelectedRowIdx, false);
                             }
                         }
                         if (e.Key == ConsoleKey.LeftArrow)
-                        {
-                            if (me.GetCell(me.SelectedRowIdx,0) != "sent")
-                            {
-                                var id = Guid.Parse(me.GetCell(me.SelectedRowIdx, 1));
-                                receivedBroadcastsFees[id] -= 1;
-                                me.UpdateCell(me.SelectedRowIdx, 6, receivedBroadcastsFees[id].ToString());
-                            }
-                        }
-                        if(e.Key == ConsoleKey.RightArrow)
                         {
                             if (me.GetCell(me.SelectedRowIdx, 0) != "sent")
                             {
@@ -208,7 +197,16 @@ public partial class RideShareCLIApp
                                 me.UpdateCell(me.SelectedRowIdx, 6, receivedBroadcastsFees[id].ToString());
                             }
                         }
-                        if(e.Key== ConsoleKey.Escape)
+                        if (e.Key == ConsoleKey.RightArrow)
+                        {
+                            if (me.GetCell(me.SelectedRowIdx, 0) != "sent")
+                            {
+                                var id = Guid.Parse(me.GetCell(me.SelectedRowIdx, 1));
+                                receivedBroadcastsFees[id] -= 1;
+                                me.UpdateCell(me.SelectedRowIdx, 6, receivedBroadcastsFees[id].ToString());
+                            }
+                        }
+                        if (e.Key == ConsoleKey.Escape)
                         {
                             me.Exit();
                         }
@@ -218,18 +216,22 @@ public partial class RideShareCLIApp
             }
             else if (cmd == CommandEnum.RequestRide)
             {
-                if(ActiveSignedRequestPayloadId!=Guid.Empty)
+                if (ActiveSignedRequestPayloadId != Guid.Empty)
                 {
                     AnsiConsole.MarkupLine("[red]Ride in progress[/]");
                 }
-                var fromLocation = new GeoLocation(Random.Shared.NextDouble(), Random.Shared.NextDouble());
-                var toLocation = new GeoLocation(Random.Shared.NextDouble(), Random.Shared.NextDouble());
+                var keys = new List<string>(MockData.FakeAddresses.Keys);
+                var fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+                var toAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+
+                var fromLocation = new GeoLocation(MockData.FakeAddresses[fromAddress].Latitude, MockData.FakeAddresses[fromAddress].Longitude);
+                var toLocation = new GeoLocation(MockData.FakeAddresses[toAddress].Latitude, MockData.FakeAddresses[toAddress].Longitude);
                 int waitingTimeForPickupMinutes = 12;
 
                 receivedResponseIdxesForPaymentHashes = new();
                 receivedResponsesForPaymentHashes = new();
                 driverIdxesForPaymentHashes = new();
-                receivedResponsesTable = new DataTable(new string[] { "PaymentHash", "DriverId", "NoResp", "From", "Time", "To", "DriverFee","NetworkFee" });
+                receivedResponsesTable = new DataTable(new string[] { "PaymentHash", "DriverId", "NoResp", "From", "Time", "To", "DriverFee", "NetworkFee" });
                 receivedResponsesTable.OnKeyPressed += async (o, e) =>
                 {
                     var me = (DataTable)o;
@@ -243,7 +245,7 @@ public partial class RideShareCLIApp
                         me.Exit();
                     }
                 };
-                requestedRide = await RequestRide(fromLocation, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes);
+                requestedRide = await RequestRide(fromAddress, fromLocation, toAddress, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes);
                 receivedResponsesTable.Start();
             }
         }
