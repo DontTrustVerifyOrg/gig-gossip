@@ -5,6 +5,7 @@ using GigLNDWalletAPI.Config;
 using Grpc.Core;
 using LNDClient;
 using LNDWallet;
+using NBitcoin.RPC;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,6 +55,7 @@ IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
 var config = GetConfigurationRoot(".giggossip", "wallet.conf");
 var walletSettings = config.GetSection("wallet").Get<WalletSettings>();
 var lndConf = config.GetSection("lnd").Get<LndSettings>();
+BitcoinSettings? btcConf = walletSettings.AllowLocalBitcoinNode ? config.GetSection("bitcoin").Get<BitcoinSettings>() : null;
 //var walletSettings = builder.Configuration.GetSection(WalletConfig.SectionName).Get<WalletConfig>();
 //var lndConf = builder.Configuration.GetSection(LndConfig.SectionName).Get<LndConfig>();
 
@@ -93,6 +95,36 @@ LNDChannelManager channelManager = new LNDChannelManager(
     lndConf.MaxSatoshisPerChannel,
     walletSettings.EstimatedTxFee);
 channelManager.Start();
+
+if (btcConf != null)
+    Singlethon.BitcoinNodeUtils = new BitcoinNodeUtils(btcConf.NewRPCClient(), btcConf.GetNetwork(), btcConf.WalletName);
+
+app.MapGet("/topupandmine6blocks", (string bitcoinAddr, long satoshis) =>
+{
+    try
+    {
+        if (Singlethon.BitcoinNodeUtils != null)
+        {
+            if (Singlethon.BitcoinNodeUtils.IsRegTest)
+                Singlethon.BitcoinNodeUtils.TopUpAndMine6Blocks(bitcoinAddr, satoshis);
+
+        }
+        return new Result();
+    }
+    catch (LNDWalletException ex)
+    {
+        return new Result(ex.ErrorCode);
+    }
+})
+.WithName("TopUpAndMine6Blocks")
+.WithSummary("Sends satoshis from local BTC wallet to the address (Regtest only), then mines 6 blocks.")
+.WithDescription("Sends satoshis from local BTC wallet to the address (Regtest only), then mines 6 blocks.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "bitcoin address";
+    g.Parameters[1].Description = "number of satoshis";
+    return g;
+});
 
 app.MapGet("/gettoken", (string pubkey) =>
 {
@@ -410,6 +442,7 @@ public class WalletSettings
     public long SendPaymentTxFee { get; set; }
     public long FeeLimit { get; set; }
     public long EstimatedTxFee { get; set; }
+    public bool AllowLocalBitcoinNode { get; set; }
 }
 
 public class LndSettings : LND.NodeSettings
@@ -421,4 +454,29 @@ public class LndSettings : LND.NodeSettings
     {
         return (from s in JsonArray.Parse(FriendNodes).AsArray() select s.GetValue<string>()).ToList();
     }
+}
+
+public class BitcoinSettings
+{
+    public required string AuthenticationString { get; set; }
+    public required string HostOrUri { get; set; }
+    public required string Network { get; set; }
+    public required string WalletName { get; set; }
+
+    public NBitcoin.Network GetNetwork()
+    {
+        if (Network.ToLower() == "main")
+            return NBitcoin.Network.Main;
+        if (Network.ToLower() == "testnet")
+            return NBitcoin.Network.TestNet;
+        if (Network.ToLower() == "regtest")
+            return NBitcoin.Network.RegTest;
+        throw new NotImplementedException();
+    }
+
+    public RPCClient NewRPCClient()
+    {
+        return new RPCClient(AuthenticationString, HostOrUri, GetNetwork());
+    }
+
 }

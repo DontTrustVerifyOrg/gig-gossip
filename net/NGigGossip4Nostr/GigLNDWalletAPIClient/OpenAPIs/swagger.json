@@ -5,6 +5,51 @@
     "version": "1.0"
   },
   "paths": {
+    "/topupandmine6blocks": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Sends satoshis from local BTC wallet to the address (Regtest only), then mines 6 blocks.",
+        "description": "Sends satoshis from local BTC wallet to the address (Regtest only), then mines 6 blocks.",
+        "operationId": "TopUpAndMine6Blocks",
+        "parameters": [
+          {
+            "name": "bitcoinAddr",
+            "in": "query",
+            "description": "bitcoin address",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "satoshis",
+            "in": "query",
+            "description": "number of satoshis",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/gettoken": {
       "get": {
         "tags": [
@@ -706,7 +751,8 @@
           2,
           3,
           4,
-          5
+          5,
+          6
         ],
         "type": "integer",
         "format": "int32"

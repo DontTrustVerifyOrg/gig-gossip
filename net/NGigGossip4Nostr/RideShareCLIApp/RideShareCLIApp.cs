@@ -154,35 +154,15 @@ public partial class RideShareCLIApp
                 if (cmd == CommandEnum.Exit)
                     break;
             }
-            else if(cmd == CommandEnum.MineBlocks)
-            {
-                var bitcoinClient = settings.BitcoinSettings.NewRPCClient();
-
-                // load bitcoin node wallet
-                RPCClient? bitcoinWalletClient;
-                try
-                {
-                    bitcoinWalletClient = bitcoinClient.LoadWallet(settings.BitcoinSettings.WalletName); ;
-                }
-                catch (RPCException exception) when (exception.RPCCode == RPCErrorCode.RPC_WALLET_ALREADY_LOADED)
-                {
-                    bitcoinWalletClient = bitcoinClient.SetWalletContext(settings.BitcoinSettings.WalletName);
-                }
-
-                var numbl = Prompt.Input<int>("How many blocks?");
-                bitcoinWalletClient.Generate(numbl); 
-            }
             else if(cmd == CommandEnum.TopUp)
             {
-                var bitcoinClient = settings.BitcoinSettings.NewRPCClient();
-
                 var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.LNDWalletClient.GetBalanceAsync(gigGossipNode.MakeWalletAuthToken()));
                 AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
                 var topUpAmount = Prompt.Input<int>("How much top up");
                 if(topUpAmount > 0)
                 {
                     var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await gigGossipNode.LNDWalletClient.NewAddressAsync(gigGossipNode.MakeWalletAuthToken()));
-                    bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, settings.BitcoinSettings.GetNetwork()), new NBitcoin.Money(topUpAmount));
+                    gigGossipNode.LNDWalletClient.TopUpAndMine6BlocksAsync(newBitcoinAddressOfCustomer, topUpAmount);
                 }
             }
             else if (cmd == CommandEnum.DriverMode)
