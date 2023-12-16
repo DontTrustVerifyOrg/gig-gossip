@@ -21,7 +21,6 @@ public partial class RideShareCLIApp
     Dictionary<Guid, long> feesPerBroadcastId = new();
     
     Guid ActiveSignedRequestPayloadId = Guid.Empty;
-    bool riderInTheCar;
 
     private async void GigGossipNodeEventSource_OnAcceptBroadcast(object? sender, AcceptBroadcastEventArgs e)
     {
@@ -130,7 +129,6 @@ public partial class RideShareCLIApp
 
     private async Task DriverJourneyAsync(Guid requestPayloadId)
     {
-        riderInTheCar = false;
         var pubkey = directPubkeys[requestPayloadId];
         for (int i =5;i>0;i--)
         {
@@ -145,9 +143,9 @@ public partial class RideShareCLIApp
             Thread.Sleep(1000);
         }
         AnsiConsole.MarkupLine("I have [orange1]arrived[/]");
-        while (!riderInTheCar)
+        for (int i = 5; i > 0; i--)
         {
-            AnsiConsole.MarkupLine("I am [orange1]waiting[/] for rider");
+            AnsiConsole.MarkupLine($"({i}) I am [orange1]waiting[/] for rider");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 SignedRequestPayloadId = requestPayloadId,
@@ -210,10 +208,6 @@ public partial class RideShareCLIApp
         {
             var pubkey = directPubkeys[locationFrame.SignedRequestPayloadId];
             AnsiConsole.WriteLine("rider location:" + senderPublicKey + "|" + locationFrame.RideState.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
-            if (locationFrame.RideState == RideState.RiderPickedUp)
-            {
-                riderInTheCar = true;
-            }
         }
     }
 }
