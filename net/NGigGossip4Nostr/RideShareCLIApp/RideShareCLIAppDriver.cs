@@ -143,7 +143,7 @@ public partial class RideShareCLIApp
 
         var requestPayloadId = detparams.SignedRequestPayloadId;
         var pubkey = directPubkeys[requestPayloadId];
-        foreach (var (idx, location) in GeoSteps(myStartLocation, detparams.FromLocation, 5))
+        foreach (var (idx, location) in GeoSteps(myStartLocation, detparams.FromLocation, 15))
         {
             AnsiConsole.MarkupLine($"({idx}) I am [orange1]driving[/] to meet rider");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
@@ -156,7 +156,7 @@ public partial class RideShareCLIApp
             Thread.Sleep(1000);
         }
         AnsiConsole.MarkupLine("I have [orange1]arrived[/]");
-        for (int i = 3; i > 0; i--)
+        for (int i = 10; i > 0; i--)
         {
             AnsiConsole.MarkupLine($"({i}) I am [orange1]waiting[/] for rider");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
@@ -169,7 +169,7 @@ public partial class RideShareCLIApp
             Thread.Sleep(1000);
         }
         AnsiConsole.MarkupLine("Rider [orange1]in the car[/]");
-        foreach(var(idx, location) in GeoSteps(detparams.FromLocation, detparams.ToLocation, 10))
+        foreach(var(idx, location) in GeoSteps(detparams.FromLocation, detparams.ToLocation, 30))
         {
             AnsiConsole.MarkupLine($"({idx}) We are going [orange1]togheter[/]");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
