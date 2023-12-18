@@ -9,6 +9,7 @@ public class RideTopic
     public required string ToGeohash { get; set; }
     public required DateTime PickupAfter { get; set; }
     public required DateTime PickupBefore { get; set; }
+    public required double Distance { get; set; }
 }
 
 [Serializable]
@@ -17,6 +18,7 @@ public class ConnectionReply
     public required string PublicKey { get; set; }
     public required string[] Relays { get; set; }
     public required string Secret { get; set; }
+    public required double PickupDuration { get; set; }
 }
 
 [Serializable]

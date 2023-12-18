@@ -43,6 +43,7 @@ public partial class RideShareCLIApp
                 ToGeohash = toGh,
                 PickupAfter = DateTime.Now,
                 PickupBefore = DateTime.Now.AddMinutes(waitingTimeForPickupMinutes),
+                Distance = fromLocation.Distance(toLocation),
             },
             settings.NodeSettings.SettlerOpenApi,
             settings.NodeSettings.GetRiderProperties());

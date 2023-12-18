@@ -2,6 +2,7 @@
 using CryptoToolkit;
 using GigLNDWalletAPIClient;
 using NBitcoin.Secp256k1;
+using NGeoHash;
 using NGigGossip4Nostr;
 using RideShareFrames;
 using Spectre.Console;
@@ -72,12 +73,17 @@ public partial class RideShareCLIApp
 
         foreach (var e in evs)
         {
+            var taxiTopic = Crypto.DeserializeObject<RideTopic>(
+                e.BroadcastFrame.SignedRequestPayload.Value.Topic);
+
             var reply = new ConnectionReply()
             {
                 PublicKey = e.GigGossipNode.PublicKey,
                 Relays = e.GigGossipNode.NostrRelays,
                 Secret = secret,
+                PickupDuration = GeoHash.Decode(taxiTopic.FromGeohash).Coordinates.Distance(GeoHash.Decode(taxiTopic.ToGeohash).Coordinates),
             };
+
 
             await e.GigGossipNode.AcceptBroadcastAsync(e.PeerPublicKey, e.BroadcastFrame,
                         new AcceptBroadcastResponse()
