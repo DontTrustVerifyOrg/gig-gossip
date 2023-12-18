@@ -111,7 +111,12 @@ namespace NGigGossip4Nostr
 
                             foreach (var inv in invToMon)
                             {
-                                var state = WalletAPIResult.Get<string>(await gigGossipNode.LNDWalletClient.GetInvoiceStateAsync(gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash));
+                                string state = string.Empty;
+                                try
+                                {
+                                    state = WalletAPIResult.Get<string>(await gigGossipNode.LNDWalletClient.GetInvoiceStateAsync(gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash));
+                                }
+                                catch (Exception ex) { Console.WriteLine(ex.Message); }
                                 if (state != inv.InvoiceState)
                                 {
                                     gigGossipNode.OnInvoiceStateChange(state, inv.Data);
