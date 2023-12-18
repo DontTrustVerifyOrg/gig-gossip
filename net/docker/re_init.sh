@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-SERVICES_STARTUP_TIME=60
+SERVICES_STARTUP_TIME=5
 
 
 docker compose down
@@ -29,16 +29,15 @@ sleep $SERVICES_STARTUP_TIME
 printf "Running command: bitcoin-cli createwallet testwallet\n"
 docker exec -it giggossip_bitcoin /work/bitcoin/src/bitcoin-cli -datadir=$BITCOIN_LOCAL_DIR createwallet "testwallet"
 printf "Running command: bitcoin-cli -generate 101\n"
-docker exec -it giggossip_bitcoin /work/bitcoin/src/bitcoin-cli -datadir=$BITCOIN_LOCAL_DIR -generate 10
+docker exec -it giggossip_bitcoin /work/bitcoin/src/bitcoin-cli -datadir=$BITCOIN_LOCAL_DIR -generate 101
 
 
 docker run -it -d --name giggossip_lightning_node_1 -v ./work/locallnd/.lnd:$LND_DIR:Z awazcognitum/gig-gossip-base:0.1 /work/lnd/lnd-debug --lnddir=$LND_DIR
 docker run -it -d --name giggossip_lightning_node_2 -v ./work/locallnd/.lnd2:$LND_DIR:Z awazcognitum/gig-gossip-base:0.1 /work/lnd/lnd-debug --lnddir=$LND_DIR
 docker run -it -d --name giggossip_lightning_node_3 -v ./work/locallnd/.lnd3:$LND_DIR:Z awazcognitum/gig-gossip-base:0.1 /work/lnd/lnd-debug --lnddir=$LND_DIR
+
 printf "Lightning network initialization services...\n"
 sleep $SERVICES_STARTUP_TIME
-
-
 
 printf "\n\nSetup 1st Lightning network node:\n\n"
 docker exec -it giggossip_lightning_node_1 /work/lnd/lncli-debug -n regtest --lnddir=$LND_DIR --rpcserver=localhost:10009 create
