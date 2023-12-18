@@ -51,6 +51,7 @@ public class LocationFrame
 {
     public required Guid SignedRequestPayloadId { get; set; }
     public required GeoLocation Location { get; set; }
+    public required float Direction { get; set; }
     public required string Message { get; set; }
-    public required RideState RideState { get; set; }
+    public required RideState RideStatus { get; set; }
 }

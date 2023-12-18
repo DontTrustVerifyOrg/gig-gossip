@@ -80,8 +80,7 @@ public partial class RideShareCLIApp
             {
                 PublicKey = e.GigGossipNode.PublicKey,
                 Relays = e.GigGossipNode.NostrRelays,
-                Secret = secret,
-                PickupDuration = GeoHash.Decode(taxiTopic.FromGeohash).Coordinates.Distance(GeoHash.Decode(taxiTopic.ToGeohash).Coordinates),
+                Secret = secret
             };
 
 
