@@ -36,7 +36,7 @@ app.UseHsts();
 
 IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
 {
-    var basePath = Environment.GetEnvironmentVariable("GIGGOSSIP_BASEDIR");
+    var basePath = "/Users/vkozar/work/locallnd/.giggossip";
     if (basePath == null)
         basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), defaultFolder);
     foreach (var arg in args)

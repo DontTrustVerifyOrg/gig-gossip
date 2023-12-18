@@ -18,7 +18,6 @@ public class ConnectionReply
     public required string PublicKey { get; set; }
     public required string[] Relays { get; set; }
     public required string Secret { get; set; }
-    public required double PickupDuration { get; set; }
 }
 
 [Serializable]
