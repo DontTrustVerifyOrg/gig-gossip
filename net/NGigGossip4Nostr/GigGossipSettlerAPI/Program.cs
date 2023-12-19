@@ -19,9 +19,6 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    c.IncludeXmlComments(xmlPath);
     c.EnableAnnotations();
 });
 builder.Services.AddSignalR();
@@ -151,12 +148,12 @@ app.MapGet("/gettoken", (string pubkey) =>
     return g;
 });
 
-app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, string value, DateTime validTill) =>
+app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, string value, string secret, DateTime validTill) =>
 {
     try
     {
         Singlethon.Settler.ValidateAuthToken(authToken);
-        Singlethon.Settler.GiveUserProperty(pubkey, name, Convert.FromBase64String(value), validTill);
+        Singlethon.Settler.GiveUserProperty(pubkey, name, Convert.FromBase64String(value), Convert.FromBase64String(secret), validTill);
         return new Result();
     }
     catch (SettlerException ex)
@@ -172,8 +169,34 @@ app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, s
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
     g.Parameters[1].Description = "Public key of the subject.";
     g.Parameters[2].Description = "Name of the property.";
-    g.Parameters[3].Description = "Value of the property.";
-    g.Parameters[4].Description = "Date and time after which the property will not be valid anymore";
+    g.Parameters[3].Description = "Public value of the property.";
+    g.Parameters[4].Description = "Secret value of the property.";
+    g.Parameters[5].Description = "Date and time after which the property will not be valid anymore";
+    return g;
+});
+
+app.MapGet("/saveusertraceproperty", (string authToken, string pubkey, string name, string value) =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.SaveUserTraceProperty(pubkey, name, Convert.FromBase64String(value));
+        return new Result();
+    }
+    catch (SettlerException ex)
+    {
+        return new Result(ex.ErrorCode);
+    }
+})
+.WithName("SaveUserTraceProperty")
+.WithSummary("Saves a trace to the subject.")
+.WithDescription("Saves a trace, Only authorised users can grant the property.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Public key of the subject.";
+    g.Parameters[2].Description = "Name of the property.";
+    g.Parameters[3].Description = "Public value of the property.";
     return g;
 });
 
@@ -207,10 +230,10 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
     try
     {
         Singlethon.Settler.ValidateAuthToken(authToken);
-        Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
+        Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes("valid"), Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
         return new Result<int>(-1);
     }
-    catch(SettlerException ex)
+    catch (SettlerException ex)
     {
         return new Result<int>(ex.ErrorCode);
     }

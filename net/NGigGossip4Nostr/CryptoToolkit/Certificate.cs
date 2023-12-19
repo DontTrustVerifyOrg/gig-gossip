@@ -22,6 +22,13 @@ public interface ICertificationAuthorityAccessor
     public Task<bool> IsRevokedAsync(Uri serviceUri, Guid id);
 }
 
+[Serializable]
+public class PropertyValue
+{
+    public required string Name { get; set; }
+    public required byte[] Value { get; set; }
+}
+
 /// <summary>
 /// A Digital Certificate issued by Certification Authority for the Subject
 /// </summary>
@@ -46,7 +53,7 @@ public class Certificate<T> : SignableObject
    /// <summary>
    /// Collection of certified properties of the Subject
    /// </summary>
-   public required string[] Properties { get; set; }
+   public required PropertyValue[] Properties { get; set; }
 
    /// <summary>
    /// Date and Time when the Certificate will no longer be valid
@@ -58,6 +65,9 @@ public class Certificate<T> : SignableObject
    /// </summary>
    public required DateTime NotValidBefore { get; set; }
 
+   /// <summary>
+   /// The value managed by the certificate
+   /// </summary>
    public required T Value { get; set; }
 
    /// <summary>
@@ -123,7 +133,7 @@ public class CertificationAuthority
    /// <param name="notValidAfter">The date after which the certificate is not valid.</param>
    /// <param name="notValidBefore">The date before which the certificate is not valid.</param>
    /// <returns>A new certificate signed and issued by the Certification Authority for the Subject.</returns>
-   protected Certificate<T> IssueCertificate<T>(string kind, Guid id, string[] properties, DateTime notValidAfter, DateTime notValidBefore, T value)
+   protected Certificate<T> IssueCertificate<T>(string kind, Guid id, PropertyValue[] properties, DateTime notValidAfter, DateTime notValidBefore, T value)
    {
        var certificate = new Certificate<T>
        {

@@ -11,7 +11,6 @@ namespace RideShareCLIApp
 
         public NodeSettings NodeSettings;
         public SettlerAdminSettings SettlerAdminSettings;
-        public BitcoinSettings BitcoinSettings;
         public ApplicationSettings ApplicationSettings;
 
         public Settings(string id, IConfigurationRoot config)
@@ -19,7 +18,6 @@ namespace RideShareCLIApp
             this.Id = id;
             NodeSettings = config.GetSection("node").Get<NodeSettings>();
             SettlerAdminSettings = config.GetSection("settleradmin").Get<SettlerAdminSettings>();
-            BitcoinSettings = config.GetSection("bitcoin").Get<BitcoinSettings>();
             ApplicationSettings = config.GetSection("application").Get<ApplicationSettings>();
         }
     }
@@ -70,30 +68,4 @@ public class NodeSettings
     {
         return new GigLNDWalletAPIClient.swaggerClient(GigWalletOpenApi.AbsoluteUri, httpClient);
     }
-}
-
-
-public class BitcoinSettings
-{
-    public required string AuthenticationString { get; set; }
-    public required string HostOrUri { get; set; }
-    public required string Network { get; set; }
-    public required string WalletName { get; set; }
-
-    public NBitcoin.Network GetNetwork()
-    {
-        if (Network.ToLower() == "main")
-            return NBitcoin.Network.Main;
-        if (Network.ToLower() == "testnet")
-            return NBitcoin.Network.TestNet;
-        if (Network.ToLower() == "regtest")
-            return NBitcoin.Network.RegTest;
-        throw new NotImplementedException();
-    }
-
-    public RPCClient NewRPCClient()
-    {
-        return new RPCClient(AuthenticationString, HostOrUri, GetNetwork());
-    }
-
 }

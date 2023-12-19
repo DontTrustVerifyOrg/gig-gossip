@@ -156,7 +156,8 @@ public partial class RideShareCLIApp
                 SignedRequestPayloadId = requestPayloadId,
                 Location = location,
                 Message = "I am going",
-                RideState = RideState.Started,
+                RideStatus = RideState.Started,
+                Direction = 0,
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
@@ -169,7 +170,8 @@ public partial class RideShareCLIApp
                 SignedRequestPayloadId = requestPayloadId,
                 Location = detparams.FromLocation,
                 Message = "I am waiting",
-                RideState = RideState.DriverWaitingForRider,
+                RideStatus = RideState.DriverWaitingForRider,
+                Direction = 0,
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
@@ -182,7 +184,8 @@ public partial class RideShareCLIApp
                 SignedRequestPayloadId = requestPayloadId,
                 Location = location,
                 Message = "We are driving",
-                RideState = RideState.RiderPickedUp,
+                RideStatus = RideState.RiderPickedUp,
+                Direction = 0,
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
@@ -192,7 +195,8 @@ public partial class RideShareCLIApp
             SignedRequestPayloadId = requestPayloadId,
             Location = detparams.ToLocation,
             Message = "Thank you",
-            RideState = RideState.RiderDroppedOff,
+            RideStatus = RideState.RiderDroppedOff,
+            Direction = 0,
         }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
         AnsiConsole.MarkupLine("Good [orange1]bye[/]");
         ActiveSignedRequestPayloadId = Guid.Empty;
@@ -225,7 +229,7 @@ public partial class RideShareCLIApp
         if (locationFrame.SignedRequestPayloadId == ActiveSignedRequestPayloadId)
         {
             var pubkey = directPubkeys[locationFrame.SignedRequestPayloadId];
-            AnsiConsole.WriteLine("rider location:" + senderPublicKey + "|" + locationFrame.RideState.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
+            AnsiConsole.WriteLine("rider location:" + senderPublicKey + "|" + locationFrame.RideStatus.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
         }
     }
 }

@@ -29,9 +29,14 @@ public class UserProperty
     public required string Name { get; set; }
 
     /// <summary>
-    /// The value of the property.
+    /// The public value of the property.
     /// </summary>
     public required byte[] Value { get; set; }
+
+    /// <summary>
+    /// The secret value of the property.
+    /// </summary>
+    public required byte[] Secret { get; set; }
 
     /// <summary>
     /// The validity till date of the property.
@@ -47,7 +52,7 @@ public class UserProperty
 /// <summary>
 /// Certificate to property (1 to many) relationship.
 /// </summary>
-[PrimaryKey(nameof(Kind), nameof(CertificateId))]
+[PrimaryKey(nameof(Kind), nameof(CertificateId), nameof(PropertyId))]
 public class CertificateProperty
 {
     /// <summary>
@@ -65,6 +70,7 @@ public class CertificateProperty
     /// <summary>
     /// The unique identifier of the property.
     /// </summary>
+    [Column(Order = 3)]
     public required Guid PropertyId { get; set; }
 }
 
@@ -132,6 +138,31 @@ public class InvoicePreimage
     /// Represents whether the preimage is revealed and can be returned to the subject.
     /// </summary>
     public required bool IsRevealed { get; set; }
+}
+
+/// <summary>
+/// User traces.
+/// </summary>
+[PrimaryKey(nameof(PublicKey), nameof(Name))]
+public class UserTraceProperty
+{
+    /// <summary>
+    /// The public key of the subject.
+    /// </summary>
+    [Column(Order = 1)]
+    public required string PublicKey { get; set; }
+
+    /// <summary>
+    /// The name of the property.
+    /// </summary>
+    [Column(Order = 2)]
+    public required string Name { get; set; }
+
+
+    /// <summary>
+    /// The public value of the property.
+    /// </summary>
+    public required byte[] Value { get; set; }
 }
 
 /// <summary>
@@ -268,6 +299,11 @@ public class SettlerContext : DbContext
     public DbSet<UserCertificate> UserCertificates { get; set; }
 
     /// <summary>
+    /// UserCertificates table.
+    /// </summary>
+    public DbSet<UserTraceProperty> UserTraceProperties { get; set; }
+
+    /// <summary>
     /// Configures the context.
     /// </summary>
     /// <param name="optionsBuilder"></param>
@@ -293,6 +329,8 @@ public class SettlerContext : DbContext
             return this.CertificateProperties;
         else if (obj is UserCertificate)
             return this.UserCertificates;
+        else if (obj is UserTraceProperty)
+            return this.UserTraceProperties;
         throw new InvalidOperationException();
     }
 

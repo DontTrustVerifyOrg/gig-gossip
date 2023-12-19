@@ -91,6 +91,8 @@ public partial class RideShareCLIApp
         Exit,
         [Display(Name = "Top up")]
         TopUp,
+        [Display(Name = "Setup My Info")]
+        SetupMyInfo,
         [Display(Name = "Enter Driver Mode")]
         DriverMode,
         [Display(Name = "Request Ride")]
@@ -162,6 +164,27 @@ public partial class RideShareCLIApp
                     var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await gigGossipNode.LNDWalletClient.NewAddressAsync(gigGossipNode.MakeWalletAuthToken()));
                     gigGossipNode.LNDWalletClient.TopUpAndMine6BlocksAsync(newBitcoinAddressOfCustomer, topUpAmount);
                 }
+            }
+            else if (cmd == CommandEnum.SetupMyInfo)
+            {
+                var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.SettlerAdminSettings.SettlerOpenApi);
+                var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.SettlerAdminSettings.SettlerOpenApi);
+                string name = Prompt.Input<string>("Your Name");
+                SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
+                    (await GetPublicKeyAsync()).AsHex(), "Name",
+                    Convert.ToBase64String(Encoding.Default.GetBytes(name)),
+                    Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToLongDateString()));
+
+                byte[] photo = new byte[] { };
+                SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
+                    (await GetPublicKeyAsync()).AsHex(), "Photo",
+                    Convert.ToBase64String(photo),
+                    Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToLongDateString()));
+
+                string trace = GeoHash.Encode(0, 0, 7);
+                SettlerAPIResult.Check(await settlerClient.SaveUserTracePropertyAsync(authToken,
+                    (await GetPublicKeyAsync()).AsHex(), "Geohash",
+                    Convert.ToBase64String(Encoding.Default.GetBytes(trace))));
             }
             else if (cmd == CommandEnum.DriverMode)
             {

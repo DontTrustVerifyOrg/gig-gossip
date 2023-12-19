@@ -148,8 +148,9 @@ public partial class RideShareCLIApp
                 SignedRequestPayloadId = requestPayloadId,
                 Location = fromLocation,
                 Message = "I am waiting",
-                RideState = RideState.Started
-            }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
+                RideStatus = RideState.Started,
+                Direction = 0,
+            }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout) ;
             Thread.Sleep(1000);
         }
         while (!riderDroppedOff)
@@ -160,7 +161,8 @@ public partial class RideShareCLIApp
                 SignedRequestPayloadId = requestPayloadId,
                 Location = lastDriverLocation,
                 Message = "I am in the car",
-                RideState = RideState.RiderPickedUp
+                RideStatus = RideState.RiderPickedUp,
+                Direction = 0,
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
@@ -176,12 +178,12 @@ public partial class RideShareCLIApp
             return;
         if (locationFrame.SignedRequestPayloadId == requestedRide.SignedRequestPayload.Id)
         {
-            AnsiConsole.WriteLine("driver location:" + senderPublicKey + "|" + locationFrame.RideState.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
-            if (locationFrame.RideState == RideState.DriverWaitingForRider)
+            AnsiConsole.WriteLine("driver location:" + senderPublicKey + "|" + locationFrame.RideStatus.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
+            if (locationFrame.RideStatus == RideState.DriverWaitingForRider)
             {
                 driverApproached = true;
             }
-            else if (locationFrame.RideState == RideState.RiderDroppedOff)
+            else if (locationFrame.RideStatus == RideState.RiderDroppedOff)
             {
                 riderDroppedOff = true;
             }

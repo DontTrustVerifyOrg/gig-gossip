@@ -62,10 +62,10 @@ namespace GigGossipSettlerAPI.Controllers
         /// <param name="value">Value of the property.</param>
         /// <param name="validTill">Date and time after which the property will not be valid anymore.</param>
         [HttpGet("giveuserproperty")]
-        public void GiveUserProperty(string authToken, string pubkey, string name, string value, DateTime validTill)
+        public void GiveUserProperty(string authToken, string pubkey, string name, string value, string secret, DateTime validTill)
         {
             Singlethon.Settler.ValidateAuthToken(authToken);
-            Singlethon.Settler.GiveUserProperty(pubkey, name, Convert.FromBase64String(value), validTill);
+            Singlethon.Settler.GiveUserProperty(pubkey, name, Convert.FromBase64String(value), Convert.FromBase64String(secret), validTill);
         }
 
         /// <summary>
@@ -106,7 +106,7 @@ namespace GigGossipSettlerAPI.Controllers
         public int SubmitChannelSecret(string authToken, string pubkey, string name, string method, string value, string secret)
         {
             Singlethon.Settler.ValidateAuthToken(authToken);
-            Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
+            Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes("valid"), Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
             return -1;
         }
 

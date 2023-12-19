@@ -9,6 +9,7 @@ using NGigGossip4Nostr;
 using Quartz;
 using Quartz.Impl;
 using System.Diagnostics;
+using System.Linq;
 
 namespace GigGossipSettler;
 
@@ -141,8 +142,26 @@ public class Settler : CertificationAuthority
         return tk.PublicKey;
     }
 
+    public void SaveUserTraceProperty(string pubkey, string name, byte[] value)
+    {
+        if (
+            (from u in settlerContext.Value.UserTraceProperties
+             where u.Name == name && u.PublicKey == pubkey
+             select u)
+                .ExecuteUpdate(i => i
+                .SetProperty(a => a.Value, a => value))
+             == 0)
+        {
+            settlerContext.Value.AddObject(new UserTraceProperty
+            {
+                PublicKey = pubkey,
+                Name = name,
+                Value = value,
+            });
+        }
+    }
 
-    public void GiveUserProperty(string pubkey, string name, byte[] value, DateTime validTill)
+    public void GiveUserProperty(string pubkey, string name, byte[] value, byte[] secret, DateTime validTill)
     {
         if (
             (from u in settlerContext.Value.UserProperties
@@ -150,6 +169,7 @@ public class Settler : CertificationAuthority
              select u)
                 .ExecuteUpdate(i => i
                 .SetProperty(a => a.Value, a => value)
+                .SetProperty(a => a.Secret, a => secret)
                 .SetProperty(a => a.IsRevoked, a => false)
                 .SetProperty(a => a.ValidTill, a => validTill))
              == 0)
@@ -161,7 +181,8 @@ public class Settler : CertificationAuthority
                 Name = name,
                 PublicKey = pubkey,
                 ValidTill = validTill,
-                Value = value
+                Value = value,
+                Secret = secret,
             });
         }
     }
@@ -173,25 +194,21 @@ public class Settler : CertificationAuthority
         {
             up.IsRevoked = true;
             settlerContext.Value.SaveObject(up);
-            var certids = (from cp in settlerContext.Value.CertificateProperties where cp.PropertyId == up.PropertyId select cp.CertificateId).ToArray();
-            var certs = (from c in settlerContext.Value.UserCertificates where certids.Contains(c.CertificateId) select c).ToArray();
-            foreach (var c in certs)
-            {
-                c.IsRevoked = true;
-                settlerContext.Value.SaveObject(c);
-            }
         }
     }
 
     private Certificate<T> IssueCertificate<T>(string kind, Guid id, string pubkey, string[] properties, T data)
     {
-        var props = (from u in settlerContext.Value.UserProperties where u.PublicKey == pubkey && !u.IsRevoked && u.ValidTill >= DateTime.UtcNow && properties.Contains(u.Name) select u).ToArray();
-        var hasprops = new HashSet<string>(properties);
-        if (!hasprops.SetEquals((from p in props select p.Name)))
+        var props =  (from u in settlerContext.Value.UserProperties where u.PublicKey == pubkey && !u.IsRevoked && u.ValidTill >= DateTime.UtcNow && properties.Contains(u.Name) select u).ToArray();
+        var tracs = (from u in settlerContext.Value.UserTraceProperties where u.PublicKey == pubkey && properties.Contains(u.Name) select u).ToArray();
+        var prp = (from p in props select new PropertyValue { Name = p.Name, Value = p.Value }).ToList();
+        var trp = (from p in tracs select new PropertyValue { Name = p.Name, Value = p.Value }).ToList();
+        prp.AddRange(trp);
+
+        if (!new HashSet<string>(properties).IsSubsetOf(new HashSet<string>(from p in prp select p.Name)))
             throw new PropertyNotGrantedException();
         var minDate = (from p in props select p.ValidTill).Min();
-        var prp = (from p in props select p.Name).ToArray();
-        var cert = base.IssueCertificate<T>(kind, id, prp, minDate, DateTime.UtcNow, data);
+        var cert = base.IssueCertificate<T>(kind, id, prp.ToArray(), minDate, DateTime.UtcNow, data);
         var certProps = (from p in props select new CertificateProperty() { Kind = kind, CertificateId = cert.Id , PropertyId = p.PropertyId }).ToArray();
         settlerContext.Value.AddObjectRange(certProps);
         settlerContext.Value.AddObject(new UserCertificate() { Kind = kind, PublicKey = pubkey, CertificateId = cert.Id, IsRevoked = false });
@@ -259,7 +276,7 @@ public class Settler : CertificationAuthority
             return symkey.SymmetricKey;
     }
 
-    public async Task<SettlementTrust> GenerateSettlementTrustAsync(string replierpubkey, string[] replierproperties, byte[] message, string replyInvoice, Certificate<RequestPayloadValue> signedRequestPayload)
+    public async Task<SettlementTrust> GenerateSettlementTrustAsync(string replierpubkey, string[] replierproperties,byte[] message, string replyInvoice, Certificate<RequestPayloadValue> signedRequestPayload)
     {
         var decodedInv = WalletAPIResult.Get<PayReq>(await lndWalletClient.DecodeInvoiceAsync(MakeAuthToken(), replyInvoice));
         var invPaymentHash = decodedInv.PaymentHash;
