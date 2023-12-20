@@ -110,7 +110,7 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnInvoiceCancelled(GigGossipNode me, InvoiceData iac)
     {
-        _gigGossipNodeEventSource.FireOnInvoiceAccepted(new InvoiceAcceptedEventArgs
+        _gigGossipNodeEventSource.FireOnInvoiceCancelled(new InvoiceCancelledEventArgs
         {
             GigGossipNode = me,
             InvoiceData = iac

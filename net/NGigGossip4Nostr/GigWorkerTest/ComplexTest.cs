@@ -414,10 +414,9 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                 timer = new Timer(async (o) =>
                 {
                     timer.Change(Timeout.Infinite, Timeout.Infinite);
-                    var new_cnt = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Id).Count();
-                    if (new_cnt == old_cnt)
+                    var resps = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Id);
+                    if (resps.Count == old_cnt)
                     {
-                        var resps = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Id).ToList();
                         resps.Sort((a, b) => (int)(Crypto.DeserializeObject<PayReq>(a.DecodedNetworkInvoice).NumSatoshis - Crypto.DeserializeObject<PayReq>(b.DecodedNetworkInvoice).NumSatoshis));
                         var win = resps[0];
                         var paymentResult = await me.AcceptResponseAsync(
@@ -435,7 +434,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                     }
                     else
                     {
-                        old_cnt = new_cnt;
+                        old_cnt = resps.Count;
                         timer.Change(5000, Timeout.Infinite);
                     }
                 }, null, 5000, Timeout.Infinite);

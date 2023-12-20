@@ -16,6 +16,7 @@ using System.Security.Principal;
 using System;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
+using System.Collections.Concurrent;
 
 namespace LNDWallet;
 
@@ -268,8 +269,7 @@ public class LNDAccountManager
 
     public void SettleInvoice(byte[] preimage)
     {
-        var hash = Crypto.ComputePaymentHash(preimage);
-        var paymentHash = hash.AsHex();
+        var paymentHash = Crypto.ComputePaymentHash(preimage).AsHex();
         var invoice = (from inv in walletContext.Value.Invoices
                               where inv.PaymentHash == paymentHash && inv.IsSelfManaged
                               select inv).FirstOrDefault();
@@ -301,7 +301,6 @@ public class LNDAccountManager
 
     public void CancelInvoice(string paymentHash)
     {
-        var hash = paymentHash.AsBytes();
         var invoice = (from inv in walletContext.Value.Invoices
                        where inv.PaymentHash == paymentHash && inv.IsSelfManaged
                        select inv).FirstOrDefault();
@@ -312,7 +311,7 @@ public class LNDAccountManager
                 throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
             invoice.State = InvoiceState.Cancelled;
             walletContext.Value.SaveObject(invoice);
-
+            eventSource.FireOnInvoiceStateChanged(paymentHash, InvoiceState.Cancelled);
             var selfPayQuery = (from pay in walletContext.Value.Payments
                                 where pay.PaymentHash == paymentHash && pay.IsSelfManaged
                                 select pay);
@@ -397,6 +396,43 @@ public class LNDWalletManager : LNDEventSource
         LND.Connect(conf, pr[1], pr[0]);
     }
 
+    ConcurrentDictionary<string, bool> alreadySubscribed = new();
+
+    void SubscribeSingleInvoice(string paymentHash)
+    {
+        alreadySubscribed.GetOrAdd(paymentHash, (paymentHash) =>
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    var stream = LND.SubscribeSingleInvoice(conf, paymentHash.AsBytes(), cancellationToken: subscribeInvoicesCancallationTokenSource.Token);
+                    while (await stream.ResponseStream.MoveNext(subscribeInvoicesCancallationTokenSource.Token))
+                    {
+                        var inv = stream.ResponseStream.Current;
+                        if (inv.State == Lnrpc.Invoice.Types.InvoiceState.Canceled)
+                        {
+                            (from i in walletContext.Value.Invoices
+                             where i.PaymentHash == inv.RHash.ToArray().AsHex()
+                             && i.State != (InvoiceState)inv.State
+                             select i)
+                                .ExecuteUpdate(
+                                i => i
+                                .SetProperty(a => a.State, a => (InvoiceState)inv.State)
+                                .SetProperty(a => a.Preimage, a => inv.State == Lnrpc.Invoice.Types.InvoiceState.Settled ? inv.RPreimage.ToArray() : a.Preimage));
+                            this.FireOnInvoiceStateChanged(inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
+                        }
+                    }
+                }
+                catch (RpcException e) when (e.Status.StatusCode == StatusCode.Cancelled)
+                {
+                    //                        Trace.TraceInformation("Streaming was cancelled from the client!");
+                }
+            });
+            return true;
+        });
+    }
+
     public void Start()
     {
         var allInvs = new Dictionary<string, Lnrpc.Invoice>(
@@ -413,6 +449,10 @@ public class LNDWalletManager : LNDEventSource
                         .Where(i => i.PaymentHash == inv.PaymentHash)
                         .ExecuteUpdate(i => i
                         .SetProperty(a => a.State, (InvoiceState)myinv.State));
+                }
+                if ((inv.State == InvoiceState.Open) ||( inv.State == InvoiceState.Accepted))
+                {
+                    SubscribeSingleInvoice(inv.PaymentHash);
                 }
             }
         }
@@ -433,7 +473,7 @@ public class LNDWalletManager : LNDEventSource
                         .SetProperty(a => a.Status, (PaymentStatus)mypm.Status));
                 }
             }
-        }
+        }        
 
         subscribeInvoicesCancallationTokenSource = new CancellationTokenSource();
         subscribeInvoicesThread = new Thread(async () =>
@@ -453,6 +493,10 @@ public class LNDWalletManager : LNDEventSource
                         .SetProperty(a => a.State, a => (InvoiceState)inv.State)
                         .SetProperty(a => a.Preimage, a => inv.State == Lnrpc.Invoice.Types.InvoiceState.Settled ? inv.RPreimage.ToArray() : a.Preimage));
                     this.FireOnInvoiceStateChanged(inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
+                    if((inv.State== Lnrpc.Invoice.Types.InvoiceState.Open ) || (inv.State== Lnrpc.Invoice.Types.InvoiceState.Accepted))
+                    {
+                        SubscribeSingleInvoice(inv.RHash.ToArray().AsHex());
+                    }
                 }
             }
             catch (RpcException e) when (e.Status.StatusCode == StatusCode.Cancelled)

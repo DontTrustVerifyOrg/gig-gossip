@@ -102,28 +102,26 @@ public partial class RideShareCLIApp
         {
             if (!e.InvoiceData.IsNetworkInvoice)
             {
-                var broadcasts = e.GigGossipNode.GetAcceptedBroadcasts().ToList();
-                var hashes = (from br in broadcasts
-                              select Crypto.DeserializeObject<PayReq>(br.DecodedReplyInvoice).PaymentHash).ToList();
+                var thisBroadcast = e.GigGossipNode.GetAcceptedBroadcastsByReplyInvoiceHash(e.InvoiceData.PaymentHash);
 
-                var hash2br= hashes.Zip(broadcasts, (k, v) => new { k, v }).ToDictionary(x => x.k, x => x.v);
-
-                if (hash2br.ContainsKey(e.InvoiceData.PaymentHash))
+                ActiveSignedRequestPayloadId = thisBroadcast.SignedRequestPayloadId;
+                
+                foreach (var broadcast in e.GigGossipNode.GetAcceptedNotCancelledBroadcasts().ToList())
                 {
-                    ActiveSignedRequestPayloadId = hash2br[e.InvoiceData.PaymentHash].SignedRequestPayloadId;
-
-                    foreach (var bbr in (from hash in hashes where hash != e.InvoiceData.PaymentHash select hash))
-                        WalletAPIResult.Check(await e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), bbr));
-
-                    await directCom.StartAsync(e.GigGossipNode.NostrRelays);
+                    if (broadcast.ReplyInvoiceHash != e.InvoiceData.PaymentHash)
+                    {
+                        WalletAPIResult.Check(await e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), broadcast.ReplyInvoiceHash));
+                        e.GigGossipNode.MarkBroadcastAsCancelled(broadcast);
+                    }
                 }
+
+                await directCom.StartAsync(e.GigGossipNode.NostrRelays);
             }
         }
     }
 
 
-
-    private void GigGossipNodeEventSource_OnCancelBroadcast(object? sender, CancelBroadcastEventArgs e)
+    private async void GigGossipNodeEventSource_OnCancelBroadcast(object? sender, CancelBroadcastEventArgs e)
     {
         if (!receivedBroadcastIdxesForPayloadIds.ContainsKey(e.CancelBroadcastFrame.SignedCancelRequestPayload.Id))
             return;

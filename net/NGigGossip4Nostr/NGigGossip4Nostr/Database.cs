@@ -64,7 +64,7 @@ public class ReplyPayloadRow
     public required byte[] DecodedReplyInvoice { get; set; }
 }
 
-[PrimaryKey(nameof(PublicKey), nameof(SettlerServiceUri), nameof(SignedRequestPayloadId))]
+[PrimaryKey(nameof(PublicKey), nameof(SettlerServiceUri), nameof(SignedRequestPayloadId), nameof(ReplyInvoiceHash))]
 public class AcceptedBroadcastRow
 {
     /// <summary>
@@ -79,6 +79,9 @@ public class AcceptedBroadcastRow
     [Column(Order = 3)]
     public required Guid SignedRequestPayloadId { get; set; }
 
+    [Column(Order = 4)]
+    public required string ReplyInvoiceHash { get; set; }
+
     public required byte[] SignedSettlementPromise { get; set; }
     public required string NetworkInvoice { get; set; }
 
@@ -87,6 +90,8 @@ public class AcceptedBroadcastRow
     public required string ReplyInvoice { get; set; }
     public required byte[] DecodedNetworkInvoice { get; set; }
     public required byte[] DecodedReplyInvoice { get; set; }
+
+    public required bool Cancelled { get; set; }
 }
 
 
