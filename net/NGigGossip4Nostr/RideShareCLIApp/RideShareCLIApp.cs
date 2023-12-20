@@ -181,6 +181,12 @@ public partial class RideShareCLIApp
                     Convert.ToBase64String(photo),
                     Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToLongDateString()));
 
+                string car = Prompt.Input<string>("Your Car");
+                SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
+                    (await GetPublicKeyAsync()).AsHex(), "Car",
+                    Convert.ToBase64String(Encoding.Default.GetBytes(car)),
+                    Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToLongDateString()));
+
                 string trace = GeoHash.Encode(0, 0, 7);
                 SettlerAPIResult.Check(await settlerClient.SaveUserTracePropertyAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Geohash",
