@@ -173,19 +173,19 @@ public partial class RideShareCLIApp
                 SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Name",
                     Convert.ToBase64String(Encoding.Default.GetBytes(name)),
-                    Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToLongDateString()));
+                    Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToString("yyyy-MM-ddTHH:mm:ss")));
 
                 byte[] photo = new byte[] { };
                 SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Photo",
                     Convert.ToBase64String(photo),
-                    Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToLongDateString()));
+                    Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToString("yyyy-MM-ddTHH:mm:ss")));
 
                 string car = Prompt.Input<string>("Your Car");
                 SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Car",
                     Convert.ToBase64String(Encoding.Default.GetBytes(car)),
-                    Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToLongDateString()));
+                    Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToString("yyyy-MM-ddTHH:mm:ss")));
 
                 string trace = GeoHash.Encode(0, 0, 7);
                 SettlerAPIResult.Check(await settlerClient.SaveUserTracePropertyAsync(authToken,
