@@ -231,6 +231,15 @@ public class LNDAccountManager
         var selfInv = selfInvQuery.FirstOrDefault();
         if (selfInv != null) // selfpayment
         {
+            if (selfInv.State == InvoiceState.Settled)
+                throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadySettled);
+
+            if (selfInv.State == InvoiceState.Cancelled)
+                throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadyCancelled);
+
+            if ((selfInv.State == InvoiceState.Accepted))
+                throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadyAccepted);
+
             selfInv.State = selfInv.IsHodlInvoice ? InvoiceState.Accepted : InvoiceState.Settled;
             selfInv.IsSelfManaged = true;
             walletContext.Value.SaveObject(selfInv);
@@ -279,6 +288,15 @@ public class LNDAccountManager
             if (invoice.PublicKey != PublicKey)
                 throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
 
+            if (invoice.State == InvoiceState.Settled)
+                return;
+
+            if (invoice.State == InvoiceState.Cancelled)
+                throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadyCancelled);
+
+            if ((invoice.State != InvoiceState.Accepted))
+                throw new LNDWalletException(LNDWalletErrorCode.InvoiceNotAccepted);
+
             invoice.State = InvoiceState.Settled;
             invoice.Preimage = preimage;
             walletContext.Value.SaveObject(invoice);
@@ -309,6 +327,10 @@ public class LNDAccountManager
         {
             if (invoice.PublicKey != PublicKey)
                 throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
+
+            if (invoice.State == InvoiceState.Settled)
+                throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadySettled);
+
             invoice.State = InvoiceState.Cancelled;
             walletContext.Value.SaveObject(invoice);
             eventSource.FireOnInvoiceStateChanged(paymentHash, InvoiceState.Cancelled);
@@ -356,7 +378,7 @@ public class LNDAccountManager
                                             select (long)inv.Satoshis-(long)inv.TxFee).Sum();
 
             var sendOrLocedPayments = (from pay in walletContext.Value.Payments
-                                            where pay.PublicKey == PublicKey
+                                            where pay.PublicKey == PublicKey && (pay.Status == PaymentStatus.Succeeded || pay.Status == PaymentStatus.InFlight)
                                             select (long)pay.Satoshis + ((long)pay.PaymentFee + (long)pay.TxFee)).Sum();
 
             return channelfunds - alreadypayedout + earnedFromSettledInvoices - sendOrLocedPayments;

@@ -12,6 +12,7 @@ namespace RideShareCLIApp;
 public partial class RideShareCLIApp
 {
     Dictionary<Guid,List<AcceptBroadcastEventArgs>> receivedBroadcastsForPayloadId = new();
+    Dictionary<Guid, PayReq> payReqsForPayloadId = new();
     Dictionary<Guid, int> receivedBroadcastIdxesForPayloadIds = new();
     Dictionary<Guid,long> receivedBroadcastsFees = new();
     Dictionary<Guid, string> directSecrets = new();
@@ -83,8 +84,7 @@ public partial class RideShareCLIApp
                 Secret = secret
             };
 
-
-            await e.GigGossipNode.AcceptBroadcastAsync(e.PeerPublicKey, e.BroadcastFrame,
+            var payReq = await e.GigGossipNode.AcceptBroadcastAsync(e.PeerPublicKey, e.BroadcastFrame,
                         new AcceptBroadcastResponse()
                         {
                             Properties = settings.NodeSettings.GetDriverProperties(),
@@ -92,6 +92,22 @@ public partial class RideShareCLIApp
                             Fee = fee,
                             SettlerServiceUri = settings.NodeSettings.SettlerOpenApi,
                         });
+
+            if (!payReqsForPayloadId.ContainsKey(id))
+                payReqsForPayloadId[id] = payReq;
+        }
+    }
+
+    private async Task CancelRideAsync(int idx)
+    {
+        var id = Guid.Parse(receivedBroadcastsTable.GetCell(idx, 1));
+
+        var evs = receivedBroadcastsForPayloadId[id];
+
+        foreach (var e in evs)
+        {
+            WalletAPIResult.Check(await e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), payReqsForPayloadId[id].PaymentHash));
+            break;
         }
     }
 
@@ -110,9 +126,16 @@ public partial class RideShareCLIApp
                 {
                     if (broadcast.ReplyInvoiceHash != e.InvoiceData.PaymentHash)
                     {
-                        WalletAPIResult.Check(await e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), broadcast.ReplyInvoiceHash));
-                        e.GigGossipNode.MarkBroadcastAsCancelled(broadcast);
+                        try
+                        {
+                            WalletAPIResult.Check(await e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), broadcast.ReplyInvoiceHash));
+                        }
+                        catch (Exception ex)
+                        {
+                            //if already cancelled or settled
+                        }
                     }
+                    e.GigGossipNode.MarkBroadcastAsCancelled(broadcast);
                 }
 
                 await directCom.StartAsync(e.GigGossipNode.NostrRelays);
@@ -146,7 +169,7 @@ public partial class RideShareCLIApp
 
         var requestPayloadId = detparams.SignedRequestPayloadId;
         var pubkey = directPubkeys[requestPayloadId];
-        foreach (var (idx, location) in GeoSteps(myStartLocation, detparams.FromLocation, 15))
+        foreach (var (idx, location) in GeoSteps(myStartLocation, detparams.FromLocation, 5))
         {
             AnsiConsole.MarkupLine($"({idx}) I am [orange1]driving[/] to meet rider");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
@@ -160,7 +183,7 @@ public partial class RideShareCLIApp
             Thread.Sleep(1000);
         }
         AnsiConsole.MarkupLine("I have [orange1]arrived[/]");
-        for (int i = 10; i > 0; i--)
+        for (int i = 3; i > 0; i--)
         {
             AnsiConsole.MarkupLine($"({i}) I am [orange1]waiting[/] for rider");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
@@ -174,7 +197,7 @@ public partial class RideShareCLIApp
             Thread.Sleep(1000);
         }
         AnsiConsole.MarkupLine("Rider [orange1]in the car[/]");
-        foreach(var(idx, location) in GeoSteps(detparams.FromLocation, detparams.ToLocation, 30))
+        foreach(var(idx, location) in GeoSteps(detparams.FromLocation, detparams.ToLocation, 5))
         {
             AnsiConsole.MarkupLine($"({idx}) We are going [orange1]togheter[/]");
             await directCom.SendMessageAsync(pubkey, new LocationFrame

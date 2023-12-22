@@ -66,12 +66,16 @@ public partial class RideShareCLIApp
         gigGossipNodeEventSource.OnNewContact += GigGossipNodeEventSource_OnNewContact;
     }
 
-    private void GigGossipNodeEventSource_OnInvoiceSettled(object? sender, InvoiceSettledEventArgs e)
+    private async void GigGossipNodeEventSource_OnInvoiceSettled(object? sender, InvoiceSettledEventArgs e)
     {
+        AnsiConsole.WriteLine("Invoice settled");
+        await WriteBalance();
     }
 
-    private void GigGossipNodeEventSource_OnPaymentStatusChange(object? sender, PaymentStatusChangeEventArgs e)
+    private async void GigGossipNodeEventSource_OnPaymentStatusChange(object? sender, PaymentStatusChangeEventArgs e)
     {
+        AnsiConsole.WriteLine("Payment "+e.Status);
+        await WriteBalance();
     }
 
     private void GigGossipNodeEventSource_OnNetworkInvoiceCancelled(object? sender, NetworkInvoiceCancelledEventArgs e)
@@ -148,6 +152,7 @@ public partial class RideShareCLIApp
 
         while (true)
         {
+            await WriteBalance();
             var cmd = Prompt.Select<CommandEnum>("Select command");
             if (cmd == CommandEnum.Exit)
             {
@@ -156,8 +161,6 @@ public partial class RideShareCLIApp
             }
             else if (cmd == CommandEnum.TopUp)
             {
-                var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.LNDWalletClient.GetBalanceAsync(gigGossipNode.MakeWalletAuthToken()));
-                AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
                 var topUpAmount = Prompt.Input<int>("How much top up");
                 if (topUpAmount > 0)
                 {
@@ -187,7 +190,8 @@ public partial class RideShareCLIApp
                     Convert.ToBase64String(Encoding.Default.GetBytes(car)),
                     Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToString("yyyy-MM-ddTHH:mm:ss")));
 
-                string trace = GeoHash.Encode(0, 0, 7);
+                var randloc = MockData.RandomLocation();
+                string trace = GeoHash.Encode(randloc.Latitude,randloc.Longitude, 7);
                 SettlerAPIResult.Check(await settlerClient.SaveUserTracePropertyAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Geohash",
                     Convert.ToBase64String(Encoding.Default.GetBytes(trace))));
@@ -214,7 +218,11 @@ public partial class RideShareCLIApp
                             {
                                 await AcceptRideAsync(me.SelectedRowIdx);
                                 me.UpdateCell(me.SelectedRowIdx, 0, "sent");
-                                me.InactivateRow(me.SelectedRowIdx, false);
+                            }
+                            else
+                            {
+                                await CancelRideAsync(me.SelectedRowIdx);
+                                me.UpdateCell(me.SelectedRowIdx, 0, "");
                             }
                         }
                         if (e.Key == ConsoleKey.LeftArrow)
@@ -278,6 +286,12 @@ public partial class RideShareCLIApp
                 receivedResponsesTable.Start();
             }
         }
+    }
+
+    private async Task WriteBalance()
+    {
+        var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.LNDWalletClient.GetBalanceAsync(gigGossipNode.MakeWalletAuthToken()));
+        AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
     }
 
     private async void GigGossipNodeEventSource_OnNetworkInvoiceAccepted(object? sender, NetworkInvoiceAcceptedEventArgs e)

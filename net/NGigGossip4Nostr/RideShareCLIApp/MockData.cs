@@ -14,5 +14,13 @@ public static class MockData
             { "632 King St, Erskineville NSW 2043", new GeoLocation(-33.9052309,151.1808693) },
             { "44 Stuart St, Manly NSW 2095", new GeoLocation(-33.8062998,151.287438) },
         };
+
+    public static GeoLocation RandomLocation()
+    {
+        var i1 = FakeAddresses.Values.ElementAt((int)Random.Shared.NextInt64(FakeAddresses.Count - 1));
+        var i2 = FakeAddresses.Values.ElementAt((int)Random.Shared.NextInt64(FakeAddresses.Count - 1));
+        var p = Random.Shared.NextDouble();
+        return new GeoLocation(i1.Latitude + (i2.Latitude - i1.Latitude) * p, i1.Longitude + (i2.Longitude - i1.Longitude) * p);
+    }
 }
 

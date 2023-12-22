@@ -22,11 +22,23 @@ public enum LNDWalletErrorCode
     /// <summary>Indicates an unknown invoice.</summary>
     UnknownInvoice = 4,
 
+    /// <summary>Indicates an invoice that is already cancelled.</summary>
+    InvoiceAlreadyCancelled = 5,
+
+    /// <summary>Indicates an invoice that is already accepted.</summary>
+    InvoiceAlreadyAccepted = 5,
+
+    /// <summary>Indicates an invoice that is already settled.</summary>
+    InvoiceAlreadySettled = 5,
+
+    /// <summary>Indicates that invoice was not accepted.</summary>
+    InvoiceNotAccepted = 6,
+
     /// <summary>Indicates that the payout has already been completed.</summary>
-    PayoutAlreadyCompleted = 5,
+    PayoutAlreadyCompleted = 7,
 
     /// <summary>Indicates that operation failed</summary>
-    OperationFailed = 6,
+    OperationFailed = 8,
 }
 
 /// <summary>
@@ -40,6 +52,10 @@ public static class Extensions
         "Not enough funds",
         "Unknown payment",
         "Unknown invoice",
+        "Invoice already cancelled",
+        "Invoice already accepted",
+        "Invoice already settled",
+        "Unknown not accepted",
         "Payout is already completed",
         "Operation failed",
     };
