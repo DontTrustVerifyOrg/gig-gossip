@@ -130,17 +130,56 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         this.gigGossipNodeEvents = gigGossipNodeEvents;
         this.HttpMessageHandler = httpMessageHandler;
 
-        _walletToken = WalletAPIResult.Get<Guid>(await LNDWalletClient.GetTokenAsync(this.PublicKey));        
-        await _invoiceStateUpdatesMonitor.StartAsync();
-        await _paymentStatusUpdatesMonitor.StartAsync();
+        try
+        {
+            var token = await LNDWalletClient.GetTokenAsync(this.PublicKey);
+            _walletToken = WalletAPIResult.Get<Guid>(token);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"WalletTokenException: {ex.Message}");
+        }
+
+        try
+        {
+            await _invoiceStateUpdatesMonitor.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"InvoiceStateUpdatesMonitorException: {ex.Message}");
+        }
+
+        try
+        {
+            await _paymentStatusUpdatesMonitor.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"PaymentStatusUpdatesMonitor: {ex.Message}");
+        }
 
         _settlerToken = new();
-        await _settlerMonitor.StartAsync();
 
-        await base.StartAsync(nostrRelays);
+        try
+        {
+            await _settlerMonitor.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"SettlerMonitor: {ex.Message}");
+        }
+
+        try
+        {
+            await base.StartAsync(nostrRelays);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Base: {ex.Message}");
+        }
 
         await SayHelloAsync();
-    }
+        }
 
     public override async Task StopAsync()
     {
