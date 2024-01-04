@@ -226,6 +226,10 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
     {
 
     }
+    public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
+    {
+
+    }
 
     public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
     {
@@ -250,6 +254,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
     public void OnNewContact(GigGossipNode me, string pubkey)
     {
     }
+
 }
 
 public class CustomerGossipNodeEvents : IGigGossipNodeEvents
@@ -285,6 +290,9 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         Trace.TraceInformation(message);
         FlowLogger.NewEvent(me.PublicKey, "OnResponseReady");
         FlowLogger.NewConnected(message, me.PublicKey, "connected");
+    }
+    public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
+    {
     }
 
     public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)

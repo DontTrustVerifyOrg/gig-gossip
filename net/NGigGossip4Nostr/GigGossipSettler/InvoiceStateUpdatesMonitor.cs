@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.WebSockets;
+using System.Security.Cryptography;
 using CryptoToolkit;
 using GigLNDWalletAPIClient;
 using NBitcoin.Secp256k1;
@@ -177,13 +178,17 @@ public class InvoiceStateUpdatesMonitor
                             {
                                 if (gig.Status == GigStatus.Accepted)
                                 {
-                                    await settler.CancelGigAsync(gig);
+                                    await settler.DescheduleGigAsync(gig);
+                                    var status = WalletAPIResult.Status(await settler.lndWalletClient.CancelInvoiceAsync(settler.MakeAuthToken(), gig.NetworkPaymentHash));
+                                    if (status != GigLNDWalletAPIErrorCode.Ok)
+                                        Trace.TraceWarning("CancelInvoice failed");
                                 }
                                 if (gig.Status != GigStatus.Cancelled)
                                 {
                                     gig.Status = GigStatus.Cancelled;
                                     gig.SubStatus = GigSubStatus.None;
                                     settler.settlerContext.Value.SaveObject(gig);
+                                    settler.FireOnGigStatus(gig.SignedRequestPayloadId, gig.ReplierCertificateId, GigStatus.Cancelled);
                                 }
                             }
                         }

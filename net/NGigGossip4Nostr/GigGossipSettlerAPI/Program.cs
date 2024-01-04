@@ -486,6 +486,30 @@ app.MapGet("/managedispute", async (string authToken, Guid gigId, Guid repliperC
     return g;
 });
 
+app.MapGet("/cancelgig", async (string authToken, Guid gigId, Guid repliperCertificateId) =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+        await Singlethon.Settler.CancelGigAsync(gigId, repliperCertificateId);
+        return new Result();
+    }
+    catch (SettlerException ex)
+    {
+        return new Result(ex.ErrorCode);
+    }
+})
+.WithName("CancelGig")
+.WithSummary("Cancels existing gig")
+.WithDescription("Allows opening and closing disputes. After opening, the dispute needs to be solved positively before the HODL invoice timeouts occure. Otherwise all the invoices and payments will be cancelled.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
+    g.Parameters[1].Description = "Gig-job identifier.";
+    g.Parameters[2].Description = "CertificateId of the replier.";
+    return g;
+});
+
 app.MapHub<PreimageRevealHub>("/preimagereveal");
 app.MapHub<GigStatusHub>("/gigstatus");
 

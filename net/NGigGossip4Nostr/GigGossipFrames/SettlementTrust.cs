@@ -23,4 +23,6 @@ public class SettlementTrust
     /// Gets or sets the encrypted reply payload.
     /// </summary>
     public required byte[] EncryptedReplyPayload { get; set; }
+
+    public required Guid ReplierCertificateId { get; set; }
 }

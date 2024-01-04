@@ -57,6 +57,7 @@ public partial class RideShareCLIApp
         gigGossipNodeEventSource.OnNetworkInvoiceAccepted += GigGossipNodeEventSource_OnNetworkInvoiceAccepted;
         gigGossipNodeEventSource.OnNewResponse += GigGossipNodeEventSource_OnNewResponse;
         gigGossipNodeEventSource.OnResponseReady += GigGossipNodeEventSource_OnResponseReady;
+        gigGossipNodeEventSource.OnResponseCancelled += GigGossipNodeEventSource_OnResponseCancelled;
         gigGossipNodeEventSource.OnInvoiceAccepted += GigGossipNodeEventSource_OnInvoiceAccepted;
         gigGossipNodeEventSource.OnInvoiceCancelled += GigGossipNodeEventSource_OnInvoiceCancelled;
         gigGossipNodeEventSource.OnCancelBroadcast += GigGossipNodeEventSource_OnCancelBroadcast;
@@ -267,7 +268,6 @@ public partial class RideShareCLIApp
 
                 receivedResponseIdxesForPaymentHashes = new();
                 receivedResponsesForPaymentHashes = new();
-                driverIdxesForPaymentHashes = new();
                 receivedResponsesTable = new DataTable(new string[] { "PaymentHash", "DriverId", "NoResp", "From", "Time", "To", "DriverFee", "NetworkFee" });
                 receivedResponsesTable.OnKeyPressed += async (o, e) =>
                 {

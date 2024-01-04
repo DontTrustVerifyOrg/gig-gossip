@@ -21,7 +21,7 @@ public partial class RideShareCLIApp
     string toAddress;
     Dictionary<string,List<NewResponseEventArgs>> receivedResponsesForPaymentHashes = new();
     Dictionary<string, int> receivedResponseIdxesForPaymentHashes = new();
-    Dictionary<string, Guid> driverIdxesForPaymentHashes = new();
+    Dictionary<Guid, int> receivedResponseIdxesForReplyPayloadId = new();
     DataTable receivedResponsesTable = null;
 
     bool driverApproached;
@@ -77,6 +77,7 @@ public partial class RideShareCLIApp
             if (!receivedResponsesForPaymentHashes.ContainsKey(paymentHash))
             {
                 receivedResponsesForPaymentHashes[paymentHash] = new List<NewResponseEventArgs> { e };
+                receivedResponseIdxesForReplyPayloadId[e.ReplyPayloadCert.Id] = receivedResponsesForPaymentHashes.Count - 1;
                 receivedResponseIdxesForPaymentHashes[paymentHash] = receivedResponsesForPaymentHashes.Count - 1;
                 var fee = e.DecodedReplyInvoice.NumSatoshis;
                 var netfee = e.DecodedNetworkInvoice.NumSatoshis;
@@ -113,17 +114,30 @@ public partial class RideShareCLIApp
 
     private void GigGossipNodeEventSource_OnInvoiceCancelled(object? sender, InvoiceCancelledEventArgs e)
     {
+        if (e.InvoiceData.IsNetworkInvoice)
+            return;
         lock (receivedResponsesForPaymentHashes)
         {
             if (!receivedResponseIdxesForPaymentHashes.ContainsKey(e.InvoiceData.PaymentHash))
                 return;
-            if (!e.InvoiceData.IsNetworkInvoice)
-            {
-                var idx = receivedResponseIdxesForPaymentHashes[e.InvoiceData.PaymentHash];
-                receivedResponsesTable.InactivateRow(idx);
-            }
+
+            var idx = receivedResponseIdxesForPaymentHashes[e.InvoiceData.PaymentHash];
+            receivedResponsesTable.InactivateRow(idx);
         }
     }
+
+    private void GigGossipNodeEventSource_OnResponseCancelled(object? sender, ResponseCancelledEventArgs e)
+    {
+        lock (receivedResponsesForPaymentHashes)
+        {
+            if (!receivedResponseIdxesForReplyPayloadId.ContainsKey(e.ReplierCertificateId))
+                return;
+
+            var idx = receivedResponseIdxesForReplyPayloadId[e.ReplierCertificateId];
+            receivedResponsesTable.InactivateRow(idx);
+        }
+    }
+
 
 
     private async Task RiderJourneyAsync(Guid requestPayloadId,string secret)

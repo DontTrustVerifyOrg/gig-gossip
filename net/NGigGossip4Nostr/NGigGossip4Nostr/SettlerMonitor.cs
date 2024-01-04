@@ -57,24 +57,25 @@ public class SettlerMonitor
         return true;
     }
 
-    public async Task<bool> MonitorSymmetricKeyAsync(Uri serviceUri, Guid signedRequestPayloadId, Guid replierCertificateId, byte[] data)
+    public async Task<bool> MonitorGigStatusAsync(Uri serviceUri, Guid signedRequestPayloadId, Guid replierCertificateId, byte[] data)
     {
-        if ((from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
+        if ((from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
              where i.SignedRequestPayloadId == signedRequestPayloadId
              && i.PublicKey == this.gigGossipNode.PublicKey
              && i.ReplierCertificateId==replierCertificateId
              select i).FirstOrDefault() != null)
             return false;
 
-        AttachMonitorSymmetricKey(serviceUri);
+        AttachMonitorGigStatus(serviceUri);
 
-        var obj = new MonitoredSymmetricKeyRow
+        var obj = new MonitoredGigStatusRow
         {
             PublicKey = this.gigGossipNode.PublicKey,
             ReplierCertificateId = replierCertificateId,
             ServiceUri = serviceUri,
             SignedRequestPayloadId = signedRequestPayloadId,
             Data = data,
+            Status = "",
             SymmetricKey = null
         };
         gigGossipNode.nodeContext.Value.AddObject(obj);
@@ -116,9 +117,9 @@ public class SettlerMonitor
             }
         }
         {
-            var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
+            var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
                           where i.PublicKey == this.gigGossipNode.PublicKey
-                          && i.SymmetricKey == null
+                          && (i.SymmetricKey == null || i.Status!="Cancelled")
                           select i).ToList();
 
             foreach (var kv in kToMon)
@@ -131,10 +132,18 @@ public class SettlerMonitor
                     var prts = stat.Split('|');
                     var status = prts[0];
                     var key = prts[1];
-                    if (!string.IsNullOrWhiteSpace(key))
+                    if (status=="Accepted")
                     {
                         gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
                         kv.SymmetricKey = key;
+                        kv.Status = status;
+                        gigGossipNode.nodeContext.Value.SaveObject(kv);
+                    }
+                    else if (status == "Cancelled")
+                    {
+                        gigGossipNode.OnGigCancelled(kv.Data);
+                        kv.Status = status;
+                        kv.Status = status;
                         gigGossipNode.nodeContext.Value.SaveObject(kv);
                     }
                 }
@@ -219,7 +228,7 @@ public class SettlerMonitor
         preimthread.Start();
     }
 
-    public void AttachMonitorSymmetricKey(Uri serviceUri)
+    public void AttachMonitorGigStatus(Uri serviceUri)
     {
         lock (alreadyMonitoredSymmetricKey)
         {
@@ -235,7 +244,7 @@ public class SettlerMonitor
                 try
                 {
                     {
-                        var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
+                        var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
                                       where i.PublicKey == this.gigGossipNode.PublicKey
                                       && i.SymmetricKey == null
                                       && i.ServiceUri == serviceUri
@@ -250,10 +259,17 @@ public class SettlerMonitor
                                 var prts = stat.Split('|');
                                 var status = prts[0];
                                 var key = prts[1];
-                                if (!string.IsNullOrWhiteSpace(key))
+                                if (status == "Accepted")
                                 {
                                     gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
                                     kv.SymmetricKey = key;
+                                    gigGossipNode.nodeContext.Value.SaveObject(kv);
+                                }
+                                else if (status == "Cancelled")
+                                {
+                                    gigGossipNode.OnGigCancelled(kv.Data);
+                                    kv.Status = status;
+                                    kv.Status = status;
                                     gigGossipNode.nodeContext.Value.SaveObject(kv);
                                 }
                             }
@@ -266,19 +282,39 @@ public class SettlerMonitor
                         var gigId = Guid.Parse(pp[0]);
                         var repliercertificateid = Guid.Parse(pp[1]);
                         var status = pp[2];
-                        var symkey = pp[3];
-                        var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
-                                      where i.PublicKey == this.gigGossipNode.PublicKey
-                                      && i.SignedRequestPayloadId == gigId
-                                      && i.ReplierCertificateId == repliercertificateid
-                                      && i.SymmetricKey == null
-                                      select i).FirstOrDefault();
-
-                        if (kToMon != null)
+                        if (status == "Accepted")
                         {
-                            gigGossipNode.OnSymmetricKeyRevealed(kToMon.Data, symkey);
-                            kToMon.SymmetricKey = symkey;
-                            gigGossipNode.nodeContext.Value.SaveObject(kToMon);
+                            var symkey = pp[3];
+                            var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
+                                          where i.PublicKey == this.gigGossipNode.PublicKey
+                                          && i.SignedRequestPayloadId == gigId
+                                          && i.ReplierCertificateId == repliercertificateid
+                                          && i.SymmetricKey == null
+                                          select i).FirstOrDefault();
+
+                            if (kToMon != null)
+                            {
+                                gigGossipNode.OnSymmetricKeyRevealed(kToMon.Data, symkey);
+                                kToMon.SymmetricKey = symkey;
+                                kToMon.Status = status;
+                                gigGossipNode.nodeContext.Value.SaveObject(kToMon);
+                            }
+                        }
+                        else if (status == "Cancelled")
+                        {
+                            var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
+                                          where i.PublicKey == this.gigGossipNode.PublicKey
+                                          && i.SignedRequestPayloadId == gigId
+                                          && i.ReplierCertificateId == repliercertificateid
+                                          && i.Status != "Cancelled"
+                                          select i).FirstOrDefault();
+
+                            if (kToMon != null)
+                            {
+                                gigGossipNode.OnGigCancelled(kToMon.Data);
+                                kToMon.Status = status;
+                                gigGossipNode.nodeContext.Value.SaveObject(kToMon);
+                            }
                         }
                     }
                 }

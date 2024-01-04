@@ -1,5 +1,6 @@
 ﻿using System;
 using CryptoToolkit;
+using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
 using NBitcoin.Secp256k1;
 using NGeoHash;
@@ -12,7 +13,7 @@ namespace RideShareCLIApp;
 public partial class RideShareCLIApp
 {
     Dictionary<Guid,List<AcceptBroadcastEventArgs>> receivedBroadcastsForPayloadId = new();
-    Dictionary<Guid, PayReq> payReqsForPayloadId = new();
+    Dictionary<Guid, AcceptBroadcastReturnValue> payReqsForPayloadId = new();
     Dictionary<Guid, int> receivedBroadcastIdxesForPayloadIds = new();
     Dictionary<Guid,long> receivedBroadcastsFees = new();
     Dictionary<Guid, string> directSecrets = new();
@@ -106,7 +107,9 @@ public partial class RideShareCLIApp
 
         foreach (var e in evs)
         {
-            WalletAPIResult.Check(await e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), payReqsForPayloadId[id].PaymentHash));
+            var settlerClient = e.GigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi);
+            SettlerAPIResult.Check(await settlerClient.CancelGigAsync(await e.GigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), e.BroadcastFrame.SignedRequestPayload.Id.ToString(), payReqsForPayloadId[id].ReplierCertificateId.ToString()));
+            WalletAPIResult.Check(await e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), payReqsForPayloadId[id].DecodedReplyInvoice.PaymentHash));
             break;
         }
     }
@@ -121,23 +124,29 @@ public partial class RideShareCLIApp
                 var thisBroadcast = e.GigGossipNode.GetAcceptedBroadcastsByReplyInvoiceHash(e.InvoiceData.PaymentHash);
 
                 ActiveSignedRequestPayloadId = thisBroadcast.SignedRequestPayloadId;
-                
-                foreach (var broadcast in e.GigGossipNode.GetAcceptedNotCancelledBroadcasts().ToList())
-                {
-                    if (broadcast.ReplyInvoiceHash != e.InvoiceData.PaymentHash)
-                    {
-                        try
-                        {
-                            WalletAPIResult.Check(await e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), broadcast.ReplyInvoiceHash));
-                        }
-                        catch (Exception ex)
-                        {
-                            //if already cancelled or settled
-                        }
-                    }
-                    e.GigGossipNode.MarkBroadcastAsCancelled(broadcast);
-                }
 
+                var broadcasts = e.GigGossipNode.GetAcceptedNotCancelledBroadcasts().ToList();
+                if (broadcasts.Count > 0)
+                {
+                    var settlerClient = e.GigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi);
+                    var token = await e.GigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi);
+                    foreach (var broadcast in broadcasts)
+                    {
+                        if (broadcast.ReplyInvoiceHash != e.InvoiceData.PaymentHash)
+                        {
+                            try
+                            {
+                                SettlerAPIResult.Check(await settlerClient.CancelGigAsync(token, broadcast.SignedRequestPayloadId.ToString(), broadcast.ReplierCertificateId.ToString()));
+                                WalletAPIResult.Check(await e.GigGossipNode.LNDWalletClient.CancelInvoiceAsync(e.GigGossipNode.MakeWalletAuthToken(), broadcast.ReplyInvoiceHash));
+                            }
+                            catch (Exception ex)
+                            {
+                                //if already cancelled or settled
+                            }
+                        }
+                        e.GigGossipNode.MarkBroadcastAsCancelled(broadcast);
+                    }
+                }
                 await directCom.StartAsync(e.GigGossipNode.NostrRelays);
             }
         }

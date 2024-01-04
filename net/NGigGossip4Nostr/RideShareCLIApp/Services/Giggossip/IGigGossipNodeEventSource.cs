@@ -11,6 +11,7 @@ public interface IGigGossipNodeEventSource
 
     public event EventHandler<NewResponseEventArgs> OnNewResponse;
     public event EventHandler<ResponseReadyEventArgs> OnResponseReady;
+    public event EventHandler<ResponseCancelledEventArgs> OnResponseCancelled;
     public event EventHandler<CancelBroadcastEventArgs> OnCancelBroadcast;
 
     public event EventHandler<NetworkInvoiceAcceptedEventArgs> OnNetworkInvoiceAccepted;
@@ -51,6 +52,12 @@ public class ResponseReadyEventArgs : EventArgs
     public required GigGossipNode GigGossipNode;
     public required Guid RequestPayloadId;
     public required ConnectionReply Reply;
+}
+public class ResponseCancelledEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required Guid RequestPayloadId;
+    public required Guid ReplierCertificateId;
 }
 
 public class InvoiceSettledEventArgs : EventArgs

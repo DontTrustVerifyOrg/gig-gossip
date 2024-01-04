@@ -45,7 +45,7 @@ public class Settler : CertificationAuthority
 
     public event GigStatusEventHandler OnGigStatus;
 
-    public void FireOnGigStatus(Guid signedRequestPayloadId, Guid replierCertificateId, GigStatus status, string value)
+    public void FireOnGigStatus(Guid signedRequestPayloadId, Guid replierCertificateId, GigStatus status, string value="")
     {
         if (OnGigStatus != null)
             OnGigStatus.Invoke(this, new GigStatusEventArgs()
@@ -274,7 +274,7 @@ public class Settler : CertificationAuthority
             return gig.Status.ToString() + "|" + (gig.Status == GigStatus.Accepted ? gig.SymmetricKey : "");
     }
 
-    public async Task<SettlementTrust> GenerateSettlementTrustAsync(string replierpubkey, string[] replierproperties,byte[] message, string replyInvoice, Certificate<RequestPayloadValue> signedRequestPayload)
+    public async Task<SettlementTrust> GenerateSettlementTrustAsync(string replierpubkey, string[] replierproperties, byte[] message, string replyInvoice, Certificate<RequestPayloadValue> signedRequestPayload)
     {
         var decodedInv = WalletAPIResult.Get<PayReq>(await lndWalletClient.DecodeInvoiceAsync(MakeAuthToken(), replyInvoice));
         var invPaymentHash = decodedInv.PaymentHash;
@@ -321,7 +321,7 @@ public class Settler : CertificationAuthority
                                                 Convert.ToBase64String(Crypto.SerializeObject(replyPayload)))));
 
 
-        byte[] hashOfEncryptedReplyPayload = Crypto.ComputeSha256(new List<byte[]> { encryptedReplyPayload});
+        byte[] hashOfEncryptedReplyPayload = Crypto.ComputeSha256(new List<byte[]> { encryptedReplyPayload });
 
         SettlementPromise signedSettlementPromise = new SettlementPromise()
         {
@@ -339,7 +339,8 @@ public class Settler : CertificationAuthority
         {
             SettlementPromise = signedSettlementPromise,
             NetworkInvoice = networkInvoice.PaymentRequest,
-            EncryptedReplyPayload = encryptedReplyPayload
+            EncryptedReplyPayload = encryptedReplyPayload,
+            ReplierCertificateId = replyPayload.Id,
         };
     }
 
@@ -385,11 +386,35 @@ public class Settler : CertificationAuthority
         if (gig != null)
         {
             if (open)
-                await CancelGigAsync(gig);
+                await DescheduleGigAsync(gig);
             gig.Status = open ? GigStatus.Disuputed : GigStatus.Accepted;
             settlerContext.Value.SaveObject(gig);
             if (!open)
                 await ScheduleGigAsync(gig);
+        }
+    }
+
+    public async Task CancelGigAsync(Guid tid, Guid repliercertificateId)
+    {
+        var gig = (from g in settlerContext.Value.Gigs
+                   where g.SignedRequestPayloadId == tid && g.ReplierCertificateId == repliercertificateId && (g.Status == GigStatus.Open || g.Status != GigStatus.Accepted)
+                   select g).FirstOrDefault();
+        if (gig != null)
+        {
+            if (gig.Status == GigStatus.Accepted)
+            {
+                await DescheduleGigAsync(gig);
+                var status = WalletAPIResult.Status(await lndWalletClient.CancelInvoiceAsync(MakeAuthToken(), gig.NetworkPaymentHash));
+                if (status != GigLNDWalletAPIErrorCode.Ok)
+                    Trace.TraceWarning("CancelInvoice failed");
+            }
+            if (gig.Status != GigStatus.Cancelled)
+            {
+                gig.Status = GigStatus.Cancelled;
+                gig.SubStatus = GigSubStatus.None;
+                settlerContext.Value.SaveObject(gig);
+                FireOnGigStatus(tid, repliercertificateId, GigStatus.Cancelled);
+            }
         }
     }
 
@@ -441,7 +466,7 @@ public class Settler : CertificationAuthority
         await scheduler.ScheduleJob(job, trigger);
     }
 
-    public async Task CancelGigAsync(Gig gig)
+    public async Task DescheduleGigAsync(Gig gig)
     {
         await scheduler.Interrupt(new JobKey(gig.SignedRequestPayloadId.ToString()));
         await scheduler.DeleteJob(new JobKey(gig.SignedRequestPayloadId.ToString()));

@@ -12,6 +12,7 @@ public class GigGossipNodeEventSource : IGigGossipNodeEventSource
 
     public event EventHandler<NewResponseEventArgs> OnNewResponse;
     public event EventHandler<ResponseReadyEventArgs> OnResponseReady;
+    public event EventHandler<ResponseCancelledEventArgs> OnResponseCancelled;
     public event EventHandler<CancelBroadcastEventArgs> OnCancelBroadcast;
 
     public event EventHandler<NetworkInvoiceAcceptedEventArgs> OnNetworkInvoiceAccepted;
@@ -31,6 +32,7 @@ public class GigGossipNodeEventSource : IGigGossipNodeEventSource
 
     public void FireOnNewResponse(NewResponseEventArgs args) => OnNewResponse?.Invoke(this, args);
     public void FireOnResponseReady(ResponseReadyEventArgs args) => OnResponseReady?.Invoke(this, args);
+    public void FireOnResponseCancelled(ResponseCancelledEventArgs args) => OnResponseCancelled?.Invoke(this, args);
     public void FireOnCancelBroadcast(CancelBroadcastEventArgs args) => OnCancelBroadcast?.Invoke(this, args);
 
     public void FireOnNetworkInvoiceAccepted(NetworkInvoiceAcceptedEventArgs args) => OnNetworkInvoiceAccepted?.Invoke(this, args);

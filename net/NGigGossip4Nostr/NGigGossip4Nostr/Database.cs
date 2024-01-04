@@ -82,6 +82,8 @@ public class AcceptedBroadcastRow
     [Column(Order = 4)]
     public required string ReplyInvoiceHash { get; set; }
 
+    public required Guid ReplierCertificateId { get; set; }
+
     public required byte[] SignedSettlementPromise { get; set; }
     public required string NetworkInvoice { get; set; }
 
@@ -92,6 +94,7 @@ public class AcceptedBroadcastRow
     public required byte[] DecodedReplyInvoice { get; set; }
 
     public required bool Cancelled { get; set; }
+
 }
 
 
@@ -144,7 +147,7 @@ public class MonitoredPreimageRow
 }
 
 [PrimaryKey(nameof(PublicKey), nameof(SignedRequestPayloadId), nameof(ReplierCertificateId))]
-public class MonitoredSymmetricKeyRow
+public class MonitoredGigStatusRow
 {
     /// <summary>
     /// The public key of the subject.
@@ -159,6 +162,7 @@ public class MonitoredSymmetricKeyRow
     public required Guid ReplierCertificateId { get; set; }
 
     public required Uri ServiceUri { get; set; }
+    public required string Status { get; set; }
     public string? SymmetricKey { get; set; }
     public required byte[] Data { get; set; }
 }
@@ -216,7 +220,7 @@ public class GigGossipNodeContext : DbContext
     public DbSet<MonitoredInvoiceRow> MonitoredInvoices { get; set; }
     public DbSet<MonitoredPaymentRow> MonitoredPayments { get; set; }
     public DbSet<MonitoredPreimageRow> MonitoredPreimages { get; set; }
-    public DbSet<MonitoredSymmetricKeyRow> MonitoredSymmetricKeys { get; set; }
+    public DbSet<MonitoredGigStatusRow> MonitoredGigStatuses { get; set; }
     public DbSet<MessageDoneRow> MessagesDone { get; set; }
     public DbSet<NostrContact> NostrContacts { get; set; }
 
@@ -248,8 +252,8 @@ public class GigGossipNodeContext : DbContext
             return this.MonitoredPayments;
         else if (obj is MonitoredPreimageRow)
             return this.MonitoredPreimages;
-        else if (obj is MonitoredSymmetricKeyRow)
-            return this.MonitoredSymmetricKeys;
+        else if (obj is MonitoredGigStatusRow)
+            return this.MonitoredGigStatuses;
         else if (obj is MessageDoneRow)
             return this.MessagesDone;
         else if (obj is NostrContact)

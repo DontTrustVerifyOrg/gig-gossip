@@ -70,6 +70,17 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
         });
     }
 
+
+    public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
+    {
+        _gigGossipNodeEventSource.FireOnResponseCancelled(new ResponseCancelledEventArgs()
+        {
+            GigGossipNode = me,
+            ReplierCertificateId = replyPayload.Id,
+            RequestPayloadId = replyPayload.Value.SignedRequestPayload.Id,
+        });
+    }
+
     public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
     {
         _gigGossipNodeEventSource.FireOnPaymentStatusChange(new PaymentStatusChangeEventArgs()
