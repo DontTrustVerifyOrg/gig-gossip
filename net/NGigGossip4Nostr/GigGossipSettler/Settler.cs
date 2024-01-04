@@ -9,7 +9,6 @@ using NGigGossip4Nostr;
 using Quartz;
 using Quartz.Impl;
 using System.Diagnostics;
-using System.Linq;
 
 namespace GigGossipSettler;
 
@@ -21,32 +20,17 @@ public class PreimageRevealEventArgs : EventArgs
 public delegate void PreimageRevealEventHandler(object sender, PreimageRevealEventArgs e);
 
 
-public class SymmetricKeyRevealEventArgs : EventArgs
+public class GigStatusEventArgs : EventArgs
 {
     public required Guid SignedRequestPayloadId { get; set; }
     public required Guid ReplierCertificateId { get; set; }
-    public required string SymmetricKey { get; set; }
+    public required GigStatus Status { get; set; }
+    public required string Value { get; set; }
 }
-public delegate void SymmetricKeyRevealEventHandler(object sender, SymmetricKeyRevealEventArgs e);
+public delegate void GigStatusEventHandler(object sender, GigStatusEventArgs e);
 
 public class Settler : CertificationAuthority
 {
-    public event SymmetricKeyRevealEventHandler OnSymmetricKeyReveal;
-
-    public void FireOnSymmetricKeyReveal(Guid signedRequestPayloadId, Guid replierCertificateId, string symmetricKey)
-    {
-        lock (this)
-        {
-            if (OnSymmetricKeyReveal != null)
-                OnSymmetricKeyReveal.Invoke(this, new SymmetricKeyRevealEventArgs()
-                {
-                    SymmetricKey = symmetricKey,
-                    SignedRequestPayloadId = signedRequestPayloadId,
-                    ReplierCertificateId = replierCertificateId,
-                }); ;
-        }
-    }
-
     public event PreimageRevealEventHandler OnPreimageReveal;
 
     public void FireOnPreimageReveal(string paymentHash , string preimage)
@@ -57,6 +41,20 @@ public class Settler : CertificationAuthority
                 PaymentHash = paymentHash,
                 Preimage = preimage,
             }); ;
+    }
+
+    public event GigStatusEventHandler OnGigStatus;
+
+    public void FireOnGigStatus(Guid signedRequestPayloadId, Guid replierCertificateId, GigStatus status, string value)
+    {
+        if (OnGigStatus != null)
+            OnGigStatus.Invoke(this, new GigStatusEventArgs()
+            {
+                Status = status,
+                SignedRequestPayloadId = signedRequestPayloadId,
+                ReplierCertificateId = replierCertificateId,
+                Value = value,
+            });
     }
 
     private TimeSpan invoicePaymentTimeout;
@@ -267,13 +265,13 @@ public class Settler : CertificationAuthority
             return preimage.Preimage;
     }
 
-    public string RevealSymmetricKey(Guid signedRequestPayloadId,  Guid repliercertificateid)
+    public string GetGigStatus(Guid signedRequestPayloadId, Guid repliercertificateid)
     {
-        var symkey = (from g in settlerContext.Value.Gigs where g.ReplierCertificateId == repliercertificateid && g.SignedRequestPayloadId == signedRequestPayloadId && g.Status == GigStatus.Accepted select g).FirstOrDefault();
-        if (symkey == null)
+        var gig = (from g in settlerContext.Value.Gigs where g.ReplierCertificateId == repliercertificateid && g.SignedRequestPayloadId == signedRequestPayloadId select g).FirstOrDefault();
+        if (gig == null)
             return "";
         else
-            return symkey.SymmetricKey;
+            return gig.Status.ToString() + "|" + (gig.Status == GigStatus.Accepted ? gig.SymmetricKey : "");
     }
 
     public async Task<SettlementTrust> GenerateSettlementTrustAsync(string replierpubkey, string[] replierproperties,byte[] message, string replyInvoice, Certificate<RequestPayloadValue> signedRequestPayload)

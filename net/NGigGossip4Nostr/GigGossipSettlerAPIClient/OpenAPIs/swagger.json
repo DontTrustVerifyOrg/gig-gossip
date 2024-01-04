@@ -649,14 +649,14 @@
         }
       }
     },
-    "/revealsymmetrickey": {
+    "/getgigstatus": {
       "get": {
         "tags": [
           "GigGossipSettlerAPI"
         ],
-        "summary": "Reveals symmetric key that customer can use to decrypt the message from gig-worker.",
-        "description": "Reveals symmetric key that customer can use to decrypt the message from gig-worker. This key is secret as long as the gig-job is not marked as accepted.",
-        "operationId": "RevealSymmetricKey",
+        "summary": "Gets status of the Gig and reveals symmetric key if available, that customer can use to decrypt the message from gig-worker.",
+        "description": "Gets status of the Gig and reveals symmetric key if available, that customer can use to decrypt the message from gig-worker. This key is secret as long as the gig-job is not marked as accepted.",
+        "operationId": "GetGigStatus",
         "parameters": [
           {
             "name": "authToken",

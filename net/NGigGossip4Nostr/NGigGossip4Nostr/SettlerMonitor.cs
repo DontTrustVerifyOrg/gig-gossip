@@ -6,6 +6,7 @@ using System.Text;
 using CryptoToolkit;
 using GigGossipSettlerAPIClient;
 using Microsoft.EntityFrameworkCore;
+using static NBitcoin.Protocol.Behaviors.ChainBehavior;
 
 namespace NGigGossip4Nostr;
 
@@ -79,7 +80,7 @@ public class SettlerMonitor
         gigGossipNode.nodeContext.Value.AddObject(obj);
         try
         {
-            await (await this.gigGossipNode.GetSymmetricKeyRevealClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedRequestPayloadId, replierCertificateId);
+            await (await this.gigGossipNode.GetGigStatusClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedRequestPayloadId, replierCertificateId);
         }
         catch
         {
@@ -124,12 +125,18 @@ public class SettlerMonitor
             {
                 var serviceUri = kv.ServiceUri;
                 var signedReqestPayloadId = kv.SignedRequestPayloadId;
-                var key = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri),  signedReqestPayloadId.ToString(), kv.ReplierCertificateId.ToString()));
-                if (!string.IsNullOrWhiteSpace(key))
+                var stat = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri),  signedReqestPayloadId.ToString(), kv.ReplierCertificateId.ToString()));
+                if (!string.IsNullOrWhiteSpace(stat))
                 {
-                    gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
-                    kv.SymmetricKey = key;
-                    gigGossipNode.nodeContext.Value.SaveObject(kv);
+                    var prts = stat.Split('|');
+                    var status = prts[0];
+                    var key = prts[1];
+                    if (!string.IsNullOrWhiteSpace(key))
+                    {
+                        gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
+                        kv.SymmetricKey = key;
+                        gigGossipNode.nodeContext.Value.SaveObject(kv);
+                    }
                 }
             }
         }
@@ -237,22 +244,29 @@ public class SettlerMonitor
                         foreach (var kv in kToMon)
                         {
                             var signedRequestPayloadId = kv.SignedRequestPayloadId;
-                            var key = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealSymmetricKeyAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedRequestPayloadId.ToString(), kv.ReplierCertificateId.ToString()));
-                            if (!string.IsNullOrWhiteSpace(key))
+                            var stat = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedRequestPayloadId.ToString(), kv.ReplierCertificateId.ToString()));
+                            if (!string.IsNullOrWhiteSpace(stat))
                             {
-                                gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
-                                kv.SymmetricKey = key;
-                                gigGossipNode.nodeContext.Value.SaveObject(kv);
+                                var prts = stat.Split('|');
+                                var status = prts[0];
+                                var key = prts[1];
+                                if (!string.IsNullOrWhiteSpace(key))
+                                {
+                                    gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
+                                    kv.SymmetricKey = key;
+                                    gigGossipNode.nodeContext.Value.SaveObject(kv);
+                                }
                             }
                         }
                     }
 
-                    await foreach (var symkeyupd in (await this.gigGossipNode.GetSymmetricKeyRevealClientAsync(serviceUri)).StreamAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), CancellationTokenSource.Token))
+                    await foreach (var symkeyupd in (await this.gigGossipNode.GetGigStatusClientAsync(serviceUri)).StreamAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), CancellationTokenSource.Token))
                     {
                         var pp = symkeyupd.Split('|');
                         var gigId = Guid.Parse(pp[0]);
                         var repliercertificateid = Guid.Parse(pp[1]);
-                        var symkey = pp[2];
+                        var status = pp[2];
+                        var symkey = pp[3];
                         var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredSymmetricKeys
                                       where i.PublicKey == this.gigGossipNode.PublicKey
                                       && i.SignedRequestPayloadId == gigId
@@ -277,7 +291,7 @@ public class SettlerMonitor
                                            ex is TimeoutException ||
                                            ex is WebSocketException)
                 {
-                    this.gigGossipNode.DisposeSymmetricKeyRevealClient(serviceUri);
+                    this.gigGossipNode.DisposeGigStatusClient(serviceUri);
                     Trace.TraceWarning("Timeout on " + serviceUri.AbsolutePath + "/revealsymmetrickey, reconnecting");
                     Thread.Sleep(1000);
                     //reconnect

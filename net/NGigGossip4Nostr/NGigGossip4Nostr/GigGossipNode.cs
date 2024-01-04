@@ -74,7 +74,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     private SemaphoreSlim alreadyBroadcastedSemaphore = new SemaphoreSlim(1, 1);
 
     public GigLNDWalletAPIClient.swaggerClient LNDWalletClient;
-    private ConcurrentDictionary<Uri, SymmetricKeyRevealClient> settlerSymmetricKeyRevelClients = new();
+    private ConcurrentDictionary<Uri, GigStatusClient> settlerGigStatusClients = new();
     private ConcurrentDictionary<Uri, PreimageRevealClient> settlerPreimageRevelClients = new();
     protected Guid _walletToken;
     protected ConcurrentDictionary<Uri, Guid> _settlerToken;
@@ -290,22 +290,22 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             await _settlerToken.GetOrAddAsync(serviceUri, async (serviceUri) => SettlerAPIResult.Get<Guid>(await SettlerSelector.GetSettlerClient(serviceUri).GetTokenAsync(this.PublicKey))));
     }
 
-    public async Task<SymmetricKeyRevealClient> GetSymmetricKeyRevealClientAsync(Uri serviceUri)
+    public async Task<GigStatusClient> GetGigStatusClientAsync(Uri serviceUri)
     {
-        return await settlerSymmetricKeyRevelClients.GetOrAddAsync(
+        return await settlerGigStatusClients.GetOrAddAsync(
             serviceUri,
             async (serviceUri) =>
             {
-                var newClient = new SymmetricKeyRevealClient(SettlerSelector.GetSettlerClient(serviceUri));
+                var newClient = new GigStatusClient(SettlerSelector.GetSettlerClient(serviceUri));
                 await newClient.ConnectAsync(await MakeSettlerAuthTokenAsync(serviceUri));
                 return newClient;
             });
     }
 
-    public async void DisposeSymmetricKeyRevealClient(Uri serviceUri)
+    public async void DisposeGigStatusClient(Uri serviceUri)
     {
-        SymmetricKeyRevealClient client;
-        if (settlerSymmetricKeyRevelClients.TryRemove(serviceUri, out client))
+        GigStatusClient client;
+        if (settlerGigStatusClients.TryRemove(serviceUri, out client))
             await client.Connection.DisposeAsync();
     }
 

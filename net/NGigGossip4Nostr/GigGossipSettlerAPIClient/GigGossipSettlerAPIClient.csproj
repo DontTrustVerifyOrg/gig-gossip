@@ -19,15 +19,11 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="7.0.13" />
   </ItemGroup>
   <ItemGroup>
-    <None Remove="OpenAPIs\" />
     <None Remove="OpenAPIs\swagger.json" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="OpenAPIs\" />
-  </ItemGroup>
-  <ItemGroup>
     <OpenApiReference Include="OpenAPIs\swagger.json" Namespace="GigGossipSettlerAPIClient">
-      <SourceUri>https://localhost:7189/swagger/v1/swagger.json</SourceUri>
+      <SourceUri>http://localhost:7189/swagger/v1/swagger.json</SourceUri>
     </OpenApiReference>
   </ItemGroup>
 </Project>

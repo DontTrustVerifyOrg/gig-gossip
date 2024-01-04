@@ -121,7 +121,7 @@ public class InvoiceStateUpdatesMonitor
                         }
                         else if (gig.Status == GigStatus.Accepted)
                         {
-                            settler.FireOnSymmetricKeyReveal(gig.SignedRequestPayloadId, gig.ReplierCertificateId, gig.SymmetricKey);
+                            settler.FireOnGigStatus(gig.SignedRequestPayloadId, gig.ReplierCertificateId, gig.Status, gig.SymmetricKey);
                             if (DateTime.UtcNow >= gig.DisputeDeadline)
                             {
                                 await settler.SettleGigAsync(gig);
@@ -163,7 +163,7 @@ public class InvoiceStateUpdatesMonitor
                                     gig.SubStatus = GigSubStatus.None;
                                     gig.DisputeDeadline = DateTime.UtcNow + this.settler.disputeTimeout;
                                     settler.settlerContext.Value.SaveObject(gig);
-                                    settler.FireOnSymmetricKeyReveal(gig.SignedRequestPayloadId, gig.ReplierCertificateId, gig.SymmetricKey);
+                                    settler.FireOnGigStatus(gig.SignedRequestPayloadId, gig.ReplierCertificateId, gig.Status, gig.SymmetricKey);
                                     await settler.ScheduleGigAsync(gig);
                                 }
                             }

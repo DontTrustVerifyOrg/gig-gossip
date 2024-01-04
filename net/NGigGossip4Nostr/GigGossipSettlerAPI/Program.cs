@@ -77,9 +77,9 @@ Singlethon.Settler = new Settler(
     );
 
 await Singlethon.Settler.InitAsync(lndWalletClient, settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
-Singlethon.Settler.OnSymmetricKeyReveal += (sender, e) =>
+Singlethon.Settler.OnGigStatus += (sender, e) =>
     {
-        foreach (var asyncCom in Singlethon.SymmetricKeyAsyncComQueue4ConnectionId.Values)
+        foreach (var asyncCom in Singlethon.GigStatusAsyncComQueue4ConnectionId.Values)
             asyncCom.Enqueue(e);
     };
 
@@ -365,21 +365,21 @@ app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
     return g;
 });
 
-app.MapGet("/revealsymmetrickey", (string authToken, Guid signedRequestPayloadId,Guid repliperCertificateId) =>
+app.MapGet("/getgigstatus", (string authToken, Guid signedRequestPayloadId,Guid repliperCertificateId) =>
 {
     try
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-        return new Result<string>(Singlethon.Settler.RevealSymmetricKey(signedRequestPayloadId, repliperCertificateId));
+        return new Result<string>(Singlethon.Settler.GetGigStatus(signedRequestPayloadId, repliperCertificateId));
     }
     catch (SettlerException ex)
     {
         return new Result<string>(ex.ErrorCode);
     }
 })
-.WithName("RevealSymmetricKey")
-.WithSummary("Reveals symmetric key that customer can use to decrypt the message from gig-worker.")
-.WithDescription("Reveals symmetric key that customer can use to decrypt the message from gig-worker. This key is secret as long as the gig-job is not marked as accepted.")
+.WithName("GetGigStatus")
+.WithSummary("Gets status of the Gig and reveals symmetric key if available, that customer can use to decrypt the message from gig-worker.")
+.WithDescription("Gets status of the Gig and reveals symmetric key if available, that customer can use to decrypt the message from gig-worker. This key is secret as long as the gig-job is not marked as accepted.")
 .WithOpenApi(g =>
 {
     g.Parameters[0].Description = "Authorisation token for the communication.";
@@ -487,7 +487,7 @@ app.MapGet("/managedispute", async (string authToken, Guid gigId, Guid repliperC
 });
 
 app.MapHub<PreimageRevealHub>("/preimagereveal");
-app.MapHub<SymmetricKeyRevealHub>("/symmetrickeyreveal");
+app.MapHub<GigStatusHub>("/gigstatus");
 
 app.Run(settlerSettings.ListenHost.AbsoluteUri);
 

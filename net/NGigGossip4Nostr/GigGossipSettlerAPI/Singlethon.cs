@@ -14,9 +14,9 @@ public struct GigReplCert
 public static class Singlethon
 {
     public static Settler Settler = null;
-    public static HubDicStore<GigReplCert> SymmetricKeys4UserPublicKey = new();
+    public static HubDicStore<GigReplCert> GigStatus4UserPublicKey = new();
     public static HubDicStore<string> Preimages4UserPublicKey = new();
-    public static ConcurrentDictionary<string, AsyncComQueue<SymmetricKeyRevealEventArgs>> SymmetricKeyAsyncComQueue4ConnectionId = new();
+    public static ConcurrentDictionary<string, AsyncComQueue<GigStatusEventArgs>> GigStatusAsyncComQueue4ConnectionId = new();
     public static ConcurrentDictionary<string, AsyncComQueue<PreimageRevealEventArgs>> PreimagesAsyncComQueue4ConnectionId = new();
 }
 

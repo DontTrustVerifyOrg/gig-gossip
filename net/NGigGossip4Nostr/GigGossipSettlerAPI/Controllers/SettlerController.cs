@@ -212,7 +212,7 @@ namespace GigGossipSettlerAPI.Controllers
         public string RevealSymmetricKey(string authToken, Guid signedRequestPayloadId, Guid repliperCertificateId)
         {
             var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-            return Singlethon.Settler.RevealSymmetricKey(signedRequestPayloadId, repliperCertificateId);
+            return Singlethon.Settler.GetGigStatus(signedRequestPayloadId, repliperCertificateId);
         }
 
         /// <summary>

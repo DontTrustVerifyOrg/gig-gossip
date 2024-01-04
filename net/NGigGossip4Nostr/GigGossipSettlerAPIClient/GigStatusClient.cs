@@ -2,12 +2,12 @@
 using Microsoft.AspNetCore.SignalR.Client;
 namespace GigGossipSettlerAPIClient
 {
-	public class SymmetricKeyRevealClient
+	public class GigStatusClient
 	{
         swaggerClient swaggerClient;
         public HubConnection Connection;
 
-        public SymmetricKeyRevealClient(swaggerClient swaggerClient)
+        public GigStatusClient(swaggerClient swaggerClient)
 		{
             this.swaggerClient = swaggerClient;
         }
@@ -15,7 +15,7 @@ namespace GigGossipSettlerAPIClient
 		public async Task ConnectAsync(string authToken)
 		{
             Connection = new HubConnectionBuilder()
-                .WithUrl(swaggerClient.BaseUrl + "symmetrickeyreveal?authtoken=" + Uri.EscapeDataString(authToken))
+                .WithUrl(swaggerClient.BaseUrl + "gigstatus?authtoken=" + Uri.EscapeDataString(authToken))
                 .Build();
             await Connection.StartAsync();
         }
