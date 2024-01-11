@@ -92,6 +92,32 @@ services:
       - ./work/locallnd/.nostr_relay:/work/locallnd/.nostr_relay:Z
 
 
+  nostr2:
+    image: python:3.10.13-alpine3.18
+
+    container_name: giggossip_nostr2
+    restart: on-failure
+    working_dir: /work/locallnd/.nostr_relay
+    command: sh -c "pip install nostr-relay && nostr-relay -c config.yaml serve"
+    ports:
+      - 6970:6970
+    volumes:
+      - ./work/locallnd/.nostr_relay2:/work/locallnd/.nostr_relay:Z
+
+
+  nostr3:
+    image: python:3.10.13-alpine3.18
+
+    container_name: giggossip_nostr3
+    restart: on-failure
+    working_dir: /work/locallnd/.nostr_relay
+    command: sh -c "pip install nostr-relay && nostr-relay -c config.yaml serve"
+    ports:
+      - 6971:6971
+    volumes:
+      - ./work/locallnd/.nostr_relay3:/work/locallnd/.nostr_relay:Z
+
+
 
 
   # giggossip_api:
