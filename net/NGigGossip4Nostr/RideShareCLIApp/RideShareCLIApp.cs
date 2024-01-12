@@ -41,10 +41,34 @@ public partial class RideShareCLIApp
     DirectCom directCom;
     Dictionary<Guid, string> directPubkeys = new();
 
-    public RideShareCLIApp(string id, IConfigurationRoot config)
+    static IConfigurationRoot GetConfigurationRoot(string? basePath, string[] args, string defaultFolder, string iniName)
+    {
+        if (basePath == null)
+        {
+            basePath = Environment.GetEnvironmentVariable("GIGGOSSIP_BASEDIR");
+            if (basePath == null)
+                basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), defaultFolder);
+        }
+        var builder = new ConfigurationBuilder();
+        builder.SetBasePath(basePath)
+               .AddIniFile(iniName)
+               .AddEnvironmentVariables()
+               .AddCommandLine(args);
+
+        return builder.Build();
+    }
+
+    public RideShareCLIApp(string[] args, string id, string baseDir, string sfx)
     {
         if (id == null)
             id = AnsiConsole.Prompt(new TextPrompt<string>("Enter this node [orange1]Id[/]?"));
+
+        if (sfx == null)
+            sfx = AnsiConsole.Prompt(new TextPrompt<string>("Enter the [orange1]config suffix[/]?"));
+
+        sfx = (string.IsNullOrWhiteSpace(sfx)) ? "" : "_" + sfx;
+
+        IConfigurationRoot config = GetConfigurationRoot(baseDir, args, ".giggossip", "ridesharecli" + sfx + ".conf");
 
         this.settings = new Settings(id, config);
 

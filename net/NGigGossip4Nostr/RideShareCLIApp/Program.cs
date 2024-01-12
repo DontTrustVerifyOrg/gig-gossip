@@ -18,24 +18,11 @@ class Program
         [Option('d', "basedir", Required = false, HelpText = "Configuration folder dir")]
         public string? BaseDir { get; set; }
 
+        [Option('s', "sfx", Required = false, HelpText = "Configuration file suffix")]
+        public string? Sfx { get; set; }
     }
 
-    static IConfigurationRoot GetConfigurationRoot(string? basePath, string[] args, string defaultFolder, string iniName)
-    {
-        if (basePath == null)
-        {
-            basePath = Environment.GetEnvironmentVariable("GIGGOSSIP_BASEDIR");
-            if (basePath == null)
-                basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), defaultFolder);
-        }
-        var builder = new ConfigurationBuilder();
-        builder.SetBasePath(basePath)
-               .AddIniFile(iniName)
-               .AddEnvironmentVariables()
-               .AddCommandLine(args);
 
-        return builder.Build();
-    }
 
     static void Main(string[] args)
     {
@@ -59,7 +46,7 @@ class Program
 
                     AnsiConsole.WriteLine();
 
-                    new RideShareCLIApp(options.Id, GetConfigurationRoot(options.BaseDir, args, ".giggossip", "ridesharecli.conf")).RunAsync().Wait();
+                    new RideShareCLIApp(args, options.Id, options.BaseDir, options.Sfx).RunAsync().Wait();
                 }
                 catch (Exception ex)
                 {
