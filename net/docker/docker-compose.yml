@@ -190,7 +190,7 @@ services:
 
     container_name: wallet_api2
     restart: on-failure
-    entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigLNDWalletAPI/bin/Debug/net7.0/GigLNDWalletAPI.dll --basedir=/work/locallnd/.giggossip/"
+    entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigLNDWalletAPI/bin/Debug/net7.0/GigLNDWalletAPI.dll --basedir=/work/locallnd/.giggossip1/"
     ports:
       - 7102:7102
     volumes:
@@ -210,7 +210,7 @@ services:
 
     container_name: settler_api2
     restart: on-failure
-    entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigGossipSettlerAPI/bin/Debug/net7.0/GigGossipSettlerAPI.dll --basedir=/work/locallnd/.giggossip/"
+    entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigGossipSettlerAPI/bin/Debug/net7.0/GigGossipSettlerAPI.dll --basedir=/work/locallnd/.giggossip1/"
     ports:
       - 7190:7190
     volumes:
@@ -231,7 +231,7 @@ services:
 
     container_name: wallet_api3
     restart: on-failure
-    entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigLNDWalletAPI/bin/Debug/net7.0/GigLNDWalletAPI.dll --basedir=/work/locallnd/.giggossip/"
+    entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigLNDWalletAPI/bin/Debug/net7.0/GigLNDWalletAPI.dll --basedir=/work/locallnd/.giggossip2/"
     ports:
       - 7103:7103
     volumes:
@@ -251,7 +251,7 @@ services:
 
     container_name: settler_api3
     restart: on-failure
-    entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigGossipSettlerAPI/bin/Debug/net7.0/GigGossipSettlerAPI.dll --basedir=/work/locallnd/.giggossip/"
+    entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigGossipSettlerAPI/bin/Debug/net7.0/GigGossipSettlerAPI.dll --basedir=/work/locallnd/.giggossip2/"
     ports:
       - 7191:7191
     volumes:
