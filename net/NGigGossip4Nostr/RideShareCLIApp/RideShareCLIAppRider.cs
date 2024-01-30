@@ -103,6 +103,8 @@ public partial class RideShareCLIApp
 
     private async void GigGossipNodeEventSource_OnResponseReady(object? sender, ResponseReadyEventArgs e)
     {
+        if (requestedRide == null)
+            return;
         if (e.RequestPayloadId == requestedRide.SignedRequestPayload.Id)
         {
             await e.GigGossipNode.CancelBroadcastAsync(requestedRide.SignedCancelRequestPayload);

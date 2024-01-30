@@ -129,6 +129,7 @@ public abstract class NostrNode
             await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
             events.Add(newEvent);
         }
+
         foreach (var e in events)
             await nostrClient.PublishEvent(e, CancellationToken.None);
         return evid;
@@ -148,6 +149,7 @@ public abstract class NostrNode
         await nostrClient.ConnectAndWaitUntilConnected();
         nostrClient.EventsReceived += NostrClient_EventsReceived;
         nostrClient.EoseReceived += NostrClient_EoseReceived;
+        nostrClient.StateChanged += NostrClient_StateChanged;
         subscriptionId = Guid.NewGuid().ToString();
         await nostrClient.CreateSubscription(subscriptionId, new[]{
                         new NostrSubscriptionFilter()
@@ -170,6 +172,28 @@ public abstract class NostrNode
                             ReferencedPublicKeys = new []{ publicKey.ToHex() }
                         }
                     });
+    }
+
+    private async void NostrClient_StateChanged(object? sender, (Uri, System.Net.WebSockets.WebSocketState?) e)
+    {
+        if((e.Item2 == System.Net.WebSockets.WebSocketState.CloseReceived)|| (e.Item2 == System.Net.WebSockets.WebSocketState.Closed))
+        {
+            nostrClient.StateChanged -= NostrClient_StateChanged;
+            while (true)
+            {
+                try
+                {
+                    Console.WriteLine("Connection to NOSTR relay lost, reconnecting");
+                    await StartAsync(NostrRelays);
+                    Console.WriteLine("Connection to NOSTR restored");
+                    break;
+                }
+                catch (System.Net.WebSockets.WebSocketException)
+                {
+                    Thread.Sleep(1000);
+                }
+            }
+        }
     }
 
     private async void NostrClient_EoseReceived(object? sender, string subscriptionId)

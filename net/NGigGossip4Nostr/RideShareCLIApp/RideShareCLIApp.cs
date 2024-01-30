@@ -64,7 +64,7 @@ public partial class RideShareCLIApp
             id = AnsiConsole.Prompt(new TextPrompt<string>("Enter this node [orange1]Id[/]?"));
 
         if (sfx == null)
-            sfx = AnsiConsole.Prompt(new TextPrompt<string>("Enter the [orange1]config suffix[/]?"));
+            sfx = AnsiConsole.Prompt(new TextPrompt<string>("Enter the [orange1]config suffix[/]?").AllowEmpty());
 
         sfx = (string.IsNullOrWhiteSpace(sfx)) ? "" : "_" + sfx;
 

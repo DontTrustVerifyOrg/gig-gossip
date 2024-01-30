@@ -200,6 +200,7 @@ public class Settler : CertificationAuthority
         var props =  (from u in settlerContext.Value.UserProperties where u.PublicKey == pubkey && !u.IsRevoked && u.ValidTill >= DateTime.UtcNow && properties.Contains(u.Name) select u).ToArray();
         var tracs = (from u in settlerContext.Value.UserTraceProperties where u.PublicKey == pubkey && properties.Contains(u.Name) select u).ToArray();
         var prp = (from p in props select new PropertyValue { Name = p.Name, Value = p.Value }).ToList();
+        var prp = (from p in props select new PropertyValue { Name = p.Name, Value = p.Value }).ToList();
         var trp = (from p in tracs select new PropertyValue { Name = p.Name, Value = p.Value }).ToList();
         prp.AddRange(trp);
 
