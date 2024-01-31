@@ -126,6 +126,8 @@ public partial class RideShareCLIApp
         DriverMode,
         [Display(Name = "Request Ride")]
         RequestRide,
+        [Display(Name = "Reset")]
+        Reset,
     }
 
     public async Task<ECPrivKey> GetPrivateKeyAsync()
@@ -216,7 +218,7 @@ public partial class RideShareCLIApp
                     Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToString("yyyy-MM-ddTHH:mm:ss")));
 
                 var randloc = MockData.RandomLocation();
-                string trace = GeoHash.Encode(randloc.Latitude,randloc.Longitude, 7);
+                string trace = GeoHash.Encode(randloc.Latitude, randloc.Longitude, 7);
                 SettlerAPIResult.Check(await settlerClient.SaveUserTracePropertyAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Geohash",
                     Convert.ToBase64String(Encoding.Default.GetBytes(trace))));
@@ -309,6 +311,11 @@ public partial class RideShareCLIApp
                 requestedRide = await RequestRide(fromAddress, fromLocation, toAddress, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes);
                 receivedResponsesTable.Start();
             }
+            else if (cmd == CommandEnum.Reset)
+            {
+                await this.StopAsync();
+                await this.StartAsync();
+            }
         }
     }
 
@@ -331,6 +338,12 @@ public partial class RideShareCLIApp
     private void GigGossipNodeEventSource_OnNewContact(object? sender, NewContactEventArgs e)
     {
         AnsiConsole.WriteLine("New contact :" + e.PublicKey);
+    }
+
+    async Task StopAsync()
+    {
+        await directCom.StopAsync();
+        await gigGossipNode.StopAsync();
     }
 
     async Task StartAsync()

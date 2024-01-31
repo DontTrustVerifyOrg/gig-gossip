@@ -123,6 +123,9 @@ public partial class RideShareCLIApp
             {
                 var thisBroadcast = e.GigGossipNode.GetAcceptedBroadcastsByReplyInvoiceHash(e.InvoiceData.PaymentHash);
 
+                if (thisBroadcast == null)
+                    return;
+
                 ActiveSignedRequestPayloadId = thisBroadcast.SignedRequestPayloadId;
 
                 var broadcasts = e.GigGossipNode.GetAcceptedNotCancelledBroadcasts().ToList();

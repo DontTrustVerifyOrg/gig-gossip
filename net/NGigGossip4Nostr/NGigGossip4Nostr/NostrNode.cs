@@ -245,6 +245,8 @@ public abstract class NostrNode
 
     public virtual async Task StopAsync()
     {
+        if (nostrClient == null)
+            return;
         await nostrClient.CloseSubscription(subscriptionId);
         await nostrClient.Disconnect();
         nostrClient.Dispose();
