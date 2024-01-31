@@ -96,15 +96,13 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     internal ThreadLocal<GigGossipNodeContext> nodeContext;
 
-    public GigGossipNode(string connectionString, ECPrivKey privKey, int chunkSize, bool deleteDb = false) : base(privKey, chunkSize)
+    public GigGossipNode(string connectionString, ECPrivKey privKey, int chunkSize) : base(privKey, chunkSize,true)
     {
         RegisterFrameType<BroadcastFrame>();
         RegisterFrameType<CancelBroadcastFrame>();
         RegisterFrameType<ReplyFrame>();
 
         this.nodeContext = new ThreadLocal<GigGossipNodeContext>(() => new GigGossipNodeContext(connectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))));
-        if (deleteDb)
-            nodeContext.Value.Database.EnsureDeleted();
         nodeContext.Value.Database.EnsureCreated();
     }
 
@@ -137,6 +135,8 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
         this.gigGossipNodeEvents = gigGossipNodeEvents;
         this.HttpMessageHandler = httpMessageHandler;
+
+        LoadMessageLocks();
 
         try
         {
@@ -187,7 +187,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
 
         await SayHelloAsync();
-        }
+    }
 
     public override async Task StopAsync()
     {
@@ -408,39 +408,24 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     public async Task OnCancelBroadcastFrameAsync(string messageId, string peerPublicKey, CancelBroadcastFrame cancelBroadcastFrame)
     {
         if (!await cancelBroadcastFrame.SignedCancelRequestPayload.VerifyAsync(SettlerSelector))
-        {
-            MarkMessageAsDone(messageId);
             return;
-        }
 
         gigGossipNodeEvents.OnCancelBroadcast(this, peerPublicKey, cancelBroadcastFrame);
         await CancelBroadcastAsync(cancelBroadcastFrame.SignedCancelRequestPayload);
-
-        MarkMessageAsDone(messageId);
     }
 
     public async Task OnBroadcastFrameAsync(string messageId, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
         if (broadcastFrame.SignedRequestPayload.Value.Timestamp > DateTime.UtcNow)
-        {
-            MarkMessageAsDone(messageId);
             return;
-        }
 
         if (broadcastFrame.SignedRequestPayload.Value.Timestamp + this.timestampTolerance < DateTime.UtcNow)
-        {
-            MarkMessageAsDone(messageId);
             return;
-        }
 
         if (!await broadcastFrame.SignedRequestPayload.VerifyAsync(SettlerSelector))
-        {
-            MarkMessageAsDone(messageId);
             return;
-        }
 
         gigGossipNodeEvents.OnAcceptBroadcast(this, peerPublicKey, broadcastFrame);
-        MarkMessageAsDone(messageId);
     }
 
     public async Task BroadcastToPeersAsync(string peerPublicKey, BroadcastFrame broadcastFrame)
@@ -572,7 +557,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 if (replyPayload == null)
                 {
                     Trace.TraceError("reply payload mismatch");
-                    if (messageId != null) MarkMessageAsDone(messageId);
                     return;
                 }
                 await _settlerMonitor.MonitorGigStatusAsync(responseFrame.SignedSettlementPromise.ServiceUri, replyPayload.Value.SignedRequestPayload.Id, replyPayload.Id, Crypto.SerializeObject(replyPayload));
@@ -610,9 +594,9 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 var topLayerPublicKey = responseFrame.ForwardOnion.Peel(privateKey);
                 if (!await responseFrame.SignedSettlementPromise.VerifyAsync(responseFrame.EncryptedReplyPayload, this.SettlerSelector))
                 {
-                    if (messageId != null) MarkMessageAsDone(messageId);
                     return;
                 }
+
                 if (!newResponse)
                 {
                     FlowLogger.NewReply(peerPublicKey, this.PublicKey, "reply");
@@ -623,7 +607,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                         responseFrame.SignedSettlementPromise.NetworkPaymentHash.AsHex(),
                         decodedNetworkInvoice.PaymentHash)))
                     {
-                        if (messageId != null) MarkMessageAsDone(messageId);
                         return;
                     }
 
@@ -654,7 +637,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 }
                 await SendMessageAsync(topLayerPublicKey, responseFrame, false, DateTime.UtcNow + InvoicePaymentTimeout);
             }
-            if (messageId != null) MarkMessageAsDone(messageId);
         }
         finally
         {
@@ -856,21 +838,30 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         return GigLNDWalletAPIErrorCode.Ok;
     }
 
-    public bool IsMessageDone(string messageId)
+    ConcurrentDictionary<string, bool> messageLocks = new();
+
+    private void LoadMessageLocks()
     {
-        return (from m in this.nodeContext.Value.MessagesDone where m.MessageId == messageId && m.PublicKey == this.PublicKey select m).FirstOrDefault() != null;
+        messageLocks = new ConcurrentDictionary<string, bool>(from m in this.nodeContext.Value.MessagesDone where m.PublicKey == this.PublicKey select KeyValuePair.Create(m.MessageId, true));
     }
 
-    public void MarkMessageAsDone(string messageId)
+    public override bool OpenMessage(string id)
     {
-        this.nodeContext.Value.AddObject(new MessageDoneRow() { MessageId = messageId, PublicKey = this.PublicKey });
+        return messageLocks.TryAdd(id, true);
+    }
+
+    public override void CommitMessage(string id)
+    {
+        this.nodeContext.Value.AddObject(new MessageDoneRow() { MessageId = id, PublicKey = this.PublicKey });
+    }
+
+    public override void AbortMessage(string id)
+    {
+        messageLocks.TryRemove(id, out _);
     }
 
     public override async Task OnMessageAsync(string messageId, bool isNew, string senderPublicKey, object frame)
     {
-        if (IsMessageDone(messageId))
-            return; //Already Processed
-
         if (frame is BroadcastFrame)
         {
             await OnBroadcastFrameAsync(messageId, senderPublicKey, (BroadcastFrame)frame);
@@ -904,5 +895,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
         return broadcastTopicResponse;
     }
+
 
 }

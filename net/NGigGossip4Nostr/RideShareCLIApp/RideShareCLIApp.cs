@@ -365,7 +365,7 @@ public partial class RideShareCLIApp
             settings.NodeSettings.GetNostrRelays(),
             ((GigGossipNodeEventSource) gigGossipNodeEventSource).GigGossipNodeEvents);
 
-        directCom = new DirectCom(await GetPrivateKeyAsync(), settings.NodeSettings.ChunkSize);
+        directCom = new DirectCom(gigGossipNode);
         directCom.RegisterFrameType<AckFrame>();
         directCom.RegisterFrameType<LocationFrame>();
         directCom.OnDirectMessage += DirectCom_OnDirectMessage;

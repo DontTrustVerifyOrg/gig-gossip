@@ -2,6 +2,7 @@
 using NBitcoin.Protocol;
 using System.Diagnostics;
 using NBitcoin.Secp256k1;
+using System.Collections.Concurrent;
 
 namespace NGigGossip4Nostr;
 
@@ -15,13 +16,10 @@ public class DirectMessageEventArgs : EventArgs
 
 public class DirectCom : NostrNode
 {
-    public DirectCom(ECPrivKey privateKey, int chunkSize) : base(privateKey,chunkSize)
+    private GigGossipNode gigGossipNode;
+    public DirectCom(GigGossipNode gigGossipNode) : base(gigGossipNode, gigGossipNode.ChunkSize,false)
     {
-
-    }
-
-    public DirectCom(NostrNode me, int chunkSize) : base(me, chunkSize)
-    {
+        this.gigGossipNode = gigGossipNode;
     }
 
     public new async Task StartAsync(string[] nostrRelays)
@@ -30,14 +28,6 @@ public class DirectCom : NostrNode
     }
 
     public event EventHandler<DirectMessageEventArgs> OnDirectMessage;
-
-    public override void OnContactList(string eventId, bool isNew, Dictionary<string, NostrContact> contactList)
-    {
-    }
-
-    public override void OnHello(string eventId, bool isNew, string senderPublicKeye)
-    {
-    }
 
     public async override Task OnMessageAsync(string eventId, bool isNew, string senderPublicKey, object frame)
     {
@@ -49,5 +39,21 @@ public class DirectCom : NostrNode
             IsNew = isNew,
         });
     }
+
+    public override bool OpenMessage(string id)
+    {
+        return gigGossipNode.OpenMessage(id);
+    }
+
+    public override void CommitMessage(string id)
+    {
+        gigGossipNode.CommitMessage(id);
+    }
+
+    public override void AbortMessage(string id)
+    {
+        gigGossipNode.AbortMessage(id);
+    }
+
 }
 

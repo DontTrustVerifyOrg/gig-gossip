@@ -22,28 +22,31 @@ public abstract class NostrNode
     protected ECPrivKey privateKey;
     protected ECXOnlyPubKey publicKey;
     public string PublicKey;
-    private int chunkSize;
+    public int ChunkSize;
     public string[] NostrRelays { get; private set; }
     private Dictionary<string, Type> _registeredFrameTypes = new();
     private string subscriptionId;
     private bool eoseReceived = false;
     private SemaphoreSlim eventSemSlim = new(1, 1);
+    private bool consumeCL;
 
 
-    public NostrNode(ECPrivKey privateKey, int chunkSize)
+    public NostrNode(ECPrivKey privateKey, int chunkSize, bool consumeCL)
     {
         this.privateKey = privateKey;
         this.publicKey = privateKey.CreateXOnlyPubKey();
         this.PublicKey = this.publicKey.AsHex();
-        this.chunkSize = chunkSize;
+        this.ChunkSize = chunkSize;
+        this.consumeCL = consumeCL;
     }
 
-    public NostrNode(NostrNode me, int chunkSize)
+    public NostrNode(NostrNode me, int chunkSize, bool consumeCL)
     {
         this.privateKey = me.privateKey;
         this.publicKey = privateKey.CreateXOnlyPubKey();
         this.PublicKey = this.publicKey.AsHex();
-        this.chunkSize = chunkSize;
+        this.ChunkSize = chunkSize;
+        this.consumeCL = consumeCL;
     }
 
     public void RegisterFrameType<T>()
@@ -99,11 +102,11 @@ public abstract class NostrNode
         var message = Convert.ToBase64String(Crypto.SerializeObject(frame));
         var evid = Guid.NewGuid().ToString();
 
-        int numOfParts = 1 + message.Length / chunkSize;
+        int numOfParts = 1 + message.Length / ChunkSize;
         List<NostrEvent> events = new();
         for (int idx = 0; idx < numOfParts; idx++)
         {
-            var part = ((idx + 1) * chunkSize < message.Length) ? message.Substring(idx * chunkSize, chunkSize) : message.Substring(idx * chunkSize);
+            var part = ((idx + 1) * ChunkSize < message.Length) ? message.Substring(idx * ChunkSize, ChunkSize) : message.Substring(idx * ChunkSize);
             var newEvent = new NostrEvent()
             {
                 Kind = ephemeral ? EphemeralMessageKind : RegularMessageKind,
@@ -136,8 +139,12 @@ public abstract class NostrNode
     }
 
     public abstract Task OnMessageAsync(string eventId, bool isNew, string senderPublicKey, object frame);
-    public abstract void OnContactList(string eventId, bool isNew, Dictionary<string, NostrContact> contactList);
-    public abstract void OnHello(string eventId, bool isNew, string senderPublicKeye);
+    public virtual void OnContactList(string eventId, bool isNew, Dictionary<string, NostrContact> contactList) { }
+    public virtual void OnHello(string eventId, bool isNew, string senderPublicKeye) { }
+
+    public abstract bool OpenMessage(string id);
+    public abstract void CommitMessage(string id);
+    public abstract void AbortMessage(string id);
 
     protected async Task StartAsync(string[] nostrRelays)
     {
@@ -269,7 +276,7 @@ public abstract class NostrNode
                         return;
                     }
                     var frame = Crypto.DeserializeObject(Convert.FromBase64String(msg), t);
-                    await this.OnMessageAsync(idx, eoseReceived, nostrEvent.PublicKey, frame);
+                    await this.DoOnMessageAsync(idx, eoseReceived, nostrEvent.PublicKey, frame);
                 }
                 else
                 {
@@ -287,27 +294,66 @@ public abstract class NostrNode
                                 return;
                             }
                             var frame = Crypto.DeserializeObject(Convert.FromBase64String(txt), t);
-                            await this.OnMessageAsync(idx, eoseReceived, nostrEvent.PublicKey, frame);
+                            await this.DoOnMessageAsync(idx, eoseReceived, nostrEvent.PublicKey, frame);
                         }
                     }
                 }
             }
     }
 
+    private async Task DoOnMessageAsync(string eventId, bool isNew, string senderPublicKey, object frame)
+    {
+        if (!OpenMessage(eventId))
+            return;
+        try
+        {
+            await OnMessageAsync(eventId, isNew, senderPublicKey, frame);
+            CommitMessage(eventId);
+        }
+        catch
+        {
+            AbortMessage(eventId);
+        }
+    }
+
     private void ProcessContactList(NostrEvent nostrEvent)
     {
-        var newCL = new Dictionary<string, NostrContact>();
-        foreach (var tag in nostrEvent.Tags)
+        if (!consumeCL)
+            return;
+
+        if (!OpenMessage(nostrEvent.Id))
+            return;
+        try
         {
-            if (tag.TagIdentifier == "p")
-                newCL[tag.Data[0]] = new NostrContact() { PublicKey = this.PublicKey, ContactPublicKey = tag.Data[0], Relay = tag.Data[1], Petname = tag.Data[2] };
+            var newCL = new Dictionary<string, NostrContact>();
+            foreach (var tag in nostrEvent.Tags)
+            {
+                if (tag.TagIdentifier == "p")
+                    newCL[tag.Data[0]] = new NostrContact() { PublicKey = this.PublicKey, ContactPublicKey = tag.Data[0], Relay = tag.Data[1], Petname = tag.Data[2] };
+            }
+            OnContactList(nostrEvent.Id, eoseReceived, newCL);
+            CommitMessage(nostrEvent.Id);
         }
-        OnContactList(nostrEvent.Id, eoseReceived, newCL);
+        catch
+        {
+            AbortMessage(nostrEvent.Id);
+        }
     }
 
     private void ProcessHello(NostrEvent nostrEvent)
     {
-        OnHello(nostrEvent.Id, eoseReceived, nostrEvent.PublicKey);
-    }
+        if (!consumeCL)
+            return;
 
+        if (!OpenMessage(nostrEvent.Id))
+            return;
+        try
+        {
+            OnHello(nostrEvent.Id, eoseReceived, nostrEvent.PublicKey);
+        }
+        catch
+        {
+            AbortMessage(nostrEvent.Id);
+        }
+    }
 }
