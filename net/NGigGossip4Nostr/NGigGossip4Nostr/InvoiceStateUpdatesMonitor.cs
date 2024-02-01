@@ -79,7 +79,7 @@ namespace NGigGossip4Nostr
             gigGossipNode.nodeContext.Value.AddObject(obj);
             try
             {
-                await this.InvoiceStateUpdatesClient.MonitorAsync(gigGossipNode.MakeWalletAuthToken(), phash);
+                await this.InvoiceStateUpdatesClient.MonitorAsync(await gigGossipNode.MakeWalletAuthToken(), phash);
             }
             catch
             {
@@ -88,7 +88,7 @@ namespace NGigGossip4Nostr
             }
         }
 
-        public async Task StartAsync()
+        public async Task StartAsync(HttpMessageHandler? httpMessageHandler)
 		{
             invoiceMonitorThread = new Thread(async () =>
             {
@@ -96,9 +96,10 @@ namespace NGigGossip4Nostr
                 {
                     try
                     {
-                        var token = gigGossipNode.MakeWalletAuthToken();
+                        var  token = await gigGossipNode.MakeWalletAuthToken();
 
-                        InvoiceStateUpdatesClient = new InvoiceStateUpdatesClient(gigGossipNode.LNDWalletClient, gigGossipNode.HttpMessageHandler);
+
+                        InvoiceStateUpdatesClient = new InvoiceStateUpdatesClient(gigGossipNode.GetWalletClient(), httpMessageHandler);
                         await InvoiceStateUpdatesClient.ConnectAsync(token);
 
                         NotifyClientIsConnected(true);
@@ -114,7 +115,7 @@ namespace NGigGossip4Nostr
                                 string state = string.Empty;
                                 try
                                 {
-                                    state = WalletAPIResult.Get<string>(await gigGossipNode.LNDWalletClient.GetInvoiceStateAsync(gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash));
+                                    state = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().GetInvoiceStateAsync(await gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash));
                                 }
                                 catch (Exception ex) { Console.WriteLine(ex.Message); }
                                 if (state != inv.InvoiceState)
@@ -126,7 +127,7 @@ namespace NGigGossip4Nostr
                             }
                         }
 
-                        await foreach (var invstateupd in this.InvoiceStateUpdatesClient.StreamAsync(this.gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token))
+                        await foreach (var invstateupd in this.InvoiceStateUpdatesClient.StreamAsync(await this.gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token))
                         {
                             var invp = invstateupd.Split('|');
                             var payhash = invp[0];
@@ -156,7 +157,7 @@ namespace NGigGossip4Nostr
                                                ex is WebSocketException)
                     {
                         NotifyClientIsConnected(false);
-                        Trace.TraceWarning("Hub disconnected " + gigGossipNode.LNDWalletClient.BaseUrl + "/invoicestateupdates, reconnecting");
+                        Trace.TraceWarning("Hub disconnected " + gigGossipNode.GetWalletClient().BaseUrl + "/invoicestateupdates, reconnecting");
                         Thread.Sleep(1000);
                         //reconnect
                     }

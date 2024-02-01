@@ -250,6 +250,7 @@ public abstract class NostrNode
         await nostrClient.CloseSubscription(subscriptionId);
         await nostrClient.Disconnect();
         nostrClient.Dispose();
+        nostrClient = null;
     }
 
     private ConcurrentDictionary<string, ConcurrentDictionary<int, string>> _partial_messages = new();

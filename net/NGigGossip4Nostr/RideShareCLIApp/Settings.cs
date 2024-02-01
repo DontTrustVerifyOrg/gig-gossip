@@ -64,8 +64,5 @@ public class NodeSettings
     {
         return (from s in JsonArray.Parse(DriverProperties)!.AsArray() select s.GetValue<string>()).ToArray();
     }
-    public GigLNDWalletAPIClient.swaggerClient GetLndWalletClient(HttpClient httpClient)
-    {
-        return new GigLNDWalletAPIClient.swaggerClient(GigWalletOpenApi.AbsoluteUri, httpClient);
-    }
+
 }

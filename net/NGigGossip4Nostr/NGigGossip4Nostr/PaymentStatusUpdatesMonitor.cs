@@ -80,7 +80,7 @@ public class PaymentStatusUpdatesMonitor
 
         try
         {
-            await this.PaymentStatusUpdatesClient.MonitorAsync(gigGossipNode.MakeWalletAuthToken(), phash);
+            await this.PaymentStatusUpdatesClient.MonitorAsync(await gigGossipNode.MakeWalletAuthToken(), phash);
         }
         catch
         {
@@ -97,12 +97,12 @@ public class PaymentStatusUpdatesMonitor
         if (o == null)
             return;
 
-        await this.PaymentStatusUpdatesClient.StopMonitoringAsync(gigGossipNode.MakeWalletAuthToken(), phash);
+        await this.PaymentStatusUpdatesClient.StopMonitoringAsync(await gigGossipNode.MakeWalletAuthToken(), phash);
         gigGossipNode.nodeContext.Value.RemoveObject(o);
     }
 
 
-    public async Task StartAsync()
+    public async Task StartAsync(HttpMessageHandler? httpMessageHandler)
     {
         paymentMonitorThread = new Thread(async () =>
         {
@@ -110,9 +110,9 @@ public class PaymentStatusUpdatesMonitor
             {
                 try
                 {
-                    var token = gigGossipNode.MakeWalletAuthToken();
+                    var token = await gigGossipNode.MakeWalletAuthToken();
 
-                    PaymentStatusUpdatesClient = new PaymentStatusUpdatesClient(gigGossipNode.LNDWalletClient, gigGossipNode.HttpMessageHandler);
+                    PaymentStatusUpdatesClient = new PaymentStatusUpdatesClient(gigGossipNode.GetWalletClient(), httpMessageHandler);
                     await PaymentStatusUpdatesClient.ConnectAsync(token);
 
                     NotifyClientIsConnected(true);
@@ -127,7 +127,7 @@ public class PaymentStatusUpdatesMonitor
                         { 
                             try
                             {
-                                var status = WalletAPIResult.Get<string>(await gigGossipNode.LNDWalletClient.GetPaymentStatusAsync(gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash));
+                                var status = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().GetPaymentStatusAsync(await gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash));
                                 if (status != pay.PaymentStatus)
                                 {
                                     gigGossipNode.OnPaymentStatusChange(status, pay.Data);
@@ -142,7 +142,7 @@ public class PaymentStatusUpdatesMonitor
                         }
                     }
 
-                    await foreach (var paystateupd in this.PaymentStatusUpdatesClient.StreamAsync(this.gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token))
+                    await foreach (var paystateupd in this.PaymentStatusUpdatesClient.StreamAsync(await this.gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token))
                     {
                         var invp = paystateupd.Split('|');
                         var payhash = invp[0];
@@ -172,7 +172,7 @@ public class PaymentStatusUpdatesMonitor
                                            ex is WebSocketException)
                 {
                     NotifyClientIsConnected(false);
-                    Trace.TraceWarning("Hub disconnected " + gigGossipNode.LNDWalletClient.BaseUrl + "/paymentstatusupdates, reconnecting");
+                    Trace.TraceWarning("Hub disconnected " + gigGossipNode.GetWalletClient().BaseUrl + "/paymentstatusupdates, reconnecting");
                     Thread.Sleep(1000);
                     //reconnect
                 }

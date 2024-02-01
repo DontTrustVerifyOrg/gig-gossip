@@ -158,6 +158,33 @@ public partial class RideShareCLIApp
 
     public async Task RunAsync()
     {
+        var privateKey = await GetPrivateKeyAsync();
+        if (privateKey == null)
+        {
+            var mnemonic = Crypto.GenerateMnemonic().Split(" ");
+            AnsiConsole.WriteLine($"Initializing private key for {settings.Id}");
+            AnsiConsole.WriteLine(string.Join(" ", mnemonic));
+            privateKey = Crypto.DeriveECPrivKeyFromMnemonic(string.Join(" ", mnemonic));
+            await SetPrivateKeyAsync(privateKey);
+        }
+        else
+        {
+            AnsiConsole.WriteLine($"Loading private key for {settings.Id}");
+        }
+
+        gigGossipNode = new GigGossipNode(
+            settings.NodeSettings.ConnectionString.Replace("$ID", settings.Id),
+            privateKey,
+            settings.NodeSettings.ChunkSize);
+
+        AnsiConsole.WriteLine("privkey:" + privateKey.AsHex());
+        AnsiConsole.WriteLine("pubkey :" + gigGossipNode.PublicKey);
+
+        directCom = new DirectCom(gigGossipNode);
+        directCom.RegisterFrameType<AckFrame>();
+        directCom.RegisterFrameType<LocationFrame>();
+        directCom.OnDirectMessage += DirectCom_OnDirectMessage;
+
         await StartAsync();
 
         var phoneNumber = await GetPhoneNumberAsync();
@@ -191,8 +218,8 @@ public partial class RideShareCLIApp
                 var topUpAmount = Prompt.Input<int>("How much top up");
                 if (topUpAmount > 0)
                 {
-                    var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await gigGossipNode.LNDWalletClient.NewAddressAsync(gigGossipNode.MakeWalletAuthToken()));
-                    gigGossipNode.LNDWalletClient.TopUpAndMine6BlocksAsync(newBitcoinAddressOfCustomer, topUpAmount);
+                    var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().NewAddressAsync(await gigGossipNode.MakeWalletAuthToken()));
+                    gigGossipNode.GetWalletClient().TopUpAndMine6BlocksAsync(newBitcoinAddressOfCustomer, topUpAmount);
                 }
             }
             else if (cmd == CommandEnum.SetupMyInfo)
@@ -321,7 +348,7 @@ public partial class RideShareCLIApp
 
     private async Task WriteBalance()
     {
-        var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.LNDWalletClient.GetBalanceAsync(gigGossipNode.MakeWalletAuthToken()));
+        var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken()));
         AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
     }
 
@@ -348,45 +375,18 @@ public partial class RideShareCLIApp
 
     async Task StartAsync()
     {
-        var privateKey = await GetPrivateKeyAsync();
-        if (privateKey == null)
-        {
-            var mnemonic = Crypto.GenerateMnemonic().Split(" ");
-            AnsiConsole.WriteLine($"Initializing private key for {settings.Id}");
-            AnsiConsole.WriteLine(string.Join(" ", mnemonic));
-            privateKey = Crypto.DeriveECPrivKeyFromMnemonic(string.Join(" ", mnemonic));
-            await SetPrivateKeyAsync(privateKey);
-        }
-        else
-        {
-            AnsiConsole.WriteLine($"Loading private key for {settings.Id}");
-        }
 
-        gigGossipNode = new GigGossipNode(
-            settings.NodeSettings.ConnectionString.Replace("$ID", settings.Id),
-            privateKey,
-            settings.NodeSettings.ChunkSize);
-
-        gigGossipNode.Init(
+        await gigGossipNode.StartAsync(
             settings.NodeSettings.Fanout,
             settings.NodeSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(settings.NodeSettings.TimestampToleranceMs),
-            TimeSpan.FromSeconds(settings.NodeSettings.InvoicePaymentTimeoutSec),
-            settings.NodeSettings.GetLndWalletClient(httpClient));
+            TimeSpan.FromSeconds(settings.NodeSettings.InvoicePaymentTimeoutSec), 
+            settings.NodeSettings.GetNostrRelays(), 
+            ((GigGossipNodeEventSource) gigGossipNodeEventSource).GigGossipNodeEvents,
+            ()=>new HttpClient(),
+            settings.NodeSettings.GigWalletOpenApi);
 
-        await gigGossipNode.StartAsync(
-            settings.NodeSettings.GetNostrRelays(),
-            ((GigGossipNodeEventSource) gigGossipNodeEventSource).GigGossipNodeEvents);
-
-        directCom = new DirectCom(gigGossipNode);
-        directCom.RegisterFrameType<AckFrame>();
-        directCom.RegisterFrameType<LocationFrame>();
-        directCom.OnDirectMessage += DirectCom_OnDirectMessage;
-
-        AnsiConsole.WriteLine("privkey:" + privateKey.AsHex());
-        AnsiConsole.WriteLine("pubkey :" + gigGossipNode.PublicKey);
-
-        var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.LNDWalletClient.GetBalanceAsync(gigGossipNode.MakeWalletAuthToken()));
+        var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken()));
         AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
 
         var contactList = gigGossipNode.LoadContactList();
