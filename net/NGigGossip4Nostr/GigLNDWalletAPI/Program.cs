@@ -42,6 +42,9 @@ IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
     foreach (var arg in args)
         if (arg.StartsWith("--basedir"))
             basePath = arg.Substring(arg.IndexOf('=') + 1).Trim().Replace("\"", "").Replace("\'", "");
+        else if (arg.StartsWith("--cfg"))
+            iniName = arg.Substring(arg.IndexOf('=') + 1).Trim().Replace("\"", "").Replace("\'", "");
+
 
     var builder = new ConfigurationBuilder();
     builder.SetBasePath(basePath)
@@ -160,6 +163,27 @@ app.MapGet("/getbalance",(string authToken) =>
 .WithName("GetBalance")
 .WithSummary("Balance of the account")
 .WithDescription("Returns the account balance in Satoshis")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "authorisation token for the communication";
+    return g;
+});
+
+
+app.MapGet("/getbalancedetails", (string authToken) =>
+{
+    try
+    {
+        return new Result<AccountBallanceDetails>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetAccountBallanceDetails());
+    }
+    catch (LNDWalletException ex)
+    {
+        return new Result<AccountBallanceDetails>(ex.ErrorCode);
+    }
+})
+.WithName("GetBalanceDetails")
+.WithSummary("Balance details of the account")
+.WithDescription("Returns the account balance details in Satoshis")
 .WithOpenApi(g =>
 {
     g.Parameters[0].Description = "authorisation token for the communication";
@@ -285,11 +309,11 @@ app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
 });
 
 
-app.MapGet("/sendpayment", (string authToken, string paymentrequest, int timeout) =>
+app.MapGet("/sendpayment", async (string authToken, string paymentrequest, int timeout) =>
 {
     try
     {
-        Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SendPayment(paymentrequest, timeout, walletSettings.SendPaymentTxFee, walletSettings.FeeLimit);
+        await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SendPaymentAsync(paymentrequest, timeout, walletSettings.SendPaymentTxFee, walletSettings.FeeLimit);
         return new Result();
     }
     catch (LNDWalletException ex)

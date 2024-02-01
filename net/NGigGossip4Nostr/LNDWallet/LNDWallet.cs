@@ -152,33 +152,79 @@ public class LNDAccountManager
                     select a).ToList();
     }
 
-    public long GetPendingPayedOutAmount()
+    /*
+    public (long all, long confirmed) GetExecutedPayedInFundingAmount(int minConf)
     {
-            return (from a in walletContext.Value.Payouts
-                    where a.PublicKey == PublicKey && a.IsPending
-                    select ((long)(a.Satoshis + a.TxFee))).Sum();
+        var transactuinsResp = LND.GetTransactions(conf);
+        long confirmed = 0;
+        long confirmedTxFee = 0;
+        long all = 0;
+        long allTxFee = 0;
+        foreach (var transation in transactuinsResp.Transactions)
+            foreach (var outp in transation.OutputDetails)
+                if (outp.IsOurAddress)
+                    if (txFees.ContainsKey(outp.Address))
+                    {
+                        if (transation.NumConfirmations >= minConf)
+                        {
+                            confirmed += outp.Amount;
+                            confirmedTxFee += (long)txFees[outp.Address];
+                        }
+                        all += outp.Amount;
+                        allTxFee += (long)txFees[outp.Address];
+                    }
+        return (all, allTxFee, confirmed, confirmedTxFee);
+    }*/
+
+/*    public (long amount, long amountTxFee) GetPayedOutAmount()
+    {
+        var amount = (from a in walletContext.Value.Payouts
+                      where a.PublicKey == PublicKey
+                      select ((long)(a.Satoshis))).Sum();
+        var amountTxFee = (from a in walletContext.Value.Payouts
+                           where a.PublicKey == PublicKey
+                           select ((long)(a.TxFee))).Sum();
+        return (amount, amountTxFee);
+    }*/
+
+    public (long amount, long amountTxFee) GetPendingPayedOutAmount()
+    {
+        var amount = (from a in walletContext.Value.Payouts
+                      where a.PublicKey == PublicKey && a.IsPending
+                      select ((long)(a.Satoshis))).Sum();
+        var amountTxFee = (from a in walletContext.Value.Payouts
+                           where a.PublicKey == PublicKey && a.IsPending
+                           select ((long)(a.TxFee))).Sum();
+        return (amount, amountTxFee);
     }
 
-    public long GetExecutedPayedOutAmount(int minConf)
+    public (long all, long allTxFee, long confirmed, long confirmedTxFee) GetExecutedPayedOutAmount(int minConf)
     {
         Dictionary<string, LNDWallet.Payout> mypayouts;
-            mypayouts = new Dictionary<string, LNDWallet.Payout>(
-                from a in walletContext.Value.Payouts
-                where a.PublicKey == PublicKey
-                select new KeyValuePair<string, LNDWallet.Payout>(a.BitcoinAddress, a));
+        mypayouts = new Dictionary<string, LNDWallet.Payout>(
+            from a in walletContext.Value.Payouts
+            where a.PublicKey == PublicKey
+            select new KeyValuePair<string, LNDWallet.Payout>(a.BitcoinAddress, a));
 
         var transactuinsResp = LND.GetTransactions(conf);
-        long balance = 0;
+        long confirmed = 0;
+        long confirmedTxFee = 0;
+        long all = 0;
+        long allTxFee = 0;
         foreach (var transation in transactuinsResp.Transactions)
-            if (transation.NumConfirmations >= minConf)
-                foreach (var outp in transation.OutputDetails)
-                    if (!outp.IsOurAddress)
-                        if (mypayouts.ContainsKey(outp.Address))
+            foreach (var outp in transation.OutputDetails)
+                if (!outp.IsOurAddress)
+                    if (mypayouts.ContainsKey(outp.Address))
+                    {
+                        if (transation.NumConfirmations >= minConf)
                         {
-                            balance += outp.Amount;
-                            balance += (long)mypayouts[outp.Address].TxFee;
+                            confirmed += outp.Amount;
+                            confirmedTxFee += (long)mypayouts[outp.Address].TxFee;
                         }
-        return balance;
+                        all += outp.Amount;
+                        allTxFee += (long)mypayouts[outp.Address].TxFee;
+                    }
+        return (all, allTxFee, confirmed, confirmedTxFee);
     }
 
     public Invoicesrpc.AddHoldInvoiceResp AddHodlInvoice(long satoshis, string memo, byte[] hash, long txfee, long expiry)
@@ -219,11 +265,14 @@ public class LNDAccountManager
         return LND.DecodeInvoice(conf, paymentRequest);
     }
 
-    public void SendPayment(string paymentRequest, int timeout, long txfee, long feelimit)
+    CancellationTokenSource trackPaymentsCancallationTokenSource = new();
+
+    public async Task SendPaymentAsync(string paymentRequest, int timeout, long txfee, long feelimit)
     {
         var decinv = LND.DecodeInvoice(conf, paymentRequest);
-            if (decinv.NumSatoshis > GetAccountBallance() - txfee)
-                throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds);
+        var accountBallance = GetAccountBallance();
+        if (decinv.NumSatoshis > accountBallance -feelimit)
+            throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds);
 
         var selfInvQuery = (from inv in walletContext.Value.Invoices
                             where inv.PaymentHash == decinv.PaymentHash
@@ -262,7 +311,15 @@ public class LNDAccountManager
         }
         else
         {
-            LND.SendPaymentV2(conf, paymentRequest, timeout, (long)feelimit);
+            var stream = LND.SendPaymentV2(conf, paymentRequest, timeout, (long)feelimit);
+            LNDWallet.PaymentStatus paymentStatus = PaymentStatus.Unknown;
+            while (await stream.ResponseStream.MoveNext(trackPaymentsCancallationTokenSource.Token))
+            {
+                var status = stream.ResponseStream.Current;
+                if (status.Status != Lnrpc.Payment.Types.PaymentStatus.Unknown)
+                    paymentStatus = (LNDWallet.PaymentStatus)((int)status.Status);
+                break;
+            }
             walletContext.Value.AddObject(new Payment()
             {
                 PaymentHash = decinv.PaymentHash,
@@ -384,8 +441,119 @@ public class LNDAccountManager
             return channelfunds - alreadypayedout + earnedFromSettledInvoices - sendOrLocedPayments;
     }
 
+    public AccountBallanceDetails GetAccountBallanceDetails()
+    {
+        throw new NotImplementedException();
+
+        /*        var (allChannelFunds, allChannelFundsTxFee, confirmedChannelFunds, confirmedChannelFundsTxFee) = GetExecutedPayedInFundingAmount(6);
+                var (payedOutAmount, payedOutAmountTxFee) = GetPayedOutAmount();
+                var (pendingPayOutAmount, pendingPayOutAmountTxFee) = GetPendingPayedOutAmount();
+                var (allPayOutFunds, allPayOutFundsTxFee, confirmedPayOutFunds, confirmedPayOutFundsTxFee) = GetExecutedPayedOutAmount(6);
+
+                var earnedFromSettledInvoices = (from inv in walletContext.Value.Invoices
+                                                 where inv.PublicKey == PublicKey && inv.State == InvoiceState.Settled
+                                                 select (long)inv.Satoshis).Sum();
+
+                var earnedFromSettledInvoicesTxFee = (from inv in walletContext.Value.Invoices
+                                                      where inv.PublicKey == PublicKey && inv.State == InvoiceState.Settled
+                                                      select (long)inv.TxFee).Sum();
+
+                var earnedFromAcceptedOrSettledInvoices = (from inv in walletContext.Value.Invoices
+                                                           where inv.PublicKey == PublicKey && (inv.State == InvoiceState.Accepted || inv.State == InvoiceState.Settled)
+                                                           select (long)inv.Satoshis).Sum();
+
+                var earnedFromAcceptedOrSettledInvoicesTxFee = (from inv in walletContext.Value.Invoices
+                                                                where inv.PublicKey == PublicKey && (inv.State == InvoiceState.Accepted || inv.State == InvoiceState.Settled)
+                                                                select (long)inv.TxFee).Sum();
+
+                var succesfulPayments = (from pay in walletContext.Value.Payments
+                                         where pay.PublicKey == PublicKey && (pay.Status == PaymentStatus.Succeeded)
+                                         select (long)pay.Satoshis).Sum();
+
+                var succesfulPaymentsFee = (from pay in walletContext.Value.Payments
+                                            where pay.PublicKey == PublicKey && (pay.Status == PaymentStatus.Succeeded)
+                                            select (long)pay.PaymentFee).Sum();
+
+                var succesfulPaymentsTxFee = (from pay in walletContext.Value.Payments
+                                              where pay.PublicKey == PublicKey && (pay.Status == PaymentStatus.Succeeded)
+                                              select (long)pay.TxFee).Sum();
+
+                var succesfulOrFlyingPayments = (from pay in walletContext.Value.Payments
+                                                 where pay.PublicKey == PublicKey && (pay.Status == PaymentStatus.Succeeded || pay.Status == PaymentStatus.InFlight)
+                                                 select (long)pay.Satoshis).Sum();
+
+                var succesfulOrFlyingPaymentsFee = (from pay in walletContext.Value.Payments
+                                                    where pay.PublicKey == PublicKey && (pay.Status == PaymentStatus.Succeeded || pay.Status == PaymentStatus.InFlight)
+                                                    select (long)pay.PaymentFee).Sum();
+
+                var succesfulOrFlyingPaymentsTxFee = (from pay in walletContext.Value.Payments
+                                                      where pay.PublicKey == PublicKey && (pay.Status == PaymentStatus.Succeeded || pay.Status == PaymentStatus.InFlight)
+                                                      select (long)pay.TxFee).Sum();
+
+                return new AccountBallanceDetails
+                {
+                    AllChannelFunds = allChannelFunds,
+                    AllChannelFundsTxFee = allChannelFundsTxFee,
+                    ConfirmedChannelFunds = confirmedChannelFunds,
+                    ConfirmedChannelFundsTxFee = confirmedChannelFundsTxFee,
+
+                    PayedOutAmount = payedOutAmount,
+                    PayedOutAmountTxFee = payedOutAmountTxFee,
+                    PendingPayOutAmount = pendingPayOutAmount,
+                    PendingPayOutAmountTxFee = pendingPayOutAmountTxFee,
+
+                    AllPayOutFunds = allPayOutFunds,
+                    AllPayOutFundsTxFee = allPayOutFundsTxFee,
+                    ConfirmedPayOutFunds = confirmedPayOutFunds,
+                    ConfirmedPayOutFundsTxFee = confirmedPayOutFundsTxFee,
+
+                    EarnedFromSettledInvoices = earnedFromSettledInvoices,
+                    EarnedFromSettledInvoicesTxFee = earnedFromSettledInvoicesTxFee,
+
+                    EarnedFromAcceptedOrSettledInvoices = earnedFromAcceptedOrSettledInvoices,
+                    EarnedFromAcceptedOrSettledInvoicesTxFee = earnedFromAcceptedOrSettledInvoicesTxFee,
+
+                    SuccesfulPayments = succesfulPayments,
+                    SuccesfulPaymentsFee = succesfulPaymentsFee,
+                    SuccesfulPaymentsTxFee = succesfulPaymentsTxFee,
+                    SuccesfulOrFlyingPayments = succesfulOrFlyingPayments,
+                    SuccesfulOrFlyingPaymentsFee = succesfulOrFlyingPaymentsFee,
+                    SuccesfulOrFlyingPaymentsTxFee = succesfulOrFlyingPaymentsTxFee,
+                };*/
+    }
 }
 
+[Serializable]
+public class AccountBallanceDetails
+{
+    public long AllChannelFunds { get; set; }
+    public long AllChannelFundsTxFee { get; set; }
+    public long ConfirmedChannelFunds { get; set; }
+    public long ConfirmedChannelFundsTxFee { get; set; }
+
+    public long PayedOutAmount { get; set; }
+    public long PayedOutAmountTxFee { get; set; }
+    public long PendingPayOutAmount { get; set; }
+    public long PendingPayOutAmountTxFee { get; set; }
+
+    public long AllPayOutFunds { get; set; }
+    public long AllPayOutFundsTxFee { get; set; }
+    public long ConfirmedPayOutFunds { get; set; }
+    public long ConfirmedPayOutFundsTxFee { get; set; }
+
+    public long EarnedFromSettledInvoices { get; set; }
+    public long EarnedFromSettledInvoicesTxFee { get; set; }
+
+    public long EarnedFromAcceptedOrSettledInvoices { get; set; }
+    public long EarnedFromAcceptedOrSettledInvoicesTxFee { get; set; }
+
+    public long SuccesfulPayments { get; set; }
+    public long SuccesfulPaymentsFee { get; set; }
+    public long SuccesfulPaymentsTxFee { get; set; }
+    public long SuccesfulOrFlyingPayments { get; set; }
+    public long SuccesfulOrFlyingPaymentsFee { get; set; }
+    public long SuccesfulOrFlyingPaymentsTxFee { get; set; }
+}
 
 public class LNDWalletManager : LNDEventSource
 {
@@ -426,13 +594,18 @@ public class LNDWalletManager : LNDEventSource
         {
             Task.Run(async () =>
             {
+                {
+                    var inv = LND.LookupInvoiceV2(conf, paymentHash.AsBytes());
+                    if ((inv.State == Lnrpc.Invoice.Types.InvoiceState.Settled) || (inv.State == Lnrpc.Invoice.Types.InvoiceState.Canceled))
+                        return;
+                }
                 try
                 {
                     var stream = LND.SubscribeSingleInvoice(conf, paymentHash.AsBytes(), cancellationToken: subscribeInvoicesCancallationTokenSource.Token);
                     while (await stream.ResponseStream.MoveNext(subscribeInvoicesCancallationTokenSource.Token))
                     {
                         var inv = stream.ResponseStream.Current;
-                        if (inv.State == Lnrpc.Invoice.Types.InvoiceState.Canceled)
+                        if ((inv.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)|| (inv.State == Lnrpc.Invoice.Types.InvoiceState.Canceled))
                         {
                             (from i in walletContext.Value.Invoices
                              where i.PaymentHash == inv.RHash.ToArray().AsHex()
@@ -440,10 +613,11 @@ public class LNDWalletManager : LNDEventSource
                              select i)
                                 .ExecuteUpdate(
                                 i => i
-                                .SetProperty(a => a.State, a => (InvoiceState)inv.State)
-                                .SetProperty(a => a.Preimage, a => inv.State == Lnrpc.Invoice.Types.InvoiceState.Settled ? inv.RPreimage.ToArray() : a.Preimage));
+                                .SetProperty(a => a.State, a => (InvoiceState)((int)inv.State)));
                             this.FireOnInvoiceStateChanged(inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
                         }
+                        if ((inv.State == Lnrpc.Invoice.Types.InvoiceState.Settled) || (inv.State == Lnrpc.Invoice.Types.InvoiceState.Canceled))
+                            return;
                     }
                 }
                 catch (RpcException e) when (e.Status.StatusCode == StatusCode.Cancelled)
@@ -512,8 +686,8 @@ public class LNDWalletManager : LNDEventSource
                                        select i)
                         .ExecuteUpdate(
                         i => i
-                        .SetProperty(a => a.State, a => (InvoiceState)inv.State)
-                        .SetProperty(a => a.Preimage, a => inv.State == Lnrpc.Invoice.Types.InvoiceState.Settled ? inv.RPreimage.ToArray() : a.Preimage));
+                            .SetProperty(a => a.State, a => (InvoiceState)((int)inv.State))
+                            .SetProperty(a => a.Preimage, a => inv.State == Lnrpc.Invoice.Types.InvoiceState.Settled ? inv.RPreimage.ToArray() : a.Preimage));
                     this.FireOnInvoiceStateChanged(inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
                     if((inv.State== Lnrpc.Invoice.Types.InvoiceState.Open ) || (inv.State== Lnrpc.Invoice.Types.InvoiceState.Accepted))
                     {
@@ -542,8 +716,8 @@ public class LNDWalletManager : LNDEventSource
                      && i.Status != (PaymentStatus)pm.Status
                      select i)
                      .ExecuteUpdate(i => i
-                     .SetProperty(a => a.Status, a => (PaymentStatus)pm.Status)
-                     .SetProperty(a => a.PaymentFee, a => pm.Status == Lnrpc.Payment.Types.PaymentStatus.Succeeded ? (long)pm.FeeSat : a.PaymentFee));
+                         .SetProperty(a => a.Status, a => (PaymentStatus)((int)pm.Status))
+                         .SetProperty(a => a.PaymentFee, a => pm.Status == Lnrpc.Payment.Types.PaymentStatus.Succeeded ? (long)pm.FeeSat : a.PaymentFee));
                     this.FireOnPaymentStatusChanged(pm.PaymentHash, (PaymentStatus)pm.Status);
                 }
             }

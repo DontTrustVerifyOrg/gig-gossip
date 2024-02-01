@@ -155,7 +155,7 @@ public static class LND
             Metadata(conf), deadline, cancellationToken);
     }
 
-    public static AsyncServerStreamingCall<Payment> SendPaymentV2(NodeSettings conf, string paymentRequest, int timeout, long feelimit, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static AsyncServerStreamingCall<Payment> SendPaymentV2(NodeSettings conf, string paymentRequest, int timeout, long feelimit, ulong[] outChanIds = null, DateTime? deadline = null,CancellationToken cancellationToken = default)
     {
         var spr = new SendPaymentRequest()
         {
@@ -163,6 +163,8 @@ public static class LND
             TimeoutSeconds = timeout,
             FeeLimitSat = feelimit,
         };
+        if(outChanIds!=null)
+            spr.OutgoingChanIds.AddRange(outChanIds);
 
         var stream = RouterClient(conf).SendPaymentV2(
             spr,
@@ -265,7 +267,7 @@ public static class LND
         return LightningClient(conf).ListChannels(
             new ListChannelsRequest()
             {
-                ActiveOnly = activeOnly
+                ActiveOnly = activeOnly, 
             },
             Metadata(conf), deadline, cancellationToken);
     }
