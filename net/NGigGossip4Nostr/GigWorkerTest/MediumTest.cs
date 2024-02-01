@@ -12,6 +12,7 @@ using NGeoHash;
 using NBitcoin.RPC;
 using GigLNDWalletAPIClient;
 using GigGossipSettlerAPIClient;
+using System.Net.Http;
 
 namespace GigWorkerMediumTest;
 
@@ -40,8 +41,6 @@ public class MediumTest
     }
 
 
-    HttpClient httpClient = new HttpClient();
-
     public async Task RunAsync()
     {
         FlowLogger.Start(applicationSettings.FlowLoggerPath.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
@@ -61,7 +60,7 @@ public class MediumTest
 
         bitcoinWalletClient.Generate(10); // generate some blocks
 
-        var settlerSelector = new SimpleSettlerSelector();
+        var settlerSelector = new SimpleSettlerSelector(()=> new HttpClient());
         var settlerPrivKey = settlerAdminSettings.PrivateKey.AsECPrivKey();
         var settlerPubKey = settlerPrivKey.CreateXOnlyPubKey();
         var settlerClient = settlerSelector.GetSettlerClient(settlerAdminSettings.SettlerOpenApi);
@@ -111,47 +110,48 @@ public class MediumTest
             (DateTime.UtcNow + TimeSpan.FromDays(1)).ToLongDateString()
          ));
 
-        gigWorker.Init(
+        await gigWorker.StartAsync(
             gigWorkerSettings.Fanout,
             gigWorkerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(gigWorkerSettings.InvoicePaymentTimeoutSec),
-            gigWorkerSettings.GetLndWalletClient(httpClient));
-
+            gigWorkerSettings.GetNostrRelays(),
+            new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi),
+            ()=>new HttpClient(),
+            gigWorkerSettings.GigWalletOpenApi);
+        gigWorker.ClearContacts();
 
         foreach(var node in gossipers)
         {
-            node.Init(
-            gossiperSettings.Fanout,
-            gossiperSettings.PriceAmountForRouting,
-            TimeSpan.FromMilliseconds(gossiperSettings.TimestampToleranceMs),
-            TimeSpan.FromSeconds(gossiperSettings.InvoicePaymentTimeoutSec),
-            gossiperSettings.GetLndWalletClient(httpClient));
+            await node.StartAsync(
+                gossiperSettings.Fanout,
+                gossiperSettings.PriceAmountForRouting,
+                TimeSpan.FromMilliseconds(gossiperSettings.TimestampToleranceMs),
+                TimeSpan.FromSeconds(gossiperSettings.InvoicePaymentTimeoutSec),
+                gossiperSettings.GetNostrRelays(),
+                new NetworkEarnerNodeEvents(),
+                () => new HttpClient(),
+                gossiperSettings.GigWalletOpenApi);
+            node.ClearContacts();
         }
 
-        customer.Init(
+        await customer.StartAsync(
             customerSettings.Fanout,
             customerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(customerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(customerSettings.InvoicePaymentTimeoutSec),
-            customerSettings.GetLndWalletClient(httpClient));
-
-        await gigWorker.StartAsync(gigWorkerSettings.GetNostrRelays(), new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi));
-        gigWorker.ClearContacts();
-        foreach (var node in gossipers)
-        {
-            await node.StartAsync(gossiperSettings.GetNostrRelays(), new NetworkEarnerNodeEvents());
-            node.ClearContacts();
-        }
-        await customer.StartAsync(customerSettings.GetNostrRelays(), new CustomerGossipNodeEvents(this));
+            customerSettings.GetNostrRelays(),
+            new CustomerGossipNodeEvents(this),
+            () => new HttpClient(),
+            customerSettings.GigWalletOpenApi);
         customer.ClearContacts();
 
         async Task TopupNode(GigGossipNode node, long minAmout,long topUpAmount)
         {
-            var ballanceOfCustomer = WalletAPIResult.Get<long>(await node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken()));
+            var ballanceOfCustomer = WalletAPIResult.Get<long>(await node.GetWalletClient().GetBalanceAsync(await node.MakeWalletAuthToken()));
             if (ballanceOfCustomer < minAmout)
             {
-                var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await node.LNDWalletClient.NewAddressAsync(node.MakeWalletAuthToken()));
+                var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await node.GetWalletClient().NewAddressAsync(await node.MakeWalletAuthToken()));
                 bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, bitcoinSettings.GetNetwork()), new NBitcoin.Money(topUpAmount));
             }
         }
@@ -168,11 +168,11 @@ public class MediumTest
 
         do
         {
-            if (WalletAPIResult.Get<long>(await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken())) >= minAmount)
+            if (WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken())) >= minAmount)
             {
             outer:
                 foreach (var node in gossipers)
-                    if (WalletAPIResult.Get<long>(await node.LNDWalletClient.GetBalanceAsync(node.MakeWalletAuthToken())) < minAmount)
+                    if (WalletAPIResult.Get<long>(await node.GetWalletClient().GetBalanceAsync(await node.MakeWalletAuthToken())) < minAmount)
                     {
                         Thread.Sleep(1000);
                         goto outer;

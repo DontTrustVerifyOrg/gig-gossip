@@ -40,8 +40,6 @@ public class BasicTest
     }
 
 
-    HttpClient httpClient = new HttpClient();
-
     public async Task RunAsync()
     {
         FlowLogger.Start(applicationSettings.FlowLoggerPath.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
@@ -63,7 +61,7 @@ public class BasicTest
 
         var settlerPrivKey = settlerAdminSettings.PrivateKey.AsECPrivKey();
         var settlerPubKey = settlerPrivKey.CreateXOnlyPubKey();
-        var settlerSelector = new SimpleSettlerSelector();
+        var settlerSelector = new SimpleSettlerSelector(()=> new HttpClient());
         var settlerClient = settlerSelector.GetSettlerClient(settlerAdminSettings.SettlerOpenApi);
         var gtok = SettlerAPIResult.Get<Guid>(await settlerClient.GetTokenAsync(settlerPubKey.AsHex()));
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.UtcNow, gtok);
@@ -99,28 +97,31 @@ public class BasicTest
             (DateTime.UtcNow + TimeSpan.FromDays(1)).ToLongDateString()
          ));
 
-        gigWorker.Init(
+        await gigWorker.StartAsync(
             gigWorkerSettings.Fanout,
             gigWorkerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(gigWorkerSettings.InvoicePaymentTimeoutSec),
-            gigWorkerSettings.GetLndWalletClient(httpClient));
+            gigWorkerSettings.GetNostrRelays(),
+            new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi),
+            ()=> new HttpClient(),
+            gigWorkerSettings.GigWalletOpenApi);
 
-        customer.Init(
+        await customer.StartAsync(
             customerSettings.Fanout,
             customerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(customerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(customerSettings.InvoicePaymentTimeoutSec),
-            customerSettings.GetLndWalletClient(httpClient));
+            customerSettings.GetNostrRelays(),
+            new CustomerGossipNodeEvents(),
+            () => new HttpClient(),
+            customerSettings.GigWalletOpenApi);
 
-        await gigWorker.StartAsync(gigWorkerSettings.GetNostrRelays(), new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi));
-        await customer.StartAsync(customerSettings.GetNostrRelays(), new CustomerGossipNodeEvents());
-
-        var ballanceOfCustomer = WalletAPIResult.Get<long>(await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()));
+        var ballanceOfCustomer = WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken()));
 
         while (ballanceOfCustomer == 0)
         {
-            var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await customer.LNDWalletClient.NewAddressAsync(customer.MakeWalletAuthToken()));
+            var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await customer.GetWalletClient().NewAddressAsync(await customer.MakeWalletAuthToken()));
             Console.WriteLine(newBitcoinAddressOfCustomer);
 
             bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, bitcoinSettings.GetNetwork()), new NBitcoin.Money(10000000ul));
@@ -129,12 +130,12 @@ public class BasicTest
 
             do
             {
-                if (WalletAPIResult.Get<long>(await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken())) > 0)
+                if (WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken())) > 0)
                     break;
                 Thread.Sleep(1000);
             } while (true);
 
-            ballanceOfCustomer = WalletAPIResult.Get<long>(await customer.LNDWalletClient.GetBalanceAsync(customer.MakeWalletAuthToken()));
+            ballanceOfCustomer = WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken()));
         }
 
 
