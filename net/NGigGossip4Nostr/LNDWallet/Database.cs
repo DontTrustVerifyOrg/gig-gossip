@@ -122,6 +122,15 @@ public class Payment
     public required bool IsSelfManaged { get; set; }
 }
 
+
+public enum PayoutState
+{
+    Open = 0,
+    Sending = 1,
+    Sent = 2,
+}
+
+
 /// <summary>
 /// Represents a Payout from the account to external Bitcoin address.
 /// </summary>
@@ -144,9 +153,9 @@ public class Payout
     public required string BitcoinAddress { get; set; }
 
     /// <summary>
-    /// Flag indicating if the payout is pending.
+    /// Payout state.
     /// </summary>
-    public required bool IsPending { get; set; }
+    public required PayoutState State { get; set; }
 
     /// <summary>
     /// Amount of satoshis in the payout.
@@ -162,6 +171,24 @@ public class Payout
     /// Bitcoin transaction identifier for the payout.
     /// </summary>
     public string? Tx { get; set; }
+}
+
+
+/// <summary>
+/// Represents a Reserved amount of funds.
+/// </summary>
+public class Reserve
+{
+    /// <summary>
+    /// Unique identifier for the Reserve instance.
+    /// </summary>
+    [Key]
+    public required Guid ReserveId { get; set; }
+
+    /// <summary>
+    /// Amount of satoshis in the reserve.
+    /// </summary>
+    public required long Satoshis { get; set; }
 }
 
 /// <summary>
@@ -208,6 +235,11 @@ public class WaletContext : DbContext
     /// <summary>
     /// Payouts table.
     /// </summary>
+    public DbSet<Reserve> Reserves { get; set; }
+
+    /// <summary>
+    /// Payouts table.
+    /// </summary>
     public DbSet<Payout> Payouts { get; set; }
 
     /// <summary>
@@ -244,6 +276,8 @@ public class WaletContext : DbContext
             return this.FundingAddresses;
         else if (obj is Payout)
             return this.Payouts;
+        else if (obj is Reserve)
+            return this.Reserves;
         else if (obj is Invoice)
             return this.Invoices;
         else if (obj is Payment)

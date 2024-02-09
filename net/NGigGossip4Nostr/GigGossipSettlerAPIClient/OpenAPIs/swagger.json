@@ -96,7 +96,7 @@
       }
     },
     "/giveuserproperty": {
-      "get": {
+      "post": {
         "tags": [
           "GigGossipSettlerAPI"
         ],

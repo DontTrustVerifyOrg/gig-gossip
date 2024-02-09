@@ -111,7 +111,13 @@ public class LNDAccountManager
             BitcoinAddress = btcAddress,
             PublicKey = PublicKey,
             TxFee = txfee,
-            IsPending = true,
+            State =  PayoutState.Open,
+            Satoshis = satoshis
+        });
+
+        walletContext.Value.AddObject(new LNDWallet.Reserve()
+        {
+            ReserveId = myid,
             Satoshis = satoshis
         });
         return myid;
@@ -143,13 +149,6 @@ public class LNDAccountManager
             return (from a in walletContext.Value.Payouts
                     where a.PublicKey == PublicKey
                     select ((long)(a.Satoshis + a.TxFee))).Sum();
-    }
-
-    public List<LNDWallet.Payout> GetPendingPayouts()
-    {
-            return (from a in walletContext.Value.Payouts
-                    where a.PublicKey == PublicKey && a.IsPending
-                    select a).ToList();
     }
 
     /*
@@ -190,10 +189,10 @@ public class LNDAccountManager
     public (long amount, long amountTxFee) GetPendingPayedOutAmount()
     {
         var amount = (from a in walletContext.Value.Payouts
-                      where a.PublicKey == PublicKey && a.IsPending
+                      where a.PublicKey == PublicKey && a.State!= PayoutState.Sent
                       select ((long)(a.Satoshis))).Sum();
         var amountTxFee = (from a in walletContext.Value.Payouts
-                           where a.PublicKey == PublicKey && a.IsPending
+                           where a.PublicKey == PublicKey && a.State != PayoutState.Sent
                            select ((long)(a.TxFee))).Sum();
         return (amount, amountTxFee);
     }
@@ -565,13 +564,11 @@ public class LNDWalletManager : LNDEventSource
     private CancellationTokenSource trackPaymentsCancallationTokenSource;
     private Thread trackPaymentsThread;
 
-    public LNDWalletManager(string connectionString, LND.NodeSettings conf, bool deleteDb = false)
+    public LNDWalletManager(string connectionString, LND.NodeSettings conf)
     {
         this.connectionString = connectionString;
         this.walletContext = new ThreadLocal<WaletContext>(() => new WaletContext(connectionString));
         this.conf = conf;
-        if (deleteDb)
-            walletContext.Value.Database.EnsureDeleted();
         walletContext.Value.Database.EnsureCreated();
     }
 
@@ -594,35 +591,56 @@ public class LNDWalletManager : LNDEventSource
         {
             Task.Run(async () =>
             {
-                {
-                    var inv = LND.LookupInvoiceV2(conf, paymentHash.AsBytes());
-                    if ((inv.State == Lnrpc.Invoice.Types.InvoiceState.Settled) || (inv.State == Lnrpc.Invoice.Types.InvoiceState.Canceled))
-                        return;
-                }
                 try
                 {
-                    var stream = LND.SubscribeSingleInvoice(conf, paymentHash.AsBytes(), cancellationToken: subscribeInvoicesCancallationTokenSource.Token);
-                    while (await stream.ResponseStream.MoveNext(subscribeInvoicesCancallationTokenSource.Token))
                     {
-                        var inv = stream.ResponseStream.Current;
-                        if ((inv.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)|| (inv.State == Lnrpc.Invoice.Types.InvoiceState.Canceled))
-                        {
-                            (from i in walletContext.Value.Invoices
-                             where i.PaymentHash == inv.RHash.ToArray().AsHex()
-                             && i.State != (InvoiceState)inv.State
-                             select i)
-                                .ExecuteUpdate(
-                                i => i
-                                .SetProperty(a => a.State, a => (InvoiceState)((int)inv.State)));
-                            this.FireOnInvoiceStateChanged(inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
-                        }
+                        var inv = LND.LookupInvoiceV2(conf, paymentHash.AsBytes());
                         if ((inv.State == Lnrpc.Invoice.Types.InvoiceState.Settled) || (inv.State == Lnrpc.Invoice.Types.InvoiceState.Canceled))
+                        {
+                            var linv = (from i in walletContext.Value.Invoices
+                                        where i.PaymentHash == inv.RHash.ToArray().AsHex()
+                                        && i.State != (InvoiceState)inv.State
+                                        select i).FirstOrDefault();
+                            if (linv != null)
+                            {
+                                linv.State = (InvoiceState)((int)inv.State);
+                                walletContext.Value.SaveObject(linv);
+                                this.FireOnInvoiceStateChanged(linv.PaymentHash, linv.State);
+                            }
                             return;
+                        }
+                    }
+                    try
+                    {
+                        var stream = LND.SubscribeSingleInvoice(conf, paymentHash.AsBytes(), cancellationToken: subscribeInvoicesCancallationTokenSource.Token);
+                        while (await stream.ResponseStream.MoveNext(subscribeInvoicesCancallationTokenSource.Token))
+                        {
+                            var inv = stream.ResponseStream.Current;
+                            if ((inv.State == Lnrpc.Invoice.Types.InvoiceState.Accepted) || (inv.State == Lnrpc.Invoice.Types.InvoiceState.Canceled))
+                            {
+                                var linv = (from i in walletContext.Value.Invoices
+                                            where i.PaymentHash == inv.RHash.ToArray().AsHex()
+                                            && i.State != (InvoiceState)inv.State
+                                            select i).FirstOrDefault();
+                                if (linv != null)
+                                {
+                                    linv.State = (InvoiceState)((int)inv.State);
+                                    walletContext.Value.SaveObject(linv);
+                                    this.FireOnInvoiceStateChanged(linv.PaymentHash, linv.State);
+                                }
+                            }
+                            else if ((inv.State == Lnrpc.Invoice.Types.InvoiceState.Settled) || (inv.State == Lnrpc.Invoice.Types.InvoiceState.Canceled))
+                                return;
+                        }
+                    }
+                    catch (RpcException e) when (e.Status.StatusCode == StatusCode.Cancelled)
+                    {
+                        //                        Trace.TraceInformation("Streaming was cancelled from the client!");
                     }
                 }
-                catch (RpcException e) when (e.Status.StatusCode == StatusCode.Cancelled)
+                finally
                 {
-                    //                        Trace.TraceInformation("Streaming was cancelled from the client!");
+                    alreadySubscribed.TryRemove(paymentHash, out _);
                 }
             });
             return true;
@@ -646,7 +664,7 @@ public class LNDWalletManager : LNDEventSource
                         .ExecuteUpdate(i => i
                         .SetProperty(a => a.State, (InvoiceState)myinv.State));
                 }
-                if ((inv.State == InvoiceState.Open) ||( inv.State == InvoiceState.Accepted))
+                if (inv.IsHodlInvoice && inv.State == InvoiceState.Accepted)
                 {
                     SubscribeSingleInvoice(inv.PaymentHash);
                 }
@@ -669,7 +687,7 @@ public class LNDWalletManager : LNDEventSource
                         .SetProperty(a => a.Status, (PaymentStatus)mypm.Status));
                 }
             }
-        }        
+        }
 
         subscribeInvoicesCancallationTokenSource = new CancellationTokenSource();
         subscribeInvoicesThread = new Thread(async () =>
@@ -681,15 +699,15 @@ public class LNDWalletManager : LNDEventSource
                 {
                     var inv = stream.ResponseStream.Current;
                     (from i in walletContext.Value.Invoices
-                                       where i.PaymentHash == inv.RHash.ToArray().AsHex()
-                                       && i.State != (InvoiceState)inv.State
-                                       select i)
+                     where i.PaymentHash == inv.RHash.ToArray().AsHex()
+                     && i.State != (InvoiceState)inv.State
+                     select i)
                         .ExecuteUpdate(
                         i => i
                             .SetProperty(a => a.State, a => (InvoiceState)((int)inv.State))
                             .SetProperty(a => a.Preimage, a => inv.State == Lnrpc.Invoice.Types.InvoiceState.Settled ? inv.RPreimage.ToArray() : a.Preimage));
                     this.FireOnInvoiceStateChanged(inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
-                    if((inv.State== Lnrpc.Invoice.Types.InvoiceState.Open ) || (inv.State== Lnrpc.Invoice.Types.InvoiceState.Accepted))
+                    if (inv.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)
                     {
                         SubscribeSingleInvoice(inv.RHash.ToArray().AsHex());
                     }
@@ -756,7 +774,7 @@ public class LNDWalletManager : LNDEventSource
 
     public LNDAccountManager GetAccount(ECXOnlyPubKey pubkey)
     {
-        return new LNDAccountManager(conf, this.connectionString, pubkey,this);
+        return new LNDAccountManager(conf, this.connectionString, pubkey, this);
     }
 
     public Guid GetTokenGuid(string pubkey)
@@ -775,20 +793,22 @@ public class LNDWalletManager : LNDEventSource
         return LND.SendCoins(conf, address, "", satoshis);
     }
 
-    public List<LNDWallet.Payout> GetAllPendingPayouts()
+
+    public void MarkPayoutAsSending(Guid id)
     {
-        return (from a in walletContext.Value.Payouts
-                where a.IsPending
-                select a).ToList();
+        if ((from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po)
+        .ExecuteUpdate(po => po
+        .SetProperty(a => a.State, a => PayoutState.Sending)) == 0)
+            throw new LNDWalletException(LNDWalletErrorCode.PayoutAlreadySent);
     }
 
-    public void MarkPayoutAsCompleted(Guid id, string tx)
+    public void MarkPayoutAsSent(Guid id, string tx)
     {
-        if ((from po in walletContext.Value.Payouts where po.PayoutId == id && po.IsPending select po)
+        if ((from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po)
         .ExecuteUpdate(po => po
-        .SetProperty(a => a.IsPending, a => false)
+        .SetProperty(a => a.State, PayoutState.Sent)
         .SetProperty(a => a.Tx, a => tx)) == 0)
-            throw new LNDWalletException(LNDWalletErrorCode.PayoutAlreadyCompleted);
+            throw new LNDWalletException(LNDWalletErrorCode.PayoutAlreadySent);
     }
 
     public long GetChannelFundingBalance(int minconf)
@@ -796,9 +816,39 @@ public class LNDWalletManager : LNDEventSource
         return (from utxo in LND.ListUnspent(conf, minconf).Utxos select utxo.AmountSat).Sum();
     }
 
+    public long GetConfirmedWalletBalance()
+    {
+        return LND.WalletBallance(conf).ConfirmedBalance;
+    }
+
+    public long GetRequiredReserve(uint additionalChannelsNum)
+    {
+        return LND.RequiredReserve(conf, additionalChannelsNum).RequiredReserve;
+    }
+
+    public long GetRequestedReserveAmount()
+    {
+        return (from r in this.walletContext.Value.Reserves select r.Satoshis).Sum();
+    }
+
+    public List<Reserve> GetRequestedReserves()
+    {
+        return (from r in this.walletContext.Value.Reserves select r).ToList();
+    }
+
+    public List<Payout> GetPendingPayouts(List<Guid> payoutIds)
+    {
+        return (from p in this.walletContext.Value.Payouts where payoutIds.Contains(p.PayoutId) select p).ToList();
+    }
+
     public AsyncServerStreamingCall<OpenStatusUpdate> OpenChannel(string nodePubKey, long fundingSatoshis)
     {
         return LND.OpenChannel(conf, nodePubKey, fundingSatoshis);
+    }
+
+    public BatchOpenChannelResponse BatchOpenChannel(List<(string, long)> amountsPerNode)
+    {
+        return LND.BatchOpenChannel(conf, amountsPerNode);
     }
 
     public string OpenChannelSync(string nodePubKey, long fundingSatoshis)

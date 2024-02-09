@@ -202,14 +202,8 @@ public static class LND
         var ocr = new OpenChannelRequest()
         {
             NodePubkey = Google.Protobuf.ByteString.CopyFrom(nodePubKey.AsBytes()),
+            LocalFundingAmount = fundingSatoshis
         };
-        if (fundingSatoshis <= 0)
-        {
-            ocr.LocalFundingAmount = 0;
-            ocr.FundMax = true;
-        }
-        else
-            ocr.LocalFundingAmount = fundingSatoshis;
         if (closeAddress != null)
             ocr.CloseAddress = closeAddress;
         if (memo != null)
@@ -217,6 +211,16 @@ public static class LND
         return LightningClient(conf).OpenChannel(ocr, Metadata(conf), deadline, cancellationToken);
     }
 
+    public static BatchOpenChannelResponse BatchOpenChannel(NodeSettings conf,  List<(string,long)> amountsPerNode,DateTime? deadline = null, CancellationToken cancellationToken = default)
+    {
+        var ocr = new BatchOpenChannelRequest()
+        {
+        };
+        foreach (var (node,fnd) in amountsPerNode)
+            ocr.Channels.Add(new Lnrpc.BatchOpenChannel() { NodePubkey = Google.Protobuf.ByteString.CopyFrom(node.AsBytes()), LocalFundingAmount = fnd });
+
+        return LightningClient(conf).BatchOpenChannel(ocr, Metadata(conf), deadline, cancellationToken);
+    }
 
     public static ChannelPoint OpenChannelSync(NodeSettings conf, string nodePubKey, long fundingSatoshis, string closeAddress = null, string memo = null, bool privat = false, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
@@ -317,6 +321,14 @@ public static class LND
             Metadata(conf), deadline, cancellationToken);
     }
 
+    public static Walletrpc.RequiredReserveResponse RequiredReserve(NodeSettings conf, uint additionalChannelsNum,  DateTime? deadline = null, CancellationToken cancellationToken = default)
+    {
+        var lur = new Walletrpc.RequiredReserveRequest()
+        {  AdditionalPublicChannels = additionalChannelsNum };
+        return WalletKit(conf).RequiredReserve(lur,
+                    Metadata(conf), deadline, cancellationToken);
+    }
+
     public static Walletrpc.ListUnspentResponse ListUnspent(NodeSettings conf, int minConfs, string account = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var lur = new Walletrpc.ListUnspentRequest()
@@ -379,5 +391,6 @@ public static class LND
 
         return stream;
     }
+
 }
 

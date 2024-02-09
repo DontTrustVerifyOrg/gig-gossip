@@ -118,6 +118,40 @@
         }
       }
     },
+    "/getbalancedetails": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Balance details of the account",
+        "description": "Returns the account balance details in Satoshis",
+        "operationId": "GetBalanceDetails",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "authorisation token for the communication",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountBallanceDetailsResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/newaddress": {
       "get": {
         "tags": [
@@ -638,6 +672,116 @@
   },
   "components": {
     "schemas": {
+      "AccountBallanceDetails": {
+        "type": "object",
+        "properties": {
+          "allChannelFunds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "allChannelFundsTxFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "confirmedChannelFunds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "confirmedChannelFundsTxFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "payedOutAmount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "payedOutAmountTxFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pendingPayOutAmount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pendingPayOutAmountTxFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "allPayOutFunds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "allPayOutFundsTxFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "confirmedPayOutFunds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "confirmedPayOutFundsTxFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "earnedFromSettledInvoices": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "earnedFromSettledInvoicesTxFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "earnedFromAcceptedOrSettledInvoices": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "earnedFromAcceptedOrSettledInvoicesTxFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "succesfulPayments": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "succesfulPaymentsFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "succesfulPaymentsTxFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "succesfulOrFlyingPayments": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "succesfulOrFlyingPaymentsFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "succesfulOrFlyingPaymentsTxFee": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AccountBallanceDetailsResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/AccountBallanceDetails"
+          },
+          "errorCode": {
+            "$ref": "#/components/schemas/LNDWalletErrorCode"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "Feature": {
         "type": "object",
         "properties": {
@@ -752,7 +896,11 @@
           3,
           4,
           5,
-          6
+          6,
+          7,
+          8,
+          9,
+          10
         ],
         "type": "integer",
         "format": "int32"

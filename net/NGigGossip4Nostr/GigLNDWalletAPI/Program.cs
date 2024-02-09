@@ -1,11 +1,17 @@
-﻿using System.Text.Json.Nodes;
+﻿using System.Diagnostics;
+using System.Globalization;
+using System.Text;
+using System.Text.Json.Nodes;
 using CryptoToolkit;
 using GigLNDWalletAPI;
-using GigLNDWalletAPI.Config;
 using Grpc.Core;
 using LNDClient;
 using LNDWallet;
 using NBitcoin.RPC;
+using Spectre.Console;
+
+Trace.Listeners.Add(new CustomTraceListener());
+Trace.TraceInformation("[[lime]]Starting[[/]] ...");
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,7 +24,6 @@ builder.Services.AddSwaggerGen(c =>
 });
 builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -59,8 +64,6 @@ var config = GetConfigurationRoot(".giggossip", "wallet.conf");
 var walletSettings = config.GetSection("wallet").Get<WalletSettings>();
 var lndConf = config.GetSection("lnd").Get<LndSettings>();
 BitcoinSettings? btcConf = walletSettings.AllowLocalBitcoinNode ? config.GetSection("bitcoin").Get<BitcoinSettings>() : null;
-//var walletSettings = builder.Configuration.GetSection(WalletConfig.SectionName).Get<WalletConfig>();
-//var lndConf = builder.Configuration.GetSection(LndConfig.SectionName).Get<LndConfig>();
 
 while (true)
 {
@@ -68,15 +71,14 @@ while (true)
     if (nd1.SyncedToChain)
         break;
 
-    Console.WriteLine("Node not synced to chain");
+    Trace.TraceWarning("Node not synced to chain");
     Thread.Sleep(1000);
 }
 
 
 Singlethon.LNDWalletManager = new LNDWalletManager(
     walletSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)),
-    lndConf,
-    deleteDb: false);
+    lndConf);
 
 Singlethon.LNDWalletManager.OnInvoiceStateChanged += (sender, e) =>
 {
@@ -101,6 +103,9 @@ channelManager.Start();
 
 if (btcConf != null)
     Singlethon.BitcoinNodeUtils = new BitcoinNodeUtils(btcConf.NewRPCClient(), btcConf.GetNetwork(), btcConf.WalletName);
+
+Trace.TraceInformation("... Running");
+
 
 app.MapGet("/topupandmine6blocks", (string bitcoinAddr, long satoshis) =>
 {
@@ -430,6 +435,44 @@ app.MapHub<InvoiceStateUpdatesHub>("/invoicestateupdates");
 app.MapHub<PaymentStatusUpdatesHub>("/paymentstatusupdates");
 
 app.Run(walletSettings.ListenHost.AbsoluteUri);
+
+
+public class CustomTraceListener : TraceListener
+{
+    private readonly StringBuilder _stringBuilder = new();
+    public CustomTraceListener()
+    {
+    }
+
+    static Dictionary<TraceEventType, string> pfxcol = new()
+    {
+        { TraceEventType.Critical,"red" },
+        { TraceEventType.Error,"red" },
+        { TraceEventType.Warning,"orange1" },
+        { TraceEventType.Information,"white" },
+        { TraceEventType.Verbose,"gray" },
+        { TraceEventType.Start,"green" },
+        { TraceEventType.Stop,"red" },
+        { TraceEventType.Suspend,"orange1" },
+        { TraceEventType.Resume,"blue" },
+        { TraceEventType.Transfer,"blue" },
+    };
+
+    public override void TraceEvent(TraceEventCache? eventCache, string source, TraceEventType eventType, int id, string? message)
+    {
+        WriteLine($"[gray]{DateTime.Now.ToString("hh:mm:ss.fff", CultureInfo.InvariantCulture)}[/] [{pfxcol[eventType]}]{message.Replace("[","[[").Replace("]", "]]").Replace("[[[[", "[").Replace("]]]]", "]")}[/]");
+    }
+
+    public override void Write(string? message)
+    {
+        AnsiConsole.Markup(message);
+    }
+
+    public override void WriteLine(string? message)
+    {
+        AnsiConsole.MarkupLine(message);
+    }
+}
 
 [Serializable]
 public record Result

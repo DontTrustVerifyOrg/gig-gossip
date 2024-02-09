@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.SignalR;
 using LNDWallet;
 using Nito.AsyncEx;
 using System.Runtime.CompilerServices;
+using System.Diagnostics;
 
 namespace GigLNDWalletAPI;
 
@@ -51,7 +52,10 @@ public class InvoiceStateUpdatesHub : Hub
             await foreach (var ic in asyncCom.DequeueAsync(cancellationToken))
             {
                 if (Singlethon.InvoiceHashes4PublicKey.ContainsItem(account.PublicKey, ic.PaymentHash))
+                {
+                    Trace.TraceInformation(ic.PaymentHash + "|" + ic.NewState.ToString());
                     yield return ic.PaymentHash + "|" + ic.NewState.ToString();
+                }
             }
         }
     }

@@ -20,6 +20,7 @@
 		</PackageReference>
 		<PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.5.0" />
 		<PackageReference Include="Nito.AsyncEx.Coordination" Version="5.1.2" />
+		<PackageReference Include="Spectre.Console" Version="0.48.0" />
 	</ItemGroup>
 
 	<ItemGroup>

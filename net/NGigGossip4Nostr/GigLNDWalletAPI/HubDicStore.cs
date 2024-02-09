@@ -8,8 +8,8 @@ namespace GigLNDWalletAPI
 {
 	public class HubDicStore<T>
 	{
-		public static Dictionary<string, HashSet<T>> Item4PublicKey = new();
-		public static Dictionary<T, HashSet<string>> PublicKeys4Items = new();
+		public Dictionary<string, HashSet<T>> Item4PublicKey = new();
+		public Dictionary<T, HashSet<string>> PublicKeys4Items = new();
 
 		public HubDicStore()
 		{

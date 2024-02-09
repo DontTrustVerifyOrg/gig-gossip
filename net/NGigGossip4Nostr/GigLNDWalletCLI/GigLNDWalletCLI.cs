@@ -83,6 +83,8 @@ public class GigLNDWalletCLI
         GetInvoiceState,
         [Display(Name = "Get Payment Status")]
         GetPaymentStatus,
+        [Display(Name = "Payout")]
+        Payout,
     }
 
     public async Task<string> MakeToken()
@@ -101,9 +103,8 @@ public class GigLNDWalletCLI
 
     private async Task WriteBalanceDetails()
     {
-        throw new NotImplementedException();
-//        var ballanceDetails = WalletAPIResult.Get<AccountBallanceDetails>(await walletClient.GetBalanceDetailsAsync(await MakeToken(), CancellationToken.None));                
-//        AnsiConsole.WriteLine(JsonConvert.SerializeObject(ballanceDetails, Formatting.Indented, new JsonConverter[] { new StringEnumConverter() }));
+        var ballanceDetails = WalletAPIResult.Get<AccountBallanceDetails>(await walletClient.GetBalanceDetailsAsync(await MakeToken(), CancellationToken.None));                
+        AnsiConsole.WriteLine(JsonConvert.SerializeObject(ballanceDetails, Formatting.Indented, new JsonConverter[] { new StringEnumConverter() }));
     }
 
     enum ClipType
@@ -139,12 +140,13 @@ public class GigLNDWalletCLI
         invoiceMonitorThread = new Thread(async () =>
         {
             await invoiceStateUpdatesClient.ConnectAsync(await MakeToken());
-        try
-        {
-            await foreach (var invstateupd in invoiceStateUpdatesClient.StreamAsync(await MakeToken(), CancellationTokenSource.Token))
+            try
             {
-                AnsiConsole.MarkupLine("[yellow]Invoice State Change:"+invstateupd+"[/]");
-            }
+                await foreach (var invstateupd in invoiceStateUpdatesClient.StreamAsync(await MakeToken(), CancellationTokenSource.Token))
+                {
+                    AnsiConsole.MarkupLine("[yellow]Invoice State Change:" + invstateupd + "[/]");
+                    await WriteBalance();
+                }
             }
             catch (OperationCanceledException)
             {
@@ -162,6 +164,7 @@ public class GigLNDWalletCLI
                 await foreach (var paystateupd in paymentStatusUpdatesClient.StreamAsync(await MakeToken(), CancellationTokenSource.Token))
                 {
                     AnsiConsole.MarkupLine("[yellow]Payment Status Change:" + paystateupd+"[/]");
+                    await WriteBalance();
                 }
             }
             catch (OperationCanceledException)
@@ -196,11 +199,20 @@ public class GigLNDWalletCLI
                         WalletAPIResult.Check(await walletClient.TopUpAndMine6BlocksAsync(newBitcoinAddressOfCustomer, topUpAmount));
                     }
                 }
+                else if (cmd == CommandEnum.Payout)
+                {
+                    var payoutAmount = Prompt.Input<int>("How much top up");
+                    if (payoutAmount > 0)
+                    {
+                        //var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await walletClient.RegisterPayoutAsync(await MakeToken(),payoutAmount,btcAddress,fee));
+                        //WalletAPIResult.Check(await walletClient.TopUpAndMine6BlocksAsync(newBitcoinAddressOfCustomer, topUpAmount));
+                    }
+                }
                 else if (cmd == CommandEnum.AddInvoice)
                 {
-                    var satoshis = Prompt.Input<long>("Satoshis");
-                    var memo = Prompt.Input<string>("Memo");
-                    var expiry = Prompt.Input<long>("Expiry");
+                    var satoshis = Prompt.Input<long>("Satoshis",1000L);
+                    var memo = Prompt.Input<string>("Memo","test");
+                    var expiry = Prompt.Input<long>("Expiry",1000L);
                     var inv = WalletAPIResult.Get<InvoiceRet>(await walletClient.AddInvoiceAsync(await MakeToken(), satoshis, memo, expiry));
                     ToClipboard(ClipType.Invoice, inv.PaymentRequest);
                     ToClipboard(ClipType.PaymentHash, inv.PaymentHash);
@@ -210,9 +222,9 @@ public class GigLNDWalletCLI
                 }
                 else if (cmd == CommandEnum.AddHodlInvoice)
                 {
-                    var satoshis = Prompt.Input<long>("Satoshis");
-                    var memo = Prompt.Input<string>("Memo");
-                    var expiry = Prompt.Input<long>("Expiry");
+                    var satoshis = Prompt.Input<long>("Satoshis",1000L);
+                    var memo = Prompt.Input<string>("Memo","hodl");
+                    var expiry = Prompt.Input<long>("Expiry",1000L);
                     var preimage = Crypto.GenerateRandomPreimage();
                     AnsiConsole.WriteLine(preimage.AsHex());
                     var hash = Crypto.ComputePaymentHash(preimage).AsHex();
@@ -238,12 +250,9 @@ public class GigLNDWalletCLI
                     AnsiConsole.WriteLine($"Expiry:{pay.Expiry}");
                     AnsiConsole.WriteLine($"Payment Hash:{pay.PaymentHash}");
                     ToClipboard(ClipType.PaymentHash, pay.PaymentHash);
-                    if (Prompt.Confirm("Are you sure?"))
-                    {
-                        var timeout = Prompt.Input<int>("Timeout");
-                        WalletAPIResult.Check(await walletClient.SendPaymentAsync(await MakeToken(), paymentreq, timeout));
-                        await paymentStatusUpdatesClient.MonitorAsync(await MakeToken(), pay.PaymentHash);
-                    }
+                    var timeout = Prompt.Input<int>("Timeout",1000);
+                    await paymentStatusUpdatesClient.MonitorAsync(await MakeToken(), pay.PaymentHash);
+                    WalletAPIResult.Check(await walletClient.SendPaymentAsync(await MakeToken(), paymentreq, timeout));
                 }
                 else if (cmd == CommandEnum.CancelInvoice)
                 {

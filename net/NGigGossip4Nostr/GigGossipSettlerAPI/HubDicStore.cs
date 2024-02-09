@@ -6,8 +6,8 @@ namespace GigGossipSettlerAPI
 {
     public class HubDicStore<T>
     {
-        public static ConcurrentDictionary<string, ConcurrentDictionary<T, bool>> Item4Id = new();
-        public static ConcurrentDictionary<T, ConcurrentDictionary<string, bool>> Id4Items = new();
+        public ConcurrentDictionary<string, ConcurrentDictionary<T, bool>> Item4Id = new();
+        public ConcurrentDictionary<T, ConcurrentDictionary<string, bool>> Id4Items = new();
 
         public void AddItem(string id, T item)
         {

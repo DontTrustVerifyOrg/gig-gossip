@@ -2,14 +2,17 @@
 using GigGossipSettler;
 using GigGossipSettler.Exceptions;
 using GigGossipSettlerAPI;
-using GigGossipSettlerAPI.Config;
-using GigGossipSettlerAPI.Middlewares;
 using GigLNDWalletAPIClient;
 using NBitcoin.Secp256k1;
 using NGigGossip4Nostr;
+using System.Diagnostics;
+using System.Globalization;
 using System.Reflection;
 using System.Text;
+using Spectre.Console;
 
+Trace.Listeners.Add(new CustomTraceListener());
+Trace.TraceInformation("[[lime]]Starting[[/]] ...");
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,6 +51,8 @@ IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
     foreach (var arg in args)
         if (arg.StartsWith("--basedir"))
             basePath = arg.Substring(arg.IndexOf('=') + 1).Trim().Replace("\"", "").Replace("\'", "");
+        else if (arg.StartsWith("--cfg"))
+            iniName = arg.Substring(arg.IndexOf('=') + 1).Trim().Replace("\"", "").Replace("\'", "");
 
     var builder = new ConfigurationBuilder();
     builder.SetBasePath(basePath)
@@ -60,7 +65,6 @@ IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
 
 var config = GetConfigurationRoot(".giggossip", "settler.conf");
 var settlerSettings = config.GetSection("settler").Get<SettlerSettings>();
-//var settlerSettings = builder.Configuration.GetSection(SettlerConfig.SectionName).Get<SettlerConfig>();
 
 ECPrivKey caPrivateKey = settlerSettings.SettlerPrivateKey.AsECPrivKey();
 
@@ -90,6 +94,8 @@ Singlethon.Settler.OnPreimageReveal+= (sender, e) =>
     };
 
 await Singlethon.Settler.StartAsync();
+
+Trace.TraceInformation("... Running");
 
 app.MapGet("/getcapublickey", () =>
 {
@@ -148,7 +154,7 @@ app.MapGet("/gettoken", (string pubkey) =>
     return g;
 });
 
-app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, string value, string secret, DateTime validTill) =>
+app.MapPost("/giveuserproperty", (string authToken, string pubkey, string name, string value, string secret, DateTime validTill) =>
 {
     try
     {
@@ -514,6 +520,44 @@ app.MapHub<PreimageRevealHub>("/preimagereveal");
 app.MapHub<GigStatusHub>("/gigstatus");
 
 app.Run(settlerSettings.ListenHost.AbsoluteUri);
+
+
+public class CustomTraceListener : TraceListener
+{
+    private readonly StringBuilder _stringBuilder = new();
+    public CustomTraceListener()
+    {
+    }
+
+    static Dictionary<TraceEventType, string> pfxcol = new()
+    {
+        { TraceEventType.Critical,"red" },
+        { TraceEventType.Error,"red" },
+        { TraceEventType.Warning,"orange1" },
+        { TraceEventType.Information,"white" },
+        { TraceEventType.Verbose,"gray" },
+        { TraceEventType.Start,"green" },
+        { TraceEventType.Stop,"red" },
+        { TraceEventType.Suspend,"orange1" },
+        { TraceEventType.Resume,"blue" },
+        { TraceEventType.Transfer,"blue" },
+    };
+
+    public override void TraceEvent(TraceEventCache? eventCache, string source, TraceEventType eventType, int id, string? message)
+    {
+        WriteLine($"[gray]{DateTime.Now.ToString("hh:mm:ss.fff", CultureInfo.InvariantCulture)}[/] [{pfxcol[eventType]}]{message.Replace("[", "[[").Replace("]", "]]").Replace("[[[[", "[").Replace("]]]]", "]")}[/]");
+    }
+
+    public override void Write(string? message)
+    {
+        AnsiConsole.Markup(message);
+    }
+
+    public override void WriteLine(string? message)
+    {
+        AnsiConsole.MarkupLine(message);
+    }
+}
 
 [Serializable]
 public record Result
