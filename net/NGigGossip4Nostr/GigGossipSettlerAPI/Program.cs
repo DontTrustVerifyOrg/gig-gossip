@@ -10,6 +10,9 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using Spectre.Console;
+using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 
 Trace.Listeners.Add(new CustomTraceListener());
 Trace.TraceInformation("[[lime]]Starting[[/]] ...");
@@ -154,7 +157,7 @@ app.MapGet("/gettoken", (string pubkey) =>
     return g;
 });
 
-app.MapPost("/giveuserproperty", (string authToken, string pubkey, string name, string value, string secret, DateTime validTill) =>
+app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, string value, string secret, DateTime validTill) =>
 {
     try
     {
@@ -180,6 +183,32 @@ app.MapPost("/giveuserproperty", (string authToken, string pubkey, string name, 
     g.Parameters[5].Description = "Date and time after which the property will not be valid anymore";
     return g;
 });
+
+
+
+app.MapPost("/giveuserfile/{authToken}/{pubkey}/{name}/{validHours}", async (HttpRequest request, string authToken, string pubkey, string name, long validHours, [FromForm] IFormFile value, [FromForm] IFormFile secret)
+    =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken.ToString());
+
+        using var valueMemoryStream = new MemoryStream();
+        using var secretMemoryStream = new MemoryStream();
+        await value.CopyToAsync(valueMemoryStream);
+        await secret.CopyToAsync(secretMemoryStream);
+
+        Singlethon.Settler.GiveUserProperty(pubkey, name, valueMemoryStream.ToArray(), secretMemoryStream.ToArray(), DateTime.Now.AddHours(validHours));
+        return new Result();
+    }
+    catch (SettlerException ex)
+    {
+        return new Result(ex.ErrorCode);
+    }
+})
+.WithName("GiveUserFile")
+.WithSummary("Grants a file property to the subject.")
+.WithDescription("Grants a file property to the subject (e.g. driving licence). Only authorised users can grant the property.");
 
 app.MapGet("/saveusertraceproperty", (string authToken, string pubkey, string name, string value) =>
 {
@@ -521,6 +550,30 @@ app.MapHub<GigStatusHub>("/gigstatus");
 
 app.Run(settlerSettings.ListenHost.AbsoluteUri);
 
+public class FileUploadForm
+{
+    public string authToken { get; set; }
+    public string pubkey { get; set; }
+    public string name { get; set; }
+    public DateTime validTill { get; set; }
+    public IFormFile value { get; set; }
+    public IFormFile secret { get; set; }
+
+    public static async ValueTask<FileUploadForm?> BindAsync(HttpContext context,
+                                               ParameterInfo parameter)
+    {
+        var form = await context.Request.ReadFormAsync();
+        return new FileUploadForm
+        {
+            authToken = form["authToken"],
+            pubkey = form["pubkey"],
+            name = form["name"],
+            validTill = DateTime.Parse(form["validTill"]),
+            value = form.Files["value"],
+            secret = form.Files["secret"],
+        };
+    }
+}
 
 public class CustomTraceListener : TraceListener
 {
@@ -545,17 +598,17 @@ public class CustomTraceListener : TraceListener
 
     public override void TraceEvent(TraceEventCache? eventCache, string source, TraceEventType eventType, int id, string? message)
     {
-        WriteLine($"[gray]{DateTime.Now.ToString("hh:mm:ss.fff", CultureInfo.InvariantCulture)}[/] [{pfxcol[eventType]}]{message.Replace("[", "[[").Replace("]", "]]").Replace("[[[[", "[").Replace("]]]]", "]")}[/]");
+        WriteLine($"[[gray]]{DateTime.Now.ToString("hh:mm:ss.fff", CultureInfo.InvariantCulture)}[[/]] [[{pfxcol[eventType]}]]{message}[[/]]");
     }
 
     public override void Write(string? message)
     {
-        AnsiConsole.Markup(message);
+        AnsiConsole.Markup(message.Replace("[", "[[").Replace("]", "]]").Replace("[[[[", "[").Replace("]]]]", "]"));
     }
 
     public override void WriteLine(string? message)
     {
-        AnsiConsole.MarkupLine(message);
+        AnsiConsole.MarkupLine(message.Replace("[", "[[").Replace("]", "]]").Replace("[[[[", "[").Replace("]]]]", "]"));
     }
 }
 

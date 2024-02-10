@@ -238,6 +238,12 @@ public partial class RideShareCLIApp
                     Convert.ToBase64String(photo),
                     Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToString("yyyy-MM-ddTHH:mm:ss")));
 
+                SettlerAPIResult.Check(await settlerClient.GiveUserFileAsync(authToken,
+                    (await GetPublicKeyAsync()).AsHex(), "Photo",24*365*10,
+                    new FileParameter(new MemoryStream(photo)),
+                    new FileParameter(new MemoryStream())
+                   ));
+
                 string car = Prompt.Input<string>("Your Car");
                 SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Car",

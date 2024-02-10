@@ -96,7 +96,7 @@
       }
     },
     "/giveuserproperty": {
-      "post": {
+      "get": {
         "tags": [
           "GigGossipSettlerAPI"
         ],
@@ -168,6 +168,96 @@
         "responses": {
           "200": {
             "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/giveuserfile/{authToken}/{pubkey}/{name}/{validHours}": {
+      "post": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "operationId": "GiveUserFile",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "path",
+            "required": true,
+            "style": "simple",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pubkey",
+            "in": "path",
+            "required": true,
+            "style": "simple",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "style": "simple",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "validHours",
+            "in": "path",
+            "required": true,
+            "style": "simple",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "secret",
+                  "value"
+                ],
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "secret": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "value": {
+                  "style": "form"
+                },
+                "secret": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {

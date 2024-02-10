@@ -7,23 +7,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NSwag.ApiDescription.Client" Version="13.20.0">
+	<PackageReference Include="NSwag.ApiDescription.Client" Version="13.20.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.ApiDescription.Client" Version="7.0.13">
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Client" Version="7.0.15">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="7.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="7.0.15" />
   </ItemGroup>
   <ItemGroup>
-    <None Remove="OpenAPIs\" />
-    <None Remove="OpenAPIs\swagger.json" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="OpenAPIs\" />
+    <None Remove="OpenAPIs\swagger1.json" />
   </ItemGroup>
   <ItemGroup>
     <OpenApiReference Include="OpenAPIs\swagger.json" Namespace="GigGossipSettlerAPIClient">
