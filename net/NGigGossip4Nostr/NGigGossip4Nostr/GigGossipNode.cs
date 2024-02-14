@@ -486,7 +486,11 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                     acceptBroadcastResponse.SettlerServiceUri,
                     replyPaymentHash);
                 var signedRequestPayloadSerialized = Crypto.SerializeObject(broadcastFrame.SignedRequestPayload);
-                var settr = SettlerAPIResult.Get<string>(await settlerClient.GenerateSettlementTrustAsync(authToken, acceptBroadcastResponse.Properties, Convert.ToBase64String(acceptBroadcastResponse.Message), replyInvoice, Convert.ToBase64String(signedRequestPayloadSerialized)));
+                var settr = SettlerAPIResult.Get<string>(await settlerClient.GenerateSettlementTrustAsync(authToken,
+                    string.Join(",",acceptBroadcastResponse.Properties),
+                    replyInvoice,
+                    new FileParameter(new MemoryStream(acceptBroadcastResponse.Message)),
+                    new FileParameter(new MemoryStream(signedRequestPayloadSerialized))));
                 var settlementTrust = Crypto.DeserializeObject<SettlementTrust>(Convert.FromBase64String(settr));
                 var signedSettlementPromise = settlementTrust.SettlementPromise;
                 var networkInvoice = settlementTrust.NetworkInvoice;
@@ -893,8 +897,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         var settler = SettlerSelector.GetSettlerClient(mysettlerUri);
         var token = await MakeSettlerAuthTokenAsync(mysettlerUri);
         var topicByte = Crypto.SerializeObject(topic!);
-        var base64Topic = Convert.ToBase64String(topicByte);
-        var response = SettlerAPIResult.Get<string>(await settler.GenerateRequestPayloadAsync(token, properties, base64Topic));
+        var response = SettlerAPIResult.Get<string>(await settler.GenerateRequestPayloadAsync(token, string.Join(",",properties), new FileParameter(new MemoryStream(topicByte))));
         var base64Response = Convert.FromBase64String(response);
         var broadcastTopicResponse = Crypto.DeserializeObject<BroadcastTopicResponse>(base64Response);
 

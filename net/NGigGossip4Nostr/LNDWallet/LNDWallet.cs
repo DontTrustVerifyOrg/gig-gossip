@@ -14,9 +14,10 @@ using System.Collections.Generic;
 using Walletrpc;
 using System.Security.Principal;
 using System;
-using System.Diagnostics;
-using System.Diagnostics.Tracing;
 using System.Collections.Concurrent;
+using static NBitcoin.Scripting.OutputDescriptor.TapTree;
+using System.Security.Cryptography.X509Certificates;
+using TraceExColor;
 
 namespace LNDWallet;
 
@@ -93,9 +94,9 @@ public class LNDAccountManager
 
     public string NewAddress(long txfee)
     {
-            var newaddress = LND.NewAddress(conf);
-            walletContext.Value.AddObject(new Address() { BitcoinAddress = newaddress, PublicKey = PublicKey, TxFee = txfee });
-            return newaddress;
+        var newaddress = LND.NewAddress(conf);
+        walletContext.Value.AddObject(new Address() { BitcoinAddress = newaddress, PublicKey = PublicKey, TxFee = txfee });
+        return newaddress;
     }
 
     public Guid RegisterPayout(long satoshis, string btcAddress, long txfee)
@@ -111,7 +112,7 @@ public class LNDAccountManager
             BitcoinAddress = btcAddress,
             PublicKey = PublicKey,
             TxFee = txfee,
-            State =  PayoutState.Open,
+            State = PayoutState.Open,
             Satoshis = satoshis
         });
 
@@ -150,41 +151,6 @@ public class LNDAccountManager
                     where a.PublicKey == PublicKey
                     select ((long)(a.Satoshis + a.TxFee))).Sum();
     }
-
-    /*
-    public (long all, long confirmed) GetExecutedPayedInFundingAmount(int minConf)
-    {
-        var transactuinsResp = LND.GetTransactions(conf);
-        long confirmed = 0;
-        long confirmedTxFee = 0;
-        long all = 0;
-        long allTxFee = 0;
-        foreach (var transation in transactuinsResp.Transactions)
-            foreach (var outp in transation.OutputDetails)
-                if (outp.IsOurAddress)
-                    if (txFees.ContainsKey(outp.Address))
-                    {
-                        if (transation.NumConfirmations >= minConf)
-                        {
-                            confirmed += outp.Amount;
-                            confirmedTxFee += (long)txFees[outp.Address];
-                        }
-                        all += outp.Amount;
-                        allTxFee += (long)txFees[outp.Address];
-                    }
-        return (all, allTxFee, confirmed, confirmedTxFee);
-    }*/
-
-/*    public (long amount, long amountTxFee) GetPayedOutAmount()
-    {
-        var amount = (from a in walletContext.Value.Payouts
-                      where a.PublicKey == PublicKey
-                      select ((long)(a.Satoshis))).Sum();
-        var amountTxFee = (from a in walletContext.Value.Payouts
-                           where a.PublicKey == PublicKey
-                           select ((long)(a.TxFee))).Sum();
-        return (amount, amountTxFee);
-    }*/
 
     public (long amount, long amountTxFee) GetPendingPayedOutAmount()
     {
@@ -336,10 +302,10 @@ public class LNDAccountManager
     {
         var paymentHash = Crypto.ComputePaymentHash(preimage).AsHex();
         var invoice = (from inv in walletContext.Value.Invoices
-                              where inv.PaymentHash == paymentHash && inv.IsSelfManaged
-                              select inv).FirstOrDefault();
+                       where inv.PaymentHash == paymentHash && inv.IsSelfManaged
+                       select inv).FirstOrDefault();
 
-        if(invoice!=null)
+        if (invoice != null)
         {
             if (invoice.PublicKey != PublicKey)
                 throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
@@ -368,8 +334,15 @@ public class LNDAccountManager
         }
         else
         {
-            //this happens the invoice is not self managed so the update returned 0 rows changed
-            LND.SettleInvoice(conf, preimage);
+            try
+            {
+                //this happens the invoice is not self managed so the update returned 0 rows changed
+                LND.SettleInvoice(conf, preimage);
+            }
+            catch (RpcException ex)
+            {
+                throw new LNDWalletException(LNDWalletErrorCode.OperationFailed, ex.Status.Detail);
+            }
         }
     }
 
@@ -401,8 +374,15 @@ public class LNDAccountManager
         }
         else
         {
-            //this happens the invoice is not self managed so the update returned 0 rows changed
-            LND.CancelInvoice(conf, paymentHash.AsBytes());
+            try
+            {
+                //this happens the invoice is not self managed so the update returned 0 rows changed
+                LND.CancelInvoice(conf, paymentHash.AsBytes());
+            }
+            catch (RpcException ex)
+            {
+                throw new LNDWalletException(LNDWalletErrorCode.OperationFailed, ex.Status.Detail);
+            }
         }
     }
 
@@ -523,7 +503,7 @@ public class LNDAccountManager
 }
 
 [Serializable]
-public class AccountBallanceDetails
+public struct AccountBallanceDetails
 {
     public long AllChannelFunds { get; set; }
     public long AllChannelFundsTxFee { get; set; }
@@ -635,7 +615,7 @@ public class LNDWalletManager : LNDEventSource
                     }
                     catch (RpcException e) when (e.Status.StatusCode == StatusCode.Cancelled)
                     {
-                        //                        Trace.TraceInformation("Streaming was cancelled from the client!");
+                        TraceEx.TraceInformation("Streaming was cancelled from the client!");
                     }
                 }
                 finally
@@ -715,7 +695,7 @@ public class LNDWalletManager : LNDEventSource
             }
             catch (RpcException e) when (e.Status.StatusCode == StatusCode.Cancelled)
             {
-                Trace.TraceInformation("Streaming was cancelled from the client!");
+                TraceEx.TraceInformation("Streaming was cancelled from the client!");
             }
 
         });
@@ -741,7 +721,7 @@ public class LNDWalletManager : LNDEventSource
             }
             catch (RpcException e) when (e.Status.StatusCode == StatusCode.Cancelled)
             {
-                Trace.TraceInformation("Streaming was cancelled from the client!");
+                TraceEx.TraceInformation("Streaming was cancelled from the client!");
             }
 
         });
@@ -759,7 +739,7 @@ public class LNDWalletManager : LNDEventSource
         trackPaymentsThread.Join();
     }
 
-    public LNDAccountManager ValidateAuthTokenAndGetAccount(string authTokenBase64)
+    public string ValidateAuthToken(string authTokenBase64)
     {
         var timedToken = CryptoToolkit.Crypto.VerifySignedTimedToken(authTokenBase64, 120.0);
         if (timedToken == null)
@@ -768,8 +748,23 @@ public class LNDWalletManager : LNDEventSource
         var tk = (from token in walletContext.Value.Tokens where token.pubkey == timedToken.Value.PublicKey && token.id == timedToken.Value.Guid select token).FirstOrDefault();
         if (tk == null)
             throw new LNDWalletException(LNDWalletErrorCode.InvalidToken);
+        return tk.pubkey;
+    }
 
-        return GetAccount(tk.pubkey.AsECXOnlyPubKey());
+    public void ValidateAdminToken(string authTokenBase64)
+    {
+        var pubkey = ValidateAuthToken(authTokenBase64);
+    }
+
+    public bool ValidateAndCheckIfAdminToken(string authTokenBase64)
+    {
+        var pubkey = ValidateAuthToken(authTokenBase64);
+        return true;
+    }
+
+    public LNDAccountManager ValidateAuthTokenAndGetAccount(string authTokenBase64)
+    {
+        return GetAccount(ValidateAuthToken(authTokenBase64).AsECXOnlyPubKey());
     }
 
     public LNDAccountManager GetAccount(ECXOnlyPubKey pubkey)
@@ -788,18 +783,40 @@ public class LNDWalletManager : LNDEventSource
         return t.id;
     }
 
-    public string SendCoins(string address, long satoshis)
+    public string SendCoins(string address, long satoshis, ulong satspervbyte, string memo)
     {
-        return LND.SendCoins(conf, address, "", satoshis);
+        return LND.SendCoins(conf, address, memo, satoshis, satspervbyte);
     }
 
-
-    public void MarkPayoutAsSending(Guid id)
+    public Guid OpenReserve(long satoshis)
     {
-        if ((from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po)
+        var myid = Guid.NewGuid();
+
+        walletContext.Value.AddObject(new LNDWallet.Reserve()
+        {
+            ReserveId = myid,
+            Satoshis = satoshis
+        });
+        return myid;
+    }
+
+    public void CloseReserve(Guid id)
+    {
+        (from po in walletContext.Value.Reserves where po.ReserveId == id select po).ExecuteDelete();
+    }
+
+    public bool MarkPayoutAsSending(Guid id)
+    {
+        return ((from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po)
         .ExecuteUpdate(po => po
-        .SetProperty(a => a.State, a => PayoutState.Sending)) == 0)
-            throw new LNDWalletException(LNDWalletErrorCode.PayoutAlreadySent);
+        .SetProperty(a => a.State, a => PayoutState.Sending)) == 1);
+    }
+
+    public bool MarkPayoutAsOpen(Guid id)
+    {
+        return ((from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Sending select po)
+        .ExecuteUpdate(po => po
+        .SetProperty(a => a.State, a => PayoutState.Open)) == 1);
     }
 
     public void MarkPayoutAsSent(Guid id, string tx)
@@ -809,16 +826,53 @@ public class LNDWalletManager : LNDEventSource
         .SetProperty(a => a.State, PayoutState.Sent)
         .SetProperty(a => a.Tx, a => tx)) == 0)
             throw new LNDWalletException(LNDWalletErrorCode.PayoutAlreadySent);
+        CloseReserve(id);
     }
+
+    public (long feeSat, ulong satpervbyte) EstimateFee(string addr, long satoshis)
+    {
+        try
+        {
+            var est = LND.FeeEstimate(conf, new List<(string, long)>() { (addr, satoshis) }, 6, 6);
+            return (est.FeeSat, est.SatPerVbyte);
+        }
+        catch(RpcException ex)
+        {
+            throw new LNDWalletException(LNDWalletErrorCode.OperationFailed,ex.Status.Detail);
+        }
+    }
+
+    /*
+    public long GetTransactions(int minConf)
+    {
+        var myaddrs = new Dictionary<string, long>(
+            from a in walletContext.Value.FundingAddresses
+            where a.PublicKey == PublicKey
+            select new KeyValuePair<string, long>(a.BitcoinAddress, a.TxFee));
+
+        var transactuinsResp = LND.GetTransactions(conf);
+        long balance = 0;
+        foreach (var transation in transactuinsResp.Transactions)
+            if (transation.NumConfirmations >= minConf)
+                foreach (var outp in transation.OutputDetails)
+                    if (outp.IsOurAddress)
+                        if (myaddrs.ContainsKey(outp.Address))
+                        {
+                            balance += outp.Amount;
+                            balance -= (long)myaddrs[outp.Address];
+                        }
+        return balance;
+    }
+    */
 
     public long GetChannelFundingBalance(int minconf)
     {
         return (from utxo in LND.ListUnspent(conf, minconf).Utxos select utxo.AmountSat).Sum();
     }
 
-    public long GetConfirmedWalletBalance()
+    public WalletBalanceResponse GetWalletBalance()
     {
-        return LND.WalletBallance(conf).ConfirmedBalance;
+        return LND.WalletBallance(conf);
     }
 
     public long GetRequiredReserve(uint additionalChannelsNum)

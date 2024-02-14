@@ -219,7 +219,7 @@ public partial class RideShareCLIApp
                 if (topUpAmount > 0)
                 {
                     var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().NewAddressAsync(await gigGossipNode.MakeWalletAuthToken()));
-                    gigGossipNode.GetWalletClient().TopUpAndMine6BlocksAsync(newBitcoinAddressOfCustomer, topUpAmount);
+                    WalletAPIResult.Check(await gigGossipNode.GetWalletClient().TopUpAndMine6BlocksAsync(await gigGossipNode.MakeWalletAuthToken(), newBitcoinAddressOfCustomer, topUpAmount));
                 }
             }
             else if (cmd == CommandEnum.SetupMyInfo)
@@ -230,14 +230,9 @@ public partial class RideShareCLIApp
                 SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Name",
                     Convert.ToBase64String(Encoding.Default.GetBytes(name)),
-                    Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToString("yyyy-MM-ddTHH:mm:ss")));
+                    Convert.ToBase64String(new byte[] { }), 24 * 365 * 10));
 
                 byte[] photo = new byte[] { };
-                SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
-                    (await GetPublicKeyAsync()).AsHex(), "Photo",
-                    Convert.ToBase64String(photo),
-                    Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToString("yyyy-MM-ddTHH:mm:ss")));
-
                 SettlerAPIResult.Check(await settlerClient.GiveUserFileAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Photo",24*365*10,
                     new FileParameter(new MemoryStream(photo)),
@@ -248,7 +243,7 @@ public partial class RideShareCLIApp
                 SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Car",
                     Convert.ToBase64String(Encoding.Default.GetBytes(car)),
-                    Convert.ToBase64String(new byte[] { }), DateTime.MaxValue.ToString("yyyy-MM-ddTHH:mm:ss")));
+                    Convert.ToBase64String(new byte[] { }), 24 * 365 * 10));
 
                 var randloc = MockData.RandomLocation();
                 string trace = GeoHash.Encode(randloc.Latitude, randloc.Longitude, 7);

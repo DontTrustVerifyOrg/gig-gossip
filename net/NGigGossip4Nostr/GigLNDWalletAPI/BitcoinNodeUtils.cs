@@ -17,10 +17,8 @@ public class BitcoinNodeUtils
 
     public bool IsRegTest => this.network == NBitcoin.Network.RegTest;
 
-	public void TopUpAndMine6Blocks(string bitcoinAddr, long satoshis)
-	{
-        bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(bitcoinAddr, network), new NBitcoin.Money(satoshis));
-
+    public RPCClient walletClient()
+    {
         // load bitcoin node wallet
         RPCClient? bitcoinWalletClient;
         try
@@ -31,7 +29,35 @@ public class BitcoinNodeUtils
         {
             bitcoinWalletClient = bitcoinClient.SetWalletContext(walletName);
         }
-        bitcoinWalletClient.Generate(6);
+
+        return bitcoinWalletClient;
     }
+
+	public void TopUpAndMine6Blocks(string bitcoinAddr, long satoshis)
+	{
+        walletClient().SendToAddress(NBitcoin.BitcoinAddress.Create(bitcoinAddr, network), new NBitcoin.Money(satoshis));
+        walletClient().Generate(6);
+    }
+
+    public void SendToAddress(string bitcoinAddr, long satoshis)
+    {
+        walletClient().SendToAddress(NBitcoin.BitcoinAddress.Create(bitcoinAddr, network), new NBitcoin.Money(satoshis));
+    }
+
+    public void GenerateBlocks(int number)
+    {
+        walletClient().Generate(number);
+    }
+
+    public string NewAddress()
+    {
+        return walletClient().GetNewAddress().ToString();
+    }
+
+    public long WalletBallance(int minConf)
+    {
+        return walletClient().GetBalance(minConf, false).Satoshi;
+    }
+
 }
 

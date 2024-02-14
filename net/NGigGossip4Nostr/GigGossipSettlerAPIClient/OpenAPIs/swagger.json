@@ -155,13 +155,14 @@
             }
           },
           {
-            "name": "validTill",
+            "name": "validHours",
             "in": "query",
-            "description": "Date and time after which the property will not be valid anymore",
+            "description": "How long the property is valid in hours",
             "required": true,
             "style": "form",
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "format": "int64"
             }
           }
         ],
@@ -793,52 +794,58 @@
         }
       }
     },
-    "/generaterequestpayload": {
-      "get": {
+    "/generaterequestpayload/{authToken}/{properties}": {
+      "post": {
         "tags": [
           "GigGossipSettlerAPI"
         ],
-        "summary": "Genertes RequestPayload for the specific topic.",
-        "description": "Genertes RequestPayload for the specific topic.",
         "operationId": "GenerateRequestPayload",
         "parameters": [
           {
             "name": "authToken",
-            "in": "query",
-            "description": "Authorisation token for the communication.",
+            "in": "path",
             "required": true,
-            "style": "form",
+            "style": "simple",
             "schema": {
               "type": "string"
             }
           },
           {
             "name": "properties",
-            "in": "query",
-            "description": "Requested properties of the sender.",
+            "in": "path",
             "required": true,
-            "style": "form",
-            "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          },
-          {
-            "name": "serialisedTopic",
-            "in": "query",
-            "description": "Topic",
-            "required": true,
-            "style": "form",
+            "style": "simple",
             "schema": {
               "type": "string"
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "serialisedTopic"
+                ],
+                "type": "object",
+                "properties": {
+                  "serialisedTopic": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "serialisedTopic": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
@@ -850,72 +857,75 @@
         }
       }
     },
-    "/generatesettlementtrust": {
-      "get": {
+    "/generatesettlementtrust/{authToken}/{properties}/{replyinvoice}": {
+      "post": {
         "tags": [
           "GigGossipSettlerAPI"
         ],
-        "summary": "Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.",
-        "description": "Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.",
         "operationId": "GenerateSettlementTrust",
         "parameters": [
           {
             "name": "authToken",
-            "in": "query",
-            "description": "Authorisation token for the communication.",
+            "in": "path",
             "required": true,
-            "style": "form",
+            "style": "simple",
             "schema": {
               "type": "string"
             }
           },
           {
             "name": "properties",
-            "in": "query",
-            "description": "Requested properties of the replier.",
+            "in": "path",
             "required": true,
-            "style": "form",
-            "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          },
-          {
-            "name": "message",
-            "in": "query",
-            "description": "Message to be encrypted",
-            "required": true,
-            "style": "form",
+            "style": "simple",
             "schema": {
               "type": "string"
             }
           },
           {
             "name": "replyinvoice",
-            "in": "query",
-            "description": "Invoice for the job.",
+            "in": "path",
             "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "signedRequestPayloadSerialized",
-            "in": "query",
-            "description": "Request payload",
-            "required": true,
-            "style": "form",
+            "style": "simple",
             "schema": {
               "type": "string"
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "message",
+                  "signedRequestPayloadSerialized"
+                ],
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "signedRequestPayloadSerialized": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "message": {
+                  "style": "form"
+                },
+                "signedRequestPayloadSerialized": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
@@ -927,39 +937,49 @@
         }
       }
     },
-    "/encryptobjectforcertificateid": {
-      "get": {
+    "/encryptobjectforcertificateid/{certificateId}": {
+      "post": {
         "tags": [
           "GigGossipSettlerAPI"
         ],
-        "summary": "Encrypts the object using public key related to the specific certioficate id.",
-        "description": "Encrypts the object using public key related to the specific certioficate id.",
         "operationId": "EncryptObjectForCertificateId",
         "parameters": [
           {
             "name": "certificateId",
-            "in": "query",
-            "description": "Certificate ID",
+            "in": "path",
             "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "objectSerialized",
-            "in": "query",
-            "description": "Serialized Object",
-            "required": true,
-            "style": "form",
+            "style": "simple",
             "schema": {
               "type": "string"
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "objectSerialized"
+                ],
+                "type": "object",
+                "properties": {
+                  "objectSerialized": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "objectSerialized": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
@@ -1088,878 +1108,6 @@
           }
         }
       }
-    },
-    "/api/getcapublickey": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/iscertificaterevoked": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "certid",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "boolean"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "boolean"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "boolean"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/gettoken": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "pubkey",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string",
-                  "format": "uuid"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "string",
-                  "format": "uuid"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "string",
-                  "format": "uuid"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/giveuserproperty": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "value",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "secret",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "validTill",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string",
-              "format": "date-time"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        }
-      }
-    },
-    "/api/verifychannel": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "method",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "value",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        }
-      }
-    },
-    "/api/submitchannelsecret": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "method",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "value",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "secret",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "integer",
-                  "format": "int32"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "integer",
-                  "format": "int32"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "integer",
-                  "format": "int32"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/revokeuserproperty": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        }
-      }
-    },
-    "/api/generatereplypaymentpreimage": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "gigId",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "repliperPubKey",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/generaterelatedpreimage": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "paymentHash",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/validaterelatedpaymenthashes": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "paymentHash1",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "paymentHash2",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "boolean"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "boolean"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "boolean"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/revealpreimage": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "paymentHash",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/revealsymmetrickey": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "signedRequestPayloadId",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "repliperCertificateId",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/generaterequestpayload": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "serialisedTopic",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
-            "text/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/generatesettlementtrust": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "message",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "replyinvoice",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "signedRequestPayloadSerialized",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
-            "text/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/encryptobjectforcertificateid": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "certificateId",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "objectSerialized",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/managedispute": {
-      "get": {
-        "tags": [
-          "Settler"
-        ],
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "gigId",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "repliperCertificateId",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "open",
-            "in": "query",
-            "style": "form",
-            "schema": {
-              "type": "boolean"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        }
-      }
     }
   },
   "components": {
@@ -2029,10 +1177,12 @@
       },
       "SettlerErrorCode": {
         "enum": [
+          0,
           1,
           2,
           3,
-          4
+          4,
+          5
         ],
         "type": "integer",
         "format": "int32"

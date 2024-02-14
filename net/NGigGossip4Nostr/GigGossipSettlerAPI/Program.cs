@@ -5,17 +5,13 @@ using GigGossipSettlerAPI;
 using GigLNDWalletAPIClient;
 using NBitcoin.Secp256k1;
 using NGigGossip4Nostr;
-using System.Diagnostics;
-using System.Globalization;
-using System.Reflection;
 using System.Text;
 using Spectre.Console;
-using Microsoft.AspNetCore.Antiforgery;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using TraceExColor;
+using Quartz.Spi;
 
-Trace.Listeners.Add(new CustomTraceListener());
-Trace.TraceInformation("[[lime]]Starting[[/]] ...");
+TraceEx.TraceInformation("[[lime]]Starting[[/]] ...");
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -98,7 +94,7 @@ Singlethon.Settler.OnPreimageReveal+= (sender, e) =>
 
 await Singlethon.Settler.StartAsync();
 
-Trace.TraceInformation("... Running");
+TraceEx.TraceInformation("... Running");
 
 app.MapGet("/getcapublickey", () =>
 {
@@ -106,9 +102,10 @@ app.MapGet("/getcapublickey", () =>
     { 
         return new Result<string>(Singlethon.Settler.CaXOnlyPublicKey.AsHex());
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result<string>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
     }
 })
 .WithName("GetCaPublicKey")
@@ -122,9 +119,10 @@ app.MapGet("/iscertificaterevoked", (Guid certid) =>
     {
         return new Result<bool>(Singlethon.Settler.IsCertificateRevoked(certid));
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result<bool>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<bool>(ex);
     }
 })
 .WithName("IsCertificateRevoked")
@@ -143,9 +141,10 @@ app.MapGet("/gettoken", (string pubkey) =>
     {
         return new Result<Guid>(Singlethon.Settler.GetTokenGuid(pubkey));
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result<Guid>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<Guid>(ex);
     }
 })
 .WithName("GetToken")
@@ -157,17 +156,18 @@ app.MapGet("/gettoken", (string pubkey) =>
     return g;
 });
 
-app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, string value, string secret, DateTime validTill) =>
+app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, string value, string secret, long validHours) =>
 {
     try
     {
         Singlethon.Settler.ValidateAuthToken(authToken);
-        Singlethon.Settler.GiveUserProperty(pubkey, name, Convert.FromBase64String(value), Convert.FromBase64String(secret), validTill);
+        Singlethon.Settler.GiveUserProperty(pubkey, name, Convert.FromBase64String(value), Convert.FromBase64String(secret), DateTime.Now.AddHours(validHours));
         return new Result();
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result(ex);
     }
 })
 .WithName("GiveUserProperty")
@@ -180,7 +180,7 @@ app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, s
     g.Parameters[2].Description = "Name of the property.";
     g.Parameters[3].Description = "Public value of the property.";
     g.Parameters[4].Description = "Secret value of the property.";
-    g.Parameters[5].Description = "Date and time after which the property will not be valid anymore";
+    g.Parameters[5].Description = "How long the property is valid in hours";
     return g;
 });
 
@@ -192,18 +192,13 @@ app.MapPost("/giveuserfile/{authToken}/{pubkey}/{name}/{validHours}", async (Htt
     try
     {
         Singlethon.Settler.ValidateAuthToken(authToken.ToString());
-
-        using var valueMemoryStream = new MemoryStream();
-        using var secretMemoryStream = new MemoryStream();
-        await value.CopyToAsync(valueMemoryStream);
-        await secret.CopyToAsync(secretMemoryStream);
-
-        Singlethon.Settler.GiveUserProperty(pubkey, name, valueMemoryStream.ToArray(), secretMemoryStream.ToArray(), DateTime.Now.AddHours(validHours));
+        Singlethon.Settler.GiveUserProperty(pubkey, name, await value.ToBytes(), await secret.ToBytes(), DateTime.Now.AddHours(validHours));
         return new Result();
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result(ex);
     }
 })
 .WithName("GiveUserFile")
@@ -218,9 +213,10 @@ app.MapGet("/saveusertraceproperty", (string authToken, string pubkey, string na
         Singlethon.Settler.SaveUserTraceProperty(pubkey, name, Convert.FromBase64String(value));
         return new Result();
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result(ex);
     }
 })
 .WithName("SaveUserTraceProperty")
@@ -242,9 +238,10 @@ app.MapGet("/verifychannel", (string authToken, string pubkey, string name, stri
         Singlethon.Settler.ValidateAuthToken(authToken);
         return new Result();
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result(ex);
     }
 })
 .WithName("VerifyChannel")
@@ -268,9 +265,10 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
         Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes("valid"), Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
         return new Result<int>(-1);
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result<int>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<int>(ex);
     }
 })
 .WithName("SubmitChannelSecret")
@@ -296,9 +294,10 @@ app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name)
         Singlethon.Settler.RevokeUserProperty(pubkey, name);
         return new Result();
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result(ex);
     }
 })
 .WithDescription("Revokes a property from the subject (e.g. driving licence is taken by the police). Only authorised users can revoke the property.")
@@ -317,9 +316,10 @@ app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid gigId, strin
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
         return new Result<string>(Singlethon.Settler.GenerateReplyPaymentPreimage(pubkey, gigId, repliperPubKey));
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result<string>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
     }
 })
 .WithName("GenerateReplyPaymentPreimage")
@@ -340,9 +340,10 @@ app.MapGet("/generaterelatedpreimage", (string authToken, string paymentHash) =>
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
         return new Result<string>(Singlethon.Settler.GenerateRelatedPreimage(pubkey, paymentHash));
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result<string>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
     }
 })
 .WithName("GenerateRelatedPreimage")
@@ -362,9 +363,10 @@ app.MapGet("/validaterelatedpaymenthashes", (string authToken, string paymentHas
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
         return new Result<bool>(Singlethon.Settler.ValidateRelatedPaymentHashes(pubkey, paymentHash1, paymentHash2));
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result<bool>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<bool>(ex);
     }
 })
 .WithName("ValidateRelatedPaymentHashes")
@@ -385,9 +387,10 @@ app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
         return new Result<string>(Singlethon.Settler.RevealPreimage(pubkey, paymentHash));
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result<string>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
     }
 })
 .WithName("RevealPreimage")
@@ -407,9 +410,10 @@ app.MapGet("/getgigstatus", (string authToken, Guid signedRequestPayloadId,Guid 
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
         return new Result<string>(Singlethon.Settler.GetGigStatus(signedRequestPayloadId, repliperCertificateId));
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result<string>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
     }
 })
 .WithName("GetGigStatus")
@@ -423,78 +427,59 @@ app.MapGet("/getgigstatus", (string authToken, Guid signedRequestPayloadId,Guid 
     return g;
 });
 
-app.MapGet("/generaterequestpayload", (string authToken, string[] properties, string serialisedTopic) =>
+app.MapPost("/generaterequestpayload/{authToken}/{properties}", async (string authToken, string properties, [FromForm] IFormFile serialisedTopic) =>
 {
     try
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-        var st = Singlethon.Settler.GenerateRequestPayload(pubkey, properties, Convert.FromBase64String(serialisedTopic));
+        var st = Singlethon.Settler.GenerateRequestPayload(pubkey, properties.Split(","), await serialisedTopic.ToBytes());
         return new Result<string>(Convert.ToBase64String(Crypto.SerializeObject(st)));
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result<string>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
     }
 })
 .WithName("GenerateRequestPayload")
 .WithSummary("Genertes RequestPayload for the specific topic.")
-.WithDescription("Genertes RequestPayload for the specific topic.")
-.WithOpenApi(g =>
-{
-    g.Parameters[0].Description = "Authorisation token for the communication.";
-    g.Parameters[1].Description = "Requested properties of the sender.";
-    g.Parameters[2].Description = "Topic";
-    return g;
-});
+.WithDescription("Genertes RequestPayload for the specific topic.");
 
-app.MapGet("/generatesettlementtrust", async (string authToken, string[] properties, string message, string replyinvoice, string signedRequestPayloadSerialized) =>
+app.MapPost("/generatesettlementtrust/{authToken}/{properties}/{replyinvoice}", async (string authToken, string properties, string replyinvoice, [FromForm] IFormFile message, [FromForm] IFormFile signedRequestPayloadSerialized) =>
 {
     try
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-        var signedRequestPayload = Crypto.DeserializeObject<Certificate<RequestPayloadValue>>(Convert.FromBase64String(signedRequestPayloadSerialized));
-        var st = await Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, properties, Convert.FromBase64String(message), replyinvoice, signedRequestPayload);
+        var signedRequestPayload = Crypto.DeserializeObject<Certificate<RequestPayloadValue>>(await signedRequestPayloadSerialized.ToBytes());
+        var st = await Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, properties.Split(","), await message.ToBytes(), replyinvoice, signedRequestPayload);
         return new Result<string>(Convert.ToBase64String(Crypto.SerializeObject(st)));
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result<string>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
     }
 })
 .WithName("GenerateSettlementTrust")
 .WithSummary("Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.")
-.WithDescription("Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.")
-.WithOpenApi(g =>
-{
-    g.Parameters[0].Description = "Authorisation token for the communication.";
-    g.Parameters[1].Description = "Requested properties of the replier.";
-    g.Parameters[2].Description = "Message to be encrypted";
-    g.Parameters[3].Description = "Invoice for the job.";
-    g.Parameters[4].Description = "Request payload";
-    return g;
-});
+.WithDescription("Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.");
 
-app.MapGet("/encryptobjectforcertificateid", (Guid certificateId, string objectSerialized) =>
+app.MapPost("/encryptobjectforcertificateid/{certificateId}", async (Guid certificateId, [FromForm] IFormFile objectSerialized) =>
 {
     try
     {
-        byte[] encryptedReplyPayload = Singlethon.Settler.EncryptObjectForCertificateId(Convert.FromBase64String(objectSerialized), certificateId);
+        byte[] encryptedReplyPayload = Singlethon.Settler.EncryptObjectForCertificateId(await objectSerialized.ToBytes(), certificateId);
         return new Result<string>(Convert.ToBase64String(encryptedReplyPayload));
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result<string>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
     }
 })
 .WithName("EncryptObjectForCertificateId")
 .WithSummary("Encrypts the object using public key related to the specific certioficate id.")
-.WithDescription("Encrypts the object using public key related to the specific certioficate id.")
-.WithOpenApi(g =>
-{
-    g.Parameters[0].Description = "Certificate ID";
-    g.Parameters[1].Description = "Serialized Object";
-    return g;
-});
+.WithDescription("Encrypts the object using public key related to the specific certioficate id.");
 
 app.MapGet("/managedispute", async (string authToken, Guid gigId, Guid repliperCertificateId, bool open) =>
 {
@@ -504,9 +489,10 @@ app.MapGet("/managedispute", async (string authToken, Guid gigId, Guid repliperC
         await Singlethon.Settler.ManageDisputeAsync(gigId, repliperCertificateId, open);
         return new Result();
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result(ex);
     }
 })
 .WithName("ManageDispute")
@@ -529,9 +515,10 @@ app.MapGet("/cancelgig", async (string authToken, Guid gigId, Guid repliperCerti
         await Singlethon.Settler.CancelGigAsync(gigId, repliperCertificateId);
         return new Result();
     }
-    catch (SettlerException ex)
+    catch (Exception ex)
     {
-        return new Result(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result(ex);
     }
 })
 .WithName("CancelGig")
@@ -550,84 +537,35 @@ app.MapHub<GigStatusHub>("/gigstatus");
 
 app.Run(settlerSettings.ListenHost.AbsoluteUri);
 
-public class FileUploadForm
-{
-    public string authToken { get; set; }
-    public string pubkey { get; set; }
-    public string name { get; set; }
-    public DateTime validTill { get; set; }
-    public IFormFile value { get; set; }
-    public IFormFile secret { get; set; }
-
-    public static async ValueTask<FileUploadForm?> BindAsync(HttpContext context,
-                                               ParameterInfo parameter)
-    {
-        var form = await context.Request.ReadFormAsync();
-        return new FileUploadForm
-        {
-            authToken = form["authToken"],
-            pubkey = form["pubkey"],
-            name = form["name"],
-            validTill = DateTime.Parse(form["validTill"]),
-            value = form.Files["value"],
-            secret = form.Files["secret"],
-        };
-    }
-}
-
-public class CustomTraceListener : TraceListener
-{
-    private readonly StringBuilder _stringBuilder = new();
-    public CustomTraceListener()
-    {
-    }
-
-    static Dictionary<TraceEventType, string> pfxcol = new()
-    {
-        { TraceEventType.Critical,"red" },
-        { TraceEventType.Error,"red" },
-        { TraceEventType.Warning,"orange1" },
-        { TraceEventType.Information,"white" },
-        { TraceEventType.Verbose,"gray" },
-        { TraceEventType.Start,"green" },
-        { TraceEventType.Stop,"red" },
-        { TraceEventType.Suspend,"orange1" },
-        { TraceEventType.Resume,"blue" },
-        { TraceEventType.Transfer,"blue" },
-    };
-
-    public override void TraceEvent(TraceEventCache? eventCache, string source, TraceEventType eventType, int id, string? message)
-    {
-        WriteLine($"[[gray]]{DateTime.Now.ToString("hh:mm:ss.fff", CultureInfo.InvariantCulture)}[[/]] [[{pfxcol[eventType]}]]{message}[[/]]");
-    }
-
-    public override void Write(string? message)
-    {
-        AnsiConsole.Markup(message.Replace("[", "[[").Replace("]", "]]").Replace("[[[[", "[").Replace("]]]]", "]"));
-    }
-
-    public override void WriteLine(string? message)
-    {
-        AnsiConsole.MarkupLine(message.Replace("[", "[[").Replace("]", "]]").Replace("[[[[", "[").Replace("]]]]", "]"));
-    }
-}
 
 [Serializable]
-public record Result
+public struct Result
 {
     public Result() { }
-    public Result(SettlerErrorCode errorCode) { ErrorCode = errorCode; ErrorMessage = errorCode.Message(); }
-    public SettlerErrorCode ErrorCode { get; set; }
+    public Result(Exception exception)
+    {
+        ErrorCode = SettlerErrorCode.OperationFailed;
+        if (exception is SettlerException ex)
+            ErrorCode = ex.ErrorCode;
+        ErrorMessage = exception.Message;
+    }
+    public SettlerErrorCode ErrorCode { get; set; } = SettlerErrorCode.Ok;
     public string ErrorMessage { get; set; } = "";
 }
 
 [Serializable]
-public record Result<T>
+public struct Result<T>
 {
     public Result(T value) { Value = value; }
-    public Result(SettlerErrorCode errorCode) { ErrorCode = errorCode; ErrorMessage = errorCode.Message(); }
+    public Result(Exception exception)
+    {
+        ErrorCode = SettlerErrorCode.OperationFailed;
+        if (exception is SettlerException ex)
+            ErrorCode = ex.ErrorCode;
+        ErrorMessage = exception.Message;
+    }
     public T? Value { get; set; } = default;
-    public SettlerErrorCode ErrorCode { get; set; }
+    public SettlerErrorCode ErrorCode { get; set; } = SettlerErrorCode.Ok;
     public string ErrorMessage { get; set; } = "";
 }
 

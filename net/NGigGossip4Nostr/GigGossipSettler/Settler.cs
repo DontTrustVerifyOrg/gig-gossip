@@ -318,7 +318,7 @@ public class Settler : CertificationAuthority
 
         var encryptedReplyPayload = Convert.FromBase64String(SettlerAPIResult.Get<string>(await settlerSelector.GetSettlerClient(signedRequestPayload.ServiceUri)
             .EncryptObjectForCertificateIdAsync(signedRequestPayload.Id.ToString(),
-                                                Convert.ToBase64String(Crypto.SerializeObject(replyPayload)))));
+                                                new FileParameter(new MemoryStream(Crypto.SerializeObject(replyPayload))))));
 
 
         byte[] hashOfEncryptedReplyPayload = Crypto.ComputeSha256(new List<byte[]> { encryptedReplyPayload });

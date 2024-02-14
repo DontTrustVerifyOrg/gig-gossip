@@ -96,7 +96,7 @@ public class ComplexTest
             SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
                     token, gigWorker.PublicKey,
                     "drive", val, val,
-                    (DateTime.UtcNow + TimeSpan.FromDays(1)).ToLongDateString()
+                    24
                  ));
 
             await gigWorker.StartAsync (
@@ -121,7 +121,7 @@ public class ComplexTest
             SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
                 token, customer.PublicKey,
                 "ride", val, val,
-                (DateTime.UtcNow + TimeSpan.FromDays(1)).ToLongDateString()
+                24
              ));
 
             await customer.StartAsync(

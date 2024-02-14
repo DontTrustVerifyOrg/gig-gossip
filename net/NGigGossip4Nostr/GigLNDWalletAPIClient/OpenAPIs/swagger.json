@@ -5,51 +5,6 @@
     "version": "1.0"
   },
   "paths": {
-    "/topupandmine6blocks": {
-      "get": {
-        "tags": [
-          "GigLNDWalletAPI"
-        ],
-        "summary": "Sends satoshis from local BTC wallet to the address (Regtest only), then mines 6 blocks.",
-        "description": "Sends satoshis from local BTC wallet to the address (Regtest only), then mines 6 blocks.",
-        "operationId": "TopUpAndMine6Blocks",
-        "parameters": [
-          {
-            "name": "bitcoinAddr",
-            "in": "query",
-            "description": "bitcoin address",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "satoshis",
-            "in": "query",
-            "description": "number of satoshis",
-            "required": true,
-            "style": "form",
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Result"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/gettoken": {
       "get": {
         "tags": [
@@ -77,6 +32,412 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/topupandmine6blocks": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Sends satoshis from local BTC wallet to the address (Regtest only), then mines 6 blocks.",
+        "description": "Sends satoshis from local BTC wallet to the address (Regtest only), then mines 6 blocks.",
+        "operationId": "TopUpAndMine6Blocks",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "bitcoin address",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bitcoinAddr",
+            "in": "query",
+            "description": "number of satoshis",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "satoshis",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sendtoaddress": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Sends satoshis from local BTC wallet to the address.",
+        "description": "Sends satoshis from local BTC wallet to the address.",
+        "operationId": "SendToAddress",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "bitcoin address",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bitcoinAddr",
+            "in": "query",
+            "description": "number of satoshis",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "satoshis",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/generateblocks": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Mines Number of Blocks (Regtest only)",
+        "description": "Mines Number of Blocks (Regtest only)",
+        "operationId": "GenerateBlocks",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "number of blocks to mine",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "blocknum",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/newbitcoinaddress": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Creates New Bitcoin Address To the Bitcoin Wallet",
+        "description": "Creates New Bitcoin Address To the Bitcoin Wallet",
+        "operationId": "NewBitcoinAddress",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "authorisation token for the communication",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StringResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/getbitcoinwalletballance": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Returns the Bitcoin Wallet Ballance in Sathoshis",
+        "description": "Returns the Bitcoin Wallet Ballance in Sathoshis",
+        "operationId": "GetBitcoinWalletBallance",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "authorisation token for the communication",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minConf",
+            "in": "query",
+            "description": "minimal number of confirmation",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Int64Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/getlndwalletballance": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Returns the Lnd Node Wallet Ballance in Sathoshis",
+        "description": "Returns the Lnd Node Wallet Ballance in Sathoshis",
+        "operationId": "GetLndWalletBallance",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "authorisation token for the communication",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LndWalletBallanceRetResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openreserve": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Opens reserve",
+        "description": "Opens reserve",
+        "operationId": "OpenReserve",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "number of satoshis",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "satoshis",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuidResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/closereserve": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Closes Reserve",
+        "description": "Closes Reserve",
+        "operationId": "CloseReserve",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "reserve id",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reserveId",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/estimatefee": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Gives Fee Estimate",
+        "description": "Gives Fee Estimate",
+        "operationId": "EstimateFee",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "bitcoin address",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "address",
+            "in": "query",
+            "description": "number of satoshis",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "satoshis",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeeEstimateRetResult"
                 }
               }
             }
@@ -798,6 +1159,36 @@
         },
         "additionalProperties": false
       },
+      "FeeEstimateRet": {
+        "type": "object",
+        "properties": {
+          "feeSat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "satPerVbyte": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "FeeEstimateRetResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/FeeEstimateRet"
+          },
+          "errorCode": {
+            "$ref": "#/components/schemas/LNDWalletErrorCode"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "GuidResult": {
         "type": "object",
         "properties": {
@@ -900,10 +1291,53 @@
           7,
           8,
           9,
-          10
+          10,
+          11
         ],
         "type": "integer",
         "format": "int32"
+      },
+      "LndWalletBallanceRet": {
+        "type": "object",
+        "properties": {
+          "confirmedBalance": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lockedBalance": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reservedBalanceAnchorChan": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalBalance": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unconfirmedBalance": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LndWalletBallanceRetResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/LndWalletBallanceRet"
+          },
+          "errorCode": {
+            "$ref": "#/components/schemas/LNDWalletErrorCode"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "PayReq": {
         "type": "object",

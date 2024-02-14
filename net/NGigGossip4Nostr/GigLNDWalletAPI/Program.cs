@@ -1,17 +1,13 @@
-﻿using System.Diagnostics;
-using System.Globalization;
-using System.Text;
-using System.Text.Json.Nodes;
+﻿using System.Text.Json.Nodes;
 using CryptoToolkit;
 using GigLNDWalletAPI;
-using Grpc.Core;
 using LNDClient;
 using LNDWallet;
 using NBitcoin.RPC;
 using Spectre.Console;
+using TraceExColor;
 
-Trace.Listeners.Add(new CustomTraceListener());
-Trace.TraceInformation("[[lime]]Starting[[/]] ...");
+TraceEx.TraceInformation("[[lime]]Starting[[/]] ...");
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -71,7 +67,7 @@ while (true)
     if (nd1.SyncedToChain)
         break;
 
-    Trace.TraceWarning("Node not synced to chain");
+    TraceEx.TraceWarning("Node not synced to chain");
     Thread.Sleep(1000);
 }
 
@@ -104,13 +100,35 @@ channelManager.Start();
 if (btcConf != null)
     Singlethon.BitcoinNodeUtils = new BitcoinNodeUtils(btcConf.NewRPCClient(), btcConf.GetNetwork(), btcConf.WalletName);
 
-Trace.TraceInformation("... Running");
+TraceEx.TraceInformation("... Running");
 
 
-app.MapGet("/topupandmine6blocks", (string bitcoinAddr, long satoshis) =>
+app.MapGet("/gettoken", (string pubkey) =>
 {
     try
     {
+        return new Result<Guid>(Singlethon.LNDWalletManager.GetTokenGuid(pubkey));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<Guid>(ex);
+    }
+})
+.WithName("GetToken")
+.WithSummary("Creates authorisation token guid")
+.WithDescription("Creates a new token Guid that is used for further communication with the API")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "public key identifies the API user";
+    return g;
+});
+
+app.MapGet("/topupandmine6blocks", (string authToken, string bitcoinAddr, long satoshis) =>
+{
+    try
+    {
+        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
         if (Singlethon.BitcoinNodeUtils != null)
         {
             if (Singlethon.BitcoinNodeUtils.IsRegTest)
@@ -119,9 +137,10 @@ app.MapGet("/topupandmine6blocks", (string bitcoinAddr, long satoshis) =>
         }
         return new Result();
     }
-    catch (LNDWalletException ex)
+    catch (Exception ex)
     {
-        return new Result(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result(ex);
     }
 })
 .WithName("TopUpAndMine6Blocks")
@@ -134,23 +153,211 @@ app.MapGet("/topupandmine6blocks", (string bitcoinAddr, long satoshis) =>
     return g;
 });
 
-app.MapGet("/gettoken", (string pubkey) =>
+app.MapGet("/sendtoaddress", (string authToken, string bitcoinAddr, long satoshis) =>
 {
     try
     {
-        return new Result<Guid>(Singlethon.LNDWalletManager.GetTokenGuid(pubkey));
+        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        if (Singlethon.BitcoinNodeUtils != null)
+        {
+            if (Singlethon.BitcoinNodeUtils.IsRegTest)
+                Singlethon.BitcoinNodeUtils.SendToAddress(bitcoinAddr, satoshis);
+
+        }
+        return new Result();
     }
-    catch (LNDWalletException ex)
+    catch (Exception ex)
     {
-        return new Result<Guid>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result(ex);
     }
 })
-.WithName("GetToken")
-.WithSummary("Creates authorisation token guid")
-.WithDescription("Creates a new token Guid that is used for further communication with the API")
+.WithName("SendToAddress")
+.WithSummary("Sends satoshis from local BTC wallet to the address.")
+.WithDescription("Sends satoshis from local BTC wallet to the address.")
 .WithOpenApi(g =>
 {
-    g.Parameters[0].Description = "public key identifies the API user";
+    g.Parameters[0].Description = "bitcoin address";
+    g.Parameters[1].Description = "number of satoshis";
+    return g;
+});
+
+app.MapGet("/generateblocks", (string authToken, int blocknum) =>
+{
+    try
+    {
+        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        if (Singlethon.BitcoinNodeUtils != null)
+        {
+            if (Singlethon.BitcoinNodeUtils.IsRegTest)
+                Singlethon.BitcoinNodeUtils.GenerateBlocks(blocknum);
+
+        }
+        return new Result();
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result(ex);
+    }
+})
+.WithName("GenerateBlocks")
+.WithSummary("Mines Number of Blocks (Regtest only)")
+.WithDescription("Mines Number of Blocks (Regtest only)")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "number of blocks to mine";
+    return g;
+});
+
+app.MapGet("/newbitcoinaddress", (string authToken) =>
+{
+    try
+    {
+        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        return new Result<string>(Singlethon.BitcoinNodeUtils.NewAddress());
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
+    }
+})
+.WithName("NewBitcoinAddress")
+.WithSummary("Creates New Bitcoin Address To the Bitcoin Wallet")
+.WithDescription("Creates New Bitcoin Address To the Bitcoin Wallet")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "authorisation token for the communication";
+    return g;
+});
+
+app.MapGet("/getbitcoinwalletballance", (string authToken, int minConf) =>
+{
+    try
+    {
+        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        return new Result<long>(Singlethon.BitcoinNodeUtils.WalletBallance(minConf));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<long>(ex);
+    }
+})
+.WithName("GetBitcoinWalletBallance")
+.WithSummary("Returns the Bitcoin Wallet Ballance in Sathoshis")
+.WithDescription("Returns the Bitcoin Wallet Ballance in Sathoshis")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "authorisation token for the communication";
+    g.Parameters[1].Description = "minimal number of confirmation";
+    return g;
+});
+
+
+app.MapGet("/getlndwalletballance", (string authToken) =>
+{
+    try
+    {
+        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        var ret = Singlethon.LNDWalletManager.GetWalletBalance();
+        return new Result<LndWalletBallanceRet>(
+            new LndWalletBallanceRet
+            {
+                ConfirmedBalance = ret.ConfirmedBalance,
+                UnconfirmedBalance = ret.UnconfirmedBalance,
+                TotalBalance = ret.TotalBalance,
+                ReservedBalanceAnchorChan = ret.ReservedBalanceAnchorChan,
+                LockedBalance = ret.LockedBalance,
+            });
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<LndWalletBallanceRet>(ex);
+    }
+})
+.WithName("GetLndWalletBallance")
+.WithSummary("Returns the Lnd Node Wallet Ballance in Sathoshis")
+.WithDescription("Returns the Lnd Node Wallet Ballance in Sathoshis")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "authorisation token for the communication";
+    return g;
+});
+
+
+app.MapGet("/openreserve", (string authToken, long satoshis) =>
+{
+    try
+    {
+        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        return new Result<Guid>(Singlethon.LNDWalletManager.OpenReserve(satoshis));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<Guid>(ex);
+    }
+})
+.WithName("OpenReserve")
+.WithSummary("Opens reserve")
+.WithDescription("Opens reserve")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "number of satoshis";
+    return g;
+});
+
+app.MapGet("/closereserve", (string authToken, Guid reserveId) =>
+{
+    try
+    {
+        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        Singlethon.LNDWalletManager.CloseReserve(reserveId);
+        return new Result();
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result(ex);
+    }
+})
+.WithName("CloseReserve")
+.WithSummary("Closes Reserve")
+.WithDescription("Closes Reserve")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "reserve id";
+    return g;
+});
+
+app.MapGet("/estimatefee", (string authToken, string address, long satoshis) =>
+{
+    bool isAdmin = false;
+    try
+    {
+        isAdmin = Singlethon.LNDWalletManager.ValidateAndCheckIfAdminToken(authToken);
+        var (feesat, satspervbyte) = Singlethon.LNDWalletManager.EstimateFee(address, satoshis);
+        return new Result<FeeEstimateRet>(new FeeEstimateRet { FeeSat = feesat, SatPerVbyte = satspervbyte });
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        if (isAdmin)
+            return new Result<FeeEstimateRet>(ex);
+        else
+            return new Result<FeeEstimateRet>(new FeeEstimateRet { FeeSat = -1, SatPerVbyte = 0 });
+    }
+})
+.WithName("EstimateFee")
+.WithSummary("Gives Fee Estimate")
+.WithDescription("Gives Fee Estimate")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "bitcoin address";
+    g.Parameters[1].Description = "number of satoshis";
     return g;
 });
 
@@ -160,9 +367,10 @@ app.MapGet("/getbalance",(string authToken) =>
     {
         return new Result<long>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetAccountBallance());
     }
-    catch (LNDWalletException ex)
+    catch (Exception ex)
     {
-        return new Result<long>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<long>(ex);
     }
 })
 .WithName("GetBalance")
@@ -181,9 +389,10 @@ app.MapGet("/getbalancedetails", (string authToken) =>
     {
         return new Result<AccountBallanceDetails>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetAccountBallanceDetails());
     }
-    catch (LNDWalletException ex)
+    catch (Exception ex)
     {
-        return new Result<AccountBallanceDetails>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<AccountBallanceDetails>(ex);
     }
 })
 .WithName("GetBalanceDetails")
@@ -201,9 +410,10 @@ app.MapGet("/newaddress", (string authToken) =>
     {
         return new Result<string>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).NewAddress(walletSettings.NewAddressTxFee));
     }
-    catch (LNDWalletException ex)
+    catch (Exception ex)
     {
-        return new Result<string>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
     }
 })
 .WithName("NewAddress")
@@ -221,9 +431,10 @@ app.MapGet("/registerpayout", (string authToken,long satoshis,string btcAddress,
     {
         return new Result<Guid>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).RegisterPayout(satoshis, btcAddress, txfee));
     }
-    catch(LNDWalletException ex) 
+    catch(Exception ex) 
     {
-        return new Result<Guid>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<Guid>(ex);
     }
 })
 .WithName("RegisterPayout")
@@ -247,9 +458,10 @@ app.MapGet("/addinvoice", (string authToken, long satoshis, string memo, long ex
         var pa = acc.DecodeInvoice(ph);
         return new Result<InvoiceRet>(new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph });
     }
-    catch (LNDWalletException ex)
+    catch (Exception ex)
     {
-        return new Result<InvoiceRet>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<InvoiceRet>(ex);
     }
 })
 .WithName("AddInvoice")
@@ -274,9 +486,10 @@ app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, str
         var pa = acc.DecodeInvoice(ph);
         return new Result<InvoiceRet>(new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph });
     }
-    catch (LNDWalletException ex)
+    catch (Exception ex)
     {
-        return new Result<InvoiceRet>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<InvoiceRet>(ex);
     }
 })
 .WithName("AddHodlInvoice")
@@ -298,9 +511,10 @@ app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
     {
         return new Result<Lnrpc.PayReq>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).DecodeInvoice(paymentRequest));
     }
-    catch (LNDWalletException ex)
+    catch (Exception ex)
     {
-        return new Result<Lnrpc.PayReq>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<Lnrpc.PayReq>(ex);
     }
 })
 .WithName("DecodeInvoice")
@@ -321,9 +535,10 @@ app.MapGet("/sendpayment", async (string authToken, string paymentrequest, int t
         await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SendPaymentAsync(paymentrequest, timeout, walletSettings.SendPaymentTxFee, walletSettings.FeeLimit);
         return new Result();
     }
-    catch (LNDWalletException ex)
+    catch (Exception ex)
     {
-        return new Result(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result(ex);
     }
 })
 .WithName("SendPayment")
@@ -344,13 +559,10 @@ app.MapGet("/settleinvoice", (string authToken, string preimage) =>
         Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SettleInvoice(preimage.AsBytes());
         return new Result();
     }
-    catch (LNDWalletException ex)
+    catch (Exception ex)
     {
-        return new Result(ex.ErrorCode);
-    }
-    catch (RpcException) 
-    {
-        return new Result(LNDWalletErrorCode.OperationFailed);
+        TraceEx.TraceException(ex);
+        return new Result(ex);
     }
 })
 .WithName("SettleInvoice")
@@ -370,13 +582,10 @@ app.MapGet("/cancelinvoice", (string authToken, string paymenthash) =>
         Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CancelInvoice(paymenthash);
         return new Result();
     }
-    catch (LNDWalletException ex)
+    catch (Exception ex)
     {
-        return new Result(ex.ErrorCode);
-    }
-    catch (RpcException)
-    {
-        return new Result(LNDWalletErrorCode.OperationFailed);
+        TraceEx.TraceException(ex);
+        return new Result(ex);
     }
 })
 .WithName("CancelInvoice")
@@ -395,9 +604,10 @@ app.MapGet("/getinvoicestate", (string authToken, string paymenthash) =>
     {
         return new Result<string>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetInvoiceState(paymenthash).ToString());
     }
-    catch (LNDWalletException ex)
+    catch (Exception ex)
     {
-        return new Result<string>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
     }
 })
 .WithName("GetInvoiceState")
@@ -416,9 +626,10 @@ app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
     {
         return new Result<string>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetPaymentStatus(paymenthash).ToString());
     }
-    catch (LNDWalletException ex)
+    catch (Exception ex)
     {
-        return new Result<string>(ex.ErrorCode);
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
     }
 })
 .WithName("GetPaymentStatus")
@@ -437,66 +648,59 @@ app.MapHub<PaymentStatusUpdatesHub>("/paymentstatusupdates");
 app.Run(walletSettings.ListenHost.AbsoluteUri);
 
 
-public class CustomTraceListener : TraceListener
-{
-    private readonly StringBuilder _stringBuilder = new();
-    public CustomTraceListener()
-    {
-    }
-
-    static Dictionary<TraceEventType, string> pfxcol = new()
-    {
-        { TraceEventType.Critical,"red" },
-        { TraceEventType.Error,"red" },
-        { TraceEventType.Warning,"orange1" },
-        { TraceEventType.Information,"white" },
-        { TraceEventType.Verbose,"gray" },
-        { TraceEventType.Start,"green" },
-        { TraceEventType.Stop,"red" },
-        { TraceEventType.Suspend,"orange1" },
-        { TraceEventType.Resume,"blue" },
-        { TraceEventType.Transfer,"blue" },
-    };
-
-    public override void TraceEvent(TraceEventCache? eventCache, string source, TraceEventType eventType, int id, string? message)
-    {
-        WriteLine($"[gray]{DateTime.Now.ToString("hh:mm:ss.fff", CultureInfo.InvariantCulture)}[/] [{pfxcol[eventType]}]{message.Replace("[","[[").Replace("]", "]]").Replace("[[[[", "[").Replace("]]]]", "]")}[/]");
-    }
-
-    public override void Write(string? message)
-    {
-        AnsiConsole.Markup(message);
-    }
-
-    public override void WriteLine(string? message)
-    {
-        AnsiConsole.MarkupLine(message);
-    }
-}
 
 [Serializable]
-public record Result
+public struct Result
 {
-    public Result() {}
-    public Result(LNDWalletErrorCode errorCode) { ErrorCode = errorCode; ErrorMessage = errorCode.Message(); }
+    public Result() { }
+    public Result(Exception exception) {
+        ErrorCode = LNDWalletErrorCode.OperationFailed;
+        if (exception is LNDWalletException ex)
+            ErrorCode = ex.ErrorCode;
+        ErrorMessage = exception.Message;
+    }
     public LNDWalletErrorCode ErrorCode { get; set; } = LNDWalletErrorCode.Ok;
     public string ErrorMessage { get; set; } = "";
 }
 
 [Serializable]
-public record Result<T>
+public struct Result<T>
 {
     public Result(T value) { Value = value; }
-    public Result(LNDWalletErrorCode errorCode) { ErrorCode = errorCode; ErrorMessage = errorCode.Message(); }
+    public Result(Exception exception) {
+        ErrorCode = LNDWalletErrorCode.OperationFailed;
+        if (exception is LNDWalletException ex)
+            ErrorCode = ex.ErrorCode;
+        ErrorMessage = exception.Message;
+    }
     public T? Value { get; set; } = default;
     public LNDWalletErrorCode ErrorCode { get; set; } = LNDWalletErrorCode.Ok;
     public string ErrorMessage { get; set; } = "";
 }
 
-public record InvoiceRet
+[Serializable]
+public struct FeeEstimateRet
+{
+    public long FeeSat { get; set; }
+    public ulong SatPerVbyte { get; set; }
+}
+
+[Serializable]
+public struct InvoiceRet
 {
     public string PaymentRequest { get; set; }
     public string PaymentHash { get; set; }
+}
+
+
+[Serializable]
+public struct LndWalletBallanceRet
+{
+    public long ConfirmedBalance { get; set; }
+    public long LockedBalance { get; set; }
+    public long ReservedBalanceAnchorChan { get; set; }
+    public long TotalBalance { get; set; }
+    public long UnconfirmedBalance { get; set; }
 }
 
 public class WalletSettings

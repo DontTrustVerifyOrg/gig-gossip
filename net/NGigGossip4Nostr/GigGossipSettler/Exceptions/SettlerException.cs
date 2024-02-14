@@ -4,6 +4,7 @@ namespace GigGossipSettler.Exceptions;
 
 public enum SettlerErrorCode
 {
+    Ok = 0,
     /// <summary>
     /// Represents invalid or expired authentication token.
     /// </summary>
@@ -19,7 +20,9 @@ public enum SettlerErrorCode
     /// <summary>
     /// Unknown preimage was detected.
     /// </summary>
-    UnknownPreimage = 4
+    UnknownPreimage = 4,
+
+    OperationFailed = 5,
 }
 
 public static class SettlerErrorCodeExtensions
@@ -30,6 +33,7 @@ public static class SettlerErrorCodeExtensions
         "Property is not granted to the subject",
         "Unknown certificate",
         "Unknown preimage",
+        "Operation failed",
     };
 
     /// <summary>

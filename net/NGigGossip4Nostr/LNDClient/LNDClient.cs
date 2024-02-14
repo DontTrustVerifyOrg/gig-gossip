@@ -56,8 +56,10 @@ public static class LND
     static T Client<T>(NodeSettings conf) where T : ClientBase<T>
     {
         var channel = GrpcChannel.ForAddress(conf.RpcHost,
-            new GrpcChannelOptions {
-                HttpClient = GetSSLHttpClient(conf.TlsCertFile.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))) });
+            new GrpcChannelOptions
+            {
+                HttpClient = GetSSLHttpClient(conf.TlsCertFile.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)))
+            });
 
         var ctors = typeof(T).GetConstructors();
         var ctor = ctors.First(x => x.GetParameters().Length == 1 && x.GetParameters().Single().Name == "channel");
@@ -75,7 +77,7 @@ public static class LND
 
     static string GetMacaroon(NodeSettings conf)
     {
-        return File.ReadAllBytes(conf.MacaroonFile.Replace("$HOME",Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))).AsHex();
+        return File.ReadAllBytes(conf.MacaroonFile.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))).AsHex();
     }
 
     static Metadata Metadata(NodeSettings conf)
@@ -85,7 +87,7 @@ public static class LND
 
     public static WalletBalanceResponse WalletBallance(NodeSettings conf)
     {
-        return LightningClient(conf).WalletBalance(new WalletBalanceRequest() { },
+        return LightningClient(conf).WalletBalance(new WalletBalanceRequest() {  },
             Metadata(conf));
     }
 
@@ -100,9 +102,9 @@ public static class LND
     }
 
     //-1 means send all
-    public static string SendCoins(NodeSettings conf, string address, string memo, long satoshis = -1, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static string SendCoins(NodeSettings conf, string address, string memo, long satoshis, ulong satspervbyte, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        var req = new SendCoinsRequest() { Addr = address, TargetConf = 6, Label = memo };
+        var req = new SendCoinsRequest() { Addr = address, TargetConf = 6, Label = memo, SatPerVbyte = satspervbyte };
         if (satoshis > -1)
             req.Amount = satoshis;
         else
@@ -155,7 +157,7 @@ public static class LND
             Metadata(conf), deadline, cancellationToken);
     }
 
-    public static AsyncServerStreamingCall<Payment> SendPaymentV2(NodeSettings conf, string paymentRequest, int timeout, long feelimit, ulong[] outChanIds = null, DateTime? deadline = null,CancellationToken cancellationToken = default)
+    public static AsyncServerStreamingCall<Payment> SendPaymentV2(NodeSettings conf, string paymentRequest, int timeout, long feelimit, ulong[] outChanIds = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var spr = new SendPaymentRequest()
         {
@@ -163,7 +165,7 @@ public static class LND
             TimeoutSeconds = timeout,
             FeeLimitSat = feelimit,
         };
-        if(outChanIds!=null)
+        if (outChanIds != null)
             spr.OutgoingChanIds.AddRange(outChanIds);
 
         var stream = RouterClient(conf).SendPaymentV2(
@@ -211,12 +213,12 @@ public static class LND
         return LightningClient(conf).OpenChannel(ocr, Metadata(conf), deadline, cancellationToken);
     }
 
-    public static BatchOpenChannelResponse BatchOpenChannel(NodeSettings conf,  List<(string,long)> amountsPerNode,DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static BatchOpenChannelResponse BatchOpenChannel(NodeSettings conf, List<(string, long)> amountsPerNode, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var ocr = new BatchOpenChannelRequest()
         {
         };
-        foreach (var (node,fnd) in amountsPerNode)
+        foreach (var (node, fnd) in amountsPerNode)
             ocr.Channels.Add(new Lnrpc.BatchOpenChannel() { NodePubkey = Google.Protobuf.ByteString.CopyFrom(node.AsBytes()), LocalFundingAmount = fnd });
 
         return LightningClient(conf).BatchOpenChannel(ocr, Metadata(conf), deadline, cancellationToken);
@@ -271,7 +273,7 @@ public static class LND
         return LightningClient(conf).ListChannels(
             new ListChannelsRequest()
             {
-                ActiveOnly = activeOnly, 
+                ActiveOnly = activeOnly,
             },
             Metadata(conf), deadline, cancellationToken);
     }
@@ -321,10 +323,10 @@ public static class LND
             Metadata(conf), deadline, cancellationToken);
     }
 
-    public static Walletrpc.RequiredReserveResponse RequiredReserve(NodeSettings conf, uint additionalChannelsNum,  DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static Walletrpc.RequiredReserveResponse RequiredReserve(NodeSettings conf, uint additionalChannelsNum, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var lur = new Walletrpc.RequiredReserveRequest()
-        {  AdditionalPublicChannels = additionalChannelsNum };
+        { AdditionalPublicChannels = additionalChannelsNum };
         return WalletKit(conf).RequiredReserve(lur,
                     Metadata(conf), deadline, cancellationToken);
     }
@@ -390,6 +392,20 @@ public static class LND
             }, Metadata(conf), deadline, cancellationToken);
 
         return stream;
+    }
+
+    public static EstimateFeeResponse FeeEstimate(NodeSettings conf, List<(string, long)> trans, int minConfs, int targetConf, bool spendUnconfirmed = false, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    {
+        var efr = new EstimateFeeRequest()
+        {
+            SpendUnconfirmed = spendUnconfirmed,
+            MinConfs = minConfs,
+            TargetConf = targetConf,
+        };
+        foreach (var (addr, sats) in trans)
+            efr.AddrToAmount.Add(addr, sats);
+        return LightningClient(conf).EstimateFee(efr,
+            Metadata(conf), deadline, cancellationToken);
     }
 
 }

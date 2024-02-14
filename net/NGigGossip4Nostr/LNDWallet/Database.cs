@@ -320,5 +320,12 @@ public class WaletContext : DbContext
         this.ChangeTracker.Clear();
     }
 
+    public void RemoveObject<T>(T obj)
+    {
+        this.Type2DbSet(obj!).Remove(obj);
+        this.SaveChanges();
+
+        this.ChangeTracker.Clear();
+    }
 }
 
