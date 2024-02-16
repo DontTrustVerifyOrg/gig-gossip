@@ -10,6 +10,15 @@ using Spectre.Console;
 using Microsoft.AspNetCore.Mvc;
 using TraceExColor;
 using Quartz.Spi;
+using Microsoft.AspNetCore.DataProtection;
+using NBitcoin;
+using Newtonsoft.Json.Linq;
+using System.Xml.Linq;
+using GoogleApi.Entities.Places.QueryAutoComplete.Request;
+using GoogleApi.Entities.Places.Details.Request;
+using GoogleApi;
+using GoogleApi.Entities.Places.AutoComplete.Request;
+using GoogleApi.Entities.Maps.Geocoding.Common.Enums;
 
 TraceEx.TraceInformation("[[lime]]Starting[[/]] ...");
 
@@ -155,6 +164,111 @@ app.MapGet("/gettoken", (string pubkey) =>
     g.Parameters[0].Description = "public key identifies the API user";
     return g;
 });
+
+app.MapGet("/addressautocomplete", async (string authToken, string query, string country)=>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+
+        var request = new PlacesAutoCompleteRequest
+        {
+            Key = settlerSettings.GoogleMapsAPIKey,
+            Input = query,
+            Language = GoogleApi.Entities.Common.Enums.Language.English,
+            RestrictType = GoogleApi.Entities.Places.AutoComplete.Request.Enums.RestrictPlaceType.Address,
+            Components = new Dictionary<GoogleApi.Entities.Common.Enums.Component, string>() { { GoogleApi.Entities.Common.Enums.Component.Country, country } },
+        };
+
+        var response = await GooglePlaces.AutoComplete.QueryAsync(request);
+        return new Result<string[]>((from p in response.Predictions select p.Description).ToArray());
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<string[]>(ex);
+    }
+})
+.WithName("AddressAutocomplete")
+.WithSummary("Autocompletes the address")
+.WithDescription("Autocompletes the address.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Query";
+    g.Parameters[2].Description = "Country";
+    return g;
+});
+
+app.MapGet("/addressgeocode", async (string authToken, string address, string country) =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+
+        var response = await GoogleMaps.Geocode.AddressGeocode.QueryAsync(new GoogleApi.Entities.Maps.Geocoding.Address.Request.AddressGeocodeRequest() {
+            Key = settlerSettings.GoogleMapsAPIKey,
+            Address = address,
+            Language = GoogleApi.Entities.Common.Enums.Language.English, 
+            Components = new Dictionary<GoogleApi.Entities.Common.Enums.Component, string>() { { GoogleApi.Entities.Common.Enums.Component.Country, country } },
+        });
+        var loc = response.Results.FirstOrDefault();
+        if (loc == null)
+            throw new Exception("Not found");
+        return new Result<GeolocationRet>(new GeolocationRet { Lat = loc.Geometry.Location.Latitude, Lon = loc.Geometry.Location.Longitude });
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<GeolocationRet>(ex);
+    }
+})
+.WithName("AddressGeocode")
+.WithSummary("Finds the geolocation of the address")
+.WithDescription("Finds the geolocation of the address.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Address";
+    g.Parameters[2].Description = "Country";
+    return g;
+});
+
+
+app.MapGet("/locationgeocode", async (string authToken, double lat, double lon) =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+
+        var response = await GoogleMaps.Geocode.LocationGeocode.QueryAsync(new  GoogleApi.Entities.Maps.Geocoding.Location.Request.LocationGeocodeRequest()
+        {
+            Key = settlerSettings.GoogleMapsAPIKey,
+            Location = new GoogleApi.Entities.Common.Coordinate(lat, lon),
+            LocationTypes = new List<GeometryLocationType>() {  GeometryLocationType.Rooftop }
+        });
+        var loc = response.Results.FirstOrDefault();
+        if (loc == null)
+            throw new Exception("Not found");
+        return new Result<string>(loc.FormattedAddress);
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
+    }
+})
+.WithName("LocationGeocode")
+.WithSummary("Finds the address of the location")
+.WithDescription("Finds the address of the location.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Lat";
+    g.Parameters[2].Description = "Lon";
+    return g;
+});
+
 
 app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, string value, string secret, long validHours) =>
 {
@@ -569,6 +683,13 @@ public struct Result<T>
     public string ErrorMessage { get; set; } = "";
 }
 
+[Serializable]
+public struct GeolocationRet
+{
+    public double Lat { get; set; }
+    public double Lon { get; set; }
+}
+
 public class SettlerSettings
 {
     public required Uri ListenHost { get; set; }
@@ -579,4 +700,5 @@ public class SettlerSettings
     public required string SettlerPrivateKey { get; set; }
     public required long InvoicePaymentTimeoutSec { get; set; }
     public required long DisputeTimeoutSec { get; set; }
+    public required string GoogleMapsAPIKey { get; set; }
 }

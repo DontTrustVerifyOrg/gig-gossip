@@ -26,6 +26,7 @@ using RideShareFrames;
 using Sharprompt;
 using Spectre;
 using Spectre.Console;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace RideShareCLIApp;
 
@@ -128,6 +129,12 @@ public partial class RideShareCLIApp
         RequestRide,
         [Display(Name = "Reset")]
         Reset,
+        [Display(Name = "AddressAutocomplete")]
+        AddressAutocomplete,
+        [Display(Name = "AddressGeocode")]
+        AddressGeocode,
+        [Display(Name = "LocationGeocode")]
+        LocationGeocode,
     }
 
     public async Task<ECPrivKey> GetPrivateKeyAsync()
@@ -234,7 +241,7 @@ public partial class RideShareCLIApp
 
                 byte[] photo = new byte[] { };
                 SettlerAPIResult.Check(await settlerClient.GiveUserFileAsync(authToken,
-                    (await GetPublicKeyAsync()).AsHex(), "Photo",24*365*10,
+                    (await GetPublicKeyAsync()).AsHex(), "Photo", 24 * 365 * 10,
                     new FileParameter(new MemoryStream(photo)),
                     new FileParameter(new MemoryStream())
                    ));
@@ -343,6 +350,28 @@ public partial class RideShareCLIApp
             {
                 await this.StopAsync();
                 await this.StartAsync();
+            }
+            else if (cmd == CommandEnum.AddressAutocomplete)
+            {
+                var query = Prompt.Input<string>("Address");
+                var props = SettlerAPIResult.Get<List<string>>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+                    .AddressAutocompleteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au"));
+                AnsiConsole.WriteLine(string.Join("\n", props));
+            }
+            else if (cmd == CommandEnum.AddressGeocode)
+            {
+                var query = Prompt.Input<string>("Address");
+                var geo = SettlerAPIResult.Get<GeolocationRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+                    .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au"));
+                AnsiConsole.WriteLine($"lat={geo.Lat},lon={geo.Lon}");
+            }
+            else if (cmd == CommandEnum.LocationGeocode)
+            {
+                var lat = Prompt.Input<double>("Lat");
+                var lon = Prompt.Input<double>("Lon");
+                var addr = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+                    .LocationGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), lat,lon));
+                AnsiConsole.WriteLine($"address={addr}");
             }
         }
     }
