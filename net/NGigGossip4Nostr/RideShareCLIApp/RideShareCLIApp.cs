@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Globalization;
@@ -206,7 +207,7 @@ public partial class RideShareCLIApp
                 if (retries == -1)
                     break;
                 else if (retries == 0)
-                    throw new Exception("Invalid phone number");
+                    throw new Exception("Invalid code");
             }
             await SetPhoneNumberAsync(phoneNumber);
         }

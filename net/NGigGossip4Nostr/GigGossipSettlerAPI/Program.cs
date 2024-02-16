@@ -19,6 +19,7 @@ using GoogleApi.Entities.Places.Details.Request;
 using GoogleApi;
 using GoogleApi.Entities.Places.AutoComplete.Request;
 using GoogleApi.Entities.Maps.Geocoding.Common.Enums;
+using NBitcoin.Protocol;
 
 TraceEx.TraceInformation("[[lime]]Starting[[/]] ...");
 
@@ -345,11 +346,28 @@ app.MapGet("/saveusertraceproperty", (string authToken, string pubkey, string na
     return g;
 });
 
-app.MapGet("/verifychannel", (string authToken, string pubkey, string name, string method, string value) =>
+app.MapGet("/verifychannel", async (string authToken, string pubkey, string name, string method, string value) =>
 {
     try
     {
         Singlethon.Settler.ValidateAuthToken(authToken);
+        if (name.ToLower() == "phonenumber" && method.ToLower() == "sms")
+        {
+            var creds = settlerSettings.SMSGlobalAPIKeySecret.Split(":");
+            var client = new SMSGlobal.api.Client(new SMSGlobal.api.Credentials(creds[0], creds[1]));
+            var code = Random.Shared.NextInt64(999999).ToString("000000");
+            var resp = await client.SMS.SMSSend(new
+            {
+                origin = "Fairide",
+                destination = value,
+                message = "Welcome to Fairide Security Center, your verification code is " + code + ". Use this to complete your registration.",
+            });
+            if (resp.statuscode != 200)
+                throw new Exception("Cannot send");
+            Singlethon.channelSmsCodes.TryAdd(pubkey, code);
+        }
+        else
+            throw new NotImplementedException();
         return new Result();
     }
     catch (Exception ex)
@@ -376,8 +394,25 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
     try
     {
         Singlethon.Settler.ValidateAuthToken(authToken);
-        Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes("valid"), Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
-        return new Result<int>(-1);
+        if (name.ToLower() == "phonenumber" && method.ToLower() == "sms")
+        {
+            string code;
+            
+            if (Singlethon.channelSmsCodes.TryRemove(pubkey, out code))
+            {
+                if (code == secret)
+                {
+                    Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes("valid"), Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
+                    return new Result<int>(-1);
+                }
+                else
+                    return new Result<int>(0);
+            }
+            else
+                throw new Exception("Unknown");
+        }
+        else
+            throw new NotImplementedException();
     }
     catch (Exception ex)
     {
@@ -701,4 +736,5 @@ public class SettlerSettings
     public required long InvoicePaymentTimeoutSec { get; set; }
     public required long DisputeTimeoutSec { get; set; }
     public required string GoogleMapsAPIKey { get; set; }
+    public required string SMSGlobalAPIKeySecret { get; set; }
 }

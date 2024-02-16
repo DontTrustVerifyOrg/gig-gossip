@@ -18,5 +18,6 @@ public static class Singlethon
     public static HubDicStore<string> Preimages4UserPublicKey = new();
     public static ConcurrentDictionary<string, AsyncComQueue<GigStatusEventArgs>> GigStatusAsyncComQueue4ConnectionId = new();
     public static ConcurrentDictionary<string, AsyncComQueue<PreimageRevealEventArgs>> PreimagesAsyncComQueue4ConnectionId = new();
+    public static ConcurrentDictionary<string, string> channelSmsCodes = new();
 }
 
