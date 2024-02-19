@@ -352,3 +352,4 @@ TSWLatexianTemp*
 #*Notes.bib
 
 *.vscode/
+.fake

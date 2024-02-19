@@ -28,6 +28,7 @@ using Sharprompt;
 using Spectre;
 using Spectre.Console;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using static NBitcoin.Scripting.OutputDescriptor;
 
 namespace RideShareCLIApp;
 
@@ -130,12 +131,6 @@ public partial class RideShareCLIApp
         RequestRide,
         [Display(Name = "Reset")]
         Reset,
-        [Display(Name = "AddressAutocomplete")]
-        AddressAutocomplete,
-        [Display(Name = "AddressGeocode")]
-        AddressGeocode,
-        [Display(Name = "LocationGeocode")]
-        LocationGeocode,
     }
 
     public async Task<ECPrivKey> GetPrivateKeyAsync()
@@ -320,12 +315,30 @@ public partial class RideShareCLIApp
                 {
                     AnsiConsole.MarkupLine("[red]Ride in progress[/]");
                 }
-                var keys = new List<string>(MockData.FakeAddresses.Keys);
-                var fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
-                var toAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
 
-                var fromLocation = new GeoLocation(MockData.FakeAddresses[fromAddress].Latitude, MockData.FakeAddresses[fromAddress].Longitude);
-                var toLocation = new GeoLocation(MockData.FakeAddresses[toAddress].Latitude, MockData.FakeAddresses[toAddress].Longitude);
+                string fromAddress,toAddress;
+                GeoLocation fromLocation, toLocation;
+
+                if (Prompt.Confirm("Use random", false))
+                {
+
+                    var keys = new List<string>(MockData.FakeAddresses.Keys);
+
+                    fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+                    toAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+
+                    fromLocation = new GeoLocation(MockData.FakeAddresses[fromAddress].Latitude, MockData.FakeAddresses[fromAddress].Longitude);
+                    toLocation = new GeoLocation(MockData.FakeAddresses[toAddress].Latitude, MockData.FakeAddresses[toAddress].Longitude);
+                }
+                else
+                {
+                    fromAddress = await GetAddressAsync("From");
+                    toAddress = await GetAddressAsync("To");
+
+                    fromLocation = await GetAddressGeocodeAsync(fromAddress);
+                    toLocation = await GetAddressGeocodeAsync(toAddress);
+                }
+
                 int waitingTimeForPickupMinutes = 12;
 
                 receivedResponseIdxesForPaymentHashes = new();
@@ -352,29 +365,65 @@ public partial class RideShareCLIApp
                 await this.StopAsync();
                 await this.StartAsync();
             }
-            else if (cmd == CommandEnum.AddressAutocomplete)
-            {
-                var query = Prompt.Input<string>("Address");
-                var props = SettlerAPIResult.Get<List<string>>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-                    .AddressAutocompleteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au"));
-                AnsiConsole.WriteLine(string.Join("\n", props));
-            }
-            else if (cmd == CommandEnum.AddressGeocode)
-            {
-                var query = Prompt.Input<string>("Address");
-                var geo = SettlerAPIResult.Get<GeolocationRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-                    .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au"));
-                AnsiConsole.WriteLine($"lat={geo.Lat},lon={geo.Lon}");
-            }
-            else if (cmd == CommandEnum.LocationGeocode)
-            {
-                var lat = Prompt.Input<double>("Lat");
-                var lon = Prompt.Input<double>("Lon");
-                var addr = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-                    .LocationGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), lat,lon));
-                AnsiConsole.WriteLine($"address={addr}");
-            }
         }
+    }
+
+    private async Task<string> GetAddressAsync(string message)
+    {
+        string address = "";
+        bool done = false;
+        do
+        {
+            var query = Prompt.Input<string>(message);
+            var props = SettlerAPIResult.Get<List<string>>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+                .AddressAutocompleteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au"));
+
+            if (props.Count == 0)
+                continue;
+
+            var addrAutocpl = new DataTable(new string[] { "Address" });
+            foreach (var prop in props)
+                addrAutocpl.AddRow(new string[] { prop });
+            addrAutocpl.OnKeyPressed += async (o, e) =>
+            {
+                var me = (DataTable)o;
+                if (e.Key == ConsoleKey.Enter)
+                {
+                    address = me.GetCell(e.Line, 0);
+                    done = true;
+                    me.Exit();
+                }
+                if (e.Key == ConsoleKey.Escape)
+                {
+                    address = me.GetCell(e.Line, 0);
+                    me.Exit();
+                }
+            };
+
+            addrAutocpl.Start();
+        }
+        while (!done);
+
+        return address;
+    }
+
+    private async Task<GeolocationRet> GetGeolocation(string query)
+    {
+        return SettlerAPIResult.Get<GeolocationRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+            .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au"));
+    }
+
+    private async Task<GeoLocation> GetAddressGeocodeAsync(string query)
+    {
+        var r= SettlerAPIResult.Get<GeolocationRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+            .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au"));
+        return new GeoLocation(r.Lat, r.Lon);
+    }
+
+    private async Task<string> GetLocationGeocodeAsync(double lat, double lon)
+    {
+        return SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+            .LocationGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), lat, lon));
     }
 
     private async Task WriteBalance()
