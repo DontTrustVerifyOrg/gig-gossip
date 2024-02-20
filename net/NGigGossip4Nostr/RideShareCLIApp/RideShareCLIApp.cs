@@ -120,18 +120,18 @@ public partial class RideShareCLIApp
 
     public enum CommandEnum
     {
-        [Display(Name = "Exit App")]
-        Exit,
-        [Display(Name = "Top up")]
-        TopUp,
         [Display(Name = "Setup My Info")]
         SetupMyInfo,
+        [Display(Name = "Top up")]
+        TopUp,
         [Display(Name = "Enter Driver Mode")]
         DriverMode,
         [Display(Name = "Request Ride")]
         RequestRide,
         [Display(Name = "Reset")]
         Reset,
+        [Display(Name = "Exit")]
+        Exit,
     }
 
     public async Task<ECPrivKey> GetPrivateKeyAsync()

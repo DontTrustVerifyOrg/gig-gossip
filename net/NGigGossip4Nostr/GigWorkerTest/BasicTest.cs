@@ -42,7 +42,6 @@ public class BasicTest
 
     public async Task RunAsync()
     {
-        FlowLogger.Start(applicationSettings.FlowLoggerPath.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
         var bitcoinClient = bitcoinSettings.NewRPCClient();
 
         // load bitcoin node wallet
@@ -67,7 +66,9 @@ public class BasicTest
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.UtcNow, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
-        FlowLogger.SetupParticipantWithAutoAlias(Encoding.Default.GetBytes(settlerAdminSettings.SettlerOpenApi.AbsoluteUri).AsHex(), "settler", false);
+        FlowLogger.Start(settlerAdminSettings.SettlerOpenApi, settlerSelector, settlerPrivKey);
+
+        await FlowLogger.SetupParticipantAsync(Encoding.Default.GetBytes(settlerAdminSettings.SettlerOpenApi.AbsoluteUri).AsHex(), false);
 
         var gigWorker = new GigGossipNode(
             gigWorkerSettings.ConnectionString,
@@ -75,7 +76,7 @@ public class BasicTest
             gigWorkerSettings.ChunkSize
             );
 
-        FlowLogger.SetupParticipant(gigWorker.PublicKey, "GigWorker", true);
+        await FlowLogger.SetupParticipantAsync(gigWorker.PublicKey, true);
 
         SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
                 token, gigWorker.PublicKey,
@@ -89,7 +90,7 @@ public class BasicTest
             customerSettings.ChunkSize
             );
 
-        FlowLogger.SetupParticipant(customer.PublicKey, "Customer", true);
+        await FlowLogger.SetupParticipantAsync(customer.PublicKey, true);
 
         SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
             token, customer.PublicKey,

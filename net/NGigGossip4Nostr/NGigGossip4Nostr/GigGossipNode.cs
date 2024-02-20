@@ -388,7 +388,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                     peerPublicKey.AsECXOnlyPubKey())
             };
             await SendMessageAsync(peerPublicKey, broadcastFrame, true);
-            FlowLogger.NewMessage(this.PublicKey, peerPublicKey, "broadcast");
+            await FlowLogger.NewMessageAsync(this.PublicKey, peerPublicKey, "broadcast");
         }
     }
 
@@ -463,14 +463,14 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
             if (alreadyBroadcasted == null)
             {
-                FlowLogger.NewMessage(this.PublicKey, Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), "getSecret");
+                await FlowLogger.NewMessageAsync(this.PublicKey, Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), "getSecret");
                 var settlerClient = this.SettlerSelector.GetSettlerClient(acceptBroadcastResponse.SettlerServiceUri);
                 var authToken = await MakeSettlerAuthTokenAsync(acceptBroadcastResponse.SettlerServiceUri);
                 var replyPaymentHash = SettlerAPIResult.Get<string>(await settlerClient.GenerateReplyPaymentPreimageAsync(authToken, broadcastFrame.SignedRequestPayload.Id.ToString(), this.PublicKey));
                 var replyInvoice = WalletAPIResult.Get<InvoiceRet>(await GetWalletClient().AddHodlInvoiceAsync(await MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)InvoicePaymentTimeout.TotalSeconds)).PaymentRequest;
-                FlowLogger.SetupParticipantWithAutoAlias(replyPaymentHash, "I", false);
-                FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), replyPaymentHash, "hash");
-                FlowLogger.NewMessage(this.PublicKey, replyPaymentHash, "create");
+                await FlowLogger.SetupParticipantAsync(replyPaymentHash,  false);
+                await FlowLogger.NewMessageAsync(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), replyPaymentHash, "hash");
+                await FlowLogger.NewMessageAsync(this.PublicKey, replyPaymentHash, "create");
                 decodedReplyInvoice = WalletAPIResult.Get<PayReq>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), replyInvoice));
                 await this._invoiceStateUpdatesMonitor.MonitorInvoiceAsync(
                     replyPaymentHash,
@@ -495,8 +495,8 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 var signedSettlementPromise = settlementTrust.SettlementPromise;
                 var networkInvoice = settlementTrust.NetworkInvoice;
                 var decodedNetworkInvoice = WalletAPIResult.Get<PayReq>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), networkInvoice));
-                FlowLogger.SetupParticipantWithAutoAlias(decodedNetworkInvoice.PaymentHash, "I", false);
-                FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), decodedNetworkInvoice.PaymentHash, "create");
+                await FlowLogger.SetupParticipantAsync(decodedNetworkInvoice.PaymentHash,  false);
+                await FlowLogger.NewMessageAsync(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), decodedNetworkInvoice.PaymentHash, "create");
                 var encryptedReplyPayload = settlementTrust.EncryptedReplyPayload;
 
                 replierCertificateId = settlementTrust.ReplierCertificateId;
@@ -517,9 +517,9 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                     ReplierCertificateId = settlementTrust.ReplierCertificateId,
                 });
 
-                FlowLogger.SetupParticipantWithAutoAlias(broadcastFrame.SignedRequestPayload.Id.ToString() + "_" + this.PublicKey, "K", false);
-                FlowLogger.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), broadcastFrame.SignedRequestPayload.Id.ToString() + "_" + this.PublicKey, "create");
-                FlowLogger.NewMessage(this.PublicKey, broadcastFrame.SignedRequestPayload.Id.ToString() + "_" + this.PublicKey, "encrypts");
+                await FlowLogger.SetupParticipantAsync(broadcastFrame.SignedRequestPayload.Id.ToString() + "_" + this.PublicKey,  false);
+                await FlowLogger.NewMessageAsync(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), broadcastFrame.SignedRequestPayload.Id.ToString() + "_" + this.PublicKey, "create");
+                await FlowLogger.NewMessageAsync(this.PublicKey, broadcastFrame.SignedRequestPayload.Id.ToString() + "_" + this.PublicKey, "encrypts");
 
                 responseFrame = new ReplyFrame()
                 {
@@ -564,7 +564,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             var decodedNetworkInvoice = WalletAPIResult.Get<PayReq>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), responseFrame.NetworkInvoice));
             if (responseFrame.ForwardOnion.IsEmpty())
             {
-                FlowLogger.NewMessage(peerPublicKey, this.PublicKey, "reply");
+                await FlowLogger.NewMessageAsync(peerPublicKey, this.PublicKey, "reply");
                 var settlerPubKey = await SettlerSelector.GetPubKeyAsync(responseFrame.SignedSettlementPromise.RequestersServiceUri);
                 var replyPayload = await responseFrame.DecryptAndVerifyAsync(privateKey, settlerPubKey, this.SettlerSelector);
                 if (replyPayload == null)
@@ -612,7 +612,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
                 if (!newResponse)
                 {
-                    FlowLogger.NewReply(peerPublicKey, this.PublicKey, "reply");
+                    await FlowLogger.NewReplyAsync(peerPublicKey, this.PublicKey, "reply");
                     var settlerClient = this.SettlerSelector.GetSettlerClient(responseFrame.SignedSettlementPromise.ServiceUri);
                     var settok = await MakeSettlerAuthTokenAsync(responseFrame.SignedSettlementPromise.ServiceUri);
 
@@ -631,8 +631,8 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                         await this.MakeWalletAuthToken(),
                         decodedNetworkInvoice.NumSatoshis + this.priceAmountForRouting,
                         relatedNetworkPaymentHash, "", (long)InvoicePaymentTimeout.TotalSeconds));
-                    FlowLogger.SetupParticipantWithAutoAlias(relatedNetworkPaymentHash, "I", false);
-                    FlowLogger.NewMessage(this.PublicKey, relatedNetworkPaymentHash, "create");
+                    await FlowLogger.SetupParticipantAsync(relatedNetworkPaymentHash, false);
+                    await FlowLogger.NewMessageAsync(this.PublicKey, relatedNetworkPaymentHash, "create");
                     await this._invoiceStateUpdatesMonitor.MonitorInvoiceAsync(
                         relatedNetworkPaymentHash,
                         Crypto.SerializeObject(new InvoiceData()
@@ -777,11 +777,11 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         return paymentStatus;
     }
 
-    public void OnPaymentStatusChange(string status, byte[] data)
+    public async void OnPaymentStatusChange(string status, byte[] data)
     {
         var pay = Crypto.DeserializeObject<PaymentData>(data);
         this.gigGossipNodeEvents.OnPaymentStatusChange(this, status, pay);
-        FlowLogger.NewMessage(this.PublicKey, pay.PaymentHash, "pay_" + status);
+        await FlowLogger.NewMessageAsync(this.PublicKey, pay.PaymentHash, "pay_" + status);
     }
 
     public async Task<bool> OnPreimageRevealedAsync(Uri serviceUri, string phash, string preimage)
@@ -792,8 +792,8 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 await MakeWalletAuthToken(),
                 preimage
                 ));
-            FlowLogger.NewMessage(Encoding.Default.GetBytes(serviceUri.AbsoluteUri).AsHex(), phash, "revealed");
-            FlowLogger.NewMessage(this.PublicKey, phash, "settled");
+            await FlowLogger.NewMessageAsync(Encoding.Default.GetBytes(serviceUri.AbsoluteUri).AsHex(), phash, "revealed");
+            await FlowLogger.NewMessageAsync(this.PublicKey, phash, "settled");
             gigGossipNodeEvents.OnInvoiceSettled(this, serviceUri, phash, preimage);
             return true; 
         }

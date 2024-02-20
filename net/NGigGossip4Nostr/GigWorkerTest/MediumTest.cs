@@ -43,7 +43,6 @@ public class MediumTest
 
     public async Task RunAsync()
     {
-        FlowLogger.Start(applicationSettings.FlowLoggerPath.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
 
         var bitcoinClient = bitcoinSettings.NewRPCClient();
 
@@ -68,7 +67,8 @@ public class MediumTest
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.UtcNow, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
-        FlowLogger.SetupParticipantWithAutoAlias(Encoding.Default.GetBytes(settlerAdminSettings.SettlerOpenApi.AbsoluteUri).AsHex(), "settler", false);
+        FlowLogger.Start(settlerAdminSettings.SettlerOpenApi, settlerSelector, settlerPrivKey);
+        await FlowLogger.SetupParticipantAsync(Encoding.Default.GetBytes(settlerAdminSettings.SettlerOpenApi.AbsoluteUri).AsHex(), false);
 
         var gigWorker = new GigGossipNode(
             gigWorkerSettings.ConnectionString,
@@ -76,7 +76,7 @@ public class MediumTest
             gigWorkerSettings.ChunkSize
             );
 
-        FlowLogger.SetupParticipant(gigWorker.PublicKey, "GigWorker", true);
+        await FlowLogger.SetupParticipantAsync(gigWorker.PublicKey,  true);
 
         SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
                 token, gigWorker.PublicKey,
@@ -93,7 +93,7 @@ public class MediumTest
                 gossiperSettings.ChunkSize
                 );
             gossipers.Add(gossiper);
-            FlowLogger.SetupParticipant(gossiper.PublicKey, "Gossiper" + i.ToString(), true);
+            await FlowLogger.SetupParticipantAsync(gossiper.PublicKey,  true);
         }
 
         var customer = new GigGossipNode(
@@ -102,7 +102,7 @@ public class MediumTest
             customerSettings.ChunkSize
             );
 
-        FlowLogger.SetupParticipant(customer.PublicKey, "Customer", true);
+        await FlowLogger.SetupParticipantAsync(customer.PublicKey,  true);
 
         SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
             token, customer.PublicKey,
@@ -272,9 +272,9 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
+    public async void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
     {
-        FlowLogger.NewMessage(me.PublicKey, paymentHash, "InvoiceSettled");
+        await FlowLogger.NewMessageAsync(me.PublicKey, paymentHash, "InvoiceSettled");
         lock (MainThreadControl.Ctrl)
         {
             MainThreadControl.Counter--;
@@ -347,9 +347,9 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
+    public async void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
     {
-        FlowLogger.NewMessage(me.PublicKey, paymentHash, "InvoiceSettled");
+        await FlowLogger.NewMessageAsync(me.PublicKey, paymentHash, "InvoiceSettled");
         lock (MainThreadControl.Ctrl)
         {
             MainThreadControl.Counter--;

@@ -1,130 +1,120 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using CryptoToolkit;
+using GigGossipSettlerAPIClient;
+using GoogleApi.Entities.Places.Common;
+using NBitcoin.Protocol;
+using NBitcoin.Secp256k1;
 
 namespace NGigGossip4Nostr
 {
     public static class FlowLogger
     {
-        class LogLine
+        static Uri settlerUri;
+        static ISettlerSelector settlerSelector;
+        static ECPrivKey privKey;
+        static string publicKey;
+        static ConcurrentDictionary<string, string> participantAliases = new();
+
+
+        public static void Start(Uri settlerUri, ISettlerSelector settlerSelector, ECPrivKey eCPrivKey)
         {
-            public DateTime Moment { get; set; }
-            public string Line { get; set; }
+            FlowLogger.settlerUri = settlerUri;
+            FlowLogger.settlerSelector = settlerSelector;
+            FlowLogger.privKey = eCPrivKey;
+            FlowLogger.publicKey = eCPrivKey.CreateXOnlyPubKey().AsHex();
         }
 
-        static List<LogLine> logLines = new();
-
-        private static void FlushLogLines()
+        public static async Task<string> MakeSettlerAuthTokenAsync()
         {
-            using (var w = new StreamWriter(thefileName, false))
-            {
-                foreach (var l in logLines.OrderBy((a) => a.Moment))
-                    w.WriteLine(l.Line);
-            }
-        }
-
-        private static void WriteLine(string str)
-        {
-            lock (logLines)
-            {
-                logLines.Add(new LogLine() { Line = str, Moment = DateTime.UtcNow });
-                FlushLogLines();
-            }
-        }
-
-        public static void Start(string fileName)
-        {
-            thefileName = fileName;
-            WriteLine("```mermaid");
-            WriteLine("sequenceDiagram");
-            WriteLine("\tautonumber");
+            return Crypto.MakeSignedTimedToken(
+                privKey, DateTime.UtcNow,
+                SettlerAPIResult.Get<Guid>(await settlerSelector.GetSettlerClient(settlerUri).GetTokenAsync(publicKey)));
         }
 
         public static void Stop()
         {
-            if (thefileName == null)
+        }
+
+        public static async Task WriteToLogAsync(System.Diagnostics.TraceEventType eventType, string message)
+        {
+            SettlerAPIResult.Check(await settlerSelector.GetSettlerClient(settlerUri).LogEventAsync(
+                await MakeSettlerAuthTokenAsync(),
+                eventType.ToString(),
+                new FileParameter(new MemoryStream(message.AsBytes())),
+                new FileParameter(new MemoryStream("".AsBytes()))
+                ));
+        }
+
+        public static async Task WriteExceptionAsync(System.Diagnostics.TraceEventType eventType, Exception exception)
+        {
+            SettlerAPIResult.Check(await settlerSelector.GetSettlerClient(settlerUri).LogEventAsync(
+                await MakeSettlerAuthTokenAsync(),
+                eventType.ToString(),
+                new FileParameter(new MemoryStream(exception.Message.AsBytes())),
+                new FileParameter(new MemoryStream(exception.ToJsonString().AsBytes()))
+                ));
+        }
+
+        public static async Task SetupParticipantAsync(string id, bool isActor, string alias = null)
+        {
+            if (settlerUri == null)
                 return;
-            WriteLine("```");
-        }
-        static Dictionary<string, string> participantAliases = new();
-        static string thefileName = null;
 
-        static Dictionary<string, int> autoAliasClassCounters = new();
-        static Dictionary<string, string> autoAlias = new();
-
-        public static string AutoAlias(string id,string cls)
-        {
-            lock(autoAliasClassCounters)
-            {
-                if (!autoAlias.ContainsKey(id))
-                {
-                    if(!autoAliasClassCounters.ContainsKey(cls))
-                        autoAliasClassCounters[cls] = 1;
-                    else
-                        autoAliasClassCounters[cls] += 1;
-                    autoAlias[id] = cls + "" + autoAliasClassCounters[cls];
-                }
-                return autoAlias[id];
-            }
+            await WriteToLogAsync(
+                System.Diagnostics.TraceEventType.Information,
+                (isActor ? "\tactor " : "\tparticipant ") + id + (alias == null ? "" : " as " + alias));
         }
 
-        public static void SetupParticipantWithAutoAlias(string id, string cls, bool isActor)
+        public static async Task NewMessageAsync(string a, string b, string message)
         {
-            SetupParticipant(id, AutoAlias(id, cls), isActor);
-        }
-
-        public static void SetupParticipant(string id, string alias, bool isActor )
-        {
-            if (thefileName == null)
-                return;
-            lock (logLines)
-            {
-                participantAliases[id] = alias;
-                if (isActor)
-                    WriteLine("\tactor " + id + " as " + alias);
-                else
-                    WriteLine("\tparticipant " + id + " as " + alias);
-            }
-        }
-
-        public static void NewMessage(string a, string b, string message)
-        {
-            if (thefileName == null)
+            if (settlerUri == null)
                 return;
             if (!participantAliases.ContainsKey(a))
                 return;
             if (!participantAliases.ContainsKey(b))
                 return;
-            WriteLine("\t" + a + "->>" + b + ": " + message);
+            await WriteToLogAsync(
+                 System.Diagnostics.TraceEventType.Information,
+                 "\t" + a + "->>" + b + ": " + message);
         }
 
-        public static void NewReply(string a, string b, string message)
+        public static async Task NewReplyAsync(string a, string b, string message)
         {
-            if (thefileName == null)
+            if (settlerUri == null)
                 return;
             if (!participantAliases.ContainsKey(a))
                 return;
             if (!participantAliases.ContainsKey(b))
                 return;
-            WriteLine("\t" + a + "-->>" + b + ": " + message);
+            await WriteToLogAsync(
+                 System.Diagnostics.TraceEventType.Information,
+                "\t" + a + "-->>" + b + ": " + message);
         }
 
-        public static void NewConnected(string a, string b, string message)
+        public static async Task NewConnected(string a, string b, string message)
         {
-            if (thefileName == null)
+            if (settlerUri == null)
                 return;
             if (!participantAliases.ContainsKey(a))
                 return;
             if (!participantAliases.ContainsKey(b))
                 return;
-            WriteLine("\t" + a + "--)" + b + ": " + message);
+            await WriteToLogAsync(
+                 System.Diagnostics.TraceEventType.Information,
+                "\t" + a + "--)" + b + ": " + message);
         }
-        public static void NewEvent(string a,string message)
+
+        public static async Task NewEvent(string a,string message)
         {
-            if (thefileName == null)
+            if (settlerUri == null)
                 return;
             if (!participantAliases.ContainsKey(a))
                 return;
-            WriteLine("\t Note over " + a + ": " + message);
+            await WriteToLogAsync(
+                 System.Diagnostics.TraceEventType.Information,
+                 "\t Note over " + a + ": " + message);
         }
 
     }

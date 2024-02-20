@@ -18,12 +18,31 @@ public enum GigLNDWalletAPIErrorCode
     /// <summary>Indicates an unknown invoice.</summary>
     UnknownInvoice = 4,
 
-    /// <summary>Indicates that the payout has already been completed.</summary>
-    PayoutAlreadyCompleted = 5,
+    /// <summary>Indicates an invoice that is already cancelled.</summary>
+    InvoiceAlreadyCancelled = 5,
 
-    /// <summary>Indicates that the payment was already executed.</summary>
-    AlreadyPayed = 6,
+    /// <summary>Indicates an invoice that is already accepted.</summary>
+    InvoiceAlreadyAccepted = 6,
+
+    /// <summary>Indicates an invoice that is already settled.</summary>
+    InvoiceAlreadySettled = 7,
+
+    /// <summary>Indicates that invoice was not accepted.</summary>
+    InvoiceNotAccepted = 8,
+
+    /// <summary>Indicates that payment was already payed.</summary>
+    AlreadyPayed = 9,
+
+    /// <summary>Indicates that the payout has already been completed.</summary>
+    PayoutNotOpened = 10,
+
+    /// <summary>Indicates that the payout has already been completed.</summary>
+    PayoutAlreadySent = 11,
+
+    /// <summary>Indicates that operation failed</summary>
+    OperationFailed = 12,
 }
+
 
 [Serializable]
 public class GigLNDWalletAPIException : Exception

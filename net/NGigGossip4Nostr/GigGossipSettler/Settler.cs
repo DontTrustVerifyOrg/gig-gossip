@@ -5,6 +5,7 @@ using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin.Secp256k1;
+using Newtonsoft.Json;
 using NGigGossip4Nostr;
 using Quartz;
 using Quartz.Impl;
@@ -138,6 +139,23 @@ public class Settler : CertificationAuthority
             throw new InvalidAuthTokenException();
 
         return tk.PublicKey;
+    }
+
+    public void SystemLogEvent(string pubkey, System.Diagnostics.TraceEventType eventType, string message,string exception)
+    {
+        settlerContext.Value.AddObject(new SystemLogEntry
+        {
+            PublicKey = pubkey,
+            DateTime = DateTime.Now,
+            EventType = eventType,
+            Message = message,
+            Exception = exception,
+        });
+    }
+
+    public List<SystemLogEntry> GetLogEvents(string pubkey, DateTime frm, DateTime to)
+    {
+        return (from l in settlerContext.Value.SystemLogEntries where l.PublicKey == pubkey && l.DateTime > frm && l.DateTime <= to select l).ToList();
     }
 
     public void SaveUserTraceProperty(string pubkey, string name, byte[] value)

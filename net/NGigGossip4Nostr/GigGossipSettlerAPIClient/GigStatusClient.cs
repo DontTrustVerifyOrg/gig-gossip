@@ -1,5 +1,6 @@
 ﻿using System;
 using Microsoft.AspNetCore.SignalR.Client;
+
 namespace GigGossipSettlerAPIClient
 {
 	public class GigStatusClient

@@ -34,14 +34,17 @@ public enum LNDWalletErrorCode
     /// <summary>Indicates that invoice was not accepted.</summary>
     InvoiceNotAccepted = 8,
 
-    /// <summary>Indicates that the payout has already been completed.</summary>
-    PayoutNotOpened = 9,
+    /// <summary>Indicates that payment was already payed.</summary>
+    AlreadyPayed = 9,
 
     /// <summary>Indicates that the payout has already been completed.</summary>
-    PayoutAlreadySent = 10,
+    PayoutNotOpened = 10,
+
+    /// <summary>Indicates that the payout has already been completed.</summary>
+    PayoutAlreadySent = 11,
 
     /// <summary>Indicates that operation failed</summary>
-    OperationFailed = 11,
+    OperationFailed = 12,
 }
 
 /// <summary>
@@ -59,6 +62,7 @@ public static class Extensions
         "Invoice already accepted",
         "Invoice already settled",
         "Invoice not accepted",
+        "Payment already payed",
         "Payout is not opened",
         "Payout is already completed",
         "Operation failed",

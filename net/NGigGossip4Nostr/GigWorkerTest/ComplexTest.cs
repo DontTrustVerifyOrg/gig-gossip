@@ -42,8 +42,6 @@ public class ComplexTest
 
     public async Task RunAsync()
     {
-        FlowLogger.Start(applicationSettings.FlowLoggerPath.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
-
         var bitcoinClient = bitcoinSettings.NewRPCClient();
 
         // load bitcoin node wallet
@@ -67,7 +65,8 @@ public class ComplexTest
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.UtcNow, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
-        FlowLogger.SetupParticipantWithAutoAlias(Encoding.Default.GetBytes(settlerAdminSettings.SettlerOpenApi.AbsoluteUri).AsHex(), "settler", false);
+        FlowLogger.Start(settlerAdminSettings.SettlerOpenApi, settlerSelector, settlerPrivKey);
+        await FlowLogger.SetupParticipantAsync(Encoding.Default.GetBytes(settlerAdminSettings.SettlerOpenApi.AbsoluteUri).AsHex(), false);
 
         var gridShape = applicationSettings.GetGridShape();
         var gridShapeIter = from x in gridShape select Enumerable.Range(0, x);
@@ -109,7 +108,7 @@ public class ComplexTest
                 ()=>new HttpClient(),
                 gridNodeSettings.GigWalletOpenApi);
 
-            FlowLogger.SetupParticipant(gigWorker.PublicKey, kv.Key+":GigWorker", true);
+            await FlowLogger.SetupParticipantAsync(gigWorker.PublicKey, true);
         }
 
         
@@ -135,7 +134,7 @@ public class ComplexTest
                 gridNodeSettings.GigWalletOpenApi);
             customers.Add(customer);
 
-            FlowLogger.SetupParticipant(customer.PublicKey, kv.Key + ":Customer", true);
+            await FlowLogger.SetupParticipantAsync(customer.PublicKey, true);
         }
         foreach (var node in thingsList)
         {
@@ -148,7 +147,7 @@ public class ComplexTest
                 new NetworkEarnerNodeEvents(),
                 ()=> new HttpClient(),
                 gridNodeSettings.GigWalletOpenApi);
-            FlowLogger.SetupParticipant(node.Value.PublicKey, node.Key, true);
+            await FlowLogger.SetupParticipantAsync(node.Value.PublicKey, true);
         }
 
         var already = new HashSet<string>();
@@ -260,9 +259,9 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
+    public async void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
     {
-        FlowLogger.NewMessage(me.PublicKey, paymentHash, "InvoiceSettled");
+        await FlowLogger.NewMessageAsync(me.PublicKey, paymentHash, "InvoiceSettled");
         lock (MainThreadControl.Ctrl)
         {
             MainThreadControl.Counter--;
@@ -359,9 +358,9 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
+    public async void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
     {
-        FlowLogger.NewMessage(me.PublicKey, paymentHash, "InvoiceSettled");
+        await FlowLogger.NewMessageAsync(me.PublicKey, paymentHash, "InvoiceSettled");
         lock (MainThreadControl.Ctrl)
         {
             MainThreadControl.Counter--;

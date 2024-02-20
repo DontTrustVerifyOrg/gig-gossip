@@ -22,7 +22,8 @@ public enum GigGossipSettlerAPIErrorCode
     /// <summary>
     /// Unknown preimage was detected.
     /// </summary>
-    UnknownPreimage = 4
+    UnknownPreimage = 4,
+    OperationFailed = 5,
 }
 
 [Serializable]
