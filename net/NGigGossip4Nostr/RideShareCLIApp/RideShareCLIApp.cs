@@ -50,7 +50,7 @@ public partial class RideShareCLIApp
         {
             basePath = Environment.GetEnvironmentVariable("GIGGOSSIP_BASEDIR");
             if (basePath == null)
-                basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), defaultFolder);
+                basePath = Path.GetDirectoryName(Environment.GetCommandLineArgs()[0]);
         }
         var builder = new ConfigurationBuilder();
         builder.SetBasePath(basePath)
@@ -70,6 +70,7 @@ public partial class RideShareCLIApp
             sfx = AnsiConsole.Prompt(new TextPrompt<string>("Enter the [orange1]config suffix[/]?").AllowEmpty());
 
         sfx = (string.IsNullOrWhiteSpace(sfx)) ? "" : "_" + sfx;
+
 
         IConfigurationRoot config = GetConfigurationRoot(baseDir, args, ".giggossip", "ridesharecli" + sfx + ".conf");
 
@@ -236,6 +237,7 @@ public partial class RideShareCLIApp
                     Convert.ToBase64String(new byte[] { }), 24 * 365 * 10));
 
                 byte[] photo = new byte[] { };
+
                 SettlerAPIResult.Check(await settlerClient.GiveUserFileAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Photo", 24 * 365 * 10,
                     new FileParameter(new MemoryStream(photo)),

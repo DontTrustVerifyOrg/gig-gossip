@@ -34,6 +34,7 @@
     <None Remove="Services\Giggossip\" />
     <None Remove="speed.flf" />
     <None Remove="ANSI Regular.flf" />
+    <None Remove="ridesharecli.conf" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Services\" />
@@ -42,5 +43,10 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="speed.flf" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="ridesharecli.conf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>
