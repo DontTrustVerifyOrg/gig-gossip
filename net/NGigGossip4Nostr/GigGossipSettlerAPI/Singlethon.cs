@@ -20,6 +20,7 @@ public struct ChannelVal
 {
     public required string Code;
     public required int Retries;
+    public required DateTime Deadline;
 }
 
 public static class Singlethon

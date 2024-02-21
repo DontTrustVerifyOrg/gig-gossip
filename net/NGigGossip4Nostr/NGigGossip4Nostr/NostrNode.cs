@@ -17,6 +17,7 @@ public abstract class NostrNode
     const int ContactListKind = 3;
     const int RegularMessageKind = 4;
     const int EphemeralMessageKind = 20004;
+    const int SettingsKind = 10128;
 
     CompositeNostrClient nostrClient;
     protected ECPrivKey privateKey;
@@ -80,6 +81,7 @@ public abstract class NostrNode
         await nostrClient.PublishEvent(newEvent, CancellationToken.None);
     }
 
+
     protected async Task PublishContactListAsync(Dictionary<string, NostrContact> contactList)
     {
         List<NostrEventTag> tags;
@@ -93,6 +95,22 @@ public abstract class NostrNode
             Content = "",
             Tags = tags,
         };
+        await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
+        await nostrClient.PublishEvent(newEvent, CancellationToken.None);
+    }
+
+
+    protected async Task SaveSettings(string settings)
+    {
+        var newEvent = new NostrEvent()
+        {
+            Kind = SettingsKind,
+            Content = settings,
+            Tags = {
+                    new NostrEventTag(){ TagIdentifier ="p", Data = { this.PublicKey } },
+            },
+        };
+        await newEvent.EncryptNip04EventAsync(this.privateKey, skipKindVerification: true);
         await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
         await nostrClient.PublishEvent(newEvent, CancellationToken.None);
     }
@@ -141,6 +159,8 @@ public abstract class NostrNode
     public abstract Task OnMessageAsync(string eventId, bool isNew, string senderPublicKey, object frame);
     public virtual void OnContactList(string eventId, bool isNew, Dictionary<string, NostrContact> contactList) { }
     public virtual void OnHello(string eventId, bool isNew, string senderPublicKeye) { }
+    public virtual void OnSettings(string eventId, bool isNew, string settings) { }
+    public virtual void OnEose() { }
 
     public abstract bool OpenMessage(string id);
     public abstract void CommitMessage(string id);
@@ -159,6 +179,12 @@ public abstract class NostrNode
         nostrClient.StateChanged += NostrClient_StateChanged;
         subscriptionId = Guid.NewGuid().ToString();
         await nostrClient.CreateSubscription(subscriptionId, new[]{
+                        new NostrSubscriptionFilter()
+                        {
+                            Kinds = new []{SettingsKind},
+                            Authors = new []{ publicKey.ToHex() },
+                            ReferencedPublicKeys = new []{ publicKey.ToHex() }
+                        },
                         new NostrSubscriptionFilter()
                         {
                             Kinds = new []{HelloKind},
@@ -211,6 +237,7 @@ public abstract class NostrNode
             try
             {
                 this.eoseReceived = true;
+                OnEose();
             }
             finally
             {
@@ -228,7 +255,9 @@ public abstract class NostrNode
             {
                 foreach (var nostrEvent in e.events)
                 {
-                    if (nostrEvent.Kind == HelloKind)
+                    if (nostrEvent.Kind == SettingsKind)
+                        await ProcessSettingsAsync(nostrEvent);
+                    else if (nostrEvent.Kind == HelloKind)
                         ProcessHello(nostrEvent);
                     else if (nostrEvent.Kind == ContactListKind)
                         ProcessContactList(nostrEvent);
@@ -353,6 +382,21 @@ public abstract class NostrNode
         try
         {
             OnHello(nostrEvent.Id, eoseReceived, nostrEvent.PublicKey);
+        }
+        catch
+        {
+            AbortMessage(nostrEvent.Id);
+        }
+    }
+
+    private async Task ProcessSettingsAsync(NostrEvent nostrEvent)
+    {
+        if (!OpenMessage(nostrEvent.Id))
+            return;
+        try
+        {
+            var msg = await nostrEvent.DecryptNip04EventAsync(this.privateKey, skipKindVerification: true);
+            OnSettings(nostrEvent.Id, eoseReceived, msg);
         }
         catch
         {

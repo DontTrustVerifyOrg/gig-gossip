@@ -257,6 +257,13 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
     {
     }
 
+    public void OnSettings(GigGossipNode me, string settings)
+    {
+    }
+
+    public void OnEoseArrived(GigGossipNode me)
+    {
+    }
 }
 
 public class CustomerGossipNodeEvents : IGigGossipNodeEvents
@@ -318,6 +325,14 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     }
 
     public void OnNewContact(GigGossipNode me, string pubkey)
+    {
+    }
+
+    public void OnSettings(GigGossipNode me, string settings)
+    {
+    }
+
+    public void OnEoseArrived(GigGossipNode me)
     {
     }
 }

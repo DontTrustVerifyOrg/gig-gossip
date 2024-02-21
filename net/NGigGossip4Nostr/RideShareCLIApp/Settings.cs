@@ -25,7 +25,6 @@ namespace RideShareCLIApp
 
 public class ApplicationSettings
 {
-    public required string FlowLoggerPath { get; set; }
 }
 
 public class SettlerAdminSettings

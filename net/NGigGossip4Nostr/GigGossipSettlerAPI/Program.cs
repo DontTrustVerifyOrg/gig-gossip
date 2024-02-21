@@ -408,7 +408,7 @@ app.MapGet("/verifychannel", async (string authToken, string pubkey, string name
             });
             if (resp.statuscode != 200)
                 throw new Exception("Cannot send");
-            Singlethon.channelSmsCodes.TryAdd(new ChannelKey { PubKey = pubkey, Channel = value }, new ChannelVal { Code = code, Retries = 3 });
+            Singlethon.channelSmsCodes.TryAdd(new ChannelKey { PubKey = pubkey, Channel = value }, new ChannelVal { Code = code, Retries = settlerSettings.SMSCodeRetryNumber, Deadline=DateTime.UtcNow.AddMinutes(settlerSettings.SMSCodeTimeoutMin)  });
         }
         else
             throw new NotImplementedException();
@@ -445,22 +445,26 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
 
             if (Singlethon.channelSmsCodes.TryGetValue(key, out code))
             {
-                if (code.Code == secret)
+                if (code.Deadline <= DateTime.UtcNow)
                 {
-                    Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes("valid"), Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
-                    return new Result<int>(-1);
-                }
-                else
-                {
-                    if (code.Retries == 0)
+                    if (code.Code == secret)
+                    {
+                        Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes("valid"), Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
                         Singlethon.channelSmsCodes.TryRemove(key, out _);
+                        return new Result<int>(-1);
+                    }
                     else
-                        Singlethon.channelSmsCodes.AddOrReplace(key, new ChannelVal { Code = code.Code, Retries = code.Retries - 1 });
-                    return new Result<int>(code.Retries);
+                    {
+                        if (code.Retries > 0)
+                        {
+                            Singlethon.channelSmsCodes.AddOrReplace(key, new ChannelVal { Code = code.Code, Retries = code.Retries - 1, Deadline = code.Deadline });
+                            return new Result<int>(code.Retries);
+                        }
+                    }
                 }
+                Singlethon.channelSmsCodes.TryRemove(key, out _);
             }
-            else
-                throw new Exception("Unknown");
+            return new Result<int>(0);
         }
         else
             throw new NotImplementedException();
@@ -824,4 +828,6 @@ public class SettlerSettings
     public required long DisputeTimeoutSec { get; set; }
     public required string GoogleMapsAPIKey { get; set; }
     public required string SMSGlobalAPIKeySecret { get; set; }
+    public required int SMSCodeRetryNumber { get; set; }
+    public required int SMSCodeTimeoutMin { get; set; }
 }

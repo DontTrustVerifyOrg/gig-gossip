@@ -196,14 +196,16 @@ public partial class RideShareCLIApp
         {
             phoneNumber = Prompt.Input<string>("Phone number");
             await ValidatePhoneNumber(phoneNumber);
-            var secret = Prompt.Input<string>("Enter code");
             while (true)
             {
+                var secret = Prompt.Input<string>("Enter code");
                 var retries = await SubmitPhoneNumberSecret(phoneNumber, secret);
                 if (retries == -1)
                     break;
                 else if (retries == 0)
                     throw new Exception("Invalid code");
+                else
+                    AnsiConsole.WriteLine($"Wrong code retries left {retries}");
             }
             await SetPhoneNumberAsync(phoneNumber);
         }

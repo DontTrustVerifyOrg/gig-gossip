@@ -56,6 +56,8 @@ public interface IGigGossipNodeEvents
     public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata);
 
     public void OnNewContact(GigGossipNode me, string pubkey);
+    public void OnSettings(GigGossipNode me, string settings);
+    public void OnEoseArrived(GigGossipNode me);
 }
 
 public class AcceptBroadcastResponse
@@ -79,6 +81,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     protected TimeSpan timestampTolerance;
     public TimeSpan InvoicePaymentTimeout;
     protected int fanout;
+    public string Settings;
 
     private SemaphoreSlim alreadyBroadcastedSemaphore = new SemaphoreSlim(1, 1);
 
@@ -232,6 +235,18 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     {
         if (senderPublicKey != this.PublicKey)
             AddContact(senderPublicKey, "");
+    }
+
+    public override void OnSettings(string eventId, bool isNew, string settings)
+    {
+        Settings = settings;
+        if (isNew)
+            this.gigGossipNodeEvents.OnSettings(this, settings);
+    }
+
+    public override void OnEose()
+    {
+        this.gigGossipNodeEvents.OnEoseArrived(this);
     }
 
     public void AddContact(string contactPublicKey, string petname, string relay = "")

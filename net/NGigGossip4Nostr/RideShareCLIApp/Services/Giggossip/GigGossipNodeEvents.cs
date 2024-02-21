@@ -136,5 +136,13 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
             PublicKey = pubkey
         });
     }
+
+    public void OnSettings(GigGossipNode me, string settings)
+    {
+    }
+
+    public void OnEoseArrived(GigGossipNode me)
+    {
+    }
 }
 
