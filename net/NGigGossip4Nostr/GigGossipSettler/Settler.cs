@@ -203,6 +203,11 @@ public class Settler : CertificationAuthority
         }
     }
 
+    public UserProperty? GetUserProperty(string pubkey, string name)
+    {
+        return (from u in settlerContext.Value.UserProperties where u.Name == name && u.PublicKey == pubkey && u.IsRevoked == false select u).FirstOrDefault();
+    }
+
     public void RevokeUserProperty(string pubkey, string name)
     {
         var up = (from u in settlerContext.Value.UserProperties where u.Name == name && u.PublicKey == pubkey && u.IsRevoked == false select u).FirstOrDefault();

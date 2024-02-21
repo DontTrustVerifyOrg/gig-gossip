@@ -791,6 +791,69 @@
         }
       }
     },
+    "/ischannelverified": {
+      "get": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "summary": "Checks if the specific channel is verified",
+        "description": "Checks if the specific channel is verified",
+        "operationId": "IsChannelVerified",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pubkey",
+            "in": "query",
+            "description": "Public key of the subject.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Channel name (phone,email,...)",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "value",
+            "in": "query",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/revokeuserproperty": {
       "get": {
         "tags": [

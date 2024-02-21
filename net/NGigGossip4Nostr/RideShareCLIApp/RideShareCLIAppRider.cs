@@ -65,6 +65,12 @@ public partial class RideShareCLIApp
         }
     }
 
+    private async Task CancelBroadcast()
+    {
+        await gigGossipNode.CancelBroadcastAsync(requestedRide.SignedCancelRequestPayload);
+    }
+
+
     private async void GigGossipNodeEventSource_OnNewResponse(object? sender, NewResponseEventArgs e)
     {
         if (receivedResponsesTable == null)

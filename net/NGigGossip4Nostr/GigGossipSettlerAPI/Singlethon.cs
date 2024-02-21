@@ -10,6 +10,17 @@ public struct GigReplCert
     public required Guid ReplierCertificateId;
 }
 
+public struct ChannelKey
+{
+    public required string PubKey;
+    public required string Channel;
+}
+
+public struct ChannelVal
+{
+    public required string Code;
+    public required int Retries;
+}
 
 public static class Singlethon
 {
@@ -18,6 +29,6 @@ public static class Singlethon
     public static HubDicStore<string> Preimages4UserPublicKey = new();
     public static ConcurrentDictionary<string, AsyncComQueue<GigStatusEventArgs>> GigStatusAsyncComQueue4ConnectionId = new();
     public static ConcurrentDictionary<string, AsyncComQueue<PreimageRevealEventArgs>> PreimagesAsyncComQueue4ConnectionId = new();
-    public static ConcurrentDictionary<string, string> channelSmsCodes = new();
+    public static ConcurrentDictionary<ChannelKey, ChannelVal> channelSmsCodes = new();
 }
 

@@ -192,7 +192,7 @@ public partial class RideShareCLIApp
         await StartAsync();
 
         var phoneNumber = await GetPhoneNumberAsync();
-        if (phoneNumber == null)
+        if (phoneNumber == null || !(await IsPhoneNumberValidated(phoneNumber)))
         {
             phoneNumber = Prompt.Input<string>("Phone number");
             await ValidatePhoneNumber(phoneNumber);
@@ -356,6 +356,7 @@ public partial class RideShareCLIApp
                     }
                     if (e.Key == ConsoleKey.Escape)
                     {
+                        await CancelBroadcast();
                         me.Exit();
                     }
                 };
@@ -500,6 +501,13 @@ public partial class RideShareCLIApp
         {
             await OnAckFrame(e.SenderPublicKey, ackframe);
         }
+    }
+
+    async Task<bool> IsPhoneNumberValidated(string phoneNumber)
+    {
+        var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.SettlerAdminSettings.SettlerOpenApi);
+        var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.SettlerAdminSettings.SettlerOpenApi);
+        return SettlerAPIResult.Get<bool>(await settlerClient.IsChannelVerifiedAsync(authToken, (await GetPublicKeyAsync()).AsHex(), "PhoneNumber", phoneNumber));
     }
 
     async Task ValidatePhoneNumber(string phoneNumber)

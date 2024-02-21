@@ -408,7 +408,7 @@ app.MapGet("/verifychannel", async (string authToken, string pubkey, string name
             });
             if (resp.statuscode != 200)
                 throw new Exception("Cannot send");
-            Singlethon.channelSmsCodes.TryAdd(pubkey, code);
+            Singlethon.channelSmsCodes.TryAdd(new ChannelKey { PubKey = pubkey, Channel = value }, new ChannelVal { Code = code, Retries = 3 });
         }
         else
             throw new NotImplementedException();
@@ -440,17 +440,24 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
         Singlethon.Settler.ValidateAuthToken(authToken);
         if (name.ToLower() == "phonenumber" && method.ToLower() == "sms")
         {
-            string code;
-            
-            if (Singlethon.channelSmsCodes.TryRemove(pubkey, out code))
+            var key = new ChannelKey { PubKey = pubkey, Channel = value };
+            ChannelVal code;
+
+            if (Singlethon.channelSmsCodes.TryGetValue(key, out code))
             {
-                if (code == secret)
+                if (code.Code == secret)
                 {
                     Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes("valid"), Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
                     return new Result<int>(-1);
                 }
                 else
-                    return new Result<int>(0);
+                {
+                    if (code.Retries == 0)
+                        Singlethon.channelSmsCodes.TryRemove(key, out _);
+                    else
+                        Singlethon.channelSmsCodes.AddOrReplace(key, new ChannelVal { Code = code.Code, Retries = code.Retries - 1 });
+                    return new Result<int>(code.Retries);
+                }
             }
             else
                 throw new Exception("Unknown");
@@ -478,6 +485,42 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
     return g;
 });
 
+app.MapGet("/ischannelverified", (string authToken, string pubkey, string name, string value) =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+        if (name.ToLower() == "phonenumber")
+        {
+            var prop = Singlethon.Settler.GetUserProperty(pubkey, name);
+            if(prop != null)
+            {
+                var val = Encoding.UTF8.GetString(prop.Value);
+                var secnum = Encoding.UTF8.GetString(prop.Secret).Split(":");
+                if (secnum.Length > 1)
+                    return new Result<bool>((val == "valid") && (secnum[1] == value));
+            }
+            return new Result<bool>(false);
+        }
+        else
+            throw new NotImplementedException();
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<bool>(ex);
+    }
+})
+.WithName("IsChannelVerified")
+.WithSummary("Checks if the specific channel is verified")
+.WithDescription("Checks if the specific channel is verified")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Public key of the subject.";
+    g.Parameters[2].Description = "Channel name (phone,email,...)";
+    return g;
+});
 
 app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name) =>
 {
