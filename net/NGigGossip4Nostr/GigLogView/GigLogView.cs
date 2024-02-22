@@ -79,18 +79,27 @@ public class GigLogView
                 else if (cmd == CommandEnum.GetSystemLog)
                 {
                     var pubkey = Prompt.Input<string>("PubKey", TextCopy.ClipboardService.GetText());
-                    var frm = new DateTimeOffset(DateTime.UtcNow.AddMinutes(-120)).ToUnixTimeMilliseconds();
-                    var to = new DateTimeOffset(DateTime.UtcNow.AddMinutes(1)).ToUnixTimeMilliseconds();
-                    var r = await settlerClient.GetLogEventsAsync(await MakeToken(), pubkey, frm, to);
-                    var res = SettlerAPIResult.Get<List<SystemLogEntry>>(r);
-                    foreach(var row in res)
+                    var frm = DateTimeOffset.UtcNow.AddMinutes(-120).ToUnixTimeMilliseconds();
+
+                    while (true)
                     {
-                        AnsiConsole.WriteLine(row.PublicKey);
-                        AnsiConsole.WriteLine(row.EventType.ToString());
-                        AnsiConsole.WriteLine(row.DateTime.ToString("yyyyMMdd HHmmss"));
-                        AnsiConsole.WriteLine(row.Message);
-                        AnsiConsole.WriteLine(row.Exception);
-                        AnsiConsole.WriteLine("-----------");
+                        var res = SettlerAPIResult.Get<List<SystemLogEntry>>(await settlerClient.GetLogEventsAsync(await MakeToken(), pubkey, frm, DateTimeOffset.UtcNow.AddMinutes(1).ToUnixTimeMilliseconds()));
+                        if (res.Count > 0)
+                        {
+                            var maxtm = (from d in res select d.Timestamp).Max();
+                            foreach (var row in res)
+                            {
+                                AnsiConsole.WriteLine(row.EntryId.ToString());
+                                AnsiConsole.WriteLine(row.PublicKey);
+                                AnsiConsole.WriteLine(((System.Diagnostics.TraceEventType)row.EventType).ToString());
+                                AnsiConsole.WriteLine(row.Timestamp.ToString());
+                                AnsiConsole.WriteLine(row.Message);
+                                AnsiConsole.WriteLine(row.Exception);
+                                AnsiConsole.WriteLine("-----------");
+                            }
+                            frm = maxtm;
+                        }
+                        Thread.Sleep(1000);
                     }
                 }
             }

@@ -18,7 +18,7 @@ public class SystemLogEntry
     public required Guid EntryId { get; set; }
 
     public required string PublicKey { get; set; }
-    public required DateTime DateTime { get; set; }
+    public required long Timestamp { get; set; }
     public required TraceEventType EventType { get; set; }
     public required string Message { get; set; }
     public required string Exception { get; set; }

@@ -1629,9 +1629,9 @@
             "type": "string",
             "nullable": true
           },
-          "dateTime": {
-            "type": "string",
-            "format": "date-time"
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
           },
           "eventType": {
             "$ref": "#/components/schemas/TraceEventType"

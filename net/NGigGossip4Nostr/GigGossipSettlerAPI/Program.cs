@@ -324,7 +324,7 @@ app.MapGet("/getlogevents", (string authToken, string pubkey, long frmtmst, long
     try
     {
         Singlethon.Settler.ValidateAuthToken(authToken);
-        return new Result<List<SystemLogEntry>>(Singlethon.Settler.GetLogEvents(pubkey, DateTimeOffset.FromUnixTimeMilliseconds(frmtmst).UtcDateTime, DateTimeOffset.FromUnixTimeMilliseconds(totmst).UtcDateTime));
+        return new Result<List<SystemLogEntry>>(Singlethon.Settler.GetLogEvents(pubkey, frmtmst, totmst));
     }
     catch (Exception ex)
     {

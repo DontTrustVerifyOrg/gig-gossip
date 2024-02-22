@@ -147,16 +147,16 @@ public class Settler : CertificationAuthority
         {
             EntryId = Guid.NewGuid(),
             PublicKey = pubkey,
-            DateTime = DateTime.UtcNow,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             EventType = eventType,
             Message = message,
             Exception = exception,
         });
     }
 
-    public List<SystemLogEntry> GetLogEvents(string pubkey, DateTime frm, DateTime to)
+    public List<SystemLogEntry> GetLogEvents(string pubkey, long frm, long to)
     {
-        return (from l in settlerContext.Value.SystemLogEntries where l.PublicKey == pubkey && l.DateTime > frm && l.DateTime <= to select l).ToList();
+        return (from l in settlerContext.Value.SystemLogEntries where (l.PublicKey == pubkey) && (l.Timestamp > frm) && (l.Timestamp <= to) select l).ToList();
     }
 
     public void SaveUserTraceProperty(string pubkey, string name, byte[] value)
