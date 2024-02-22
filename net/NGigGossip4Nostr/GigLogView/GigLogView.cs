@@ -87,7 +87,7 @@ public class GigLogView
                     {
                         AnsiConsole.WriteLine(row.PublicKey);
                         AnsiConsole.WriteLine(row.EventType.ToString());
-                        AnsiConsole.WriteLine(row.DateTime.ToString("yyyy’-‘MM’-‘dd’Z’HH’:’mm’:’ss"));
+                        AnsiConsole.WriteLine(row.DateTime.ToString("yyyyMMdd HHmmss"));
                         AnsiConsole.WriteLine(row.Message);
                         AnsiConsole.WriteLine(row.Exception);
                         AnsiConsole.WriteLine("-----------");

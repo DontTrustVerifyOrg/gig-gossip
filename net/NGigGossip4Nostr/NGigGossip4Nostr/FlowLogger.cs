@@ -13,6 +13,7 @@ namespace NGigGossip4Nostr
 {
     public interface IFlowLogger
     {
+        bool Enabled { get; set; }
         Task TraceInformationAsync(string? message);
         Task TraceWarningAsync(string? message);
         Task TraceErrorAsync(string? message);
@@ -30,7 +31,7 @@ namespace NGigGossip4Nostr
         private ECPrivKey privKey;
         private string publicKey;
         private SemaphoreSlim guard = new(1, 1);
-        public bool Enabled;
+        public bool Enabled { get; set; }
 
         public FlowLogger(bool traceEnabled, Uri settlerUri, ISettlerSelector settlerSelector, ECPrivKey eCPrivKey)
         {
