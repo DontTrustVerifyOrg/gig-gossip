@@ -445,7 +445,7 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
 
             if (Singlethon.channelSmsCodes.TryGetValue(key, out code))
             {
-                if (code.Deadline <= DateTime.UtcNow)
+                if (DateTime.UtcNow<= code.Deadline)
                 {
                     if (code.Code == secret)
                     {
