@@ -36,8 +36,6 @@ services:
     volumes:
       - ./work/locallnd/.lnd:/work/locallnd/.lnd:Z
       - ./work/locallnd/.secret:/work/locallnd/.secret:ro
-    depends_on:
-      - bitcoin
 
 
 
@@ -55,8 +53,6 @@ services:
     volumes:
       - ./work/locallnd/.lnd2:/work/locallnd/.lnd:Z
       - ./work/locallnd/.secret:/work/locallnd/.secret:ro
-    depends_on:
-      - bitcoin
 
 
 
@@ -74,8 +70,6 @@ services:
     volumes:
       - ./work/locallnd/.lnd3:/work/locallnd/.lnd:Z
       - ./work/locallnd/.secret:/work/locallnd/.secret:ro
-    depends_on:
-      - bitcoin
 
 
 
@@ -154,11 +148,6 @@ services:
       - 7101:7101
     volumes:
       - ./work/locallnd/:/work/locallnd/:Z
-    depends_on:
-      - bitcoin
-      - lightning_node_1
-      - lightning_node_2
-      - lightning_node_3
 
 
   settler_api:
@@ -174,12 +163,6 @@ services:
       - 7189:7189
     volumes:
       - ./work/locallnd/:/work/locallnd/:Z
-    depends_on:
-      - bitcoin
-      - lightning_node_1
-      - lightning_node_2
-      - lightning_node_3
-      - wallet_api
 
 
   wallet_api2:
@@ -195,11 +178,6 @@ services:
       - 7102:7102
     volumes:
       - ./work/locallnd/:/work/locallnd/:Z
-    depends_on:
-      - bitcoin
-      - lightning_node_1
-      - lightning_node_2
-      - lightning_node_3
 
 
   settler_api2:
@@ -215,12 +193,6 @@ services:
       - 7190:7190
     volumes:
       - ./work/locallnd/:/work/locallnd/:Z
-    depends_on:
-      - bitcoin
-      - lightning_node_1
-      - lightning_node_2
-      - lightning_node_3
-      - wallet_api2
 
 
   wallet_api3:
@@ -236,11 +208,6 @@ services:
       - 7103:7103
     volumes:
       - ./work/locallnd/:/work/locallnd/:Z
-    depends_on:
-      - bitcoin
-      - lightning_node_1
-      - lightning_node_2
-      - lightning_node_3
 
 
   settler_api3:
@@ -256,12 +223,6 @@ services:
       - 7191:7191
     volumes:
       - ./work/locallnd/:/work/locallnd/:Z
-    depends_on:
-      - bitcoin
-      - lightning_node_1
-      - lightning_node_2
-      - lightning_node_3
-      - wallet_api3
 
 
 networks:
