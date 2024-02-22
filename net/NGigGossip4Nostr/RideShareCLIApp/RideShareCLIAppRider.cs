@@ -45,7 +45,6 @@ public partial class RideShareCLIApp
                 PickupBefore = DateTime.Now.AddMinutes(waitingTimeForPickupMinutes),
                 Distance = fromLocation.Distance(toLocation),
             },
-            settings.NodeSettings.SettlerOpenApi,
             settings.NodeSettings.GetRiderProperties());
 
     }

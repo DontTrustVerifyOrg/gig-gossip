@@ -157,7 +157,7 @@ namespace NGigGossip4Nostr
                                                ex is WebSocketException)
                     {
                         NotifyClientIsConnected(false);
-                        Trace.TraceWarning("Hub disconnected " + gigGossipNode.GetWalletClient().BaseUrl + "/invoicestateupdates, reconnecting");
+                        await gigGossipNode.FlowLogger.TraceWarningAsync("Hub disconnected " + gigGossipNode.GetWalletClient().BaseUrl + "/invoicestateupdates, reconnecting");
                         Thread.Sleep(1000);
                         //reconnect
                     }

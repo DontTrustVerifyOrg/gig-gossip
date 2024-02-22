@@ -66,17 +66,11 @@ public class BasicTest
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.UtcNow, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
-        FlowLogger.Start(settlerAdminSettings.SettlerOpenApi, settlerSelector, settlerPrivKey);
-
-        await FlowLogger.SetupParticipantAsync(Encoding.Default.GetBytes(settlerAdminSettings.SettlerOpenApi.AbsoluteUri).AsHex(), false);
-
         var gigWorker = new GigGossipNode(
             gigWorkerSettings.ConnectionString,
             gigWorkerSettings.PrivateKey.AsECPrivKey(),
             gigWorkerSettings.ChunkSize
             );
-
-        await FlowLogger.SetupParticipantAsync(gigWorker.PublicKey, true);
 
         SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
                 token, gigWorker.PublicKey,
@@ -90,8 +84,6 @@ public class BasicTest
             customerSettings.ChunkSize
             );
 
-        await FlowLogger.SetupParticipantAsync(customer.PublicKey, true);
-
         SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
             token, customer.PublicKey,
             "ride", val, val,
@@ -99,6 +91,7 @@ public class BasicTest
          ));
 
         await gigWorker.StartAsync(
+            true,
             gigWorkerSettings.Fanout,
             gigWorkerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
@@ -106,9 +99,11 @@ public class BasicTest
             gigWorkerSettings.GetNostrRelays(),
             new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi),
             ()=> new HttpClient(),
-            gigWorkerSettings.GigWalletOpenApi);
+            gigWorkerSettings.GigWalletOpenApi,
+            gigWorkerSettings.SettlerOpenApi);
 
         await customer.StartAsync(
+            true,
             customerSettings.Fanout,
             customerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(customerSettings.TimestampToleranceMs),
@@ -116,7 +111,8 @@ public class BasicTest
             customerSettings.GetNostrRelays(),
             new CustomerGossipNodeEvents(),
             () => new HttpClient(),
-            customerSettings.GigWalletOpenApi);
+            customerSettings.GigWalletOpenApi,
+            gigWorkerSettings.SettlerOpenApi);
 
         var ballanceOfCustomer = WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken()));
 
@@ -158,7 +154,6 @@ public class BasicTest
                 PickupAfter = DateTime.UtcNow,
                 DropoffBefore = DateTime.UtcNow.AddMinutes(20)
             },
-            customerSettings.SettlerOpenApi,
             new string[] { "ride" });
 
         }
@@ -172,7 +167,6 @@ public class BasicTest
         gigWorker.StopAsync();
         customer.StopAsync();
 
-        FlowLogger.Stop();
     }
 }
 
@@ -199,7 +193,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
                     Fee = 4321,
                     SettlerServiceUri = settlerUri
                 });
-            FlowLogger.NewEvent(me.PublicKey, "AcceptBraodcast");
+            me.FlowLogger.NewNote(me.PublicKey, "AcceptBraodcast");
         }
     }
 
@@ -212,7 +206,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
     {
-        FlowLogger.NewEvent(me.PublicKey, "InvoiceSettled");
+        me.FlowLogger.NewNote(me.PublicKey, "InvoiceSettled");
         lock (MainThreadControl.Ctrl)
         {
             MainThreadControl.IsRunning = false;
@@ -286,7 +280,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 
     public async void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
-        FlowLogger.NewEvent(me.PublicKey, "AcceptResponse");
+        me.FlowLogger.NewNote(me.PublicKey, "AcceptResponse");
         var paymentResult = await me.AcceptResponseAsync(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
         if(paymentResult!= GigLNDWalletAPIErrorCode.Ok)
             Console.WriteLine(paymentResult);
@@ -297,8 +291,8 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
             key.AsBytes(),
             replyPayload.Value.EncryptedReplyMessage));
         Trace.TraceInformation(message);
-        FlowLogger.NewEvent(me.PublicKey, "OnResponseReady");
-        FlowLogger.NewConnected(message, me.PublicKey, "connected");
+        me.FlowLogger.NewNote(me.PublicKey, "OnResponseReady");
+        me.FlowLogger.NewConnected(message, me.PublicKey, "connected");
     }
     public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
     {

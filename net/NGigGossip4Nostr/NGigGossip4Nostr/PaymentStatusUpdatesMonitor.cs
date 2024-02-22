@@ -137,7 +137,7 @@ public class PaymentStatusUpdatesMonitor
                             }
                             catch(GigLNDWalletAPIException ex)
                             {
-                                Trace.TraceError(ex.Message);
+                                await gigGossipNode.FlowLogger.TraceExceptionAsync(ex);
                             }
                         }
                     }
@@ -172,7 +172,7 @@ public class PaymentStatusUpdatesMonitor
                                            ex is WebSocketException)
                 {
                     NotifyClientIsConnected(false);
-                    Trace.TraceWarning("Hub disconnected " + gigGossipNode.GetWalletClient().BaseUrl + "/paymentstatusupdates, reconnecting");
+                    await gigGossipNode.FlowLogger.TraceWarningAsync("Hub disconnected " + gigGossipNode.GetWalletClient().BaseUrl + "/paymentstatusupdates, reconnecting");
                     Thread.Sleep(1000);
                     //reconnect
                 }

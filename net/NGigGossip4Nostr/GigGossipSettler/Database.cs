@@ -15,6 +15,8 @@ public class SystemLogEntry
     /// The public key of the subject.
     /// </summary>
     [Key]
+    public required Guid EntryId { get; set; }
+
     public required string PublicKey { get; set; }
     public required DateTime DateTime { get; set; }
     public required TraceEventType EventType { get; set; }

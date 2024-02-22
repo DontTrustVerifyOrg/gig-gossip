@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
+using System.Text;
 using CryptoToolkit;
 using GigGossipSettlerAPIClient;
 using GoogleApi.Entities.Places.Common;
@@ -9,111 +11,152 @@ using NBitcoin.Secp256k1;
 
 namespace NGigGossip4Nostr
 {
-    public static class FlowLogger
+    public interface IFlowLogger
     {
-        static Uri settlerUri;
-        static ISettlerSelector settlerSelector;
-        static ECPrivKey privKey;
-        static string publicKey;
-        static ConcurrentDictionary<string, string> participantAliases = new();
+        Task TraceInformationAsync(string? message);
+        Task TraceWarningAsync(string? message);
+        Task TraceErrorAsync(string? message);
+        Task TraceExceptionAsync(Exception exception);
+        Task NewMessageAsync(string a, string b, string message);
+        Task NewReplyAsync(string a, string b, string message);
+        Task NewConnected(string a, string b, string message);
+        Task NewNote(string a, string message);
+    }
 
+    public class FlowLogger : IFlowLogger
+    {
+        private Uri settlerUri;
+        private ISettlerSelector settlerSelector;
+        private ECPrivKey privKey;
+        private string publicKey;
+        private SemaphoreSlim guard = new(1, 1);
+        public bool Enabled;
 
-        public static void Start(Uri settlerUri, ISettlerSelector settlerSelector, ECPrivKey eCPrivKey)
+        public FlowLogger(bool traceEnabled, Uri settlerUri, ISettlerSelector settlerSelector, ECPrivKey eCPrivKey)
         {
-            FlowLogger.settlerUri = settlerUri;
-            FlowLogger.settlerSelector = settlerSelector;
-            FlowLogger.privKey = eCPrivKey;
-            FlowLogger.publicKey = eCPrivKey.CreateXOnlyPubKey().AsHex();
+            this.settlerUri = settlerUri;
+            this.settlerSelector = settlerSelector;
+            this.privKey = eCPrivKey;
+            this.publicKey = eCPrivKey.CreateXOnlyPubKey().AsHex();
+            this.Enabled = traceEnabled;
         }
 
-        public static async Task<string> MakeSettlerAuthTokenAsync()
+        private async Task<string> MakeSettlerAuthTokenAsync()
         {
             return Crypto.MakeSignedTimedToken(
                 privKey, DateTime.UtcNow,
                 SettlerAPIResult.Get<Guid>(await settlerSelector.GetSettlerClient(settlerUri).GetTokenAsync(publicKey)));
         }
 
-        public static void Stop()
+        public async Task WriteToLogAsync(System.Diagnostics.TraceEventType eventType, string message)
         {
+            if (!Enabled) return;
+
+            await guard.WaitAsync();
+            try
+            {
+                SettlerAPIResult.Check(await settlerSelector.GetSettlerClient(settlerUri).LogEventAsync(
+                    await MakeSettlerAuthTokenAsync(),
+                    eventType.ToString(),
+                    new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes(message))),
+                    new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes("")))
+                    ));
+            }
+            catch(Exception ex)
+            {
+                Trace.TraceError(ex.Message);
+            }
+            finally
+            {
+                guard.Release();
+            }
         }
 
-        public static async Task WriteToLogAsync(System.Diagnostics.TraceEventType eventType, string message)
+        public async Task WriteExceptionAsync(System.Diagnostics.TraceEventType eventType, Exception exception)
         {
-            SettlerAPIResult.Check(await settlerSelector.GetSettlerClient(settlerUri).LogEventAsync(
+            if (!Enabled) return;
+
+            await guard.WaitAsync();
+            try
+            {
+                SettlerAPIResult.Check(await settlerSelector.GetSettlerClient(settlerUri).LogEventAsync(
                 await MakeSettlerAuthTokenAsync(),
                 eventType.ToString(),
-                new FileParameter(new MemoryStream(message.AsBytes())),
-                new FileParameter(new MemoryStream("".AsBytes()))
+                new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes(exception.Message))),
+                new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes(exception.ToJsonString())))
                 ));
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceError(ex.Message);
+            }
+            finally
+            {
+                guard.Release();
+            }
         }
 
-        public static async Task WriteExceptionAsync(System.Diagnostics.TraceEventType eventType, Exception exception)
+        public async Task TraceInformationAsync(string? message)
         {
-            SettlerAPIResult.Check(await settlerSelector.GetSettlerClient(settlerUri).LogEventAsync(
-                await MakeSettlerAuthTokenAsync(),
-                eventType.ToString(),
-                new FileParameter(new MemoryStream(exception.Message.AsBytes())),
-                new FileParameter(new MemoryStream(exception.ToJsonString().AsBytes()))
-                ));
+            if (!Enabled) return;
+
+            await WriteToLogAsync(System.Diagnostics.TraceEventType.Information, message);
         }
 
-        public static async Task SetupParticipantAsync(string id, bool isActor, string alias = null)
+        public async Task TraceWarningAsync(string? message)
         {
-            if (settlerUri == null)
-                return;
+            if (!Enabled) return;
+
+            await WriteToLogAsync(System.Diagnostics.TraceEventType.Warning, message);
+        }
+
+        public async Task TraceErrorAsync(string? message)
+        {
+            if (!Enabled) return;
+
+            await WriteToLogAsync(System.Diagnostics.TraceEventType.Error, message);
+        }
+
+        public async Task TraceExceptionAsync(Exception exception)
+        {
+            if (!Enabled) return;
+
+            await WriteExceptionAsync(System.Diagnostics.TraceEventType.Critical, exception);
+        }
+
+        public async Task NewMessageAsync(string a, string b, string message)
+        {
+            if (!Enabled) return;
 
             await WriteToLogAsync(
-                System.Diagnostics.TraceEventType.Information,
-                (isActor ? "\tactor " : "\tparticipant ") + id + (alias == null ? "" : " as " + alias));
-        }
-
-        public static async Task NewMessageAsync(string a, string b, string message)
-        {
-            if (settlerUri == null)
-                return;
-            if (!participantAliases.ContainsKey(a))
-                return;
-            if (!participantAliases.ContainsKey(b))
-                return;
-            await WriteToLogAsync(
-                 System.Diagnostics.TraceEventType.Information,
+                 System.Diagnostics.TraceEventType.Transfer,
                  "\t" + a + "->>" + b + ": " + message);
         }
 
-        public static async Task NewReplyAsync(string a, string b, string message)
+        public async Task NewReplyAsync(string a, string b, string message)
         {
-            if (settlerUri == null)
-                return;
-            if (!participantAliases.ContainsKey(a))
-                return;
-            if (!participantAliases.ContainsKey(b))
-                return;
+            if (!Enabled) return;
+
             await WriteToLogAsync(
-                 System.Diagnostics.TraceEventType.Information,
+                 System.Diagnostics.TraceEventType.Transfer,
                 "\t" + a + "-->>" + b + ": " + message);
         }
 
-        public static async Task NewConnected(string a, string b, string message)
+        public async Task NewConnected(string a, string b, string message)
         {
-            if (settlerUri == null)
-                return;
-            if (!participantAliases.ContainsKey(a))
-                return;
-            if (!participantAliases.ContainsKey(b))
-                return;
+            if (!Enabled) return;
+
             await WriteToLogAsync(
-                 System.Diagnostics.TraceEventType.Information,
+                 System.Diagnostics.TraceEventType.Transfer,
                 "\t" + a + "--)" + b + ": " + message);
         }
 
-        public static async Task NewEvent(string a,string message)
+        public async Task NewNote(string a,string message)
         {
-            if (settlerUri == null)
-                return;
-            if (!participantAliases.ContainsKey(a))
-                return;
+            if (!Enabled) return;
+
             await WriteToLogAsync(
-                 System.Diagnostics.TraceEventType.Information,
+                 System.Diagnostics.TraceEventType.Transfer,
                  "\t Note over " + a + ": " + message);
         }
 

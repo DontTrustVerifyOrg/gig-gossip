@@ -145,6 +145,7 @@ public class Settler : CertificationAuthority
     {
         settlerContext.Value.AddObject(new SystemLogEntry
         {
+            EntryId = Guid.NewGuid(),
             PublicKey = pubkey,
             DateTime = DateTime.Now,
             EventType = eventType,

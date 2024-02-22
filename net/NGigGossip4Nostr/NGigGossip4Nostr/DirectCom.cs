@@ -24,7 +24,7 @@ public class DirectCom : NostrNode
 
     public new async Task StartAsync(string[] nostrRelays)
     {
-        await base.StartAsync(nostrRelays);
+        await base.StartAsync(nostrRelays, gigGossipNode.FlowLogger);
     }
 
     public event EventHandler<DirectMessageEventArgs> OnDirectMessage;

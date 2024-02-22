@@ -31,6 +31,7 @@ public abstract class NostrNode
     private SemaphoreSlim eventSemSlim = new(1, 1);
     private bool consumeCL;
 
+    public IFlowLogger FlowLogger { get; private set; }
 
     public NostrNode(ECPrivKey privateKey, int chunkSize, bool consumeCL)
     {
@@ -166,10 +167,11 @@ public abstract class NostrNode
     public abstract void CommitMessage(string id);
     public abstract void AbortMessage(string id);
 
-    protected async Task StartAsync(string[] nostrRelays)
+    protected async Task StartAsync(string[] nostrRelays, IFlowLogger flowLogger)
     {
         if (nostrClient != null)
             await StopAsync();
+        FlowLogger = flowLogger;
         NostrRelays = nostrRelays;
         nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
         this.eoseReceived = false;
@@ -216,13 +218,14 @@ public abstract class NostrNode
             {
                 try
                 {
-                    Console.WriteLine("Connection to NOSTR relay lost, reconnecting");
-                    await StartAsync(NostrRelays);
-                    Console.WriteLine("Connection to NOSTR restored");
+                    await FlowLogger.TraceWarningAsync("Connection to NOSTR relay lost, reconnecting");
+                    await StartAsync(NostrRelays,FlowLogger);
+                    await FlowLogger.TraceWarningAsync("Connection to NOSTR restored");
                     break;
                 }
-                catch (System.Net.WebSockets.WebSocketException)
+                catch (System.Net.WebSockets.WebSocketException ex)
                 {
+                    await FlowLogger.TraceExceptionAsync(ex);
                     Thread.Sleep(1000);
                 }
             }
@@ -258,9 +261,9 @@ public abstract class NostrNode
                     if (nostrEvent.Kind == SettingsKind)
                         await ProcessSettingsAsync(nostrEvent);
                     else if (nostrEvent.Kind == HelloKind)
-                        ProcessHello(nostrEvent);
+                        await ProcessHelloAsync(nostrEvent);
                     else if (nostrEvent.Kind == ContactListKind)
-                        ProcessContactList(nostrEvent);
+                        await ProcessContactListAsync(nostrEvent);
                     else
                         await ProcessNewMessageAsync(nostrEvent);
                 }
@@ -303,10 +306,7 @@ public abstract class NostrNode
                 {
                     var t = GetFrameType(tagDic["t"][0]);
                     if (t == null)
-                    {
-                        Trace.TraceWarning("Unrecognised Frame detected");
                         return;
-                    }
                     var frame = Crypto.DeserializeObject(Convert.FromBase64String(msg), t);
                     await this.DoOnMessageAsync(idx, eoseReceived, nostrEvent.PublicKey, frame);
                 }
@@ -321,10 +321,7 @@ public abstract class NostrNode
                             var txt = string.Join("", new SortedDictionary<int, string>(inner_dic).Values);
                             var t = GetFrameType(tagDic["t"][0]);
                             if (t == null)
-                            {
-                                Trace.TraceWarning("Unrecognised Frame detected");
                                 return;
-                            }
                             var frame = Crypto.DeserializeObject(Convert.FromBase64String(txt), t);
                             await this.DoOnMessageAsync(idx, eoseReceived, nostrEvent.PublicKey, frame);
                         }
@@ -342,13 +339,14 @@ public abstract class NostrNode
             await OnMessageAsync(eventId, isNew, senderPublicKey, frame);
             CommitMessage(eventId);
         }
-        catch
+        catch (Exception ex)
         {
+            await FlowLogger.TraceExceptionAsync(ex);
             AbortMessage(eventId);
         }
     }
 
-    private void ProcessContactList(NostrEvent nostrEvent)
+    private async Task ProcessContactListAsync(NostrEvent nostrEvent)
     {
         if (!consumeCL)
             return;
@@ -366,13 +364,14 @@ public abstract class NostrNode
             OnContactList(nostrEvent.Id, eoseReceived, newCL);
             CommitMessage(nostrEvent.Id);
         }
-        catch
+        catch (Exception ex)
         {
+            await FlowLogger.TraceExceptionAsync(ex);
             AbortMessage(nostrEvent.Id);
         }
     }
 
-    private void ProcessHello(NostrEvent nostrEvent)
+    private async Task ProcessHelloAsync(NostrEvent nostrEvent)
     {
         if (!consumeCL)
             return;
@@ -383,8 +382,9 @@ public abstract class NostrNode
         {
             OnHello(nostrEvent.Id, eoseReceived, nostrEvent.PublicKey);
         }
-        catch
+        catch (Exception ex)
         {
+            await FlowLogger.TraceExceptionAsync(ex);
             AbortMessage(nostrEvent.Id);
         }
     }
@@ -398,8 +398,9 @@ public abstract class NostrNode
             var msg = await nostrEvent.DecryptNip04EventAsync(this.privateKey, skipKindVerification: true);
             OnSettings(nostrEvent.Id, eoseReceived, msg);
         }
-        catch
+        catch (Exception ex)
         {
+            await FlowLogger.TraceExceptionAsync(ex);
             AbortMessage(nostrEvent.Id);
         }
     }

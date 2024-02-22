@@ -215,7 +215,7 @@ public class SettlerMonitor
                                            ex is WebSocketException )
                 {
                     this.gigGossipNode.DisposePreimageRevealClient(serviceUri);
-                    Trace.TraceWarning("Timeout on " + serviceUri.AbsolutePath + "/revealpreimage, reconnecting");
+                    await gigGossipNode.FlowLogger.TraceWarningAsync("Timeout on " + serviceUri.AbsolutePath + "/revealpreimage, reconnecting");
                     Thread.Sleep(1000);
                     //reconnect
                 }
@@ -328,7 +328,7 @@ public class SettlerMonitor
                                            ex is WebSocketException)
                 {
                     this.gigGossipNode.DisposeGigStatusClient(serviceUri);
-                    Trace.TraceWarning("Timeout on " + serviceUri.AbsolutePath + "/revealsymmetrickey, reconnecting");
+                    await gigGossipNode.FlowLogger.TraceWarningAsync("Timeout on " + serviceUri.AbsolutePath + "/revealsymmetrickey, reconnecting");
                     Thread.Sleep(1000);
                     //reconnect
                 }

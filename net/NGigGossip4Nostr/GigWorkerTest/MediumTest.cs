@@ -67,16 +67,11 @@ public class MediumTest
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.UtcNow, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
-        FlowLogger.Start(settlerAdminSettings.SettlerOpenApi, settlerSelector, settlerPrivKey);
-        await FlowLogger.SetupParticipantAsync(Encoding.Default.GetBytes(settlerAdminSettings.SettlerOpenApi.AbsoluteUri).AsHex(), false);
-
         var gigWorker = new GigGossipNode(
             gigWorkerSettings.ConnectionString,
             gigWorkerSettings.PrivateKey.AsECPrivKey(),
             gigWorkerSettings.ChunkSize
             );
-
-        await FlowLogger.SetupParticipantAsync(gigWorker.PublicKey,  true);
 
         SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
                 token, gigWorker.PublicKey,
@@ -93,7 +88,6 @@ public class MediumTest
                 gossiperSettings.ChunkSize
                 );
             gossipers.Add(gossiper);
-            await FlowLogger.SetupParticipantAsync(gossiper.PublicKey,  true);
         }
 
         var customer = new GigGossipNode(
@@ -102,7 +96,6 @@ public class MediumTest
             customerSettings.ChunkSize
             );
 
-        await FlowLogger.SetupParticipantAsync(customer.PublicKey,  true);
 
         SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
             token, customer.PublicKey,
@@ -111,6 +104,7 @@ public class MediumTest
          ));
 
         await gigWorker.StartAsync(
+            true,
             gigWorkerSettings.Fanout,
             gigWorkerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
@@ -118,12 +112,15 @@ public class MediumTest
             gigWorkerSettings.GetNostrRelays(),
             new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi),
             ()=>new HttpClient(),
-            gigWorkerSettings.GigWalletOpenApi);
+            gigWorkerSettings.GigWalletOpenApi,
+            gigWorkerSettings.SettlerOpenApi
+            );
         gigWorker.ClearContacts();
 
         foreach(var node in gossipers)
         {
             await node.StartAsync(
+                true,
                 gossiperSettings.Fanout,
                 gossiperSettings.PriceAmountForRouting,
                 TimeSpan.FromMilliseconds(gossiperSettings.TimestampToleranceMs),
@@ -131,11 +128,13 @@ public class MediumTest
                 gossiperSettings.GetNostrRelays(),
                 new NetworkEarnerNodeEvents(),
                 () => new HttpClient(),
-                gossiperSettings.GigWalletOpenApi);
+                gossiperSettings.GigWalletOpenApi,
+                gigWorkerSettings.SettlerOpenApi);
             node.ClearContacts();
         }
 
         await customer.StartAsync(
+            true,
             customerSettings.Fanout,
             customerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(customerSettings.TimestampToleranceMs),
@@ -143,7 +142,8 @@ public class MediumTest
             customerSettings.GetNostrRelays(),
             new CustomerGossipNodeEvents(this),
             () => new HttpClient(),
-            customerSettings.GigWalletOpenApi);
+            customerSettings.GigWalletOpenApi,
+            gigWorkerSettings.SettlerOpenApi);
         customer.ClearContacts();
 
         async Task TopupNode(GigGossipNode node, long minAmout,long topUpAmount)
@@ -206,7 +206,6 @@ public class MediumTest
                 PickupAfter = DateTime.UtcNow,
                 DropoffBefore = DateTime.UtcNow.AddMinutes(20)
             },
-            customerSettings.SettlerOpenApi,
             new[] {"ride"} );
 
         }
@@ -226,8 +225,6 @@ public class MediumTest
         foreach (var node in gossipers)
             node.StopAsync();
         customer.StopAsync();
-
-        FlowLogger.Stop();
     }
 }
 
@@ -274,7 +271,7 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
 
     public async void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
     {
-        await FlowLogger.NewMessageAsync(me.PublicKey, paymentHash, "InvoiceSettled");
+        await me.FlowLogger.NewMessageAsync(me.PublicKey, paymentHash, "InvoiceSettled");
         lock (MainThreadControl.Ctrl)
         {
             MainThreadControl.Counter--;
@@ -337,7 +334,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
                     Fee = 4321,
                     SettlerServiceUri = settlerUri,
                 });
-            FlowLogger.NewEvent(me.PublicKey, "AcceptBraodcast");
+            me.FlowLogger.NewNote(me.PublicKey, "AcceptBraodcast");
         }
     }
 
@@ -357,7 +354,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
     public async void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
     {
-        await FlowLogger.NewMessageAsync(me.PublicKey, paymentHash, "InvoiceSettled");
+        await me.FlowLogger.NewMessageAsync(me.PublicKey, paymentHash, "InvoiceSettled");
         lock (MainThreadControl.Ctrl)
         {
             MainThreadControl.Counter--;
@@ -446,7 +443,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                             Console.WriteLine(paymentResult);
                             return;
                         }
-                        FlowLogger.NewEvent(me.PublicKey, "AcceptResponse");
+                        me.FlowLogger.NewNote(me.PublicKey, "AcceptResponse");
                     }
                     else
                     {
@@ -463,8 +460,8 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
             key.AsBytes(),
             replyPayload.Value.EncryptedReplyMessage));
         Trace.TraceInformation(message);
-        FlowLogger.NewEvent(me.PublicKey, "OnResponseReady");
-        FlowLogger.NewConnected(message, me.PublicKey, "connected");
+        me.FlowLogger.NewNote(me.PublicKey, "OnResponseReady");
+        me.FlowLogger.NewConnected(message, me.PublicKey, "connected");
     }
     public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
     {

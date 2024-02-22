@@ -65,9 +65,6 @@ public class ComplexTest
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.UtcNow, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
-        FlowLogger.Start(settlerAdminSettings.SettlerOpenApi, settlerSelector, settlerPrivKey);
-        await FlowLogger.SetupParticipantAsync(Encoding.Default.GetBytes(settlerAdminSettings.SettlerOpenApi.AbsoluteUri).AsHex(), false);
-
         var gridShape = applicationSettings.GetGridShape();
         var gridShapeIter = from x in gridShape select Enumerable.Range(0, x);
 
@@ -99,6 +96,7 @@ public class ComplexTest
                  ));
 
             await gigWorker.StartAsync (
+                true,
                 gridNodeSettings.Fanout,
                 gridNodeSettings.PriceAmountForRouting,
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
@@ -106,9 +104,9 @@ public class ComplexTest
                 gridNodeSettings.GetNostrRelays(),
                 new GigWorkerGossipNodeEvents(gridNodeSettings.SettlerOpenApi),
                 ()=>new HttpClient(),
-                gridNodeSettings.GigWalletOpenApi);
-
-            await FlowLogger.SetupParticipantAsync(gigWorker.PublicKey, true);
+                gridNodeSettings.GigWalletOpenApi,
+                gridNodeSettings.SettlerOpenApi
+                );
         }
 
         
@@ -124,6 +122,7 @@ public class ComplexTest
              ));
 
             await customer.StartAsync(
+                true,
                 gridNodeSettings.Fanout,
                 gridNodeSettings.PriceAmountForRouting,
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
@@ -131,14 +130,14 @@ public class ComplexTest
                  gridNodeSettings.GetNostrRelays(),
                 new CustomerGossipNodeEvents(),
                 () => new HttpClient(),
-                gridNodeSettings.GigWalletOpenApi);
+                gridNodeSettings.GigWalletOpenApi,
+                gridNodeSettings.SettlerOpenApi);
             customers.Add(customer);
-
-            await FlowLogger.SetupParticipantAsync(customer.PublicKey, true);
         }
         foreach (var node in thingsList)
         {
             await node.Value.StartAsync(
+                true,
                 gridNodeSettings.Fanout,
                 gridNodeSettings.PriceAmountForRouting,
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
@@ -146,8 +145,8 @@ public class ComplexTest
                 gridNodeSettings.GetNostrRelays(),
                 new NetworkEarnerNodeEvents(),
                 ()=> new HttpClient(),
-                gridNodeSettings.GigWalletOpenApi);
-            await FlowLogger.SetupParticipantAsync(node.Value.PublicKey, true);
+                gridNodeSettings.GigWalletOpenApi,
+                gridNodeSettings.SettlerOpenApi);
         }
 
         var already = new HashSet<string>();
@@ -216,7 +215,7 @@ public class ComplexTest
                 PickupAfter = DateTime.UtcNow,
                 DropoffBefore = DateTime.UtcNow.AddMinutes(20)
             },
-            gridNodeSettings.SettlerOpenApi, new string[] { "ride" });
+            new string[] { "ride" });
 
         }
 
@@ -236,8 +235,6 @@ public class ComplexTest
             var node_name = nod_name_f(nod_idx);
             things[node_name].StopAsync();
         }
-
-        FlowLogger.Stop();
     }
 }
 
@@ -254,14 +251,14 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
                    taxiTopic.DropoffBefore >= DateTime.UtcNow)
             {
                 await me.BroadcastToPeersAsync(peerPublicKey, broadcastFrame);
-                FlowLogger.NewEvent(me.PublicKey, "BroadcastToPeers");
+                me.FlowLogger.NewNote(me.PublicKey, "BroadcastToPeers");
             }
         }
     }
 
     public async void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
     {
-        await FlowLogger.NewMessageAsync(me.PublicKey, paymentHash, "InvoiceSettled");
+        await me.FlowLogger.NewMessageAsync(me.PublicKey, paymentHash, "InvoiceSettled");
         lock (MainThreadControl.Ctrl)
         {
             MainThreadControl.Counter--;
@@ -348,7 +345,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
                     Fee = 4321,
                     SettlerServiceUri = settlerUri,
                 });
-            FlowLogger.NewEvent(me.PublicKey, "AcceptBraodcast");
+            me.FlowLogger.NewNote(me.PublicKey, "AcceptBraodcast");
         }
     }
 
@@ -368,7 +365,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
     public async void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
     {
-        await FlowLogger.NewMessageAsync(me.PublicKey, paymentHash, "InvoiceSettled");
+        await me.FlowLogger.NewMessageAsync(me.PublicKey, paymentHash, "InvoiceSettled");
         lock (MainThreadControl.Ctrl)
         {
             MainThreadControl.Counter--;
@@ -454,7 +451,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                             Console.WriteLine(paymentResult);
                             return;
                         }
-                        FlowLogger.NewEvent(me.PublicKey, "AcceptResponse");
+                        me.FlowLogger.NewNote(me.PublicKey, "AcceptResponse");
                     }
                     else
                     {
@@ -471,8 +468,8 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
             key.AsBytes(),
             replyPayload.Value.EncryptedReplyMessage));
         Trace.TraceInformation(message);
-        FlowLogger.NewEvent(me.PublicKey, "OnResponseReady");
-        FlowLogger.NewConnected(message, me.PublicKey, "connected");
+        me.FlowLogger.NewNote(me.PublicKey, "OnResponseReady");
+        me.FlowLogger.NewConnected(message, me.PublicKey, "connected");
     }
     public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
     {

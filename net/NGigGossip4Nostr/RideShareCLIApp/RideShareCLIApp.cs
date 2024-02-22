@@ -462,6 +462,7 @@ public partial class RideShareCLIApp
     {
 
         await gigGossipNode.StartAsync(
+            true,
             settings.NodeSettings.Fanout,
             settings.NodeSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(settings.NodeSettings.TimestampToleranceMs),
@@ -469,7 +470,8 @@ public partial class RideShareCLIApp
             settings.NodeSettings.GetNostrRelays(), 
             ((GigGossipNodeEventSource) gigGossipNodeEventSource).GigGossipNodeEvents,
             ()=>new HttpClient(),
-            settings.NodeSettings.GigWalletOpenApi);
+            settings.NodeSettings.GigWalletOpenApi,
+            settings.NodeSettings.SettlerOpenApi);
 
         var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken()));
         AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
