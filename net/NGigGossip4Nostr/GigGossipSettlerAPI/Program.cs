@@ -319,13 +319,12 @@ app.MapPost("/logevent/{authToken}/{eventType}", async (HttpRequest request, str
 .WithDescription("Logs an event");
 
 
-app.MapGet("/getlogevents", (string authToken, string pubkey, DateTime frm, DateTime to) =>
+app.MapGet("/getlogevents", (string authToken, string pubkey, long frmtmst, long totmst) =>
 {
     try
     {
         Singlethon.Settler.ValidateAuthToken(authToken);
-        Singlethon.Settler.GetLogEvents(pubkey, frm, to);
-        return new Result<List<SystemLogEntry>>();
+        return new Result<List<SystemLogEntry>>(Singlethon.Settler.GetLogEvents(pubkey, DateTimeOffset.FromUnixTimeMilliseconds(frmtmst).UtcDateTime, DateTimeOffset.FromUnixTimeMilliseconds(totmst).UtcDateTime));
     }
     catch (Exception ex)
     {

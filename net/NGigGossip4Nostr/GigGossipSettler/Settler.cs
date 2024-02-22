@@ -147,7 +147,7 @@ public class Settler : CertificationAuthority
         {
             EntryId = Guid.NewGuid(),
             PublicKey = pubkey,
-            DateTime = DateTime.Now,
+            DateTime = DateTime.UtcNow,
             EventType = eventType,
             Message = message,
             Exception = exception,

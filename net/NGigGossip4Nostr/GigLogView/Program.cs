@@ -1,15 +1,9 @@
-﻿// See https://aka.ms/new-console-template for more information
-using GigLNDWalletAPIClient;
-using CryptoToolkit;
-using NBitcoin.Secp256k1;
-using Microsoft.Extensions.Configuration;
+﻿using System.Reflection;
 using CommandLine;
 using CommandLine.Text;
-using Newtonsoft.Json;
 using Spectre.Console;
-using System.Reflection;
 
-namespace GigLNDWalletCLI;
+namespace GigLogView;
 
 class Program
 {
@@ -32,20 +26,20 @@ class Program
                 try
                 {
                     var assembly = Assembly.GetExecutingAssembly();
-                    var resourceName = "GigLNDWalletCLI.speed.flf";
+                    var resourceName = "GigLogView.speed.flf";
                     AnsiConsole.WriteLine(assembly.FullName);
                     AnsiConsole.MarkupLine("\t[bold orange1]Gig-Gossip[/] protocol [link]https://gig-gossip.org[/]");
                     AnsiConsole.MarkupLine("\t[bold](C) Don't Trust Verify[/] [link]https://donttrustverify.org[/]");
                     using Stream stream = assembly.GetManifestResourceStream(resourceName);
                     var font = FigletFont.Load(stream);
                     AnsiConsole.Write(
-                        new FigletText(font, "wallet")
+                        new FigletText(font, "log")
                             .LeftJustified()
                             .Color(Color.Green1));
 
                     AnsiConsole.WriteLine();
 
-                    new GigLNDWalletCLI(args, options.BaseDir, options.Sfx).RunAsync().Wait();
+                    new GigLogView(args, options.BaseDir, options.Sfx).RunAsync().Wait();
                 }
                 catch (Exception ex)
                 {
@@ -61,7 +55,7 @@ class Program
             var helpText = HelpText.AutoBuild(parserResult, h =>
             {
                 h.AdditionalNewLineAfterOption = false;
-                h.Heading = "GigLNDWalletCLI";
+                h.Heading = "GigLogView";
                 h.Copyright = "Copyright (C) Don't Trust Verify";
                 return h;
             }, e => e);
@@ -72,7 +66,11 @@ class Program
             Console.WriteLine("END");
 
     }
-
 }
 
 
+public class UserSettings
+{
+    public required string GigSettlerOpenApi { get; set; }
+    public required string SettlerPrivateKey { get; set; }
+}

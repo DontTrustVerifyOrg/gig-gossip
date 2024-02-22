@@ -43,7 +43,7 @@ public class GigLNDWalletCLI
     public GigLNDWalletCLI(string[] args, string baseDir, string sfx)
     {
         if (sfx == null)
-            sfx = AnsiConsole.Prompt(new TextPrompt<string>("Enter the [orange1]config suffix[/]?"));
+            sfx = AnsiConsole.Prompt(new TextPrompt<string>("Enter the [orange1]config suffix[/]?").AllowEmpty());
 
         sfx = (string.IsNullOrWhiteSpace(sfx)) ? "" : "_" + sfx;
 

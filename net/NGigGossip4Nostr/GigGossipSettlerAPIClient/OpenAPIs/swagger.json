@@ -445,23 +445,25 @@
             }
           },
           {
-            "name": "frm",
+            "name": "frmtmst",
             "in": "query",
             "description": "Datatime from (incusive)",
             "required": true,
             "style": "form",
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "format": "int64"
             }
           },
           {
-            "name": "to",
+            "name": "totmst",
             "in": "query",
             "description": "Datatime to (exclusive)",
             "required": true,
             "style": "form",
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "format": "int64"
             }
           }
         ],
@@ -1619,6 +1621,10 @@
       "SystemLogEntry": {
         "type": "object",
         "properties": {
+          "entryId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "publicKey": {
             "type": "string",
             "nullable": true
