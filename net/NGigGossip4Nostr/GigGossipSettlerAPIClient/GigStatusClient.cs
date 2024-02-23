@@ -5,10 +5,10 @@ namespace GigGossipSettlerAPIClient
 {
 	public class GigStatusClient
 	{
-        swaggerClient swaggerClient;
+        ISettlerAPI swaggerClient;
         public HubConnection Connection;
 
-        public GigStatusClient(swaggerClient swaggerClient)
+        public GigStatusClient(ISettlerAPI swaggerClient)
 		{
             this.swaggerClient = swaggerClient;
         }

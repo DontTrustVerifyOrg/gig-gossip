@@ -92,12 +92,18 @@ public class GigLogView
                                 AnsiConsole.WriteLine(row.EntryId.ToString());
                                 AnsiConsole.WriteLine(row.PublicKey);
                                 AnsiConsole.WriteLine(((System.Diagnostics.TraceEventType)row.EventType).ToString());
-                                AnsiConsole.WriteLine(row.Timestamp.ToString());
+                                AnsiConsole.WriteLine(DateTimeOffset.FromUnixTimeMilliseconds(row.Timestamp).ToString("hh:mm:ss.FFF (dd MMM yyyy)"));
                                 AnsiConsole.WriteLine(row.Message);
                                 AnsiConsole.WriteLine(row.Exception);
                                 AnsiConsole.WriteLine("-----------");
                             }
                             frm = maxtm;
+                        }
+                        if (Console.KeyAvailable)
+                        {
+                            var k = Console.ReadKey().Key;
+                            if (k == ConsoleKey.Escape)
+                                break;
                         }
                         Thread.Sleep(1000);
                     }

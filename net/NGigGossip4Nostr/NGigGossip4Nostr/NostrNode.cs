@@ -30,6 +30,7 @@ public abstract class NostrNode
     private bool eoseReceived = false;
     private SemaphoreSlim eventSemSlim = new(1, 1);
     private bool consumeCL;
+    protected CancellationTokenSource CancellationTokenSource = new();
 
     public IFlowLogger FlowLogger { get; private set; }
 
@@ -153,7 +154,7 @@ public abstract class NostrNode
         }
 
         foreach (var e in events)
-            await nostrClient.PublishEvent(e, CancellationToken.None);
+            await nostrClient.PublishEvent(e, CancellationTokenSource.Token);
         return evid;
     }
 
@@ -279,6 +280,7 @@ public abstract class NostrNode
     {
         if (nostrClient == null)
             return;
+        CancellationTokenSource.Cancel();
         await nostrClient.CloseSubscription(subscriptionId);
         await nostrClient.Disconnect();
         nostrClient.Dispose();

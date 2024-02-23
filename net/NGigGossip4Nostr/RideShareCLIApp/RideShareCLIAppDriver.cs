@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using CryptoToolkit;
 using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
@@ -92,7 +93,8 @@ public partial class RideShareCLIApp
                             Message = Crypto.SerializeObject(reply),
                             Fee = fee,
                             SettlerServiceUri = settings.NodeSettings.SettlerOpenApi,
-                        });
+                        },
+                        CancellationTokenSource.Token);
 
             if (!payReqsForPayloadId.ContainsKey(id))
                 payReqsForPayloadId[id] = payReq;
@@ -108,8 +110,8 @@ public partial class RideShareCLIApp
         foreach (var e in evs)
         {
             var settlerClient = e.GigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi);
-            SettlerAPIResult.Check(await settlerClient.CancelGigAsync(await e.GigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), e.BroadcastFrame.SignedRequestPayload.Id.ToString(), payReqsForPayloadId[id].ReplierCertificateId.ToString()));
-            WalletAPIResult.Check(await e.GigGossipNode.GetWalletClient().CancelInvoiceAsync(await e.GigGossipNode.MakeWalletAuthToken(), payReqsForPayloadId[id].DecodedReplyInvoice.PaymentHash));
+            SettlerAPIResult.Check(await settlerClient.CancelGigAsync(await e.GigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), e.BroadcastFrame.SignedRequestPayload.Id.ToString(), payReqsForPayloadId[id].ReplierCertificateId.ToString(), CancellationTokenSource.Token));
+            WalletAPIResult.Check(await e.GigGossipNode.GetWalletClient().CancelInvoiceAsync(await e.GigGossipNode.MakeWalletAuthToken(), payReqsForPayloadId[id].DecodedReplyInvoice.PaymentHash, CancellationTokenSource.Token));
             break;
         }
     }
@@ -139,8 +141,8 @@ public partial class RideShareCLIApp
                         {
                             try
                             {
-                                SettlerAPIResult.Check(await settlerClient.CancelGigAsync(token, broadcast.SignedRequestPayloadId.ToString(), broadcast.ReplierCertificateId.ToString()));
-                                WalletAPIResult.Check(await e.GigGossipNode.GetWalletClient().CancelInvoiceAsync(await e.GigGossipNode.MakeWalletAuthToken(), broadcast.ReplyInvoiceHash));
+                                SettlerAPIResult.Check(await settlerClient.CancelGigAsync(token, broadcast.SignedRequestPayloadId.ToString(), broadcast.ReplierCertificateId.ToString(), CancellationTokenSource.Token));
+                                WalletAPIResult.Check(await e.GigGossipNode.GetWalletClient().CancelInvoiceAsync(await e.GigGossipNode.MakeWalletAuthToken(), broadcast.ReplyInvoiceHash, CancellationTokenSource.Token));
                             }
                             catch (Exception ex)
                             {

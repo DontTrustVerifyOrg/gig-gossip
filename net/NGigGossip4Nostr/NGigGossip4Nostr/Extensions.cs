@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using GigGossipSettlerAPIClient;
 
 namespace NGigGossip4Nostr;
 
@@ -19,6 +20,13 @@ public static class Extensions
         }
         var newValue = await asyncValueFactory(key);
         return dict.GetOrAdd(key, newValue);
+    }
+
+    public async static Task<byte[]> ToBytes(this FileParameter formFile)
+    {
+        using var stream = new MemoryStream();
+        await formFile.Data.CopyToAsync(stream);
+        return stream.ToArray();
     }
 }
 

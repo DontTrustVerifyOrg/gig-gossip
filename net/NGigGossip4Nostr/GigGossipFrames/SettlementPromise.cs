@@ -41,9 +41,9 @@ public class SettlementPromise : SignableObject
     /// <param name="encryptedSignedReplyPayload">The encrypted signed reply payload.</param>
     /// <param name="caAccessor">The certification authority accessor.</param>
     /// <returns><c>true</c> if the verification was successful; otherwise, <c>false</c>.</returns>
-    public async Task<bool> VerifyAsync(byte[] encryptedSignedReplyPayload, ICertificationAuthorityAccessor caAccessor)
+    public async Task<bool> VerifyAsync(byte[] encryptedSignedReplyPayload, ICertificationAuthorityAccessor caAccessor,CancellationToken cancellationToken)
     {
-        if (!base.Verify(await caAccessor.GetPubKeyAsync(ServiceUri)))
+        if (!base.Verify(await caAccessor.GetPubKeyAsync(ServiceUri, cancellationToken)))
             return false;
 
         if (!Crypto.ComputeSha256(encryptedSignedReplyPayload).SequenceEqual(this.HashOfEncryptedReplyPayload))

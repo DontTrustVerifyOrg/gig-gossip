@@ -57,11 +57,10 @@ public class ComplexTest
 
         bitcoinWalletClient.Generate(10); // generate some blocks
 
-        var settlerSelector = new SimpleSettlerSelector(()=> new HttpClient());
         var settlerPrivKey = settlerAdminSettings.PrivateKey.AsECPrivKey();
         var settlerPubKey = settlerPrivKey.CreateXOnlyPubKey();
-        var settlerClient = settlerSelector.GetSettlerClient(settlerAdminSettings.SettlerOpenApi);
-        var gtok = SettlerAPIResult.Get<Guid>(await settlerClient.GetTokenAsync(settlerPubKey.AsHex()));
+        var settlerClient = new GigGossipSettlerAPIClient.swaggerClient(settlerAdminSettings.SettlerOpenApi.AbsoluteUri, new HttpClient());
+        var gtok = SettlerAPIResult.Get<Guid>(await settlerClient.GetTokenAsync(settlerPubKey.AsHex(), CancellationToken.None));
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.UtcNow, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
@@ -92,7 +91,7 @@ public class ComplexTest
             SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
                     token, gigWorker.PublicKey,
                     "drive", val, val,
-                    24
+                    24, CancellationToken.None
                  ));
 
             await gigWorker.StartAsync (
@@ -118,7 +117,7 @@ public class ComplexTest
             SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
                 token, customer.PublicKey,
                 "ride", val, val,
-                24
+                24, CancellationToken.None
              ));
 
             await customer.StartAsync(
@@ -172,10 +171,10 @@ public class ComplexTest
 
         async Task TopupNodeAsync(GigGossipNode node, long minAmout,long topUpAmount)
         {
-            var ballanceOfCustomer = WalletAPIResult.Get<long>(await node.GetWalletClient().GetBalanceAsync(await node.MakeWalletAuthToken()));
+            var ballanceOfCustomer = WalletAPIResult.Get<long>(await node.GetWalletClient().GetBalanceAsync(await node.MakeWalletAuthToken(), CancellationToken.None));
             if (ballanceOfCustomer < minAmout)
             {
-                var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await node.GetWalletClient().NewAddressAsync(await node.MakeWalletAuthToken()));
+                var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await node.GetWalletClient().NewAddressAsync(await node.MakeWalletAuthToken(), CancellationToken.None));
                 bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, bitcoinSettings.GetNetwork()), new NBitcoin.Money(topUpAmount));
             }
         }
@@ -195,7 +194,7 @@ public class ComplexTest
         {
         outer:
             foreach (var node in things.Values)
-                if (WalletAPIResult.Get<long>(await node.GetWalletClient().GetBalanceAsync(await node.MakeWalletAuthToken())) < minAmount)
+                if (WalletAPIResult.Get<long>(await node.GetWalletClient().GetBalanceAsync(await node.MakeWalletAuthToken(), CancellationToken.None)) < minAmount)
                 {
                     Thread.Sleep(1000);
                     goto outer;
@@ -268,7 +267,7 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
 
     public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
-        var paymentResult = await me.PayNetworkInvoiceAsync(iac);
+        var paymentResult = await me.PayNetworkInvoiceAsync(iac, CancellationToken.None);
         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
         {
             Console.WriteLine(paymentResult);
@@ -344,14 +343,15 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
                     Message = Encoding.Default.GetBytes(me.PublicKey),
                     Fee = 4321,
                     SettlerServiceUri = settlerUri,
-                });
+                },
+                CancellationToken.None);
             me.FlowLogger.NewNote(me.PublicKey, "AcceptBraodcast");
         }
     }
 
     public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
-        var paymentResult = await me.PayNetworkInvoiceAsync(iac);
+        var paymentResult = await me.PayNetworkInvoiceAsync(iac, CancellationToken.None);
         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
         {
             Console.WriteLine(paymentResult);
@@ -445,7 +445,8 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                             win.ReplyInvoice,
                             Crypto.DeserializeObject<PayReq>(win.DecodedReplyInvoice),
                             win.NetworkInvoice,
-                            Crypto.DeserializeObject<PayReq>(win.DecodedNetworkInvoice));
+                            Crypto.DeserializeObject<PayReq>(win.DecodedNetworkInvoice),
+                            CancellationToken.None);
                         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
                         {
                             Console.WriteLine(paymentResult);

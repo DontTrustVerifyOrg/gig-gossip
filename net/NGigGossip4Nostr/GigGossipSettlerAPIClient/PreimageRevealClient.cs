@@ -4,10 +4,10 @@ namespace GigGossipSettlerAPIClient
 {
 	public class PreimageRevealClient
 	{
-        swaggerClient swaggerClient;
+        ISettlerAPI swaggerClient;
         public HubConnection Connection;
 
-        public PreimageRevealClient(swaggerClient swaggerClient)
+        public PreimageRevealClient(ISettlerAPI swaggerClient)
 		{
             this.swaggerClient = swaggerClient;
         }

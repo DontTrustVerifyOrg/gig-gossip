@@ -127,7 +127,7 @@ public class PaymentStatusUpdatesMonitor
                         { 
                             try
                             {
-                                var status = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().GetPaymentStatusAsync(await gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash));
+                                var status = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().GetPaymentStatusAsync(await gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash, CancellationTokenSource.Token));
                                 if (status != pay.PaymentStatus)
                                 {
                                     gigGossipNode.OnPaymentStatusChange(status, pay.Data);

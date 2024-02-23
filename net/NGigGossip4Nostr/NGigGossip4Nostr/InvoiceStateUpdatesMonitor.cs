@@ -115,7 +115,7 @@ namespace NGigGossip4Nostr
                                 string state = string.Empty;
                                 try
                                 {
-                                    state = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().GetInvoiceStateAsync(await gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash));
+                                    state = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().GetInvoiceStateAsync(await gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash, CancellationTokenSource.Token));
                                 }
                                 catch (Exception ex) { Console.WriteLine(ex.Message); }
                                 if (state != inv.InvoiceState)

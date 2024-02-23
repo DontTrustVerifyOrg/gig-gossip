@@ -12,7 +12,7 @@ namespace NGigGossip4Nostr;
 
 public interface ISettlerMonitorEvents
 {
-    public Task<bool> OnPreimageRevealedAsync(Uri settlerUri, string paymentHash, string preimage);
+    public Task<bool> OnPreimageRevealedAsync(Uri settlerUri, string paymentHash, string preimage, CancellationToken cancellationToken);
     public void OnSymmetricKeyRevealed(byte[] data, string key);
 }
 
@@ -107,10 +107,10 @@ public class SettlerMonitor
             {
                 var serviceUri = kv.ServiceUri;
                 var phash = kv.PaymentHash;
-                var preimage = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash));
+                var preimage = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash, CancellationTokenSource.Token));
                 if (!string.IsNullOrWhiteSpace(preimage))
                 {
-                    await gigGossipNode.OnPreimageRevealedAsync(serviceUri, phash, preimage);
+                    await gigGossipNode.OnPreimageRevealedAsync(serviceUri, phash, preimage, CancellationTokenSource.Token);
                     kv.Preimage = preimage;
                     gigGossipNode.nodeContext.Value.SaveObject(kv);
                 }
@@ -126,7 +126,7 @@ public class SettlerMonitor
             {
                 var serviceUri = kv.ServiceUri;
                 var signedReqestPayloadId = kv.SignedRequestPayloadId;
-                var stat = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri),  signedReqestPayloadId.ToString(), kv.ReplierCertificateId.ToString()));
+                var stat = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri),  signedReqestPayloadId.ToString(), kv.ReplierCertificateId.ToString(), CancellationTokenSource.Token));
                 if (!string.IsNullOrWhiteSpace(stat))
                 {
                     var prts = stat.Split('|');
@@ -176,10 +176,10 @@ public class SettlerMonitor
                         foreach (var kv in pToMon)
                         {
                             var phash = kv.PaymentHash;
-                            var preimage = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash));
+                            var preimage = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash, CancellationTokenSource.Token));
                             if (!string.IsNullOrWhiteSpace(preimage))
                             {
-                                await gigGossipNode.OnPreimageRevealedAsync(serviceUri, phash, preimage);
+                                await gigGossipNode.OnPreimageRevealedAsync(serviceUri, phash, preimage, CancellationTokenSource.Token);
                                 kv.Preimage = preimage;
                                 gigGossipNode.nodeContext.Value.SaveObject(kv);
                             }
@@ -199,7 +199,7 @@ public class SettlerMonitor
                                       select i).FirstOrDefault();
                         if (pToMon != null)
                         {
-                            await gigGossipNode.OnPreimageRevealedAsync(pToMon.ServiceUri, pToMon.PaymentHash, preimage);
+                            await gigGossipNode.OnPreimageRevealedAsync(pToMon.ServiceUri, pToMon.PaymentHash, preimage, CancellationTokenSource.Token);
                             pToMon.Preimage = preimage;
                             gigGossipNode.nodeContext.Value.SaveObject(pToMon);
                         }
@@ -253,7 +253,7 @@ public class SettlerMonitor
                         foreach (var kv in kToMon)
                         {
                             var signedRequestPayloadId = kv.SignedRequestPayloadId;
-                            var stat = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedRequestPayloadId.ToString(), kv.ReplierCertificateId.ToString()));
+                            var stat = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedRequestPayloadId.ToString(), kv.ReplierCertificateId.ToString(), CancellationTokenSource.Token));
                             if (!string.IsNullOrWhiteSpace(stat))
                             {
                                 var prts = stat.Split('|');

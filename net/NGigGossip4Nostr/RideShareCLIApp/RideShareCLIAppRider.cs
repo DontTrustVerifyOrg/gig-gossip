@@ -56,7 +56,7 @@ public partial class RideShareCLIApp
         var evs = receivedResponsesForPaymentHashes[paymentHash];
         var e = evs.Aggregate((curMin, x) => (curMin == null || x.DecodedNetworkInvoice.NumSatoshis < curMin.DecodedNetworkInvoice.NumSatoshis) ? x : curMin);
 
-        var paymentResult = await e.GigGossipNode.AcceptResponseAsync(e.ReplyPayloadCert, e.ReplyInvoice, e.DecodedReplyInvoice, e.NetworkInvoice, e.DecodedNetworkInvoice);
+        var paymentResult = await e.GigGossipNode.AcceptResponseAsync(e.ReplyPayloadCert, e.ReplyInvoice, e.DecodedReplyInvoice, e.NetworkInvoice, e.DecodedNetworkInvoice, CancellationTokenSource.Token);
         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
         {
             AnsiConsole.MarkupLine($"[red]{paymentResult}[/]");

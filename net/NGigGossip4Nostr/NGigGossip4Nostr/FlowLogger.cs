@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Dynamic;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
+using System.Xml.Linq;
 using CryptoToolkit;
 using GigGossipSettlerAPIClient;
 using GoogleApi.Entities.Places.Common;
@@ -17,7 +20,7 @@ namespace NGigGossip4Nostr
         Task TraceInformationAsync(string? message);
         Task TraceWarningAsync(string? message);
         Task TraceErrorAsync(string? message);
-        Task TraceExceptionAsync(Exception exception);
+        Task TraceExceptionAsync(Exception exception, string? message=null);
         Task NewMessageAsync(string a, string b, string message);
         Task NewReplyAsync(string a, string b, string message);
         Task NewConnected(string a, string b, string message);
@@ -27,16 +30,17 @@ namespace NGigGossip4Nostr
     public class FlowLogger : IFlowLogger
     {
         private Uri settlerUri;
-        private ISettlerSelector settlerSelector;
+        private ISettlerAPI settlerAPI;
         private ECPrivKey privKey;
         private string publicKey;
         private SemaphoreSlim guard = new(1, 1);
         public bool Enabled { get; set; }
+        CancellationTokenSource CancellationTokenSource = new();
 
-        public FlowLogger(bool traceEnabled, Uri settlerUri, ISettlerSelector settlerSelector, ECPrivKey eCPrivKey)
+        public FlowLogger(bool traceEnabled, ECPrivKey eCPrivKey, Uri settlerUri, Func<HttpClient> httpFactory)
         {
             this.settlerUri = settlerUri;
-            this.settlerSelector = settlerSelector;
+            this.settlerAPI = new swaggerClient(settlerUri.AbsoluteUri, httpFactory());
             this.privKey = eCPrivKey;
             this.publicKey = eCPrivKey.CreateXOnlyPubKey().AsHex();
             this.Enabled = traceEnabled;
@@ -46,7 +50,7 @@ namespace NGigGossip4Nostr
         {
             return Crypto.MakeSignedTimedToken(
                 privKey, DateTime.UtcNow,
-                SettlerAPIResult.Get<Guid>(await settlerSelector.GetSettlerClient(settlerUri).GetTokenAsync(publicKey)));
+                SettlerAPIResult.Get<Guid>(await settlerAPI.GetTokenAsync(publicKey, CancellationTokenSource.Token)));
         }
 
         public async Task WriteToLogAsync(System.Diagnostics.TraceEventType eventType, string message)
@@ -56,14 +60,15 @@ namespace NGigGossip4Nostr
             await guard.WaitAsync();
             try
             {
-                SettlerAPIResult.Check(await settlerSelector.GetSettlerClient(settlerUri).LogEventAsync(
+                SettlerAPIResult.Check(await settlerAPI.LogEventAsync(
                     await MakeSettlerAuthTokenAsync(),
                     eventType.ToString(),
                     new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes(message))),
-                    new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes("")))
+                    new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes(""))),
+                    CancellationTokenSource.Token
                     ));
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Trace.TraceError(ex.Message);
             }
@@ -73,18 +78,19 @@ namespace NGigGossip4Nostr
             }
         }
 
-        public async Task WriteExceptionAsync(System.Diagnostics.TraceEventType eventType, Exception exception)
+        public async Task WriteExceptionAsync(System.Diagnostics.TraceEventType eventType, Exception exception, string? message = null)
         {
             if (!Enabled) return;
 
             await guard.WaitAsync();
             try
             {
-                SettlerAPIResult.Check(await settlerSelector.GetSettlerClient(settlerUri).LogEventAsync(
+                SettlerAPIResult.Check(await settlerAPI.LogEventAsync(
                 await MakeSettlerAuthTokenAsync(),
                 eventType.ToString(),
-                new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes(exception.Message))),
-                new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes(exception.ToJsonString())))
+                new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes(string.IsNullOrWhiteSpace(message) ? exception.Message : message))),
+                new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes(exception.ToJsonString()))),
+                CancellationTokenSource.Token
                 ));
             }
             catch (Exception ex)
@@ -118,11 +124,11 @@ namespace NGigGossip4Nostr
             await WriteToLogAsync(System.Diagnostics.TraceEventType.Error, message);
         }
 
-        public async Task TraceExceptionAsync(Exception exception)
+        public async Task TraceExceptionAsync(Exception exception, string? message = null)
         {
             if (!Enabled) return;
 
-            await WriteExceptionAsync(System.Diagnostics.TraceEventType.Critical, exception);
+            await WriteExceptionAsync(System.Diagnostics.TraceEventType.Critical, exception, message);
         }
 
         public async Task NewMessageAsync(string a, string b, string message)
@@ -152,7 +158,7 @@ namespace NGigGossip4Nostr
                 "\t" + a + "--)" + b + ": " + message);
         }
 
-        public async Task NewNote(string a,string message)
+        public async Task NewNote(string a, string message)
         {
             if (!Enabled) return;
 
@@ -162,5 +168,6 @@ namespace NGigGossip4Nostr
         }
 
     }
+
 }
 

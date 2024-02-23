@@ -9,6 +9,7 @@ using System.Net.Sockets;
 using System.Numerics;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Threading;
 using CryptoToolkit;
 using GigGossipFrames;
 using GigGossipSettlerAPIClient;
@@ -43,6 +44,8 @@ public partial class RideShareCLIApp
     bool inDriverMode = false;
     DirectCom directCom;
     Dictionary<Guid, string> directPubkeys = new();
+
+    CancellationTokenSource CancellationTokenSource = new();
 
     static IConfigurationRoot GetConfigurationRoot(string? basePath, string[] args, string defaultFolder, string iniName)
     {
@@ -162,6 +165,7 @@ public partial class RideShareCLIApp
 
     public async Task RunAsync()
     {
+
         var privateKey = await GetPrivateKeyAsync();
         if (privateKey == null)
         {
@@ -224,8 +228,8 @@ public partial class RideShareCLIApp
                 var topUpAmount = Prompt.Input<int>("How much top up");
                 if (topUpAmount > 0)
                 {
-                    var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().NewAddressAsync(await gigGossipNode.MakeWalletAuthToken()));
-                    WalletAPIResult.Check(await gigGossipNode.GetWalletClient().TopUpAndMine6BlocksAsync(await gigGossipNode.MakeWalletAuthToken(), newBitcoinAddressOfCustomer, topUpAmount));
+                    var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().NewAddressAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token));
+                    WalletAPIResult.Check(await gigGossipNode.GetWalletClient().TopUpAndMine6BlocksAsync(await gigGossipNode.MakeWalletAuthToken(), newBitcoinAddressOfCustomer, topUpAmount, CancellationTokenSource.Token));
                 }
             }
             else if (cmd == CommandEnum.SetupMyInfo)
@@ -236,27 +240,31 @@ public partial class RideShareCLIApp
                 SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Name",
                     Convert.ToBase64String(Encoding.Default.GetBytes(name)),
-                    Convert.ToBase64String(new byte[] { }), 24 * 365 * 10));
+                    Convert.ToBase64String(new byte[] { }), 24 * 365 * 10,
+                    CancellationTokenSource.Token));
 
                 byte[] photo = new byte[] { };
 
                 SettlerAPIResult.Check(await settlerClient.GiveUserFileAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Photo", 24 * 365 * 10,
                     new FileParameter(new MemoryStream(photo)),
-                    new FileParameter(new MemoryStream())
+                    new FileParameter(new MemoryStream()),
+                    CancellationTokenSource.Token
                    ));
 
                 string car = Prompt.Input<string>("Your Car");
                 SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Car",
                     Convert.ToBase64String(Encoding.Default.GetBytes(car)),
-                    Convert.ToBase64String(new byte[] { }), 24 * 365 * 10));
+                    Convert.ToBase64String(new byte[] { }), 24 * 365 * 10,
+                    CancellationTokenSource.Token));
 
                 var randloc = MockData.RandomLocation();
                 string trace = GeoHash.Encode(randloc.Latitude, randloc.Longitude, 7);
                 SettlerAPIResult.Check(await settlerClient.SaveUserTracePropertyAsync(authToken,
                     (await GetPublicKeyAsync()).AsHex(), "Geohash",
-                    Convert.ToBase64String(Encoding.Default.GetBytes(trace))));
+                    Convert.ToBase64String(Encoding.Default.GetBytes(trace)),
+                    CancellationTokenSource.Token));
             }
             else if (cmd == CommandEnum.DriverMode)
             {
@@ -381,7 +389,7 @@ public partial class RideShareCLIApp
         {
             var query = Prompt.Input<string>(message);
             var props = SettlerAPIResult.Get<List<string>>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-                .AddressAutocompleteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au"));
+                .AddressAutocompleteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au", CancellationTokenSource.Token));
 
             if (props.Count == 0)
                 continue;
@@ -415,32 +423,32 @@ public partial class RideShareCLIApp
     private async Task<GeolocationRet> GetGeolocation(string query)
     {
         return SettlerAPIResult.Get<GeolocationRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-            .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au"));
+            .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au", CancellationTokenSource.Token));
     }
 
     private async Task<GeoLocation> GetAddressGeocodeAsync(string query)
     {
         var r= SettlerAPIResult.Get<GeolocationRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-            .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au"));
+            .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au", CancellationTokenSource.Token));
         return new GeoLocation(r.Lat, r.Lon);
     }
 
     private async Task<string> GetLocationGeocodeAsync(double lat, double lon)
     {
         return SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-            .LocationGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), lat, lon));
+            .LocationGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), lat, lon, CancellationTokenSource.Token));
     }
 
     private async Task WriteBalance()
     {
-        var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken()));
+        var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token));
         AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
     }
 
     private async void GigGossipNodeEventSource_OnNetworkInvoiceAccepted(object? sender, NetworkInvoiceAcceptedEventArgs e)
     {
         AnsiConsole.WriteLine("Network Invoice Accepted");
-        var paymentResult = await e.GigGossipNode.PayNetworkInvoiceAsync(e.InvoiceData);
+        var paymentResult = await e.GigGossipNode.PayNetworkInvoiceAsync(e.InvoiceData, CancellationTokenSource.Token);
         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
         {
             Console.WriteLine(paymentResult);
@@ -473,7 +481,7 @@ public partial class RideShareCLIApp
             settings.NodeSettings.GigWalletOpenApi,
             settings.NodeSettings.SettlerOpenApi);
 
-        var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken()));
+        var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token));
         AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
 
         var contactList = gigGossipNode.LoadContactList();
@@ -511,21 +519,21 @@ public partial class RideShareCLIApp
     {
         var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.SettlerAdminSettings.SettlerOpenApi);
         var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.SettlerAdminSettings.SettlerOpenApi);
-        return SettlerAPIResult.Get<bool>(await settlerClient.IsChannelVerifiedAsync(authToken, (await GetPublicKeyAsync()).AsHex(), "PhoneNumber", phoneNumber));
+        return SettlerAPIResult.Get<bool>(await settlerClient.IsChannelVerifiedAsync(authToken, (await GetPublicKeyAsync()).AsHex(), "PhoneNumber", phoneNumber, CancellationTokenSource.Token));
     }
 
     async Task ValidatePhoneNumber(string phoneNumber)
     {
         var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.SettlerAdminSettings.SettlerOpenApi);
         var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.SettlerAdminSettings.SettlerOpenApi);
-        SettlerAPIResult.Check(await settlerClient.VerifyChannelAsync(authToken, (await GetPublicKeyAsync()).AsHex(), "PhoneNumber", "SMS", phoneNumber));
+        SettlerAPIResult.Check(await settlerClient.VerifyChannelAsync(authToken, (await GetPublicKeyAsync()).AsHex(), "PhoneNumber", "SMS", phoneNumber, CancellationTokenSource.Token));
     }
 
     async Task<int> SubmitPhoneNumberSecret(string phoneNumber, string secret)
     {
         var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.SettlerAdminSettings.SettlerOpenApi);
         var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.SettlerAdminSettings.SettlerOpenApi);
-        return SettlerAPIResult.Get<int>(await settlerClient.SubmitChannelSecretAsync(authToken, (await GetPublicKeyAsync()).AsHex(), "PhoneNumber", "SMS", phoneNumber, secret));
+        return SettlerAPIResult.Get<int>(await settlerClient.SubmitChannelSecretAsync(authToken, (await GetPublicKeyAsync()).AsHex(), "PhoneNumber", "SMS", phoneNumber, secret, CancellationTokenSource.Token));
     }
 
 

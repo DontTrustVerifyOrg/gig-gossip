@@ -4,12 +4,12 @@ namespace GigLNDWalletAPIClient
 {
 	public class PaymentStatusUpdatesClient
 	{
-        swaggerClient swaggerClient;
+        IWalletAPI swaggerClient;
         private readonly HttpMessageHandler? httpMessageHandler;
         HubConnection connection;
         SemaphoreSlim slimLock = new(1, 1);
 
-        public PaymentStatusUpdatesClient(swaggerClient swaggerClient, HttpMessageHandler? httpMessageHandler = null)
+        public PaymentStatusUpdatesClient(IWalletAPI swaggerClient, HttpMessageHandler? httpMessageHandler = null)
 		{
             this.swaggerClient = swaggerClient;
             this.httpMessageHandler = httpMessageHandler;

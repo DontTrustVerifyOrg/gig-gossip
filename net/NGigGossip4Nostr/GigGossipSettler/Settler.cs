@@ -68,6 +68,8 @@ public class Settler : CertificationAuthority
     private IScheduler scheduler;
     private ISettlerSelector settlerSelector;
 
+    private CancellationTokenSource CancellationTokenSource = new();
+
     public Settler(Uri serviceUri, ISettlerSelector settlerSelector, ECPrivKey settlerPrivateKey, long priceAmountForSettlement, TimeSpan invoicePaymentTimeout, TimeSpan disputeTimeout) : base(serviceUri, settlerPrivateKey)
     {
         this.priceAmountForSettlement = priceAmountForSettlement;
@@ -342,7 +344,7 @@ public class Settler : CertificationAuthority
 
         var encryptedReplyPayload = Convert.FromBase64String(SettlerAPIResult.Get<string>(await settlerSelector.GetSettlerClient(signedRequestPayload.ServiceUri)
             .EncryptObjectForCertificateIdAsync(signedRequestPayload.Id.ToString(),
-                                                new FileParameter(new MemoryStream(Crypto.SerializeObject(replyPayload))))));
+                                                new FileParameter(new MemoryStream(Crypto.SerializeObject(replyPayload))), CancellationTokenSource.Token)));
 
 
         byte[] hashOfEncryptedReplyPayload = Crypto.ComputeSha256(new List<byte[]> { encryptedReplyPayload });

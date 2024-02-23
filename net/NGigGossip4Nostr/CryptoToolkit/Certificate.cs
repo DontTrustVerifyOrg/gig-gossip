@@ -12,14 +12,14 @@ public interface ICertificationAuthorityAccessor
     /// </summary>
     /// <param name="serviceUri">The Uri of the Certifiation Authority service</param>
     /// <returns> Returns ECXOnlyPubKey of Certification Authority that can be used to validate signatures of e.g. issued certificates.</returns>
-    public Task<ECXOnlyPubKey> GetPubKeyAsync(Uri serviceUri);
+    public Task<ECXOnlyPubKey> GetPubKeyAsync(Uri serviceUri, CancellationToken cancellationToken);
 
     /// <summary>
     /// Method to check if a certificate is revoked
     /// </summary>
     /// <param name="id">A Digital Certificate id</param>
     /// <returns>Returns true if the certificate has been revoked, false otherwise. Usefull to implement revocation list.</returns>
-    public Task<bool> IsRevokedAsync(Uri serviceUri, Guid id);
+    public Task<bool> IsRevokedAsync(Uri serviceUri, Guid id, CancellationToken cancellationToken);
 }
 
 [Serializable]
@@ -75,11 +75,11 @@ public class Certificate<T> : SignableObject
    /// </summary>
    /// <param name="caAccessor">An instance of an object that implements ICertificationAuthorityAccessor</param>
    /// <returns>Returns true if the certificate is valid, false otherwise.</returns>
-   public async Task<bool> VerifyAsync(ICertificationAuthorityAccessor caAccessor)
+   public async Task<bool> VerifyAsync(ICertificationAuthorityAccessor caAccessor, CancellationToken cancellationToken)
    {
        if (NotValidAfter >= DateTime.UtcNow && NotValidBefore <= DateTime.UtcNow)
        {
-           if (Verify(await caAccessor.GetPubKeyAsync(this.ServiceUri)))
+           if (Verify(await caAccessor.GetPubKeyAsync(this.ServiceUri, cancellationToken)))
                return true;
        }
        return false;

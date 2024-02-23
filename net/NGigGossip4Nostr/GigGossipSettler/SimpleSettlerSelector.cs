@@ -10,12 +10,12 @@ namespace GigGossipSettler;
 
 public interface ISettlerSelector : ICertificationAuthorityAccessor
 {
-    GigGossipSettlerAPIClient.swaggerClient GetSettlerClient(Uri ServiceUri);
+    ISettlerAPI GetSettlerClient(Uri ServiceUri);
 }
 
 public class SimpleSettlerSelector : ISettlerSelector
 {
-    ConcurrentDictionary<Uri, GigGossipSettlerAPIClient.swaggerClient> swaggerClients = new();
+    ConcurrentDictionary<Uri, ISettlerAPI> swaggerClients = new();
     ConcurrentDictionary<Guid, bool> revokedCertificates = new();
 
     HttpClient _httpClient;
@@ -25,19 +25,19 @@ public class SimpleSettlerSelector : ISettlerSelector
         _httpClient = httpClient ?? new HttpClient();
     }
 
-    public async Task<ECXOnlyPubKey> GetPubKeyAsync(Uri serviceUri)
+    public async Task<ECXOnlyPubKey> GetPubKeyAsync(Uri serviceUri, CancellationToken cancellationToken)
     {
-        return SettlerAPIResult.Get<string>(await GetSettlerClient(serviceUri).GetCaPublicKeyAsync()).AsECXOnlyPubKey();
+        return SettlerAPIResult.Get<string>(await GetSettlerClient(serviceUri).GetCaPublicKeyAsync(cancellationToken)).AsECXOnlyPubKey();
     }
 
-    public GigGossipSettlerAPIClient.swaggerClient GetSettlerClient(Uri serviceUri)
+    public ISettlerAPI GetSettlerClient(Uri serviceUri)
     {
         return swaggerClients.GetOrAdd(serviceUri, (serviceUri) => new GigGossipSettlerAPIClient.swaggerClient(serviceUri.AbsoluteUri, _httpClient));
     }
 
-    public async Task<bool> IsRevokedAsync(Uri serviceUri, Guid id)
+    public async Task<bool> IsRevokedAsync(Uri serviceUri, Guid id, CancellationToken cancellationToken)
     {
-        return await revokedCertificates.GetOrAddAsync(id, async (id) => SettlerAPIResult.Get<bool>(await GetSettlerClient(serviceUri).IsCertificateRevokedAsync(id.ToString())));
+        return await revokedCertificates.GetOrAddAsync(id, async (id) => SettlerAPIResult.Get<bool>(await GetSettlerClient(serviceUri).IsCertificateRevokedAsync(id.ToString(), cancellationToken)));
     }
 }
 
