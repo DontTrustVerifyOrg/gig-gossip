@@ -9,6 +9,7 @@ public static class Extensions
     {
         using var stream = new MemoryStream();
         await formFile.CopyToAsync(stream);
+        stream.Seek(0, SeekOrigin.Begin);
         return stream.ToArray();
     }
 }

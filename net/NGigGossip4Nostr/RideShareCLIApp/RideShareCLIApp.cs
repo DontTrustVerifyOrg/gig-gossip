@@ -466,11 +466,13 @@ public partial class RideShareCLIApp
         await gigGossipNode.StopAsync();
     }
 
+    bool FlowLoggerEnabled = false;
+
     async Task StartAsync()
     {
 
         await gigGossipNode.StartAsync(
-            true,
+            FlowLoggerEnabled,
             settings.NodeSettings.Fanout,
             settings.NodeSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(settings.NodeSettings.TimestampToleranceMs),
