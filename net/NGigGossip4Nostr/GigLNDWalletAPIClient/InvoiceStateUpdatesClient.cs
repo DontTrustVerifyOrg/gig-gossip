@@ -2,20 +2,28 @@
 using Microsoft.AspNetCore.SignalR.Client;
 namespace GigLNDWalletAPIClient
 {
-    public class InvoiceStateUpdatesClient
+    public interface IInvoiceStateUpdatesClient
+    {
+        Task ConnectAsync(string authToken, CancellationToken cancellationToken);
+        Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken);
+        Task StopMonitoringAsync(string authToken, string paymentHash, CancellationToken cancellationToken);
+        IAsyncEnumerable<string> StreamAsync(string authToken, CancellationToken cancellationToken);
+    }
+
+    public class InvoiceStateUpdatesClient : IInvoiceStateUpdatesClient
     {
         IWalletAPI swaggerClient;
         private readonly HttpMessageHandler? httpMessageHandler;
         HubConnection connection;
         SemaphoreSlim slimLock = new(1, 1);
 
-        public InvoiceStateUpdatesClient(IWalletAPI swaggerClient, HttpMessageHandler? httpMessageHandler = null)
+        internal InvoiceStateUpdatesClient(IWalletAPI swaggerClient, HttpMessageHandler? httpMessageHandler = null)
         {
             this.swaggerClient = swaggerClient;
             this.httpMessageHandler = httpMessageHandler;
         }
 
-        public async Task ConnectAsync(string authToken)
+        public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
         {
             await slimLock.WaitAsync();
             try
@@ -28,7 +36,7 @@ namespace GigLNDWalletAPIClient
                     builder.WithUrl(swaggerClient.BaseUrl + "invoicestateupdates?authtoken=" + Uri.EscapeDataString(authToken));
 
                 connection = builder.Build();
-                await connection.StartAsync();
+                await connection.StartAsync(cancellationToken);
             }
             finally
             {
@@ -36,12 +44,12 @@ namespace GigLNDWalletAPIClient
             }
         }
 
-        public async Task MonitorAsync(string authToken, string paymentHash)
+        public async Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
         {
             await slimLock.WaitAsync();
             try
             {
-                await connection.SendAsync("Monitor", authToken, paymentHash);
+                await connection.SendAsync("Monitor", authToken, paymentHash, cancellationToken);
             }
             finally
             {
@@ -49,12 +57,12 @@ namespace GigLNDWalletAPIClient
             }
         }
 
-        public async Task StopMonitoringAsync(string authToken, string paymentHash)
+        public async Task StopMonitoringAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
         {
             await slimLock.WaitAsync();
             try
             {
-                await connection.SendAsync("StopMonitoring", authToken, paymentHash);
+                await connection.SendAsync("StopMonitoring", authToken, paymentHash, cancellationToken);
             }
             finally
             {
@@ -76,4 +84,3 @@ namespace GigLNDWalletAPIClient
         }
     }
 }
-

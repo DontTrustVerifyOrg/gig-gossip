@@ -12,6 +12,7 @@ using Newtonsoft.Json.Linq;
 using System.Xml.Linq;
 using NBitcoin.Protocol;
 using System.Net.Sockets;
+using System.Threading;
 
 namespace NGigGossip4Nostr;
 
@@ -52,63 +53,13 @@ public class SimpleSettlerSelector : ISettlerSelector
 }
 
 
-public class SettlerAPIWrapper : ISettlerAPI
+public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
 {
-    ISettlerAPI api;
-    IFlowLogger flowLogger;
-
-    public SettlerAPIWrapper(IFlowLogger flowLogger, ISettlerAPI api)
+    public SettlerAPIWrapper(IFlowLogger flowLogger, ISettlerAPI api) : base(flowLogger, api)
     {
-        this.api = api;
-        this.flowLogger = flowLogger;
     }
 
     public string BaseUrl => api.BaseUrl;
-
-    public string MetNam([CallerMemberName] string memberName = "")
-    {
-        return memberName;
-    }
-
-    public async Task TraceInAsync(Guid? guid, string? memberName, params dynamic[] objects)
-    {
-        if (flowLogger.Enabled)
-            await flowLogger.TraceInformationAsync(Newtonsoft.Json.JsonConvert.SerializeObject(new
-            {
-                kind = "call",
-                id = guid,
-                method = memberName,
-                type = api.GetType().FullName,
-                args = objects
-            }));
-    }
-
-    public async Task<T> TraceOutAsync<T>(Guid? guid, string? memberName, T r)
-    {
-        if (flowLogger.Enabled)
-            await flowLogger.TraceInformationAsync(Newtonsoft.Json.JsonConvert.SerializeObject(new
-            {
-                kind = "return",
-                id = guid,
-                method = memberName,
-                type = api.GetType().FullName,
-                retval = r
-            }));
-        return r;
-    }
-
-    public async Task TraceExcAsync(Guid? guid, string? memberName, Exception ex)
-    {
-        if (flowLogger.Enabled)
-            await flowLogger.TraceExceptionAsync(ex, Newtonsoft.Json.JsonConvert.SerializeObject(new
-            {
-                kind = "exception",
-                id = guid,
-                method = memberName,
-                type = api.GetType().FullName,
-                exception = ex.Message,
-            }));
-    }
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GetCaPublicKeyAsync(CancellationToken cancellationToken)
     {
@@ -217,7 +168,7 @@ public class SettlerAPIWrapper : ISettlerAPI
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
         try
         {
-            await TraceInAsync(g__, m__, authToken, pubkey, name,value,secret,validHours);
+            await TraceInAsync(g__, m__, authToken, pubkey, name, value, secret, validHours);
             return await TraceOutAsync(g__, m__,
                 await api.GiveUserPropertyAsync(authToken, pubkey, name, value, secret, validHours, cancellationToken)
             );
@@ -511,5 +462,163 @@ public class SettlerAPIWrapper : ISettlerAPI
         }
     }
 
+    public IGigStatusClient CreateGigStatusClient()
+    {
+        return new GigStatusClientWrapper(this.flowLogger, api.CreateGigStatusClient());
+    }
 
+    public IPreimageRevealClient CreatePreimageRevealClient()
+    {
+        return new PreimageRevealClientWrapper(this.flowLogger, api.CreatePreimageRevealClient());
+    }
+}
+
+internal class GigStatusClientWrapper : LogWrapper<IGigStatusClient>, IGigStatusClient
+{
+    public GigStatusClientWrapper(IFlowLogger flowLogger, IGigStatusClient api) : base(flowLogger,api)
+    {
+    }
+
+    public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__, authToken);
+            await api.ConnectAsync(authToken, cancellationToken);
+            await TraceVoidAsync(g__, m__);
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
+    public async Task DisposeAsync()
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__);
+            await api.DisposeAsync();
+            await TraceVoidAsync(g__, m__);
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
+    public async Task MonitorAsync(string authToken, Guid gigId, Guid replierCertificateId, CancellationToken cancellationToken)
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__, authToken, gigId, replierCertificateId);
+            await api.MonitorAsync(authToken, gigId, replierCertificateId, cancellationToken);
+            await TraceVoidAsync(g__, m__);
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
+    public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        if (flowLogger.Enabled)
+        {
+            Guid? g__ = Guid.NewGuid(); string? m__ = MetNam();
+            await TraceInAsync(g__, m__, authToken);
+            await foreach (var row in api.StreamAsync(authToken, cancellationToken))
+            {
+                await TraceIterAsync(g__, m__, row);
+                yield return row;
+            }
+            await TraceVoidAsync(g__, m__);
+        }
+        else
+        {
+            await foreach (var row in api.StreamAsync(authToken, cancellationToken))
+                yield return row;
+        }
+    }
+}
+
+internal class PreimageRevealClientWrapper : LogWrapper<IPreimageRevealClient>, IPreimageRevealClient
+{
+    public PreimageRevealClientWrapper(IFlowLogger flowLogger, IPreimageRevealClient api) : base(flowLogger, api)
+    {
+    }
+
+    public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__, authToken);
+            await api.ConnectAsync(authToken, cancellationToken);
+            await TraceVoidAsync(g__, m__);
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
+    public async Task DisposeAsync()
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__);
+            await api.DisposeAsync();
+            await TraceVoidAsync(g__, m__);
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
+    public async Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__, authToken, paymentHash);
+            await api.MonitorAsync(authToken, paymentHash, cancellationToken);
+            await TraceVoidAsync(g__, m__);
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
+    public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        if (flowLogger.Enabled)
+        {
+            Guid? g__ = Guid.NewGuid(); string? m__ = MetNam();
+            await TraceInAsync(g__, m__, authToken);
+            await foreach (var row in api.StreamAsync(authToken, cancellationToken))
+            {
+                await TraceIterAsync(g__, m__, row);
+                yield return row;
+            }
+            await TraceVoidAsync(g__, m__);
+        }
+        else
+        {
+            await foreach (var row in api.StreamAsync(authToken, cancellationToken))
+                yield return row;
+        }
+    }
 }

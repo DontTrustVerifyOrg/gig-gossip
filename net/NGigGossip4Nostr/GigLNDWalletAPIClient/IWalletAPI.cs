@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Net.Http;
+
 namespace GigLNDWalletAPIClient
 {
     public interface IWalletAPI
@@ -26,11 +28,22 @@ namespace GigLNDWalletAPIClient
         Task<Result> CancelInvoiceAsync(string authToken, string paymenthash, System.Threading.CancellationToken cancellationToken);
         Task<StringResult> GetInvoiceStateAsync(string authToken, string paymenthash, System.Threading.CancellationToken cancellationToken);
         Task<StringResult> GetPaymentStatusAsync(string authToken, string paymenthash, System.Threading.CancellationToken cancellationToken);
+
+        IInvoiceStateUpdatesClient CreateInvoiceStateUpdatesClient(HttpMessageHandler? httpMessageHandler = null);
+        IPaymentStatusUpdatesClient CreatePaymentStatusUpdatesClient(HttpMessageHandler? httpMessageHandler = null);
     }
 
     public partial class swaggerClient : IWalletAPI
     {
+        public IInvoiceStateUpdatesClient CreateInvoiceStateUpdatesClient(HttpMessageHandler? httpMessageHandler = null)
+        {
+            return new InvoiceStateUpdatesClient(this, httpMessageHandler);
+        }
 
+        public IPaymentStatusUpdatesClient CreatePaymentStatusUpdatesClient(HttpMessageHandler? httpMessageHandler = null)
+        {
+            return new PaymentStatusUpdatesClient(this, httpMessageHandler);
+        }
     }
 }
 

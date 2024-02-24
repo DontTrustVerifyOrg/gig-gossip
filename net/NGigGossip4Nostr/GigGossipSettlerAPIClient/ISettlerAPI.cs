@@ -30,11 +30,22 @@ namespace GigGossipSettlerAPIClient
         Task<StringResult> EncryptObjectForCertificateIdAsync(string certificateId, FileParameter objectSerialized, CancellationToken cancellationToken);
         Task<Result> ManageDisputeAsync(string authToken, string gigId, string repliperCertificateId, bool open, CancellationToken cancellationToken);
         Task<Result> CancelGigAsync(string authToken, string gigId, string repliperCertificateId, CancellationToken cancellationToken);
+
+        IGigStatusClient CreateGigStatusClient();
+        IPreimageRevealClient CreatePreimageRevealClient();
     }
 
     public partial class swaggerClient : ISettlerAPI
     {
+        public IGigStatusClient CreateGigStatusClient()
+        {
+            return new GigStatusClient(this);
+        }
 
+        public IPreimageRevealClient CreatePreimageRevealClient()
+        {
+            return new PreimageRevealClient(this);
+        }
     }
 }
 

@@ -19,7 +19,7 @@ namespace NGigGossip4Nostr
     public class InvoiceStateUpdatesMonitor
 	{
 		GigGossipNode gigGossipNode;
-        public InvoiceStateUpdatesClient InvoiceStateUpdatesClient;
+        public IInvoiceStateUpdatesClient InvoiceStateUpdatesClient;
         bool AppExiting = false;
         bool ClientConnected = false;
         object ClientLock = new();
@@ -79,7 +79,7 @@ namespace NGigGossip4Nostr
             gigGossipNode.nodeContext.Value.AddObject(obj);
             try
             {
-                await this.InvoiceStateUpdatesClient.MonitorAsync(await gigGossipNode.MakeWalletAuthToken(), phash);
+                await this.InvoiceStateUpdatesClient.MonitorAsync(await gigGossipNode.MakeWalletAuthToken(), phash, CancellationTokenSource.Token);
             }
             catch
             {
@@ -99,8 +99,8 @@ namespace NGigGossip4Nostr
                         var  token = await gigGossipNode.MakeWalletAuthToken();
 
 
-                        InvoiceStateUpdatesClient = new InvoiceStateUpdatesClient(gigGossipNode.GetWalletClient(), httpMessageHandler);
-                        await InvoiceStateUpdatesClient.ConnectAsync(token);
+                        InvoiceStateUpdatesClient = gigGossipNode.GetWalletClient().CreateInvoiceStateUpdatesClient(httpMessageHandler);
+                        await InvoiceStateUpdatesClient.ConnectAsync(token,CancellationToken.None);
 
                         NotifyClientIsConnected(true);
 

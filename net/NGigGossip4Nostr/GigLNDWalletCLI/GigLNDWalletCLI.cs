@@ -19,8 +19,8 @@ public class GigLNDWalletCLI
 {
     UserSettings userSettings;
     swaggerClient walletClient;
-    InvoiceStateUpdatesClient invoiceStateUpdatesClient;
-    PaymentStatusUpdatesClient paymentStatusUpdatesClient;
+    IInvoiceStateUpdatesClient invoiceStateUpdatesClient;
+    IPaymentStatusUpdatesClient paymentStatusUpdatesClient;
     CancellationTokenSource CancellationTokenSource = new();
 
     static IConfigurationRoot GetConfigurationRoot(string? basePath, string[] args, string defaultFolder, string iniName)
@@ -54,8 +54,8 @@ public class GigLNDWalletCLI
         var baseUrl = userSettings.GigWalletOpenApi;
         walletClient = new swaggerClient(baseUrl, new HttpClient());
 
-        invoiceStateUpdatesClient = new InvoiceStateUpdatesClient(walletClient);
-        paymentStatusUpdatesClient = new PaymentStatusUpdatesClient(walletClient);
+        invoiceStateUpdatesClient = walletClient.CreateInvoiceStateUpdatesClient();
+        paymentStatusUpdatesClient = walletClient.CreatePaymentStatusUpdatesClient();
     }
 
     public enum CommandEnum
@@ -161,7 +161,7 @@ public class GigLNDWalletCLI
     {
         invoiceMonitorThread = new Thread(async () =>
         {
-            await invoiceStateUpdatesClient.ConnectAsync(await MakeToken());
+            await invoiceStateUpdatesClient.ConnectAsync(await MakeToken(),CancellationToken.None);
             try
             {
                 await foreach (var invstateupd in invoiceStateUpdatesClient.StreamAsync(await MakeToken(), CancellationTokenSource.Token))
@@ -180,7 +180,7 @@ public class GigLNDWalletCLI
 
         paymentMonitorThread = new Thread(async () =>
         {
-            await paymentStatusUpdatesClient.ConnectAsync(await MakeToken());
+            await paymentStatusUpdatesClient.ConnectAsync(await MakeToken(),CancellationToken.None);
             try
             { 
                 await foreach (var paystateupd in paymentStatusUpdatesClient.StreamAsync(await MakeToken(), CancellationTokenSource.Token))
@@ -302,7 +302,7 @@ public class GigLNDWalletCLI
                     ToClipboard(ClipType.PaymentHash, inv.PaymentHash);
                     AnsiConsole.WriteLine(inv.PaymentRequest);
                     AnsiConsole.WriteLine(inv.PaymentHash);
-                    await invoiceStateUpdatesClient.MonitorAsync(await MakeToken(), inv.PaymentHash);
+                    await invoiceStateUpdatesClient.MonitorAsync(await MakeToken(), inv.PaymentHash, CancellationTokenSource.Token);
                 }
                 else if (cmd == CommandEnum.AddHodlInvoice)
                 {
@@ -318,7 +318,7 @@ public class GigLNDWalletCLI
                     ToClipboard(ClipType.PaymentHash, inv.PaymentHash);
                     AnsiConsole.WriteLine(inv.PaymentRequest);
                     AnsiConsole.WriteLine(inv.PaymentHash);
-                    await invoiceStateUpdatesClient.MonitorAsync(await MakeToken(), inv.PaymentHash);
+                    await invoiceStateUpdatesClient.MonitorAsync(await MakeToken(), inv.PaymentHash, CancellationTokenSource.Token);
                 }
                 else if (cmd == CommandEnum.AcceptInvoice)
                 {
@@ -331,7 +331,7 @@ public class GigLNDWalletCLI
                     AnsiConsole.WriteLine($"Payment Hash:{pay.PaymentHash}");
                     ToClipboard(ClipType.PaymentHash, pay.PaymentHash);
                     var timeout = Prompt.Input<int>("Timeout", 1000);
-                    await paymentStatusUpdatesClient.MonitorAsync(await MakeToken(), pay.PaymentHash);
+                    await paymentStatusUpdatesClient.MonitorAsync(await MakeToken(), pay.PaymentHash, CancellationTokenSource.Token);
                     WalletAPIResult.Check(await walletClient.SendPaymentAsync(await MakeToken(), paymentreq, timeout));
                 }
                 else if (cmd == CommandEnum.CancelInvoice)

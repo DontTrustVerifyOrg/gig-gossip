@@ -47,7 +47,7 @@ public class SettlerMonitor
         gigGossipNode.nodeContext.Value.AddObject(obj);
         try
         {
-            await (await this.gigGossipNode.GetPreimageRevealClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash);
+            await (await this.gigGossipNode.GetPreimageRevealClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash, CancellationTokenSource.Token);
         }
         catch
         {
@@ -81,7 +81,7 @@ public class SettlerMonitor
         gigGossipNode.nodeContext.Value.AddObject(obj);
         try
         {
-            await (await this.gigGossipNode.GetGigStatusClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedRequestPayloadId, replierCertificateId);
+            await (await this.gigGossipNode.GetGigStatusClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedRequestPayloadId, replierCertificateId, CancellationTokenSource.Token);
         }
         catch
         {

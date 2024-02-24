@@ -26,6 +26,7 @@ public static class Extensions
     {
         using var stream = new MemoryStream();
         await formFile.Data.CopyToAsync(stream);
+        formFile.Data.Seek(0, SeekOrigin.Begin);
         return stream.ToArray();
     }
 }

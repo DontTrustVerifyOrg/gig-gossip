@@ -13,7 +13,7 @@ public interface IPaymentStatusUpdatesMonitorEvents
 public class PaymentStatusUpdatesMonitor
 {
     GigGossipNode gigGossipNode;
-    public PaymentStatusUpdatesClient PaymentStatusUpdatesClient;
+    public IPaymentStatusUpdatesClient PaymentStatusUpdatesClient;
     bool AppExiting = false;
     bool ClientConnected = false;
     object ClientLock = new();
@@ -80,7 +80,7 @@ public class PaymentStatusUpdatesMonitor
 
         try
         {
-            await this.PaymentStatusUpdatesClient.MonitorAsync(await gigGossipNode.MakeWalletAuthToken(), phash);
+            await this.PaymentStatusUpdatesClient.MonitorAsync(await gigGossipNode.MakeWalletAuthToken(), phash, CancellationTokenSource.Token);
         }
         catch
         {
@@ -97,7 +97,7 @@ public class PaymentStatusUpdatesMonitor
         if (o == null)
             return;
 
-        await this.PaymentStatusUpdatesClient.StopMonitoringAsync(await gigGossipNode.MakeWalletAuthToken(), phash);
+        await this.PaymentStatusUpdatesClient.StopMonitoringAsync(await gigGossipNode.MakeWalletAuthToken(), phash, CancellationTokenSource.Token);
         gigGossipNode.nodeContext.Value.RemoveObject(o);
     }
 
@@ -112,8 +112,8 @@ public class PaymentStatusUpdatesMonitor
                 {
                     var token = await gigGossipNode.MakeWalletAuthToken();
 
-                    PaymentStatusUpdatesClient = new PaymentStatusUpdatesClient(gigGossipNode.GetWalletClient(), httpMessageHandler);
-                    await PaymentStatusUpdatesClient.ConnectAsync(token);
+                    PaymentStatusUpdatesClient = gigGossipNode.GetWalletClient().CreatePaymentStatusUpdatesClient(httpMessageHandler);
+                    await PaymentStatusUpdatesClient.ConnectAsync(token, CancellationTokenSource.Token);
 
                     NotifyClientIsConnected(true);
 

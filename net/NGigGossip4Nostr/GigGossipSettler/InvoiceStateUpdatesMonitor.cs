@@ -20,7 +20,7 @@ public interface IInvoiceStateUpdatesMonitorEvents
 public class InvoiceStateUpdatesMonitor
 {
     Settler settler;
-    public InvoiceStateUpdatesClient invoiceStateUpdatesClient;
+    public IInvoiceStateUpdatesClient invoiceStateUpdatesClient;
     bool AppExiting = false;
     bool ClientConnected = false;
     object ClientLock = new();
@@ -66,8 +66,8 @@ public class InvoiceStateUpdatesMonitor
     public async Task MonitorInvoicesAsync(string inv1, string inv2)
     {
         var tok = settler.MakeAuthToken();
-        await invoiceStateUpdatesClient.MonitorAsync(tok, inv1);
-        await invoiceStateUpdatesClient.MonitorAsync(tok, inv2);
+        await invoiceStateUpdatesClient.MonitorAsync(tok, inv1, CancellationTokenSource.Token);
+        await invoiceStateUpdatesClient.MonitorAsync(tok, inv2, CancellationTokenSource.Token);
     }
 
 
@@ -81,8 +81,8 @@ public class InvoiceStateUpdatesMonitor
                 {
                     var token = settler.MakeAuthToken();
 
-                    invoiceStateUpdatesClient = new InvoiceStateUpdatesClient(settler.lndWalletClient, settler.HttpMessageHandler);
-                    await invoiceStateUpdatesClient.ConnectAsync(settler.MakeAuthToken());
+                    invoiceStateUpdatesClient = settler.lndWalletClient.CreateInvoiceStateUpdatesClient(settler.HttpMessageHandler);
+                    await invoiceStateUpdatesClient.ConnectAsync(settler.MakeAuthToken(),CancellationToken.None);
 
 
                     NotifyClientIsConnected(true);

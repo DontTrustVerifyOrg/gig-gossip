@@ -85,8 +85,8 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     private SemaphoreSlim alreadyBroadcastedSemaphore = new SemaphoreSlim(1, 1);
 
-    private ConcurrentDictionary<Uri, GigStatusClient> settlerGigStatusClients ;
-    private ConcurrentDictionary<Uri, PreimageRevealClient> settlerPreimageRevelClients ;
+    private ConcurrentDictionary<Uri, IGigStatusClient> settlerGigStatusClients ;
+    private ConcurrentDictionary<Uri, IPreimageRevealClient> settlerPreimageRevelClients ;
 
     protected ConcurrentDictionary<Uri, Guid> _walletToken;
     protected ConcurrentDictionary<Uri, Guid> _settlerToken;
@@ -306,42 +306,42 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
 
 
-    public async Task<GigStatusClient> GetGigStatusClientAsync(Uri serviceUri)
+    public async Task<IGigStatusClient> GetGigStatusClientAsync(Uri serviceUri)
     {
         return await settlerGigStatusClients.GetOrAddAsync(
             serviceUri,
             async (serviceUri) =>
             {
-                var newClient = new GigStatusClient(SettlerSelector.GetSettlerClient(serviceUri));
-                await newClient.ConnectAsync(await MakeSettlerAuthTokenAsync(serviceUri));
+                var newClient = SettlerSelector.GetSettlerClient(serviceUri).CreateGigStatusClient();
+                await newClient.ConnectAsync(await MakeSettlerAuthTokenAsync(serviceUri), CancellationToken.None);
                 return newClient;
             });
     }
 
     public async void DisposeGigStatusClient(Uri serviceUri)
     {
-        GigStatusClient client;
+        IGigStatusClient client;
         if (settlerGigStatusClients.TryRemove(serviceUri, out client))
-            await client.Connection.DisposeAsync();
+            await client.DisposeAsync();
     }
 
-    public async Task<PreimageRevealClient> GetPreimageRevealClientAsync(Uri serviceUri)
+    public async Task<IPreimageRevealClient> GetPreimageRevealClientAsync(Uri serviceUri)
     {
         return await settlerPreimageRevelClients.GetOrAddAsync(
             serviceUri,
             async (serviceUri) =>
             {
-                var newClient = new PreimageRevealClient(SettlerSelector.GetSettlerClient(serviceUri));
-                await newClient.ConnectAsync(await MakeSettlerAuthTokenAsync(serviceUri));
+                var newClient = SettlerSelector.GetSettlerClient(serviceUri).CreatePreimageRevealClient();
+                await newClient.ConnectAsync(await MakeSettlerAuthTokenAsync(serviceUri), CancellationToken.None);
                 return newClient;
             });
     }
 
     public async void DisposePreimageRevealClient(Uri serviceUri)
     {
-        PreimageRevealClient client;
+        IPreimageRevealClient client;
         if (settlerPreimageRevelClients.TryRemove(serviceUri, out client))
-            await client.Connection.DisposeAsync();
+            await client.DisposeAsync();
     }
 
     public List<string> GetBroadcastContactList(Guid signedrequestpayloadId, string? originatorPublicKey)
