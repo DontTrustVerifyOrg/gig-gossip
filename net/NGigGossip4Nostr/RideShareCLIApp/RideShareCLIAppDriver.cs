@@ -146,6 +146,7 @@ public partial class RideShareCLIApp
                             }
                             catch (Exception ex)
                             {
+                                await e.GigGossipNode.FlowLogger.TraceExceptionAsync(ex);
                                 //if already cancelled or settled
                             }
                         }
@@ -251,7 +252,7 @@ public partial class RideShareCLIApp
                     directPubkeys[ackframe.Parameters.SignedRequestPayloadId] = senderPublicKey;
                     AnsiConsole.WriteLine("rider ack:" + senderPublicKey);
                     receivedBroadcastsTable.Exit();
-                    new Thread(() => DriverJourneyAsync(ackframe.Parameters)).Start();
+                    new Thread(async () => await DriverJourneyAsync(ackframe.Parameters)).Start();
                 }
             }
         }

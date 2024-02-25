@@ -232,7 +232,7 @@ public class ComplexTest
         foreach (var nod_idx in gridShapeIter.MultiCartesian())
         {
             var node_name = nod_name_f(nod_idx);
-            things[node_name].StopAsync();
+            await things[node_name].StopAsync();
         }
     }
 }
@@ -250,7 +250,7 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
                    taxiTopic.DropoffBefore >= DateTime.UtcNow)
             {
                 await me.BroadcastToPeersAsync(peerPublicKey, broadcastFrame);
-                me.FlowLogger.NewNote(me.PublicKey, "BroadcastToPeers");
+                await me.FlowLogger.NewNoteAsync(me.PublicKey, "BroadcastToPeers");
             }
         }
     }
@@ -345,7 +345,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
                     SettlerServiceUri = settlerUri,
                 },
                 CancellationToken.None);
-            me.FlowLogger.NewNote(me.PublicKey, "AcceptBraodcast");
+            await me.FlowLogger.NewNoteAsync(me.PublicKey, "AcceptBraodcast");
         }
     }
 
@@ -452,7 +452,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                             Console.WriteLine(paymentResult);
                             return;
                         }
-                        me.FlowLogger.NewNote(me.PublicKey, "AcceptResponse");
+                        await me.FlowLogger.NewNoteAsync(me.PublicKey, "AcceptResponse");
                     }
                     else
                     {
@@ -463,14 +463,14 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
+    public async void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
     {
             var message = Encoding.Default.GetString(Crypto.SymmetricDecrypt<byte[]>(
             key.AsBytes(),
             replyPayload.Value.EncryptedReplyMessage));
         Trace.TraceInformation(message);
-        me.FlowLogger.NewNote(me.PublicKey, "OnResponseReady");
-        me.FlowLogger.NewConnected(message, me.PublicKey, "connected");
+        await me.FlowLogger.NewNoteAsync(me.PublicKey, "OnResponseReady");
+        await me.FlowLogger.NewConnectedAsync(message, me.PublicKey, "connected");
     }
     public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
     {

@@ -21,6 +21,8 @@ using GoogleApi.Entities.Places.AutoComplete.Request;
 using GoogleApi.Entities.Maps.Geocoding.Common.Enums;
 using NBitcoin.Protocol;
 
+#pragma warning disable 1591
+
 TraceEx.TraceInformation("[[lime]]Starting[[/]] ...");
 
 var builder = WebApplication.CreateBuilder(args);

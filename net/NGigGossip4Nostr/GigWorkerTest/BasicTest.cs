@@ -163,8 +163,8 @@ public class BasicTest
                 Monitor.Wait(MainThreadControl.Ctrl);
         }
 
-        gigWorker.StopAsync();
-        customer.StopAsync();
+        await gigWorker.StopAsync();
+        await customer.StopAsync();
 
     }
 }
@@ -193,7 +193,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
                     SettlerServiceUri = settlerUri
                 },
                 CancellationToken.None);
-            me.FlowLogger.NewNote(me.PublicKey, "AcceptBraodcast");
+            await me.FlowLogger.NewNoteAsync(me.PublicKey, "AcceptBraodcast");
         }
     }
 
@@ -206,7 +206,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
     {
-        me.FlowLogger.NewNote(me.PublicKey, "InvoiceSettled");
+        me.FlowLogger.NewNoteAsync(me.PublicKey, "InvoiceSettled");
         lock (MainThreadControl.Ctrl)
         {
             MainThreadControl.IsRunning = false;
@@ -280,19 +280,19 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 
     public async void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
     {
-        me.FlowLogger.NewNote(me.PublicKey, "AcceptResponse");
+        await me.FlowLogger.NewNoteAsync(me.PublicKey, "AcceptResponse");
         var paymentResult = await me.AcceptResponseAsync(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice, CancellationToken.None);
         if(paymentResult!= GigLNDWalletAPIErrorCode.Ok)
             Console.WriteLine(paymentResult);
     }
-    public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
+    public async void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
     {
         var message = Encoding.Default.GetString(Crypto.SymmetricDecrypt<byte[]>(
             key.AsBytes(),
             replyPayload.Value.EncryptedReplyMessage));
         Trace.TraceInformation(message);
-        me.FlowLogger.NewNote(me.PublicKey, "OnResponseReady");
-        me.FlowLogger.NewConnected(message, me.PublicKey, "connected");
+        await me.FlowLogger.NewNoteAsync(me.PublicKey, "OnResponseReady");
+        await me.FlowLogger.NewConnectedAsync(message, me.PublicKey, "connected");
     }
     public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
     {

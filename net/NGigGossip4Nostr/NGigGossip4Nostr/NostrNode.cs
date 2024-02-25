@@ -64,11 +64,7 @@ public abstract class NostrNode
             return null;
         return _registeredFrameTypes[name];
     }
-    class Message
-    {
-        public required string SenderPublicKey;
-        public required object Frame;
-    }
+
 
     protected async Task SayHelloAsync()
     {

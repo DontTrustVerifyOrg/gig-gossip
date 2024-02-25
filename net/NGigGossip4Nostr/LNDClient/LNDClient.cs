@@ -6,6 +6,7 @@ using Grpc.Net.Client;
 using Grpc.Core;
 using System.Security.Cryptography.X509Certificates;
 using System.Net.Http;
+using NBitcoin.Protocol;
 
 namespace LNDClient;
 
@@ -228,7 +229,7 @@ public static class LND
     {
         var ocr = new OpenChannelRequest()
         {
-            NodePubkeyString = nodePubKey,
+            NodePubkey = Google.Protobuf.ByteString.CopyFrom(nodePubKey.AsBytes()),
             Private = privat,
         };
         if (fundingSatoshis <= 0)

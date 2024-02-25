@@ -6,6 +6,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <WarningLevel>4</WarningLevel>
+    <NoWarn>1701;1702;1998;8600;8601;8602;8603;8604;8618;8625</NoWarn>
+  </PropertyGroup>
   <ItemGroup>
 	<PackageReference Include="NSwag.ApiDescription.Client" Version="13.20.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

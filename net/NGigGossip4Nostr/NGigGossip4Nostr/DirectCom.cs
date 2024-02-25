@@ -22,7 +22,7 @@ public class DirectCom : NostrNode
         this.gigGossipNode = gigGossipNode;
     }
 
-    public new async Task StartAsync(string[] nostrRelays)
+    public async Task StartAsync(string[] nostrRelays)
     {
         await base.StartAsync(nostrRelays, gigGossipNode.FlowLogger);
     }

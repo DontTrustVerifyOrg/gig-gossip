@@ -23,8 +23,8 @@ namespace NGigGossip4Nostr
         Task TraceExceptionAsync(Exception exception, string? message=null);
         Task NewMessageAsync(string a, string b, string message);
         Task NewReplyAsync(string a, string b, string message);
-        Task NewConnected(string a, string b, string message);
-        Task NewNote(string a, string message);
+        Task NewConnectedAsync(string a, string b, string message);
+        Task NewNoteAsync(string a, string message);
     }
 
     public class FlowLogger : IFlowLogger
@@ -149,7 +149,7 @@ namespace NGigGossip4Nostr
                 "\t" + a + "-->>" + b + ": " + message);
         }
 
-        public async Task NewConnected(string a, string b, string message)
+        public async Task NewConnectedAsync(string a, string b, string message)
         {
             if (!Enabled) return;
 
@@ -158,7 +158,7 @@ namespace NGigGossip4Nostr
                 "\t" + a + "--)" + b + ": " + message);
         }
 
-        public async Task NewNote(string a, string message)
+        public async Task NewNoteAsync(string a, string message)
         {
             if (!Enabled) return;
 

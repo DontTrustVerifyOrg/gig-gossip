@@ -3,6 +3,8 @@ using System.Collections.Concurrent;
 using GigGossipSettler;
 using Nito.AsyncEx;
 
+#pragma warning disable 1591 
+
 namespace GigGossipSettlerAPI;
 public struct GigReplCert
 {

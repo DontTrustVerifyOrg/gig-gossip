@@ -115,7 +115,7 @@ public partial class RideShareCLIApp
             await e.GigGossipNode.CancelBroadcastAsync(requestedRide.SignedCancelRequestPayload);
             await directCom.StartAsync(e.Reply.Relays);
             directPubkeys[e.RequestPayloadId] = e.Reply.PublicKey;
-            new Thread(() => RiderJourneyAsync(e.RequestPayloadId, e.Reply.Secret)).Start();
+            new Thread(async () => await RiderJourneyAsync(e.RequestPayloadId, e.Reply.Secret)).Start();
         }
     }
 

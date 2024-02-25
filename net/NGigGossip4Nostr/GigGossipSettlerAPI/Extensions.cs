@@ -1,6 +1,8 @@
 ﻿using System;
 using NBitcoin.Protocol;
 
+#pragma warning disable 1591
+
 namespace GigGossipSettlerAPI;
 
 public static class Extensions

@@ -2,6 +2,8 @@
 using GigGossipSettlerAPI.Models;
 using System.Net;
 
+#pragma warning disable 1591
+
 namespace GigGossipSettlerAPI.Middlewares
 {
     public class ErrorHandlerMiddleware

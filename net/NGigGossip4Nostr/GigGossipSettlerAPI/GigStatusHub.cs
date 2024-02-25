@@ -4,6 +4,8 @@ using GigGossipSettler;
 using Microsoft.AspNetCore.SignalR;
 using Nito.AsyncEx;
 
+#pragma warning disable 1591
+
 namespace GigGossipSettlerAPI;
 
 public class GigStatusHub : Hub

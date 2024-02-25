@@ -1,5 +1,7 @@
 ﻿using System.Text.Json;
 
+#pragma warning disable 1591
+
 namespace GigGossipSettlerAPI.Models
 {
     public class ErrorDetails

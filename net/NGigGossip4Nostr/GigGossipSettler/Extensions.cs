@@ -11,7 +11,7 @@ public static class Extensions
     /// </summary>
     public static async Task<TResult> GetOrAddAsync<TKey, TResult>(
         this ConcurrentDictionary<TKey, TResult> dict,
-        TKey key, Func<TKey, Task<TResult>> asyncValueFactory)
+        TKey key, Func<TKey, Task<TResult>> asyncValueFactory) where TKey:notnull
     {
         if (dict.TryGetValue(key, out TResult resultingValue))
         {

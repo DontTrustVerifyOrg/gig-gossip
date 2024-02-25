@@ -185,6 +185,7 @@ public class LNDChannelManager
 			}
 			catch(Exception ex)
 			{
+				TraceEx.TraceException(ex);
 				walletManager.MarkPayoutAsOpen(payout.PayoutId);
 				throw;
 			}

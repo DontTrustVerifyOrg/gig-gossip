@@ -6,7 +6,7 @@ using Walletrpc;
 
 namespace GigLNDWalletAPI
 {
-	public class HubDicStore<T>
+	public class HubDicStore<T> where T:notnull
 	{
 		public Dictionary<string, HashSet<T>> Item4PublicKey = new();
 		public Dictionary<T, HashSet<string>> PublicKeys4Items = new();

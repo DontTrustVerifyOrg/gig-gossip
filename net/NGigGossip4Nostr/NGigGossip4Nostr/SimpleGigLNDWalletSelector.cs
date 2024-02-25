@@ -2,7 +2,6 @@
 using CryptoToolkit;
 using GigLNDWalletAPIClient;
 using NBitcoin.Secp256k1;
-using GigLNDWalletAPIClient;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Dynamic;

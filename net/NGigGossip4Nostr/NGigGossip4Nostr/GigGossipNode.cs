@@ -739,7 +739,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     public void OnInvoiceStateChange(string state, byte[] data)
     {
         var iac = Crypto.DeserializeObject<InvoiceData>(data);
-        FlowLogger.NewNote(iac.PaymentHash, state);
+        FlowLogger.NewNoteAsync(iac.PaymentHash, state);
         if (iac.IsNetworkInvoice)
         {
             if (state == "Accepted")
@@ -799,6 +799,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
         catch (Exception ex)
         {
+            await FlowLogger.TraceExceptionAsync(ex);
             return false;
         }
     }

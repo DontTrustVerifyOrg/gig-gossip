@@ -2,9 +2,11 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 
+#pragma warning disable 1591
+
 namespace GigGossipSettlerAPI
 {
-    public class HubDicStore<T>
+    public class HubDicStore<T> where T : notnull
     {
         public ConcurrentDictionary<string, ConcurrentDictionary<T, bool>> Item4Id = new();
         public ConcurrentDictionary<T, ConcurrentDictionary<string, bool>> Id4Items = new();

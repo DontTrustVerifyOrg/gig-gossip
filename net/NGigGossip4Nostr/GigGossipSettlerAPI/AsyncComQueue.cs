@@ -4,8 +4,9 @@ using System.Threading;
 using GigGossipSettler;
 using Nito.AsyncEx;
 
-namespace GigGossipSettlerAPI;
+#pragma warning disable 1591
 
+namespace GigGossipSettlerAPI;
 public class AsyncComQueue<T>
 {
     AsyncMonitor asyncRevealMonitor;
