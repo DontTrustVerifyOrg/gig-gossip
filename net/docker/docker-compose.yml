@@ -135,6 +135,21 @@ services:
   #     - lightning_node_3
 
 
+  logger_api:
+    image: giggossip_backend
+    build: 
+      context: ../.
+      dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
+
+    container_name: logger_api
+    restart: on-failure
+    entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigDebugLoggerAPI/bin/Debug/net7.0/GigDebugLoggerAPI.dll --basedir=/work/locallnd/.giggossip/"
+    ports:
+      - 7187:7187
+    volumes:
+      - ./work/locallnd/:/work/locallnd/:Z
+
+
   wallet_api:
     image: giggossip_backend
     build: 
