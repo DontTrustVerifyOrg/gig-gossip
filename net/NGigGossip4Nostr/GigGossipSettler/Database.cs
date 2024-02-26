@@ -8,22 +8,6 @@ using System.Diagnostics;
 
 namespace GigGossipSettler;
 
-[Serializable]
-public class SystemLogEntry
-{
-    /// <summary>
-    /// The public key of the subject.
-    /// </summary>
-    [Key]
-    public required Guid EntryId { get; set; }
-
-    public required string PublicKey { get; set; }
-    public required long Timestamp { get; set; }
-    public required TraceEventType EventType { get; set; }
-    public required string Message { get; set; }
-    public required string Exception { get; set; }
-}
-
 /// <summary>
 /// This class represents a property of the subject of the certificate granted by Settlers Certification Authority.
 /// </summary>
@@ -320,8 +304,6 @@ public class SettlerContext : DbContext
     /// </summary>
     public DbSet<UserTraceProperty> UserTraceProperties { get; set; }
 
-    public DbSet<SystemLogEntry> SystemLogEntries { get; set; }
-
     /// <summary>
     /// Configures the context.
     /// </summary>
@@ -350,8 +332,6 @@ public class SettlerContext : DbContext
             return this.UserCertificates;
         else if (obj is UserTraceProperty)
             return this.UserTraceProperties;
-        else if (obj is SystemLogEntry)
-            return this.SystemLogEntries;
         throw new InvalidOperationException();
     }
 

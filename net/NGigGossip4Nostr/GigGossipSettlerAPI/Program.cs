@@ -301,50 +301,7 @@ app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, s
     return g;
 });
 
-app.MapPost("/logevent/{authToken}/{eventType}", async (HttpRequest request, string authToken, string eventType, [FromForm] IFormFile message, [FromForm] IFormFile exception)
-    =>
-{
-    try
-    {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken.ToString());
-        Singlethon.Settler.SystemLogEvent(pubkey, Enum.Parse<System.Diagnostics.TraceEventType>(eventType), Encoding.UTF8.GetString(await message.ToBytes()), Encoding.UTF8.GetString(await exception.ToBytes()));
-        return new Result();
-    }
-    catch (Exception ex)
-    {
-        TraceEx.TraceException(ex);
-        return new Result(ex);
-    }
-})
-.WithName("LogEvent")
-.WithSummary("Logs an event")
-.WithDescription("Logs an event");
 
-
-app.MapGet("/getlogevents", (string authToken, string pubkey, long frmtmst, long totmst) =>
-{
-    try
-    {
-        Singlethon.Settler.ValidateAuthToken(authToken);
-        return new Result<List<SystemLogEntry>>(Singlethon.Settler.GetLogEvents(pubkey, frmtmst, totmst));
-    }
-    catch (Exception ex)
-    {
-        TraceEx.TraceException(ex);
-        return new Result<List<SystemLogEntry>>(ex);
-    }
-})
-.WithName("GetLogEvents")
-.WithSummary("Lists log events.")
-.WithDescription("Lists log events")
-.WithOpenApi(g =>
-{
-    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
-    g.Parameters[1].Description = "Pubkey of the subject";
-    g.Parameters[2].Description = "Datatime from (incusive)";
-    g.Parameters[3].Description = "Datatime to (exclusive)";
-    return g;
-});
 
 app.MapPost("/giveuserfile/{authToken}/{pubkey}/{name}/{validHours}", async (HttpRequest request, string authToken, string pubkey, string name, long validHours, [FromForm] IFormFile value, [FromForm] IFormFile secret)
     =>

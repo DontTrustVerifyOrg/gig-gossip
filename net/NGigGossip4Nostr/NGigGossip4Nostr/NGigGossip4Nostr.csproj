@@ -27,5 +27,6 @@
     <ProjectReference Include="..\GigLNDWalletAPIClient\GigLNDWalletAPIClient.csproj" />
     <ProjectReference Include="..\GigGossipFrames\GigGossipFrames.csproj" />
     <ProjectReference Include="..\GigGossipSettlerAPIClient\GigGossipSettlerAPIClient.csproj" />
+    <ProjectReference Include="..\GigDebugLoggerAPIClient\GigDebugLoggerAPIClient.csproj" />
   </ItemGroup>
 </Project>

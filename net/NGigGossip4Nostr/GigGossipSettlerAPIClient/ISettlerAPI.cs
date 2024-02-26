@@ -12,8 +12,6 @@ namespace GigGossipSettlerAPIClient
         Task<GeolocationRetResult> AddressGeocodeAsync(string authToken, string address, string country, CancellationToken cancellationToken);
         Task<StringResult> LocationGeocodeAsync(string authToken, double lat, double lon, CancellationToken cancellationToken);
         Task<Result> GiveUserPropertyAsync(string authToken, string pubkey, string name, string value, string secret, long validHours, CancellationToken cancellationToken);
-        Task<Result> LogEventAsync(string authToken, string eventType, FileParameter message, FileParameter exception, CancellationToken cancellationToken);
-        Task<SystemLogEntryListResult> GetLogEventsAsync(string authToken, string pubkey, long frmtmst, long totmst, CancellationToken cancellationToken);
         Task<Result> GiveUserFileAsync(string authToken, string pubkey, string name, long validHours, FileParameter value, FileParameter secret, CancellationToken cancellationToken);
         Task<Result> SaveUserTracePropertyAsync(string authToken, string pubkey, string name, string value, CancellationToken cancellationToken);
         Task<Result> VerifyChannelAsync(string authToken, string pubkey, string name, string method, string value, CancellationToken cancellationToken);

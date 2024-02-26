@@ -180,16 +180,6 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.Result> LogEventAsync(string authToken, string eventType, FileParameter message, FileParameter exception, CancellationToken cancellationToken)
-    {
-        return await api.LogEventAsync(authToken, eventType, message, exception, cancellationToken);
-    }
-
-    public async Task<SystemLogEntryListResult> GetLogEventsAsync(string authToken, string pubkey, long frmtmst, long totmst, CancellationToken cancellationToken)
-    {
-        return await api.GetLogEventsAsync(authToken, pubkey, frmtmst, totmst, cancellationToken);
-    }
-
     public async Task<GigGossipSettlerAPIClient.Result> GiveUserFileAsync(string authToken, string pubkey, string name, long validHours, FileParameter value, FileParameter secret, CancellationToken cancellationToken)
     {
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }

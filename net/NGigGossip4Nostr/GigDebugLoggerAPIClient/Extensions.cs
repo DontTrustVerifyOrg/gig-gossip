@@ -1,7 +1,7 @@
 ﻿using System;
 using Newtonsoft.Json;
 
-namespace GigGossipSettlerAPIClient;
+namespace GigDebugLoggerAPIClient;
 
 public static class Extensions
 {

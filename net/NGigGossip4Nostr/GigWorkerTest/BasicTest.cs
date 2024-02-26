@@ -99,6 +99,7 @@ public class BasicTest
             new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi),
             ()=> new HttpClient(),
             gigWorkerSettings.GigWalletOpenApi,
+            gigWorkerSettings.LoggerOpenApi,
             gigWorkerSettings.SettlerOpenApi);
 
         await customer.StartAsync(
@@ -111,7 +112,8 @@ public class BasicTest
             new CustomerGossipNodeEvents(),
             () => new HttpClient(),
             customerSettings.GigWalletOpenApi,
-            gigWorkerSettings.SettlerOpenApi);
+            customerSettings.LoggerOpenApi,
+            customerSettings.SettlerOpenApi);
 
         var ballanceOfCustomer = WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken(), CancellationToken.None));
 
@@ -348,6 +350,7 @@ public class NodeSettings
     public required Uri GigWalletOpenApi { get; set; }
     public required string NostrRelays { get; set; }
     public required string PrivateKey { get; set; }
+    public required Uri LoggerOpenApi { get; set; }
     public required Uri SettlerOpenApi { get; set; }
     public required long PriceAmountForRouting { get; set; }
     public required long TimestampToleranceMs { get; set; }

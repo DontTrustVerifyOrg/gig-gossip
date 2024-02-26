@@ -135,6 +135,8 @@ public partial class RideShareCLIApp
         Reset,
         [Display(Name = "Exit")]
         Exit,
+        [Display(Name = "Enable/Disable Debug Log")]
+        DebLog,
     }
 
     public async Task<ECPrivKey> GetPrivateKeyAsync()
@@ -328,7 +330,7 @@ public partial class RideShareCLIApp
                     AnsiConsole.MarkupLine("[red]Ride in progress[/]");
                 }
 
-                string fromAddress,toAddress;
+                string fromAddress, toAddress;
                 GeoLocation fromLocation, toLocation;
 
                 if (Prompt.Confirm("Use random", false))
@@ -377,6 +379,11 @@ public partial class RideShareCLIApp
             {
                 await this.StopAsync();
                 await this.StartAsync();
+            }
+            else if (cmd == CommandEnum.DebLog)
+            {
+                gigGossipNode.FlowLogger.Enabled = !gigGossipNode.FlowLogger.Enabled;
+                AnsiConsole.WriteLine("DebugLog is " + (gigGossipNode.FlowLogger.Enabled ? "ON" : "OFF"));
             }
         }
     }
@@ -466,13 +473,11 @@ public partial class RideShareCLIApp
         await gigGossipNode.StopAsync();
     }
 
-    bool FlowLoggerEnabled = false;
-
     async Task StartAsync()
     {
 
         await gigGossipNode.StartAsync(
-            FlowLoggerEnabled,
+            false,
             settings.NodeSettings.Fanout,
             settings.NodeSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(settings.NodeSettings.TimestampToleranceMs),
@@ -481,6 +486,7 @@ public partial class RideShareCLIApp
             ((GigGossipNodeEventSource) gigGossipNodeEventSource).GigGossipNodeEvents,
             ()=>new HttpClient(),
             settings.NodeSettings.GigWalletOpenApi,
+            settings.NodeSettings.LoggerOpenApi,
             settings.NodeSettings.SettlerOpenApi);
 
         var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token));

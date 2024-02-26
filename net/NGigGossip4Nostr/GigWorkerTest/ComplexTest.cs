@@ -104,6 +104,7 @@ public class ComplexTest
                 new GigWorkerGossipNodeEvents(gridNodeSettings.SettlerOpenApi),
                 ()=>new HttpClient(),
                 gridNodeSettings.GigWalletOpenApi,
+                gridNodeSettings.LoggerOpenApi,
                 gridNodeSettings.SettlerOpenApi
                 );
         }
@@ -130,6 +131,7 @@ public class ComplexTest
                 new CustomerGossipNodeEvents(),
                 () => new HttpClient(),
                 gridNodeSettings.GigWalletOpenApi,
+                gridNodeSettings.LoggerOpenApi,
                 gridNodeSettings.SettlerOpenApi);
             customers.Add(customer);
         }
@@ -145,6 +147,7 @@ public class ComplexTest
                 new NetworkEarnerNodeEvents(),
                 ()=> new HttpClient(),
                 gridNodeSettings.GigWalletOpenApi,
+                gridNodeSettings.LoggerOpenApi,
                 gridNodeSettings.SettlerOpenApi);
         }
 
@@ -538,6 +541,7 @@ public class NodeSettings
     public required Uri GigWalletOpenApi { get; set; }
     public required string NostrRelays { get; set; }
     public required Uri SettlerOpenApi { get; set; }
+    public required Uri LoggerOpenApi { get; set; }
     public required long PriceAmountForRouting { get; set; }
     public required long TimestampToleranceMs { get; set; }
     public required long InvoicePaymentTimeoutSec { get; set; }

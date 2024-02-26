@@ -7,7 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Xml.Linq;
 using CryptoToolkit;
-using GigGossipSettlerAPIClient;
+using GigDebugLoggerAPIClient;
 using GoogleApi.Entities.Places.Common;
 using NBitcoin.Protocol;
 using NBitcoin.Secp256k1;
@@ -29,39 +29,31 @@ namespace NGigGossip4Nostr
 
     public class FlowLogger : IFlowLogger
     {
-        private Uri settlerUri;
-        private ISettlerAPI settlerAPI;
-        private ECPrivKey privKey;
-        private string publicKey;
+        private Uri loggerUri;
+        private IGigDebugLoggerAPI loggerAPI;
+        private string pubkey;
         private SemaphoreSlim guard = new(1, 1);
         public bool Enabled { get; set; }
         CancellationTokenSource CancellationTokenSource = new();
 
-        public FlowLogger(bool traceEnabled, ECPrivKey eCPrivKey, Uri settlerUri, Func<HttpClient> httpFactory)
+        public FlowLogger(bool traceEnabled, string pubkey, Uri loggerUri, Func<HttpClient> httpFactory)
         {
-            this.settlerUri = settlerUri;
-            this.settlerAPI = new swaggerClient(settlerUri.AbsoluteUri, httpFactory());
-            this.privKey = eCPrivKey;
-            this.publicKey = eCPrivKey.CreateXOnlyPubKey().AsHex();
+            this.loggerUri = loggerUri;
+            this.loggerAPI = new swaggerClient(loggerUri.AbsoluteUri, httpFactory());
+            this.pubkey = pubkey;
             this.Enabled = traceEnabled;
         }
 
-        private async Task<string> MakeSettlerAuthTokenAsync()
-        {
-            return Crypto.MakeSignedTimedToken(
-                privKey, DateTime.UtcNow,
-                SettlerAPIResult.Get<Guid>(await settlerAPI.GetTokenAsync(publicKey, CancellationTokenSource.Token)));
-        }
-
-        public async Task WriteToLogAsync(System.Diagnostics.TraceEventType eventType, string message)
+        public async Task WriteToLogAsync( System.Diagnostics.TraceEventType eventType, string message)
         {
             if (!Enabled) return;
 
             await guard.WaitAsync();
             try
             {
-                SettlerAPIResult.Check(await settlerAPI.LogEventAsync(
-                    await MakeSettlerAuthTokenAsync(),
+                LoggerAPIResult.Check(await loggerAPI.LogEventAsync(
+                    "API_KEY",
+                    pubkey,
                     eventType.ToString(),
                     new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes(message))),
                     new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes(""))),
@@ -85,8 +77,9 @@ namespace NGigGossip4Nostr
             await guard.WaitAsync();
             try
             {
-                SettlerAPIResult.Check(await settlerAPI.LogEventAsync(
-                await MakeSettlerAuthTokenAsync(),
+                LoggerAPIResult.Check(await loggerAPI.LogEventAsync(
+                "API_KEY",
+                pubkey,
                 eventType.ToString(),
                 new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes(string.IsNullOrWhiteSpace(message) ? exception.Message : message))),
                 new FileParameter(new MemoryStream(Encoding.UTF8.GetBytes(exception.ToJsonString()))),

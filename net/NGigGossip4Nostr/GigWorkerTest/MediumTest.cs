@@ -112,6 +112,7 @@ public class MediumTest
             new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi),
             ()=>new HttpClient(),
             gigWorkerSettings.GigWalletOpenApi,
+            gigWorkerSettings.LoggerOpenApi,
             gigWorkerSettings.SettlerOpenApi
             );
         gigWorker.ClearContacts();
@@ -128,7 +129,8 @@ public class MediumTest
                 new NetworkEarnerNodeEvents(),
                 () => new HttpClient(),
                 gossiperSettings.GigWalletOpenApi,
-                gigWorkerSettings.SettlerOpenApi);
+                gossiperSettings.LoggerOpenApi,
+                gossiperSettings.SettlerOpenApi);
             node.ClearContacts();
         }
 
@@ -142,7 +144,8 @@ public class MediumTest
             new CustomerGossipNodeEvents(this),
             () => new HttpClient(),
             customerSettings.GigWalletOpenApi,
-            gigWorkerSettings.SettlerOpenApi);
+            customerSettings.LoggerOpenApi,
+            customerSettings.SettlerOpenApi);
         customer.ClearContacts();
 
         async Task TopupNode(GigGossipNode node, long minAmout,long topUpAmount)
@@ -531,6 +534,7 @@ public class NodeSettings
     public required string NostrRelays { get; set; }
     public required string PrivateKey { get; set; }
     public required Uri SettlerOpenApi { get; set; }
+    public required Uri LoggerOpenApi { get; set; }
     public required long PriceAmountForRouting { get; set; }
     public required long TimestampToleranceMs { get; set; }
     public required long InvoicePaymentTimeoutSec { get; set; }

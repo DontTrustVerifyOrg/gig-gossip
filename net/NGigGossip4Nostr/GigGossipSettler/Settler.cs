@@ -143,24 +143,6 @@ public class Settler : CertificationAuthority
         return tk.PublicKey;
     }
 
-    public void SystemLogEvent(string pubkey, System.Diagnostics.TraceEventType eventType, string message,string exception)
-    {
-        settlerContext.Value.AddObject(new SystemLogEntry
-        {
-            EntryId = Guid.NewGuid(),
-            PublicKey = pubkey,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            EventType = eventType,
-            Message = message,
-            Exception = exception,
-        });
-    }
-
-    public List<SystemLogEntry> GetLogEvents(string pubkey, long frm, long to)
-    {
-        return (from l in settlerContext.Value.SystemLogEntries where (l.PublicKey == pubkey) && (l.Timestamp > frm) && (l.Timestamp <= to) select l).ToList();
-    }
-
     public void SaveUserTraceProperty(string pubkey, string name, byte[] value)
     {
         if (

@@ -133,7 +133,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     }
 
     public async Task StartAsync(bool traceEnabled, int fanout, long priceAmountForRouting, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
-        string[] nostrRelays, IGigGossipNodeEvents gigGossipNodeEvents, Func<HttpClient> httpClientFactory, Uri defaultWalletUri,Uri mySettlerUri, HttpMessageHandler? httpMessageHandler=null)
+        string[] nostrRelays, IGigGossipNodeEvents gigGossipNodeEvents, Func<HttpClient> httpClientFactory, Uri defaultWalletUri,Uri myLoggerUri, Uri mySettlerUri, HttpMessageHandler? httpMessageHandler=null)
     {
 
         this.messageLocks = new();
@@ -154,7 +154,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
         try
         {
-            await base.StartAsync(nostrRelays, new FlowLogger(traceEnabled, this.privateKey, mySettlerUri, httpClientFactory));
+            await base.StartAsync(nostrRelays, new FlowLogger(traceEnabled, this.PublicKey, myLoggerUri, httpClientFactory));
         }
         catch (Exception ex)
         {
