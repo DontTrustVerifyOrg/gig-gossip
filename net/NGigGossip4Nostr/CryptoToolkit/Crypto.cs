@@ -438,4 +438,26 @@ public static class Crypto
         return JsonSerializer.Deserialize<T>(compressedStream);
     }
 #endif
+
+    public static bool TryParseBitcoinAddress(string text, out BitcoinAddress? address)
+    {
+        address = null;
+
+        if (string.IsNullOrEmpty(text) || text.Length > 100)
+        {
+            return false;
+        }
+
+        text = text.Trim();
+        try
+        {
+            //TODO Pawel Inject Network please
+            address = BitcoinAddress.Create(text, Network.RegTest);
+            return true;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
 }

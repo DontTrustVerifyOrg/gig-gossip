@@ -33,6 +33,7 @@ public abstract class NostrNode
     protected CancellationTokenSource CancellationTokenSource = new();
 
     public IFlowLogger FlowLogger { get; private set; }
+    public bool Started => nostrClient != null;
 
     public NostrNode(ECPrivKey privateKey, int chunkSize, bool consumeCL)
     {
