@@ -216,6 +216,8 @@ public abstract class NostrNode
     {
         if (nostrClient != null)
             await StopAsync();
+
+        CancellationTokenSource = new();
         FlowLogger = flowLogger;
         NostrRelays = nostrRelays;
         nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
