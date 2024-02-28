@@ -73,6 +73,7 @@ public class AcceptBroadcastReturnValue
 {
     public required Guid ReplierCertificateId { get; set; }
     public required PayReq DecodedReplyInvoice { get; set; }
+    public required string ReplyInvoiceHash { get; set; }
 }
 
 public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaymentStatusUpdatesMonitorEvents, ISettlerMonitorEvents
@@ -450,6 +451,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         ReplyFrame responseFrame;
         PayReq decodedReplyInvoice;
         Guid replierCertificateId;
+        string replyPaymentHash;
 
         await alreadyBroadcastedSemaphore.WaitAsync();
         try
@@ -465,7 +467,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 await FlowLogger.NewMessageAsync(this.PublicKey, Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), "getSecret");
                 var settlerClient = this.SettlerSelector.GetSettlerClient(acceptBroadcastResponse.SettlerServiceUri);
                 var authToken = await MakeSettlerAuthTokenAsync(acceptBroadcastResponse.SettlerServiceUri);
-                var replyPaymentHash = SettlerAPIResult.Get<string>(await settlerClient.GenerateReplyPaymentPreimageAsync(authToken, broadcastFrame.SignedRequestPayload.Id.ToString(), this.PublicKey, CancellationTokenSource.Token));
+                replyPaymentHash = SettlerAPIResult.Get<string>(await settlerClient.GenerateReplyPaymentPreimageAsync(authToken, broadcastFrame.SignedRequestPayload.Id.ToString(), this.PublicKey, CancellationTokenSource.Token));
                 var replyInvoice = WalletAPIResult.Get<InvoiceRet>(await GetWalletClient().AddHodlInvoiceAsync(await MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)InvoicePaymentTimeout.TotalSeconds, cancellationToken)).PaymentRequest;
                 await FlowLogger.NewMessageAsync(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), replyPaymentHash, "hash");
                 await FlowLogger.NewMessageAsync(this.PublicKey, replyPaymentHash, "create");
@@ -529,6 +531,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             }
             else
             {
+                replyPaymentHash = alreadyBroadcasted.ReplyInvoiceHash;
                 decodedReplyInvoice = Crypto.DeserializeObject<PayReq>(alreadyBroadcasted.DecodedReplyInvoice);
                 replierCertificateId = alreadyBroadcasted.ReplierCertificateId;
                 responseFrame = new ReplyFrame()
@@ -551,6 +554,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         {
             ReplierCertificateId = replierCertificateId,
             DecodedReplyInvoice = decodedReplyInvoice,
+            ReplyInvoiceHash = replyPaymentHash,
         };
     }
 
