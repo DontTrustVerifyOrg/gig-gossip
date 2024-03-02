@@ -23,6 +23,7 @@ using static NBitcoin.Protocol.Behaviors.ChainBehavior;
 using System.Collections.Concurrent;
 using GigGossipFrames;
 using System.Net.Http;
+using Microsoft.EntityFrameworkCore;
 
 [Serializable]
 public class InvoiceData
@@ -387,7 +388,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                     this.PublicKey,
                     peerPublicKey.AsECXOnlyPubKey())
             };
-            await SendMessageAsync(peerPublicKey, broadcastFrame, true);
+            await SendMessageAsync(peerPublicKey, broadcastFrame, false, DateTime.UtcNow.AddMinutes(2));
             await FlowLogger.NewMessageAsync(this.PublicKey, peerPublicKey, "broadcast");
         }
     }
@@ -866,9 +867,18 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         return messageLocks.TryAdd(id, true);
     }
 
-    public override void CommitMessage(string id)
+    public override bool CommitMessage(string id)
     {
-        this.nodeContext.Value.AddObject(new MessageDoneRow() { MessageId = id, PublicKey = this.PublicKey });
+        try
+        {
+            this.nodeContext.Value.AddObject(new MessageDoneRow() { MessageId = id, PublicKey = this.PublicKey });
+            return true;
+        }
+        catch(DbUpdateException e)
+        {
+            //already in the database
+            return false;
+        }
     }
 
     public override void AbortMessage(string id)

@@ -45,9 +45,9 @@ public class DirectCom : NostrNode
         return gigGossipNode.OpenMessage(id);
     }
 
-    public override void CommitMessage(string id)
+    public override bool CommitMessage(string id)
     {
-        gigGossipNode.CommitMessage(id);
+        return gigGossipNode.CommitMessage(id);
     }
 
     public override void AbortMessage(string id)

@@ -143,7 +143,6 @@ public class SettlerMonitor
                     {
                         gigGossipNode.OnGigCancelled(kv.Data);
                         kv.Status = status;
-                        kv.Status = status;
                         gigGossipNode.nodeContext.Value.SaveObject(kv);
                     }
                 }

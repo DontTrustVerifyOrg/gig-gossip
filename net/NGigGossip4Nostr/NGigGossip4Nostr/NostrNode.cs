@@ -7,6 +7,7 @@ using System.Threading;
 using NBitcoin.RPC;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
+using System.Net.WebSockets;
 
 namespace NGigGossip4Nostr;
 
@@ -66,6 +67,13 @@ public abstract class NostrNode
         return _registeredFrameTypes[name];
     }
 
+    public async static Task TryConnectingToRelayAsync(Uri relay,CancellationToken cancellationToken)
+    {
+        var n = new NNostr.Client.NostrClient(relay);
+        await n.ConnectAndWaitUntilConnected(cancellationToken);
+        await n.Disconnect();
+        n.Dispose();
+    }
 
     protected async Task SayHelloAsync()
     {
@@ -209,7 +217,7 @@ public abstract class NostrNode
     public virtual void OnEose() { }
 
     public abstract bool OpenMessage(string id);
-    public abstract void CommitMessage(string id);
+    public abstract bool CommitMessage(string id);
     public abstract void AbortMessage(string id);
 
     protected async Task StartAsync(string[] nostrRelays, IFlowLogger flowLogger)

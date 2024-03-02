@@ -109,7 +109,10 @@ public partial class RideShareCLIApp
     private async void GigGossipNodeEventSource_OnResponseReady(object? sender, ResponseReadyEventArgs e)
     {
         if (requestedRide == null)
+        {
+            AnsiConsole.WriteLine("requestedRide is empty 2");
             return;
+        }
         if (e.RequestPayloadId == requestedRide.SignedRequestPayload.Id)
         {
             await e.GigGossipNode.CancelBroadcastAsync(requestedRide.SignedCancelRequestPayload);
@@ -117,6 +120,8 @@ public partial class RideShareCLIApp
             directPubkeys[e.RequestPayloadId] = e.Reply.PublicKey;
             new Thread(async () => await RiderJourneyAsync(e.RequestPayloadId, e.Reply.Secret)).Start();
         }
+        else
+            AnsiConsole.WriteLine("SignedRequestPayloadId mismatch 2");
     }
 
     private void GigGossipNodeEventSource_OnInvoiceCancelled(object? sender, InvoiceCancelledEventArgs e)
@@ -196,21 +201,21 @@ public partial class RideShareCLIApp
     private async Task OnDriverLocation(string senderPublicKey, LocationFrame locationFrame)
     {
         if (requestedRide == null)
+        {
+            AnsiConsole.WriteLine("requestedRide is empty");
             return;
+        }
         if (locationFrame.SignedRequestPayloadId == requestedRide.SignedRequestPayload.Id)
         {
             AnsiConsole.WriteLine("driver location:" + senderPublicKey + "|" + locationFrame.RideStatus.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
-            if (locationFrame.RideStatus == RideState.DriverWaitingForRider)
-            {
+            if (locationFrame.RideStatus >= RideState.DriverWaitingForRider)
                 driverApproached = true;
-            }
-            else if (locationFrame.RideStatus == RideState.RiderDroppedOff)
-            {
+            if (locationFrame.RideStatus >= RideState.RiderDroppedOff)
                 riderDroppedOff = true;
-            }
             lastDriverLocation = locationFrame.Location;
         }
+        else
+            AnsiConsole.WriteLine("SignedRequestPayloadId mismatch");
     }
-
 }
 
