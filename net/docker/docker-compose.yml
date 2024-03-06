@@ -19,7 +19,10 @@ services:
     volumes:
       - ./work/locallnd/.bitcoin:/work/locallnd/.bitcoin:Z
       # - ./work/locallnd/.giggossip:/work/locallnd/.giggossip:Z
-
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
 
 
   lightning_node_1:
@@ -36,6 +39,10 @@ services:
     volumes:
       - ./work/locallnd/.lnd:/work/locallnd/.lnd:Z
       - ./work/locallnd/.secret:/work/locallnd/.secret:ro
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
 
 
 
@@ -53,6 +60,10 @@ services:
     volumes:
       - ./work/locallnd/.lnd2:/work/locallnd/.lnd:Z
       - ./work/locallnd/.secret:/work/locallnd/.secret:ro
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
 
 
 
@@ -70,6 +81,10 @@ services:
     volumes:
       - ./work/locallnd/.lnd3:/work/locallnd/.lnd:Z
       - ./work/locallnd/.secret:/work/locallnd/.secret:ro
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
 
 
 
@@ -84,6 +99,10 @@ services:
       - 6969:6969
     volumes:
       - ./work/locallnd/.nostr_relay:/work/locallnd/.nostr_relay:Z
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
 
 
   nostr2:
@@ -97,6 +116,10 @@ services:
       - 6970:6970
     volumes:
       - ./work/locallnd/.nostr_relay2:/work/locallnd/.nostr_relay:Z
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
 
 
   nostr3:
@@ -110,6 +133,10 @@ services:
       - 6971:6971
     volumes:
       - ./work/locallnd/.nostr_relay3:/work/locallnd/.nostr_relay:Z
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
 
 
 
@@ -148,6 +175,10 @@ services:
       - 7187:7187
     volumes:
       - ./work/locallnd/:/work/locallnd/:Z
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
 
 
   wallet_api:
@@ -163,6 +194,10 @@ services:
       - 7101:7101
     volumes:
       - ./work/locallnd/:/work/locallnd/:Z
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
 
 
   settler_api:
@@ -178,6 +213,10 @@ services:
       - 7189:7189
     volumes:
       - ./work/locallnd/:/work/locallnd/:Z
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
 
 
   wallet_api2:
@@ -193,6 +232,10 @@ services:
       - 7102:7102
     volumes:
       - ./work/locallnd/:/work/locallnd/:Z
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
 
 
   settler_api2:
@@ -208,6 +251,10 @@ services:
       - 7190:7190
     volumes:
       - ./work/locallnd/:/work/locallnd/:Z
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
 
 
   wallet_api3:
@@ -223,6 +270,10 @@ services:
       - 7103:7103
     volumes:
       - ./work/locallnd/:/work/locallnd/:Z
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
 
 
   settler_api3:
@@ -238,6 +289,10 @@ services:
       - 7191:7191
     volumes:
       - ./work/locallnd/:/work/locallnd/:Z
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
 
 
 networks:
