@@ -105,38 +105,38 @@ services:
         max-size: "100m"
 
 
-  nostr2:
-    image: python:3.10.13-alpine3.18
+  # nostr2:
+  #   image: python:3.10.13-alpine3.18
 
-    container_name: giggossip_nostr2
-    restart: on-failure
-    working_dir: /work/locallnd/.nostr_relay
-    command: sh -c "pip install nostr-relay && nostr-relay -c config.yaml serve"
-    ports:
-      - 6970:6970
-    volumes:
-      - ./work/locallnd/.nostr_relay2:/work/locallnd/.nostr_relay:Z
-    logging:
-      driver: local
-      options:
-        max-size: "100m"
+  #   container_name: giggossip_nostr2
+  #   restart: on-failure
+  #   working_dir: /work/locallnd/.nostr_relay
+  #   command: sh -c "pip install nostr-relay && nostr-relay -c config.yaml serve"
+  #   ports:
+  #     - 6970:6970
+  #   volumes:
+  #     - ./work/locallnd/.nostr_relay2:/work/locallnd/.nostr_relay:Z
+  #   logging:
+  #     driver: local
+  #     options:
+  #       max-size: "100m"
 
 
-  nostr3:
-    image: python:3.10.13-alpine3.18
+  # nostr3:
+  #   image: python:3.10.13-alpine3.18
 
-    container_name: giggossip_nostr3
-    restart: on-failure
-    working_dir: /work/locallnd/.nostr_relay
-    command: sh -c "pip install nostr-relay && nostr-relay -c config.yaml serve"
-    ports:
-      - 6971:6971
-    volumes:
-      - ./work/locallnd/.nostr_relay3:/work/locallnd/.nostr_relay:Z
-    logging:
-      driver: local
-      options:
-        max-size: "100m"
+  #   container_name: giggossip_nostr3
+  #   restart: on-failure
+  #   working_dir: /work/locallnd/.nostr_relay
+  #   command: sh -c "pip install nostr-relay && nostr-relay -c config.yaml serve"
+  #   ports:
+  #     - 6971:6971
+  #   volumes:
+  #     - ./work/locallnd/.nostr_relay3:/work/locallnd/.nostr_relay:Z
+  #   logging:
+  #     driver: local
+  #     options:
+  #       max-size: "100m"
 
 
 
@@ -219,80 +219,80 @@ services:
         max-size: "100m"
 
 
-  wallet_api2:
-    image: giggossip_backend
-    build: 
-      context: ../.
-      dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
+  # wallet_api2:
+  #   image: giggossip_backend
+  #   build: 
+  #     context: ../.
+  #     dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
 
-    container_name: wallet_api2
-    restart: on-failure
-    entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigLNDWalletAPI/bin/Debug/net7.0/GigLNDWalletAPI.dll --basedir=/work/locallnd/.giggossip1/"
-    ports:
-      - 7102:7102
-    volumes:
-      - ./work/locallnd/:/work/locallnd/:Z
-    logging:
-      driver: local
-      options:
-        max-size: "100m"
-
-
-  settler_api2:
-    image: giggossip_backend
-    build: 
-      context: ../.
-      dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
-
-    container_name: settler_api2
-    restart: on-failure
-    entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigGossipSettlerAPI/bin/Debug/net7.0/GigGossipSettlerAPI.dll --basedir=/work/locallnd/.giggossip1/"
-    ports:
-      - 7190:7190
-    volumes:
-      - ./work/locallnd/:/work/locallnd/:Z
-    logging:
-      driver: local
-      options:
-        max-size: "100m"
+  #   container_name: wallet_api2
+  #   restart: on-failure
+  #   entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigLNDWalletAPI/bin/Debug/net7.0/GigLNDWalletAPI.dll --basedir=/work/locallnd/.giggossip1/"
+  #   ports:
+  #     - 7102:7102
+  #   volumes:
+  #     - ./work/locallnd/:/work/locallnd/:Z
+  #   logging:
+  #     driver: local
+  #     options:
+  #       max-size: "100m"
 
 
-  wallet_api3:
-    image: giggossip_backend
-    build: 
-      context: ../.
-      dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
+  # settler_api2:
+  #   image: giggossip_backend
+  #   build: 
+  #     context: ../.
+  #     dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
 
-    container_name: wallet_api3
-    restart: on-failure
-    entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigLNDWalletAPI/bin/Debug/net7.0/GigLNDWalletAPI.dll --basedir=/work/locallnd/.giggossip2/"
-    ports:
-      - 7103:7103
-    volumes:
-      - ./work/locallnd/:/work/locallnd/:Z
-    logging:
-      driver: local
-      options:
-        max-size: "100m"
+  #   container_name: settler_api2
+  #   restart: on-failure
+  #   entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigGossipSettlerAPI/bin/Debug/net7.0/GigGossipSettlerAPI.dll --basedir=/work/locallnd/.giggossip1/"
+  #   ports:
+  #     - 7190:7190
+  #   volumes:
+  #     - ./work/locallnd/:/work/locallnd/:Z
+  #   logging:
+  #     driver: local
+  #     options:
+  #       max-size: "100m"
 
 
-  settler_api3:
-    image: giggossip_backend
-    build: 
-      context: ../.
-      dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
+  # wallet_api3:
+  #   image: giggossip_backend
+  #   build: 
+  #     context: ../.
+  #     dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
 
-    container_name: settler_api3
-    restart: on-failure
-    entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigGossipSettlerAPI/bin/Debug/net7.0/GigGossipSettlerAPI.dll --basedir=/work/locallnd/.giggossip2/"
-    ports:
-      - 7191:7191
-    volumes:
-      - ./work/locallnd/:/work/locallnd/:Z
-    logging:
-      driver: local
-      options:
-        max-size: "100m"
+  #   container_name: wallet_api3
+  #   restart: on-failure
+  #   entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigLNDWalletAPI/bin/Debug/net7.0/GigLNDWalletAPI.dll --basedir=/work/locallnd/.giggossip2/"
+  #   ports:
+  #     - 7103:7103
+  #   volumes:
+  #     - ./work/locallnd/:/work/locallnd/:Z
+  #   logging:
+  #     driver: local
+  #     options:
+  #       max-size: "100m"
+
+
+  # settler_api3:
+  #   image: giggossip_backend
+  #   build: 
+  #     context: ../.
+  #     dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
+
+  #   container_name: settler_api3
+  #   restart: on-failure
+  #   entrypoint: sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/GigGossipSettlerAPI/bin/Debug/net7.0/GigGossipSettlerAPI.dll --basedir=/work/locallnd/.giggossip2/"
+  #   ports:
+  #     - 7191:7191
+  #   volumes:
+  #     - ./work/locallnd/:/work/locallnd/:Z
+  #   logging:
+  #     driver: local
+  #     options:
+  #       max-size: "100m"
 
 
 networks:
