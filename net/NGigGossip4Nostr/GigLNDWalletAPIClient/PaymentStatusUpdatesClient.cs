@@ -4,6 +4,8 @@ namespace GigLNDWalletAPIClient
 {
     public interface IPaymentStatusUpdatesClient
     {
+        Uri Uri { get; }
+
         Task ConnectAsync(string authToken, CancellationToken cancellationToken);
         Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken);
         Task StopMonitoringAsync(string authToken, string paymentHash, CancellationToken cancellationToken);
@@ -13,15 +15,15 @@ namespace GigLNDWalletAPIClient
     public class PaymentStatusUpdatesClient : IPaymentStatusUpdatesClient
     {
         IWalletAPI swaggerClient;
-        private readonly HttpMessageHandler? httpMessageHandler;
         HubConnection connection;
         SemaphoreSlim slimLock = new(1, 1);
 
-        internal PaymentStatusUpdatesClient(IWalletAPI swaggerClient, HttpMessageHandler? httpMessageHandler = null)
+        internal PaymentStatusUpdatesClient(IWalletAPI swaggerClient)
         {
             this.swaggerClient = swaggerClient;
-            this.httpMessageHandler = httpMessageHandler;
         }
+
+        public Uri Uri => new Uri(swaggerClient?.BaseUrl);
 
         public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
         {
@@ -29,12 +31,9 @@ namespace GigLNDWalletAPIClient
             try
             {
                 var builder = new HubConnectionBuilder();
-
-                if (httpMessageHandler != null)
-                    builder.WithUrl(swaggerClient.BaseUrl + "paymentstatusupdates?authtoken=" + Uri.EscapeDataString(authToken), (options) => { options.HttpMessageHandlerFactory = (messageHndl) => { return httpMessageHandler; }; });
-                else
-                    builder.WithUrl(swaggerClient.BaseUrl + "paymentstatusupdates?authtoken=" + Uri.EscapeDataString(authToken));
-
+                builder.WithUrl(swaggerClient.BaseUrl + "paymentstatusupdates?authtoken=" + Uri.EscapeDataString(authToken));
+                if (swaggerClient.RetryPolicy != null)
+                    builder.WithAutomaticReconnect(swaggerClient.RetryPolicy);
                 connection = builder.Build();
                 await connection.StartAsync(cancellationToken);
             }

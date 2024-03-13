@@ -24,6 +24,8 @@ using System.Collections.Concurrent;
 using GigGossipFrames;
 using System.Net.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR.Client;
+using NetworkClientToolkit;
 
 [Serializable]
 public class InvoiceData
@@ -110,7 +112,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     ConcurrentDictionary<string, bool> messageLocks;
 
-    public GigGossipNode(string connectionString, ECPrivKey privKey, int chunkSize) : base(privKey, chunkSize,true)
+    public GigGossipNode(string connectionString, ECPrivKey privKey, int chunkSize, IRetryPolicy retryPolicy) : base(privKey, chunkSize,true, retryPolicy)
     {
         RegisterFrameType<BroadcastFrame>();
         RegisterFrameType<CancelBroadcastFrame>();
@@ -156,18 +158,11 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
         try
         {
+
             await base.StartAsync(nostrRelays, new FlowLogger(traceEnabled, this.PublicKey, myLoggerUri, httpClientFactory));
-        }
-        catch (Exception ex)
-        {
-            throw new Exception($"Base: {ex.Message}");
-        }
 
-        try
-        {
-
-            WalletSelector = new SimpleGigLNDWalletSelector(httpClientFactory,FlowLogger);
-            SettlerSelector = new SimpleSettlerSelector(httpClientFactory, FlowLogger);
+            WalletSelector = new SimpleGigLNDWalletSelector(httpClientFactory,FlowLogger,RetryPolicy);
+            SettlerSelector = new SimpleSettlerSelector(httpClientFactory, FlowLogger, RetryPolicy);
 
             _invoiceStateUpdatesMonitor = new InvoiceStateUpdatesMonitor(this);
             _paymentStatusUpdatesMonitor = new PaymentStatusUpdatesMonitor(this);
@@ -181,8 +176,8 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             LoadMessageLocks();
 
             _settlerToken = new();
-                await _invoiceStateUpdatesMonitor.StartAsync(httpMessageHandler);
-                await _paymentStatusUpdatesMonitor.StartAsync(httpMessageHandler);
+                await _invoiceStateUpdatesMonitor.StartAsync();
+                await _paymentStatusUpdatesMonitor.StartAsync();
                 await _settlerMonitor.StartAsync();
 
                 await SayHelloAsync();
@@ -874,7 +869,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             this.nodeContext.Value.AddObject(new MessageDoneRow() { MessageId = id, PublicKey = this.PublicKey });
             return true;
         }
-        catch(DbUpdateException e)
+        catch(DbUpdateException)
         {
             //already in the database
             return false;

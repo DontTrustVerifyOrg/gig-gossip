@@ -8,8 +8,12 @@ using NBitcoin.RPC;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using System.Net.WebSockets;
+using Microsoft.AspNetCore.SignalR.Client;
+using NetworkClientToolkit;
+using System.Data;
 
 namespace NGigGossip4Nostr;
+
 
 
 public abstract class NostrNode
@@ -32,17 +36,22 @@ public abstract class NostrNode
     private SemaphoreSlim eventSemSlim = new(1, 1);
     private bool consumeCL;
     protected CancellationTokenSource CancellationTokenSource = new();
+    public IRetryPolicy RetryPolicy;
+    private ServerListener serverListener = new();
 
     public IFlowLogger FlowLogger { get; private set; }
     public bool Started => nostrClient != null;
 
-    public NostrNode(ECPrivKey privateKey, int chunkSize, bool consumeCL)
+    public event EventHandler<ServerConnectionStateEventArgs> OnServerConnectionState;
+
+    public NostrNode(ECPrivKey privateKey, int chunkSize, bool consumeCL, IRetryPolicy retryPolicy)
     {
         this.privateKey = privateKey;
         this.publicKey = privateKey.CreateXOnlyPubKey();
         this.PublicKey = this.publicKey.AsHex();
         this.ChunkSize = chunkSize;
         this.consumeCL = consumeCL;
+        this.RetryPolicy = retryPolicy;
     }
 
     public NostrNode(NostrNode me, int chunkSize, bool consumeCL)
@@ -52,6 +61,7 @@ public abstract class NostrNode
         this.PublicKey = this.publicKey.AsHex();
         this.ChunkSize = chunkSize;
         this.consumeCL = consumeCL;
+        this.RetryPolicy = me.RetryPolicy;
     }
 
     public void RegisterFrameType<T>()
@@ -89,7 +99,7 @@ public abstract class NostrNode
                     Tags = { },
                 };
                 await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
-                await nostrClient.PublishEvent(newEvent, CancellationToken.None);
+                await RetryPolicy.WithRetryPolicy(() => nostrClient.PublishEvent(newEvent, CancellationTokenSource.Token));
             }
             await FlowLogger.TraceVoidAsync(this, g__, m__);
         }
@@ -119,7 +129,7 @@ public abstract class NostrNode
                     Tags = tags,
                 };
                 await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
-                await nostrClient.PublishEvent(newEvent, CancellationToken.None);
+                await RetryPolicy.WithRetryPolicy(() => nostrClient.PublishEvent(newEvent, CancellationTokenSource.Token));
             }
             await FlowLogger.TraceVoidAsync(this, g__, m__);
         }
@@ -146,7 +156,7 @@ public abstract class NostrNode
                 };
                 await newEvent.EncryptNip04EventAsync(this.privateKey, skipKindVerification: true);
                 await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
-                await nostrClient.PublishEvent(newEvent, CancellationToken.None);
+                await RetryPolicy.WithRetryPolicy(() => nostrClient.PublishEvent(newEvent,CancellationTokenSource.Token));
             }
             await FlowLogger.TraceVoidAsync(this, g__, m__);
         }
@@ -199,7 +209,7 @@ public abstract class NostrNode
                 }
 
                 foreach (var e in events)
-                    await nostrClient.PublishEvent(e, CancellationTokenSource.Token);
+                    await RetryPolicy.WithRetryPolicy(() => nostrClient.PublishEvent(e, CancellationTokenSource.Token));
                 return await FlowLogger.TraceOutAsync(this, g__, m__, evid);
             }
         }
@@ -225,17 +235,20 @@ public abstract class NostrNode
         if (nostrClient != null)
             await StopAsync();
 
+        if (OnServerConnectionState != null)
+            OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Connecting });
+
         CancellationTokenSource = new();
         FlowLogger = flowLogger;
         NostrRelays = nostrRelays;
         nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
         this.eoseReceived = false;
-        await nostrClient.ConnectAndWaitUntilConnected();
+        await RetryPolicy.WithRetryPolicy(() => nostrClient.ConnectAndWaitUntilConnected(CancellationTokenSource.Token));
         nostrClient.EventsReceived += NostrClient_EventsReceived;
         nostrClient.EoseReceived += NostrClient_EoseReceived;
         nostrClient.StateChanged += NostrClient_StateChanged;
         subscriptionId = Guid.NewGuid().ToString();
-        await nostrClient.CreateSubscription(subscriptionId, new[]{
+        await RetryPolicy.WithRetryPolicy(() => nostrClient.CreateSubscription(subscriptionId, new[]{
                         new NostrSubscriptionFilter()
                         {
                             Kinds = new []{SettingsKind},
@@ -261,7 +274,10 @@ public abstract class NostrNode
                             Kinds = new []{EphemeralMessageKind},
                             ReferencedPublicKeys = new []{ publicKey.ToHex() }
                         }
-                    });
+                    }, CancellationTokenSource.Token));
+
+        if (OnServerConnectionState != null)
+            OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Open });
     }
 
     private async void NostrClient_StateChanged(object? sender, (Uri, System.Net.WebSockets.WebSocketState?) e)
@@ -273,22 +289,22 @@ public abstract class NostrNode
             {
                 if ((e.Item2 == System.Net.WebSockets.WebSocketState.CloseReceived) || (e.Item2 == System.Net.WebSockets.WebSocketState.Closed))
                 {
+                    if (OnServerConnectionState != null)
+                        OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Closed, Uri = e.Item1 });
                     nostrClient.StateChanged -= NostrClient_StateChanged;
-                    while (true)
-                    {
-                        try
+
+                    await serverListener.LoopAsync(
+                        async () =>
                         {
                             await FlowLogger.TraceWarningAsync(this, g__, m__, "Connection to NOSTR relay lost, reconnecting");
                             await StartAsync(NostrRelays, FlowLogger);
                             await FlowLogger.TraceWarningAsync(this, g__, m__, "Connection to NOSTR restored");
-                            break;
-                        }
-                        catch (System.Net.WebSockets.WebSocketException ex)
-                        {
-                            await FlowLogger.TraceExcAsync(this, g__, m__, ex);
-                            Thread.Sleep(1000);
-                        }
-                    }
+                        },
+                        async (_) => { },
+                        RetryPolicy,
+                        CancellationTokenSource.Token
+                        );
+
                 }
                 await FlowLogger.TraceVoidAsync(this, g__, m__);
             }

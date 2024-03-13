@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using static NBitcoin.Scripting.OutputDescriptor.TapTree;
 using System.Threading;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace NGigGossip4Nostr;
 
@@ -23,29 +24,32 @@ public class SimpleGigLNDWalletSelector : IGigLNDWalletSelector
 
     Func<HttpClient> _httpClientFactory;
     IFlowLogger flowLogger;
+    IRetryPolicy retryPolicy;
 
-    public SimpleGigLNDWalletSelector(Func<HttpClient> httpClientFactory, IFlowLogger flowLogger)
+    public SimpleGigLNDWalletSelector(Func<HttpClient> httpClientFactory, IFlowLogger flowLogger, IRetryPolicy retryPolicy)
     {
         _httpClientFactory = httpClientFactory;
         this.flowLogger = flowLogger;
+        this.retryPolicy = retryPolicy;
     }
 
     public IWalletAPI GetWalletClient(Uri serviceUri)
     {
-        return new WalletAPIWrapper(flowLogger, swaggerClients.GetOrAdd(serviceUri, (serviceUri) => new GigLNDWalletAPIClient.swaggerClient(serviceUri.AbsoluteUri, _httpClientFactory())));
+        return new WalletAPILoggingWrapper(flowLogger, swaggerClients.GetOrAdd(serviceUri,
+            (serviceUri) => new WalletAPIRetryWrapper(serviceUri.AbsoluteUri, _httpClientFactory(), retryPolicy)));
     }
 
 }
 
 
-
-public class WalletAPIWrapper : LogWrapper<IWalletAPI>, IWalletAPI
+public class WalletAPILoggingWrapper : LogWrapper<IWalletAPI>, IWalletAPI
 {
-    public WalletAPIWrapper(IFlowLogger flowLogger, IWalletAPI api) : base(flowLogger, api)
+    public WalletAPILoggingWrapper(IFlowLogger flowLogger, IWalletAPI api) : base(flowLogger, api)
     {
     }
 
     public string BaseUrl => api.BaseUrl;
+    public IRetryPolicy RetryPolicy => api.RetryPolicy;
 
     public async Task<InvoiceRetResult> AddHodlInvoiceAsync(string authToken, long satoshis, string hash, string memo, long expiry, CancellationToken cancellationToken)
     {
@@ -421,14 +425,14 @@ public class WalletAPIWrapper : LogWrapper<IWalletAPI>, IWalletAPI
         }
     }
 
-    public IInvoiceStateUpdatesClient CreateInvoiceStateUpdatesClient(HttpMessageHandler? httpMessageHandler = null)
+    public IInvoiceStateUpdatesClient CreateInvoiceStateUpdatesClient()
     {
-        return new InvoiceStateUpdatesClientWrapper(flowLogger, api.CreateInvoiceStateUpdatesClient(httpMessageHandler));
+        return new InvoiceStateUpdatesClientWrapper(flowLogger, api.CreateInvoiceStateUpdatesClient());
     }
 
-    public IPaymentStatusUpdatesClient CreatePaymentStatusUpdatesClient(HttpMessageHandler? httpMessageHandler = null)
+    public IPaymentStatusUpdatesClient CreatePaymentStatusUpdatesClient()
     {
-        return new PaymentStatusUpdatesClientWrapper(flowLogger,api.CreatePaymentStatusUpdatesClient(httpMessageHandler));
+        return new PaymentStatusUpdatesClientWrapper(flowLogger,api.CreatePaymentStatusUpdatesClient());
     }
 }
 
@@ -437,6 +441,8 @@ internal class InvoiceStateUpdatesClientWrapper : LogWrapper<IInvoiceStateUpdate
     public InvoiceStateUpdatesClientWrapper(IFlowLogger flowLogger, IInvoiceStateUpdatesClient api) : base(flowLogger, api)
     {
     }
+
+    public Uri Uri => api.Uri;
 
     public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
     {
@@ -512,6 +518,8 @@ internal class PaymentStatusUpdatesClientWrapper : LogWrapper<IPaymentStatusUpda
     public PaymentStatusUpdatesClientWrapper(IFlowLogger flowLogger, IPaymentStatusUpdatesClient api) : base(flowLogger, api)
     {
     }
+
+    public Uri Uri => api.Uri;
 
     public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
     {

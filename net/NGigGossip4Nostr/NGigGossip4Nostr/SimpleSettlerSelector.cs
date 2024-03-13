@@ -13,6 +13,8 @@ using System.Xml.Linq;
 using NBitcoin.Protocol;
 using System.Net.Sockets;
 using System.Threading;
+using Microsoft.AspNetCore.SignalR.Client;
+using NetworkClientToolkit;
 
 namespace NGigGossip4Nostr;
 
@@ -29,11 +31,13 @@ public class SimpleSettlerSelector : ISettlerSelector
     Func<HttpClient> _httpClientFactory;
 
     IFlowLogger flowLogger;
+    IRetryPolicy retryPolicy;
 
-    public SimpleSettlerSelector(Func<HttpClient> httpClientFactory, IFlowLogger flowLogger)
+    public SimpleSettlerSelector(Func<HttpClient> httpClientFactory, IFlowLogger flowLogger, IRetryPolicy retryPolicy)
     {
         _httpClientFactory = httpClientFactory;
         this.flowLogger = flowLogger;
+        this.retryPolicy = retryPolicy;
     }
 
     public async Task<ECXOnlyPubKey> GetPubKeyAsync(Uri serviceUri, CancellationToken cancellationToken)
@@ -43,7 +47,7 @@ public class SimpleSettlerSelector : ISettlerSelector
 
     public ISettlerAPI GetSettlerClient(Uri serviceUri)
     {
-        return new SettlerAPIWrapper(flowLogger, swaggerClients.GetOrAdd(serviceUri, (serviceUri) => new GigGossipSettlerAPIClient.swaggerClient(serviceUri.AbsoluteUri, _httpClientFactory())));
+        return new SettlerAPIWrapper(flowLogger, swaggerClients.GetOrAdd(serviceUri, (serviceUri) => new SettlerAPIRetryWrapper(serviceUri.AbsoluteUri, _httpClientFactory(), retryPolicy)));
     }
 
     public async Task<bool> IsRevokedAsync(Uri serviceUri, Guid id, CancellationToken cancellationToken)
@@ -60,6 +64,7 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
     }
 
     public string BaseUrl => api.BaseUrl;
+    public IRetryPolicy RetryPolicy => api.RetryPolicy;
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GetCaPublicKeyAsync(CancellationToken cancellationToken)
     {
@@ -469,6 +474,8 @@ internal class GigStatusClientWrapper : LogWrapper<IGigStatusClient>, IGigStatus
     {
     }
 
+    public Uri Uri => api.Uri;
+
     public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
     {
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
@@ -543,6 +550,8 @@ internal class PreimageRevealClientWrapper : LogWrapper<IPreimageRevealClient>, 
     public PreimageRevealClientWrapper(IFlowLogger flowLogger, IPreimageRevealClient api) : base(flowLogger, api)
     {
     }
+
+    public Uri Uri => api.Uri;
 
     public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
     {

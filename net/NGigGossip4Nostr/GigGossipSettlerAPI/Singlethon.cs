@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using GigGossipSettler;
-using Nito.AsyncEx;
+using NetworkToolkit;
 
 #pragma warning disable 1591 
 

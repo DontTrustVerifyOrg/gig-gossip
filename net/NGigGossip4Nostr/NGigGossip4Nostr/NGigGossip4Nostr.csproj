@@ -28,5 +28,6 @@
     <ProjectReference Include="..\GigGossipFrames\GigGossipFrames.csproj" />
     <ProjectReference Include="..\GigGossipSettlerAPIClient\GigGossipSettlerAPIClient.csproj" />
     <ProjectReference Include="..\GigDebugLoggerAPIClient\GigDebugLoggerAPIClient.csproj" />
+    <ProjectReference Include="..\NetworkClientToolkit\NetworkClientToolkit.csproj" />
   </ItemGroup>
 </Project>

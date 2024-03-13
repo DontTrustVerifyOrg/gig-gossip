@@ -3,8 +3,9 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using Nito.AsyncEx;
 
-namespace GigLNDWalletAPI;
+#pragma warning disable 1591
 
+namespace NetworkToolkit;
 public class AsyncComQueue<T>
 {
     AsyncMonitor asyncRevealMonitor;

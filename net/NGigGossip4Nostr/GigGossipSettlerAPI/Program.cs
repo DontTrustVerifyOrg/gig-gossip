@@ -20,6 +20,8 @@ using GoogleApi;
 using GoogleApi.Entities.Places.AutoComplete.Request;
 using GoogleApi.Entities.Maps.Geocoding.Common.Enums;
 using NBitcoin.Protocol;
+using Microsoft.AspNetCore.SignalR.Client;
+using NetworkToolkit;
 
 #pragma warning disable 1591
 
@@ -80,15 +82,16 @@ var settlerSettings = config.GetSection("settler").Get<SettlerSettings>();
 ECPrivKey caPrivateKey = settlerSettings.SettlerPrivateKey.AsECPrivKey();
 
 var httpClient = new HttpClient();
-var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.AbsoluteUri, httpClient);
-
+var retryPolicy = new DefaultRetryPolicy();
+var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.AbsoluteUri, httpClient, new DefaultRetryPolicy());
 
 Singlethon.Settler = new Settler(
     settlerSettings.ServiceUri,
-    new SimpleSettlerSelector(httpClient),
+    new SimpleSettlerSelector(httpClient, retryPolicy),
     caPrivateKey, settlerSettings.PriceAmountForSettlement,
     TimeSpan.FromSeconds(settlerSettings.InvoicePaymentTimeoutSec),
-    TimeSpan.FromSeconds(settlerSettings.DisputeTimeoutSec)
+    TimeSpan.FromSeconds(settlerSettings.DisputeTimeoutSec),
+            new DefaultRetryPolicy()
     );
 
 await Singlethon.Settler.InitAsync(lndWalletClient, settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
@@ -788,4 +791,36 @@ public class SettlerSettings
     public required string SMSGlobalAPIKeySecret { get; set; }
     public required int SMSCodeRetryNumber { get; set; }
     public required int SMSCodeTimeoutMin { get; set; }
+}
+
+public sealed class DefaultRetryPolicy : IRetryPolicy
+{
+    private static TimeSpan?[] DefaultBackoffTimes = new TimeSpan?[]
+    {
+        TimeSpan.Zero,
+        TimeSpan.FromSeconds(2),
+        TimeSpan.FromSeconds(10),
+        TimeSpan.FromSeconds(30),
+        null
+    };
+
+    TimeSpan?[] backoffTimes;
+
+    public DefaultRetryPolicy()
+    {
+        this.backoffTimes = DefaultBackoffTimes;
+    }
+
+    public DefaultRetryPolicy(TimeSpan?[] customBackoffTimes)
+    {
+        this.backoffTimes = customBackoffTimes;
+    }
+
+    public TimeSpan? NextRetryDelay(RetryContext context)
+    {
+        if (context.PreviousRetryCount >= this.backoffTimes.Length)
+            return null;
+
+        return this.backoffTimes[context.PreviousRetryCount];
+    }
 }

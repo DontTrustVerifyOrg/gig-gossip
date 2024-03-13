@@ -1,9 +1,5 @@
-﻿using System;
-using NBitcoin.Protocol;
-
-#pragma warning disable 1591
-
-namespace GigDebugLoggerAPI;
+﻿using Microsoft.AspNetCore.Http;
+namespace NetworkToolkit;
 
 public static class Extensions
 {
@@ -14,5 +10,5 @@ public static class Extensions
         stream.Seek(0, SeekOrigin.Begin);
         return stream.ToArray();
     }
-}
 
+}

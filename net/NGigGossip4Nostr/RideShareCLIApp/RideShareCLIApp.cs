@@ -14,6 +14,7 @@ using CryptoToolkit;
 using GigGossipFrames;
 using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -33,6 +34,37 @@ using static NBitcoin.Scripting.OutputDescriptor;
 
 namespace RideShareCLIApp;
 
+public sealed class DefaultRetryPolicy : IRetryPolicy
+{
+    private static TimeSpan?[] DefaultBackoffTimes = new TimeSpan?[]
+    {
+        TimeSpan.Zero,
+        TimeSpan.FromSeconds(2),
+//        TimeSpan.FromSeconds(10),
+//        TimeSpan.FromSeconds(30),
+        null
+    };
+
+    TimeSpan?[] backoffTimes;
+
+    public DefaultRetryPolicy()
+    {
+        this.backoffTimes = DefaultBackoffTimes;
+    }
+
+    public DefaultRetryPolicy(TimeSpan?[] customBackoffTimes)
+    {
+        this.backoffTimes = customBackoffTimes;
+    }
+
+    public TimeSpan? NextRetryDelay(RetryContext context)
+    {
+        if (context.PreviousRetryCount >= this.backoffTimes.Length)
+            return null;
+
+        return this.backoffTimes[context.PreviousRetryCount];
+    }
+}
 
 public partial class RideShareCLIApp
 {
@@ -185,7 +217,9 @@ public partial class RideShareCLIApp
         gigGossipNode = new GigGossipNode(
             settings.NodeSettings.ConnectionString.Replace("$ID", settings.Id),
             privateKey,
-            settings.NodeSettings.ChunkSize);
+            settings.NodeSettings.ChunkSize,
+            new DefaultRetryPolicy()
+            );
 
         AnsiConsole.WriteLine("privkey:" + privateKey.AsHex());
         AnsiConsole.WriteLine("pubkey :" + gigGossipNode.PublicKey);

@@ -4,6 +4,7 @@ namespace GigLNDWalletAPIClient
 {
     public interface IInvoiceStateUpdatesClient
     {
+        Uri Uri { get; }
         Task ConnectAsync(string authToken, CancellationToken cancellationToken);
         Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken);
         Task StopMonitoringAsync(string authToken, string paymentHash, CancellationToken cancellationToken);
@@ -13,14 +14,14 @@ namespace GigLNDWalletAPIClient
     public class InvoiceStateUpdatesClient : IInvoiceStateUpdatesClient
     {
         IWalletAPI swaggerClient;
-        private readonly HttpMessageHandler? httpMessageHandler;
         HubConnection connection;
         SemaphoreSlim slimLock = new(1, 1);
 
-        internal InvoiceStateUpdatesClient(IWalletAPI swaggerClient, HttpMessageHandler? httpMessageHandler = null)
+        public Uri Uri => new Uri(swaggerClient?.BaseUrl);
+
+        internal InvoiceStateUpdatesClient(IWalletAPI swaggerClient)
         {
             this.swaggerClient = swaggerClient;
-            this.httpMessageHandler = httpMessageHandler;
         }
 
         public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
@@ -29,12 +30,9 @@ namespace GigLNDWalletAPIClient
             try
             {
                 var builder = new HubConnectionBuilder();
-
-                if (httpMessageHandler != null)
-                    builder.WithUrl(swaggerClient.BaseUrl + "invoicestateupdates?authtoken=" + Uri.EscapeDataString(authToken), (options) => { options.HttpMessageHandlerFactory = (messageHndl) => { return httpMessageHandler; }; });
-                else
-                    builder.WithUrl(swaggerClient.BaseUrl + "invoicestateupdates?authtoken=" + Uri.EscapeDataString(authToken));
-
+                builder.WithUrl(swaggerClient.BaseUrl + "invoicestateupdates?authtoken=" + Uri.EscapeDataString(authToken));
+                if(swaggerClient.RetryPolicy != null)
+                    builder.WithAutomaticReconnect(swaggerClient.RetryPolicy);
                 connection = builder.Build();
                 await connection.StartAsync(cancellationToken);
             }

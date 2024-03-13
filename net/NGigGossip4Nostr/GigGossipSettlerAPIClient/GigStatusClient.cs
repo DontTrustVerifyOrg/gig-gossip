@@ -5,6 +5,8 @@ namespace GigGossipSettlerAPIClient
 {
     public interface IGigStatusClient
     {
+        Uri Uri { get; }
+
         Task ConnectAsync(string authToken, CancellationToken cancellationToken);
         Task MonitorAsync(string authToken, Guid gigId, Guid replierCertificateId, CancellationToken cancellationToken);
         IAsyncEnumerable<string> StreamAsync(string authToken, CancellationToken cancellationToken);
@@ -14,18 +16,22 @@ namespace GigGossipSettlerAPIClient
     public class GigStatusClient : IGigStatusClient
     {
         ISettlerAPI swaggerClient;
-        public HubConnection Connection;
+        HubConnection Connection;
 
         internal GigStatusClient(ISettlerAPI swaggerClient)
-		{
+        {
             this.swaggerClient = swaggerClient;
         }
 
-		public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
+        public Uri Uri => new Uri(swaggerClient?.BaseUrl);
+
+        public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
 		{
-            Connection = new HubConnectionBuilder()
-                .WithUrl(swaggerClient.BaseUrl + "gigstatus?authtoken=" + Uri.EscapeDataString(authToken))
-                .Build();
+            var builder = new HubConnectionBuilder();
+            builder.WithUrl(swaggerClient.BaseUrl + "gigstatus?authtoken=" + Uri.EscapeDataString(authToken));
+            if (swaggerClient.RetryPolicy != null)
+                builder.WithAutomaticReconnect(swaggerClient.RetryPolicy);
+            Connection = builder.Build();
             await Connection.StartAsync(cancellationToken);
         }
 

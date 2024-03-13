@@ -3,6 +3,7 @@ using GigGossipFrames;
 using GigGossipSettler.Exceptions;
 using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin.Secp256k1;
 using Newtonsoft.Json;
@@ -61,7 +62,7 @@ public class Settler : CertificationAuthority
     private TimeSpan invoicePaymentTimeout;
     public TimeSpan disputeTimeout;
     private long priceAmountForSettlement;
-    public GigLNDWalletAPIClient.swaggerClient lndWalletClient;
+    public IWalletAPI lndWalletClient;
     private InvoiceStateUpdatesMonitor _invoiceStateUpdatesMonitor;
     private Guid walletTokenGuid;
     public ThreadLocal<SettlerContext> settlerContext;
@@ -70,31 +71,28 @@ public class Settler : CertificationAuthority
 
     private CancellationTokenSource CancellationTokenSource = new();
 
-    public Settler(Uri serviceUri, ISettlerSelector settlerSelector, ECPrivKey settlerPrivateKey, long priceAmountForSettlement, TimeSpan invoicePaymentTimeout, TimeSpan disputeTimeout) : base(serviceUri, settlerPrivateKey)
+    public IRetryPolicy RetryPolicy;
+
+    public Settler(Uri serviceUri, ISettlerSelector settlerSelector, ECPrivKey settlerPrivateKey, long priceAmountForSettlement, TimeSpan invoicePaymentTimeout, TimeSpan disputeTimeout, IRetryPolicy retryPolicy) : base(serviceUri, settlerPrivateKey)
     {
         this.priceAmountForSettlement = priceAmountForSettlement;
         this.invoicePaymentTimeout = invoicePaymentTimeout;
         this.disputeTimeout = disputeTimeout;
         this.settlerSelector = settlerSelector;
+        this.RetryPolicy = retryPolicy;
     }
 
-    public HttpMessageHandler HttpMessageHandler;
-
-    public async Task InitAsync(GigLNDWalletAPIClient.swaggerClient lndWalletClient, string connectionString, HttpMessageHandler? httpMessageHandler = null, bool deleteDb = false)
+    public async Task InitAsync(IWalletAPI lndWalletClient, string connectionString)
     {
         this.lndWalletClient = lndWalletClient;
 
 #if DEBUG
         await Task.Delay(5000);
 #endif
-        this.walletTokenGuid = WalletAPIResult.Get<Guid>(await lndWalletClient.GetTokenAsync(this.CaXOnlyPublicKey.AsHex()));
+        this.walletTokenGuid = WalletAPIResult.Get<Guid>(await lndWalletClient.GetTokenAsync(this.CaXOnlyPublicKey.AsHex(), CancellationTokenSource.Token));
 
         settlerContext = new ThreadLocal<SettlerContext>(() => new SettlerContext(connectionString));
-        if (deleteDb)
-            settlerContext.Value.Database.EnsureDeleted();
         settlerContext.Value.Database.EnsureCreated();
-
-        this.HttpMessageHandler = httpMessageHandler;
 
         _invoiceStateUpdatesMonitor = new InvoiceStateUpdatesMonitor(this);
 
@@ -284,7 +282,7 @@ public class Settler : CertificationAuthority
 
     public async Task<SettlementTrust> GenerateSettlementTrustAsync(string replierpubkey, string[] replierproperties, byte[] message, string replyInvoice, Certificate<RequestPayloadValue> signedRequestPayload)
     {
-        var decodedInv = WalletAPIResult.Get<PayReq>(await lndWalletClient.DecodeInvoiceAsync(MakeAuthToken(), replyInvoice));
+        var decodedInv = WalletAPIResult.Get<PayReq>(await lndWalletClient.DecodeInvoiceAsync(MakeAuthToken(), replyInvoice, CancellationTokenSource.Token));
         var invPaymentHash = decodedInv.PaymentHash;
         if ((from pi in settlerContext.Value.Preimages where pi.SignedRequestPayloadId == signedRequestPayload.Id && pi.PaymentHash == invPaymentHash select pi).FirstOrDefault() == null)
             throw new UnknownPreimageException();
@@ -308,7 +306,7 @@ public class Settler : CertificationAuthority
 
         var networkInvoicePaymentHash = GenerateReplyPaymentPreimage(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.Id, replierpubkey);
         var networkInvoice = WalletAPIResult.Get<InvoiceRet>(await lndWalletClient.AddHodlInvoiceAsync(
-             MakeAuthToken(), priceAmountForSettlement, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds));
+             MakeAuthToken(), priceAmountForSettlement, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds, CancellationTokenSource.Token));
 
 
 
@@ -412,7 +410,7 @@ public class Settler : CertificationAuthority
             if (gig.Status == GigStatus.Accepted)
             {
                 await DescheduleGigAsync(gig);
-                var status = WalletAPIResult.Status(await lndWalletClient.CancelInvoiceAsync(MakeAuthToken(), gig.NetworkPaymentHash));
+                var status = WalletAPIResult.Status(await lndWalletClient.CancelInvoiceAsync(MakeAuthToken(), gig.NetworkPaymentHash, CancellationTokenSource.Token));
                 if (status != GigLNDWalletAPIErrorCode.Ok)
                     Trace.TraceWarning("CancelInvoice failed");
             }
@@ -459,7 +457,7 @@ public class Settler : CertificationAuthority
         var settletPi = (from pi in preims where pi.PublicKey == this.CaXOnlyPublicKey.AsHex() select pi).FirstOrDefault();
         if (settletPi == null)
             throw new UnknownPreimageException();
-        var status = WalletAPIResult.Status(await this.lndWalletClient.SettleInvoiceAsync(this.MakeAuthToken(), settletPi.Preimage)); // settle settlers network invoice
+        var status = WalletAPIResult.Status(await this.lndWalletClient.SettleInvoiceAsync(this.MakeAuthToken(), settletPi.Preimage, CancellationTokenSource.Token)); // settle settlers network invoice
         if (status != GigLNDWalletAPIErrorCode.Ok)
             Trace.TraceWarning("SettleGigAsync failed");
     }

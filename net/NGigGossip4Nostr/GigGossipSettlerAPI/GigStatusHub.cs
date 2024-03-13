@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using GigGossipSettler;
 using Microsoft.AspNetCore.SignalR;
-using Nito.AsyncEx;
+using NetworkToolkit;
 
 #pragma warning disable 1591
 

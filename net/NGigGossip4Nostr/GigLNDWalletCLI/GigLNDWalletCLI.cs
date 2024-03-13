@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Threading;
 using CryptoToolkit;
 using GigLNDWalletAPIClient;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using NBitcoin;
 using NBitcoin.RPC;
@@ -17,8 +18,41 @@ namespace GigLNDWalletCLI;
 
 public class GigLNDWalletCLI
 {
+
+    public sealed class DefaultRetryPolicy : IRetryPolicy
+    {
+        private static TimeSpan?[] DefaultBackoffTimes = new TimeSpan?[]
+        {
+        TimeSpan.Zero,
+        TimeSpan.FromSeconds(2),
+        TimeSpan.FromSeconds(10),
+        TimeSpan.FromSeconds(30),
+        null
+        };
+
+        TimeSpan?[] backoffTimes;
+
+        public DefaultRetryPolicy()
+        {
+            this.backoffTimes = DefaultBackoffTimes;
+        }
+
+        public DefaultRetryPolicy(TimeSpan?[] customBackoffTimes)
+        {
+            this.backoffTimes = customBackoffTimes;
+        }
+
+        public TimeSpan? NextRetryDelay(RetryContext context)
+        {
+            if (context.PreviousRetryCount >= this.backoffTimes.Length)
+                return null;
+
+            return this.backoffTimes[context.PreviousRetryCount];
+        }
+    }
+
     UserSettings userSettings;
-    swaggerClient walletClient;
+    IWalletAPI walletClient;
     IInvoiceStateUpdatesClient invoiceStateUpdatesClient;
     IPaymentStatusUpdatesClient paymentStatusUpdatesClient;
     CancellationTokenSource CancellationTokenSource = new();
@@ -52,7 +86,7 @@ public class GigLNDWalletCLI
         this.userSettings = config.GetSection("user").Get<UserSettings>();
 
         var baseUrl = userSettings.GigWalletOpenApi;
-        walletClient = new swaggerClient(baseUrl, new HttpClient());
+        walletClient = new WalletAPIRetryWrapper(baseUrl, new HttpClient(), new DefaultRetryPolicy());
 
         invoiceStateUpdatesClient = walletClient.CreateInvoiceStateUpdatesClient();
         paymentStatusUpdatesClient = walletClient.CreatePaymentStatusUpdatesClient();
@@ -106,7 +140,7 @@ public class GigLNDWalletCLI
     {
         var ecpriv = userSettings.UserPrivateKey.AsECPrivKey();
         string pubkey = ecpriv.CreateXOnlyPubKey().AsHex();
-        var guid = WalletAPIResult.Get<Guid>(await walletClient.GetTokenAsync(pubkey));
+        var guid = WalletAPIResult.Get<Guid>(await walletClient.GetTokenAsync(pubkey, CancellationToken.None));
         return Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid);
     }
 
@@ -214,13 +248,13 @@ public class GigLNDWalletCLI
                 }
                 else if (cmd == CommandEnum.NewAddress)
                 {
-                    var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await walletClient.NewAddressAsync(await MakeToken()));
+                    var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await walletClient.NewAddressAsync(await MakeToken(), CancellationToken.None));
                     ToClipboard(ClipType.BitcoinAddr, newBitcoinAddressOfCustomer);
                     AnsiConsole.WriteLine(newBitcoinAddressOfCustomer);
                 }
                 else if (cmd == CommandEnum.NewBitcoinAddress)
                 {
-                    var newBitcoinAddressOfBitcoinWallet = WalletAPIResult.Get<string>(await walletClient.NewBitcoinAddressAsync(await MakeToken()));
+                    var newBitcoinAddressOfBitcoinWallet = WalletAPIResult.Get<string>(await walletClient.NewBitcoinAddressAsync(await MakeToken(), CancellationToken.None));
                     ToClipboard(ClipType.BitcoinAddr, newBitcoinAddressOfBitcoinWallet);
                     AnsiConsole.WriteLine(newBitcoinAddressOfBitcoinWallet);
                 }
@@ -231,7 +265,7 @@ public class GigLNDWalletCLI
                     {
                         var bitcoinAddressOfCustomer = Prompt.Input<string>("Bitcoin Address", FromClipboard(ClipType.BitcoinAddr));
                         AnsiConsole.WriteLine(bitcoinAddressOfCustomer);
-                        WalletAPIResult.Check(await walletClient.SendToAddressAsync(await MakeToken(), bitcoinAddressOfCustomer, satoshis));
+                        WalletAPIResult.Check(await walletClient.SendToAddressAsync(await MakeToken(), bitcoinAddressOfCustomer, satoshis, CancellationToken.None));
                     }
                 }
                 else if (cmd == CommandEnum.GenerateBlocks)
@@ -239,18 +273,18 @@ public class GigLNDWalletCLI
                     var numblocks = Prompt.Input<int>("How many blocks", 6);
                     if (numblocks > 0)
                     {
-                        WalletAPIResult.Check(await walletClient.GenerateBlocksAsync(await MakeToken(), numblocks));
+                        WalletAPIResult.Check(await walletClient.GenerateBlocksAsync(await MakeToken(), numblocks, CancellationToken.None));
                     }
                 }
                 else if (cmd == CommandEnum.BitcoinWalletBallance)
                 {
                     var minconf = Prompt.Input<int>("How many confirtmations", 6);
-                    var ballance = WalletAPIResult.Get<long>(await walletClient.GetBitcoinWalletBallanceAsync(await MakeToken(), minconf));
+                    var ballance = WalletAPIResult.Get<long>(await walletClient.GetBitcoinWalletBallanceAsync(await MakeToken(), minconf, CancellationToken.None));
                     AnsiConsole.WriteLine($"Ballance={ballance}");
                 }
                 else if (cmd == CommandEnum.LndWalletBallance)
                 {
-                    var ballance = WalletAPIResult.Get<LndWalletBallanceRet>(await walletClient.GetLndWalletBallanceAsync(await MakeToken()));
+                    var ballance = WalletAPIResult.Get<LndWalletBallanceRet>(await walletClient.GetLndWalletBallanceAsync(await MakeToken(), CancellationToken.None));
                     AnsiConsole.WriteLine($"TotalBalance={ballance.TotalBalance}");
                     AnsiConsole.WriteLine($"ConfirmedBalance={ballance.ConfirmedBalance}");
                     AnsiConsole.WriteLine($"UnconfirmedBalance={ballance.UnconfirmedBalance}");
@@ -263,7 +297,7 @@ public class GigLNDWalletCLI
                     if (satoshis > 0)
                     {
                         var bitcoinAddressOfCustomer = Prompt.Input<string>("Bitcoin Address", FromClipboard(ClipType.BitcoinAddr));
-                        var feeEr = WalletAPIResult.Get<FeeEstimateRet>(await walletClient.EstimateFeeAsync(await MakeToken(), bitcoinAddressOfCustomer, satoshis));
+                        var feeEr = WalletAPIResult.Get<FeeEstimateRet>(await walletClient.EstimateFeeAsync(await MakeToken(), bitcoinAddressOfCustomer, satoshis, CancellationToken.None));
                         AnsiConsole.WriteLine($"FeeSat={feeEr.FeeSat},SatPerVbyte={feeEr.SatPerVbyte}");
                     }
                 }
@@ -273,7 +307,7 @@ public class GigLNDWalletCLI
                     var txFee = Prompt.Input<int>("TxFee");
                     if (payoutAmount > 0)
                     {
-                        var payoutId = WalletAPIResult.Get<Guid>(await walletClient.RegisterPayoutAsync(await MakeToken(), payoutAmount, FromClipboard(ClipType.BitcoinAddr), txFee));
+                        var payoutId = WalletAPIResult.Get<Guid>(await walletClient.RegisterPayoutAsync(await MakeToken(), payoutAmount, FromClipboard(ClipType.BitcoinAddr), txFee, CancellationToken.None));
                         AnsiConsole.WriteLine(payoutId.ToString());
                     }
                 }
@@ -282,7 +316,7 @@ public class GigLNDWalletCLI
                     var satoshis = Prompt.Input<int>("How much satoshis to reserve", 100000);
                     if (satoshis > 0)
                     {
-                        var reserveId = WalletAPIResult.Get<Guid>(await walletClient.OpenReserveAsync(await MakeToken(), satoshis));
+                        var reserveId = WalletAPIResult.Get<Guid>(await walletClient.OpenReserveAsync(await MakeToken(), satoshis, CancellationToken.None));
                         ToClipboard(ClipType.ReserveId, reserveId.ToString());
                         AnsiConsole.WriteLine(reserveId.ToString());
                     }
@@ -290,14 +324,14 @@ public class GigLNDWalletCLI
                 else if (cmd == CommandEnum.CloseReserve)
                 {
                     var reserveId = Prompt.Input<string>("ReserveId", FromClipboard(ClipType.ReserveId));
-                    WalletAPIResult.Check(await walletClient.CloseReserveAsync(await MakeToken(), reserveId));
+                    WalletAPIResult.Check(await walletClient.CloseReserveAsync(await MakeToken(), reserveId, CancellationToken.None));
                 }
                 else if (cmd == CommandEnum.AddInvoice)
                 {
                     var satoshis = Prompt.Input<long>("Satoshis", 1000L);
                     var memo = Prompt.Input<string>("Memo", "test");
                     var expiry = Prompt.Input<long>("Expiry", 1000L);
-                    var inv = WalletAPIResult.Get<InvoiceRet>(await walletClient.AddInvoiceAsync(await MakeToken(), satoshis, memo, expiry));
+                    var inv = WalletAPIResult.Get<InvoiceRet>(await walletClient.AddInvoiceAsync(await MakeToken(), satoshis, memo, expiry, CancellationToken.None));
                     ToClipboard(ClipType.Invoice, inv.PaymentRequest);
                     ToClipboard(ClipType.PaymentHash, inv.PaymentHash);
                     AnsiConsole.WriteLine(inv.PaymentRequest);
@@ -312,7 +346,7 @@ public class GigLNDWalletCLI
                     var preimage = Crypto.GenerateRandomPreimage();
                     AnsiConsole.WriteLine(preimage.AsHex());
                     var hash = Crypto.ComputePaymentHash(preimage).AsHex();
-                    var inv = WalletAPIResult.Get<InvoiceRet>(await walletClient.AddHodlInvoiceAsync(await MakeToken(), satoshis, hash, memo, expiry));
+                    var inv = WalletAPIResult.Get<InvoiceRet>(await walletClient.AddHodlInvoiceAsync(await MakeToken(), satoshis, hash, memo, expiry, CancellationToken.None));
                     ToClipboard(ClipType.Preimage, preimage.AsHex());
                     ToClipboard(ClipType.Invoice, inv.PaymentRequest);
                     ToClipboard(ClipType.PaymentHash, inv.PaymentHash);
@@ -324,7 +358,7 @@ public class GigLNDWalletCLI
                 {
                     var paymentreq = Prompt.Input<string>("Payment Request", FromClipboard(ClipType.Invoice));
                     AnsiConsole.WriteLine(paymentreq);
-                    var pay = WalletAPIResult.Get<PayReq>(await walletClient.DecodeInvoiceAsync(await MakeToken(), paymentreq));
+                    var pay = WalletAPIResult.Get<PayReq>(await walletClient.DecodeInvoiceAsync(await MakeToken(), paymentreq, CancellationToken.None));
                     AnsiConsole.WriteLine($"Satoshis:{pay.NumSatoshis}");
                     AnsiConsole.WriteLine($"Memo:{pay.Description}");
                     AnsiConsole.WriteLine($"Expiry:{pay.Expiry}");
@@ -332,13 +366,13 @@ public class GigLNDWalletCLI
                     ToClipboard(ClipType.PaymentHash, pay.PaymentHash);
                     var timeout = Prompt.Input<int>("Timeout", 1000);
                     await paymentStatusUpdatesClient.MonitorAsync(await MakeToken(), pay.PaymentHash, CancellationTokenSource.Token);
-                    WalletAPIResult.Check(await walletClient.SendPaymentAsync(await MakeToken(), paymentreq, timeout));
+                    WalletAPIResult.Check(await walletClient.SendPaymentAsync(await MakeToken(), paymentreq, timeout, CancellationToken.None));
                 }
                 else if (cmd == CommandEnum.CancelInvoice)
                 {
                     var paymenthash = Prompt.Input<string>("Payment Hash", FromClipboard(ClipType.PaymentHash));
                     AnsiConsole.WriteLine(paymenthash);
-                    WalletAPIResult.Check(await walletClient.CancelInvoiceAsync(await MakeToken(), paymenthash));
+                    WalletAPIResult.Check(await walletClient.CancelInvoiceAsync(await MakeToken(), paymenthash, CancellationToken.None));
                 }
                 else if (cmd == CommandEnum.SettleInvoice)
                 {
@@ -346,14 +380,14 @@ public class GigLNDWalletCLI
                     AnsiConsole.WriteLine(preimage);
                     var paymenthash = Crypto.ComputePaymentHash(preimage.AsBytes()).AsHex();
                     AnsiConsole.WriteLine(paymenthash);
-                    WalletAPIResult.Check(await walletClient.SettleInvoiceAsync(await MakeToken(), preimage));
+                    WalletAPIResult.Check(await walletClient.SettleInvoiceAsync(await MakeToken(), preimage, CancellationToken.None));
                     ToClipboard(ClipType.PaymentHash, paymenthash);
                 }
                 else if (cmd == CommandEnum.GetPaymentStatus)
                 {
                     var paymenthash = Prompt.Input<string>("Payment Hash", FromClipboard(ClipType.PaymentHash));
                     AnsiConsole.WriteLine(paymenthash);
-                    var payStatus = WalletAPIResult.Get<string>(await walletClient.GetPaymentStatusAsync(await MakeToken(), paymenthash));
+                    var payStatus = WalletAPIResult.Get<string>(await walletClient.GetPaymentStatusAsync(await MakeToken(), paymenthash, CancellationToken.None));
                     AnsiConsole.WriteLine($"Payment Status:{payStatus}");
                 }
                 else if (cmd == CommandEnum.GetInvoiceState)
@@ -364,7 +398,7 @@ public class GigLNDWalletCLI
                         paymenthash = FromClipboard(ClipType.PaymentHash);
                         AnsiConsole.WriteLine(paymenthash);
                     }
-                    var invState = WalletAPIResult.Get<string>(await walletClient.GetInvoiceStateAsync(await MakeToken(), paymenthash));
+                    var invState = WalletAPIResult.Get<string>(await walletClient.GetInvoiceStateAsync(await MakeToken(), paymenthash, CancellationToken.None));
                     AnsiConsole.WriteLine($"Invoice State:{invState}");
                 }
             }

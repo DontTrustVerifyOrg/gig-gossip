@@ -29,7 +29,6 @@ namespace NGigGossip4Nostr
 
     public class FlowLogger : IFlowLogger
     {
-        private Uri loggerUri;
         private IGigDebugLoggerAPI loggerAPI;
         private string pubkey;
         private SemaphoreSlim guard = new(1, 1);
@@ -38,7 +37,6 @@ namespace NGigGossip4Nostr
 
         public FlowLogger(bool traceEnabled, string pubkey, Uri loggerUri, Func<HttpClient> httpFactory)
         {
-            this.loggerUri = loggerUri;
             this.loggerAPI = new swaggerClient(loggerUri.AbsoluteUri, httpFactory());
             this.pubkey = pubkey;
             this.Enabled = traceEnabled;

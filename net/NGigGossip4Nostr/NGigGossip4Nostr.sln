@@ -47,6 +47,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GigDebugLoggerAPI", "GigDeb
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GigDebugLoggerAPIClient", "GigDebugLoggerAPIClient\GigDebugLoggerAPIClient.csproj", "{B781F879-DD04-46FB-8FB6-FBF2D3463F67}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetworkToolkit", "NetworkToolkit\NetworkToolkit.csproj", "{BA15EC63-7F01-4ED8-A172-BD7248EB1687}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetworkClientToolkit", "NetworkClientToolkit\NetworkClientToolkit.csproj", "{F09D45EC-19B1-4E69-96B5-B86586A2F031}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -141,6 +145,14 @@ Global
 		{B781F879-DD04-46FB-8FB6-FBF2D3463F67}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B781F879-DD04-46FB-8FB6-FBF2D3463F67}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B781F879-DD04-46FB-8FB6-FBF2D3463F67}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BA15EC63-7F01-4ED8-A172-BD7248EB1687}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BA15EC63-7F01-4ED8-A172-BD7248EB1687}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BA15EC63-7F01-4ED8-A172-BD7248EB1687}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BA15EC63-7F01-4ED8-A172-BD7248EB1687}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F09D45EC-19B1-4E69-96B5-B86586A2F031}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F09D45EC-19B1-4E69-96B5-B86586A2F031}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F09D45EC-19B1-4E69-96B5-B86586A2F031}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F09D45EC-19B1-4E69-96B5-B86586A2F031}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

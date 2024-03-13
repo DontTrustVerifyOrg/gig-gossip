@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Net.WebSockets;
 using GigLNDWalletAPIClient;
+using NetworkClientToolkit;
 
 namespace NGigGossip4Nostr;
 
@@ -10,49 +11,15 @@ public interface IPaymentStatusUpdatesMonitorEvents
     public void OnPaymentStatusChange(string status, byte[] data);
 }
 
-public class PaymentStatusUpdatesMonitor
+public class PaymentStatusUpdatesMonitor : HubMonitor
 {
     GigGossipNode gigGossipNode;
     public IPaymentStatusUpdatesClient PaymentStatusUpdatesClient;
-    bool AppExiting = false;
-    bool ClientConnected = false;
-    object ClientLock = new();
-
-    Thread paymentMonitorThread;
     CancellationTokenSource CancellationTokenSource = new();
 
     public PaymentStatusUpdatesMonitor(GigGossipNode gigGossipNode)
     {
         this.gigGossipNode = gigGossipNode;
-    }
-
-    void WaitForClientConnected()
-    {
-        lock (ClientLock)
-        {
-            while (!ClientConnected)
-                Monitor.Wait(ClientLock);
-        }
-        if (AppExiting)
-            throw new OperationCanceledException();
-    }
-
-    void NotifyClientIsConnected(bool isconnected)
-    {
-        lock (ClientLock)
-        {
-            ClientConnected = true;
-            Monitor.PulseAll(ClientLock);
-        }
-    }
-
-    void NotifyAppClosing()
-    {
-        lock (ClientLock)
-        {
-            AppExiting = true;
-            Monitor.PulseAll(ClientLock);
-        }
     }
 
     public bool IsPaymentMonitored(string phash)
@@ -102,92 +69,71 @@ public class PaymentStatusUpdatesMonitor
     }
 
 
-    public async Task StartAsync(HttpMessageHandler? httpMessageHandler)
+    public async Task StartAsync()
     {
-        paymentMonitorThread = new Thread(async () =>
-        {
-            while (true)
+        PaymentStatusUpdatesClient = gigGossipNode.GetWalletClient().CreatePaymentStatusUpdatesClient();
+
+        await base.StartAsync(
+            async () =>
             {
-                try
+                var token = await gigGossipNode.MakeWalletAuthToken();
+                await PaymentStatusUpdatesClient.ConnectAsync(token, CancellationTokenSource.Token);
+            },
+            async () =>
+            {
                 {
-                    var token = await gigGossipNode.MakeWalletAuthToken();
+                    var payToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPayments
+                                    where i.PublicKey == this.gigGossipNode.PublicKey
+                                    && i.PaymentStatus != "Succeeded" && i.PaymentStatus != "Failed"
+                                    select i).ToList();
 
-                    PaymentStatusUpdatesClient = gigGossipNode.GetWalletClient().CreatePaymentStatusUpdatesClient(httpMessageHandler);
-                    await PaymentStatusUpdatesClient.ConnectAsync(token, CancellationTokenSource.Token);
-
-                    NotifyClientIsConnected(true);
-
+                    foreach (var pay in payToMon)
                     {
-                        var payToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPayments
-                                        where i.PublicKey == this.gigGossipNode.PublicKey
-                                        && i.PaymentStatus != "Succeeded" && i.PaymentStatus != "Failed"
-                                        select i).ToList();
-
-                        foreach (var pay in payToMon)
-                        { 
-                            try
-                            {
-                                var status = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().GetPaymentStatusAsync(await gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash, CancellationTokenSource.Token));
-                                if (status != pay.PaymentStatus)
-                                {
-                                    gigGossipNode.OnPaymentStatusChange(status, pay.Data);
-                                    pay.PaymentStatus = status;
-                                    gigGossipNode.nodeContext.Value.SaveObject(pay);
-                                }
-                            }
-                            catch(GigLNDWalletAPIException ex)
-                            {
-                                await gigGossipNode.FlowLogger.TraceExceptionAsync(ex);
-                            }
-                        }
-                    }
-
-                    await foreach (var paystateupd in this.PaymentStatusUpdatesClient.StreamAsync(await this.gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token))
-                    {
-                        var invp = paystateupd.Split('|');
-                        var payhash = invp[0];
-                        var status = invp[1];
-                        var pay = (from i in gigGossipNode.nodeContext.Value.MonitoredPayments
-                                   where i.PublicKey == this.gigGossipNode.PublicKey
-                                   && i.PaymentStatus != "Succeeded" && i.PaymentStatus != "Failed"
-                                   && i.PaymentHash == payhash
-                                   select i).FirstOrDefault();
-                        if (pay != null)
+                        try
+                        {
+                            var status = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().GetPaymentStatusAsync(await gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash, CancellationTokenSource.Token));
                             if (status != pay.PaymentStatus)
                             {
                                 gigGossipNode.OnPaymentStatusChange(status, pay.Data);
                                 pay.PaymentStatus = status;
                                 gigGossipNode.nodeContext.Value.SaveObject(pay);
                             }
+                        }
+                        catch (GigLNDWalletAPIException ex)
+                        {
+                            await gigGossipNode.FlowLogger.TraceExceptionAsync(ex);
+                        }
                     }
                 }
-                catch (OperationCanceledException)
-                {
-                    NotifyAppClosing();
-                    //stream closed
-                    return;
-                }
-                catch (Exception ex) when (ex is Microsoft.AspNetCore.SignalR.HubException ||
-                                           ex is TimeoutException ||
-                                           ex is WebSocketException)
-                {
-                    NotifyClientIsConnected(false);
-                    await gigGossipNode.FlowLogger.TraceWarningAsync("Hub disconnected " + gigGossipNode.GetWalletClient().BaseUrl + "/paymentstatusupdates, reconnecting");
-                    Thread.Sleep(1000);
-                    //reconnect
-                }
-            }
-        });
 
-        paymentMonitorThread.Start();
-        WaitForClientConnected();
-
+                await foreach (var paystateupd in this.PaymentStatusUpdatesClient.StreamAsync(await this.gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token))
+                {
+                    var invp = paystateupd.Split('|');
+                    var payhash = invp[0];
+                    var status = invp[1];
+                    var pay = (from i in gigGossipNode.nodeContext.Value.MonitoredPayments
+                               where i.PublicKey == this.gigGossipNode.PublicKey
+                               && i.PaymentStatus != "Succeeded" && i.PaymentStatus != "Failed"
+                               && i.PaymentHash == payhash
+                               select i).FirstOrDefault();
+                    if (pay != null)
+                        if (status != pay.PaymentStatus)
+                        {
+                            gigGossipNode.OnPaymentStatusChange(status, pay.Data);
+                            pay.PaymentStatus = status;
+                            gigGossipNode.nodeContext.Value.SaveObject(pay);
+                        }
+                }
+            },
+            PaymentStatusUpdatesClient.Uri,
+            gigGossipNode.RetryPolicy,
+            CancellationTokenSource.Token
+        );
     }
 
     public void Stop()
     {
-        CancellationTokenSource.Cancel();
-        paymentMonitorThread.Join();
+        base.Stop(CancellationTokenSource);
     }
 }
 

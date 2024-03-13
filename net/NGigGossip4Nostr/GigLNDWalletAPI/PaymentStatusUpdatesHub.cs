@@ -4,6 +4,7 @@ using LNDWallet;
 using Nito.AsyncEx;
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
+using NetworkToolkit;
 
 namespace GigLNDWalletAPI;
 

@@ -31,5 +31,8 @@
     <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj">
       <GlobalPropertiesToRemove></GlobalPropertiesToRemove>
     </ProjectReference>
+    <ProjectReference Include="..\NetworkToolkit\NetworkToolkit.csproj">
+      <GlobalPropertiesToRemove></GlobalPropertiesToRemove>
+    </ProjectReference>
   </ItemGroup>
 </Project>

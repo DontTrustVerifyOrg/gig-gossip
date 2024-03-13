@@ -5,6 +5,8 @@ using NBitcoin.Secp256k1;
 using GigLNDWalletAPIClient;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
+using Microsoft.AspNetCore.SignalR.Client;
+using NetworkClientToolkit;
 
 namespace GigGossipSettler;
 
@@ -19,10 +21,12 @@ public class SimpleSettlerSelector : ISettlerSelector
     ConcurrentDictionary<Guid, bool> revokedCertificates = new();
 
     HttpClient _httpClient;
+    IRetryPolicy retryPolicy;
 
-    public SimpleSettlerSelector(HttpClient? httpClient = null)
+    public SimpleSettlerSelector(HttpClient? httpClient, IRetryPolicy retryPolicy)
     {
         _httpClient = httpClient ?? new HttpClient();
+        this.retryPolicy = retryPolicy;
     }
 
     public async Task<ECXOnlyPubKey> GetPubKeyAsync(Uri serviceUri, CancellationToken cancellationToken)
@@ -32,7 +36,7 @@ public class SimpleSettlerSelector : ISettlerSelector
 
     public ISettlerAPI GetSettlerClient(Uri serviceUri)
     {
-        return swaggerClients.GetOrAdd(serviceUri, (serviceUri) => new GigGossipSettlerAPIClient.swaggerClient(serviceUri.AbsoluteUri, _httpClient));
+        return swaggerClients.GetOrAdd(serviceUri, (serviceUri) => new GigGossipSettlerAPIClient.swaggerClient(serviceUri.AbsoluteUri, _httpClient, retryPolicy));
     }
 
     public async Task<bool> IsRevokedAsync(Uri serviceUri, Guid id, CancellationToken cancellationToken)

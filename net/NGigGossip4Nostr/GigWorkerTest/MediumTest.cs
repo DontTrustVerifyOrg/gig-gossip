@@ -13,6 +13,7 @@ using NBitcoin.RPC;
 using GigLNDWalletAPIClient;
 using GigGossipSettlerAPIClient;
 using System.Net.Http;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace GigWorkerMediumTest;
 
@@ -61,7 +62,7 @@ public class MediumTest
 
         var settlerPrivKey = settlerAdminSettings.PrivateKey.AsECPrivKey();
         var settlerPubKey = settlerPrivKey.CreateXOnlyPubKey();
-        var settlerClient = new GigGossipSettlerAPIClient.swaggerClient(settlerAdminSettings.SettlerOpenApi.AbsoluteUri, new HttpClient());
+        var settlerClient = new SettlerAPIRetryWrapper(settlerAdminSettings.SettlerOpenApi.AbsoluteUri, new HttpClient(), new DefaultRetryPolicy());
         var gtok = SettlerAPIResult.Get<Guid>(await settlerClient.GetTokenAsync(settlerPubKey.AsHex(),CancellationToken.None));
         var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.UtcNow, gtok);
         var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
@@ -69,7 +70,8 @@ public class MediumTest
         var gigWorker = new GigGossipNode(
             gigWorkerSettings.ConnectionString,
             gigWorkerSettings.PrivateKey.AsECPrivKey(),
-            gigWorkerSettings.ChunkSize
+            gigWorkerSettings.ChunkSize,
+            new DefaultRetryPolicy()
             );
 
         SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
@@ -84,7 +86,8 @@ public class MediumTest
             var gossiper = new GigGossipNode(
                 gossiperSettings.ConnectionString,
                 Crypto.GeneratECPrivKey(),
-                gossiperSettings.ChunkSize
+                gossiperSettings.ChunkSize,
+            new DefaultRetryPolicy()
                 );
             gossipers.Add(gossiper);
         }
@@ -92,7 +95,8 @@ public class MediumTest
         var customer = new GigGossipNode(
             customerSettings.ConnectionString,
             customerSettings.PrivateKey.AsECPrivKey(),
-            customerSettings.ChunkSize
+            customerSettings.ChunkSize,
+            new DefaultRetryPolicy()
             );
 
 
@@ -546,9 +550,9 @@ public class NodeSettings
         return (from s in JsonArray.Parse(NostrRelays)!.AsArray() select s.GetValue<string>()).ToArray();
     }
 
-    public GigLNDWalletAPIClient.swaggerClient GetLndWalletClient(HttpClient httpClient)
+    public IWalletAPI GetLndWalletClient(HttpClient httpClient, IRetryPolicy retryPolicy)
     {
-        return new GigLNDWalletAPIClient.swaggerClient(GigWalletOpenApi.AbsoluteUri, httpClient);
+        return new WalletAPIRetryWrapper(GigWalletOpenApi.AbsoluteUri, httpClient, retryPolicy);
     }
 }
 
@@ -576,4 +580,37 @@ public class BitcoinSettings
         return new RPCClient(AuthenticationString, HostOrUri, GetNetwork());
     }
 
+}
+
+
+public sealed class DefaultRetryPolicy : IRetryPolicy
+{
+    private static TimeSpan?[] DefaultBackoffTimes = new TimeSpan?[]
+    {
+        TimeSpan.Zero,
+        TimeSpan.FromSeconds(2),
+        TimeSpan.FromSeconds(10),
+        TimeSpan.FromSeconds(30),
+        null
+    };
+
+    TimeSpan?[] backoffTimes;
+
+    public DefaultRetryPolicy()
+    {
+        this.backoffTimes = DefaultBackoffTimes;
+    }
+
+    public DefaultRetryPolicy(TimeSpan?[] customBackoffTimes)
+    {
+        this.backoffTimes = customBackoffTimes;
+    }
+
+    public TimeSpan? NextRetryDelay(RetryContext context)
+    {
+        if (context.PreviousRetryCount >= this.backoffTimes.Length)
+            return null;
+
+        return this.backoffTimes[context.PreviousRetryCount];
+    }
 }

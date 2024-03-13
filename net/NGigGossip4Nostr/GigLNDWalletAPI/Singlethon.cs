@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using LNDWallet;
+using NetworkToolkit;
 
 namespace GigLNDWalletAPI;
 

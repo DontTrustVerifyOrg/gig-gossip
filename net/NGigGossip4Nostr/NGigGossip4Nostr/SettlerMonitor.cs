@@ -7,6 +7,7 @@ using CryptoToolkit;
 using GigGossipSettlerAPIClient;
 using Microsoft.EntityFrameworkCore;
 using static NBitcoin.Protocol.Behaviors.ChainBehavior;
+using NetworkClientToolkit;
 
 namespace NGigGossip4Nostr;
 
@@ -34,15 +35,15 @@ public class SettlerMonitor
              select i).FirstOrDefault() != null)
             return false;
 
-        AttachMonitorPreimage(serviceUri);
+        await AttachMonitorPreimageAsync(serviceUri);
 
         var obj = new MonitoredPreimageRow()
-            {
-                PublicKey = this.gigGossipNode.PublicKey,
-                ServiceUri = serviceUri,
-                PaymentHash = phash,
-                Preimage = null
-            };
+        {
+            PublicKey = this.gigGossipNode.PublicKey,
+            ServiceUri = serviceUri,
+            PaymentHash = phash,
+            Preimage = null
+        };
 
         gigGossipNode.nodeContext.Value.AddObject(obj);
         try
@@ -62,11 +63,11 @@ public class SettlerMonitor
         if ((from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
              where i.SignedRequestPayloadId == signedRequestPayloadId
              && i.PublicKey == this.gigGossipNode.PublicKey
-             && i.ReplierCertificateId==replierCertificateId
+             && i.ReplierCertificateId == replierCertificateId
              select i).FirstOrDefault() != null)
             return false;
 
-        AttachMonitorGigStatus(serviceUri);
+        await AttachMonitorGigStatusAsync(serviceUri);
 
         var obj = new MonitoredGigStatusRow
         {
@@ -93,7 +94,7 @@ public class SettlerMonitor
 
     CancellationTokenSource CancellationTokenSource = new();
 
-    List<Thread> monitoringThreads = new List<Thread>();
+    List<HubMonitor> monitoredHubs = new();
 
     public async Task StartAsync()
     {
@@ -119,20 +120,20 @@ public class SettlerMonitor
         {
             var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
                           where i.PublicKey == this.gigGossipNode.PublicKey
-                          && (i.SymmetricKey == null || i.Status!="Cancelled")
+                          && (i.SymmetricKey == null || i.Status != "Cancelled")
                           select i).ToList();
 
             foreach (var kv in kToMon)
             {
                 var serviceUri = kv.ServiceUri;
                 var signedReqestPayloadId = kv.SignedRequestPayloadId;
-                var stat = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri),  signedReqestPayloadId.ToString(), kv.ReplierCertificateId.ToString(), CancellationTokenSource.Token));
+                var stat = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedReqestPayloadId.ToString(), kv.ReplierCertificateId.ToString(), CancellationTokenSource.Token));
                 if (!string.IsNullOrWhiteSpace(stat))
                 {
                     var prts = stat.Split('|');
                     var status = prts[0];
                     var key = prts[1];
-                    if (status=="Accepted")
+                    if (status == "Accepted")
                     {
                         gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
                         kv.SymmetricKey = key;
@@ -150,7 +151,7 @@ public class SettlerMonitor
         }
     }
 
-    public void AttachMonitorPreimage(Uri serviceUri)
+    public async Task AttachMonitorPreimageAsync(Uri serviceUri)
     {
         lock (alreadyMonitoredPreimage)
         {
@@ -159,75 +160,58 @@ public class SettlerMonitor
             alreadyMonitoredPreimage.Add(serviceUri);
         }
 
-        var preimthread = new Thread(async () =>
-        {
-            while (true)
+        HubMonitor hubMonitor = new HubMonitor();
+        await hubMonitor.StartAsync(async () => { }, async () =>
             {
-                try
                 {
+                    var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
+                                  where i.PublicKey == this.gigGossipNode.PublicKey
+                                  && i.Preimage == null
+                                  && i.ServiceUri == serviceUri
+                                  select i).ToList();
+
+                    foreach (var kv in pToMon)
                     {
-                        var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
-                                      where i.PublicKey == this.gigGossipNode.PublicKey
-                                      && i.Preimage == null
-                                      && i.ServiceUri == serviceUri
-                                      select i).ToList();
-
-                        foreach (var kv in pToMon)
+                        var phash = kv.PaymentHash;
+                        var preimage = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash, CancellationTokenSource.Token));
+                        if (!string.IsNullOrWhiteSpace(preimage))
                         {
-                            var phash = kv.PaymentHash;
-                            var preimage = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash, CancellationTokenSource.Token));
-                            if (!string.IsNullOrWhiteSpace(preimage))
-                            {
-                                await gigGossipNode.OnPreimageRevealedAsync(serviceUri, phash, preimage, CancellationTokenSource.Token);
-                                kv.Preimage = preimage;
-                                gigGossipNode.nodeContext.Value.SaveObject(kv);
-                            }
-                        }
-                    }
-
-                    await foreach (var preimupd in (await this.gigGossipNode.GetPreimageRevealClientAsync(serviceUri)).StreamAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), CancellationTokenSource.Token))
-                    {
-                        var pp = preimupd.Split('|');
-                        var payhash = pp[0];
-                        var preimage = pp[1];
-
-                        var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
-                                      where i.PublicKey == this.gigGossipNode.PublicKey
-                                      && i.PaymentHash == payhash
-                                      && i.Preimage == null
-                                      select i).FirstOrDefault();
-                        if (pToMon != null)
-                        {
-                            await gigGossipNode.OnPreimageRevealedAsync(pToMon.ServiceUri, pToMon.PaymentHash, preimage, CancellationTokenSource.Token);
-                            pToMon.Preimage = preimage;
-                            gigGossipNode.nodeContext.Value.SaveObject(pToMon);
+                            await gigGossipNode.OnPreimageRevealedAsync(serviceUri, phash, preimage, CancellationTokenSource.Token);
+                            kv.Preimage = preimage;
+                            gigGossipNode.nodeContext.Value.SaveObject(kv);
                         }
                     }
                 }
-                catch (OperationCanceledException)
+
+                await foreach (var preimupd in (await this.gigGossipNode.GetPreimageRevealClientAsync(serviceUri)).StreamAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), CancellationTokenSource.Token))
                 {
-                    //stream closed
-                    return;
+                    var pp = preimupd.Split('|');
+                    var payhash = pp[0];
+                    var preimage = pp[1];
+
+                    var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
+                                  where i.PublicKey == this.gigGossipNode.PublicKey
+                                  && i.PaymentHash == payhash
+                                  && i.Preimage == null
+                                  select i).FirstOrDefault();
+                    if (pToMon != null)
+                    {
+                        await gigGossipNode.OnPreimageRevealedAsync(pToMon.ServiceUri, pToMon.PaymentHash, preimage, CancellationTokenSource.Token);
+                        pToMon.Preimage = preimage;
+                        gigGossipNode.nodeContext.Value.SaveObject(pToMon);
+                    }
                 }
-                catch (Exception ex) when (ex is Microsoft.AspNetCore.SignalR.HubException ||
-                                           ex is TimeoutException ||
-                                           ex is WebSocketException )
-                {
-                    this.gigGossipNode.DisposePreimageRevealClient(serviceUri);
-                    await gigGossipNode.FlowLogger.TraceWarningAsync("Timeout on " + serviceUri.AbsolutePath + "/revealpreimage, reconnecting");
-                    Thread.Sleep(1000);
-                    //reconnect
-                }
-            }
-        });
+            },
+            serviceUri,
+            gigGossipNode.RetryPolicy,
+            CancellationTokenSource.Token);
 
 
-        lock (monitoringThreads)
-            monitoringThreads.Add(preimthread);
-        preimthread.Start();
+        lock (monitoredHubs)
+            monitoredHubs.Add(hubMonitor);
     }
 
-    public void AttachMonitorGigStatus(Uri serviceUri)
+    public async Task AttachMonitorGigStatusAsync(Uri serviceUri)
     {
         lock (alreadyMonitoredSymmetricKey)
         {
@@ -236,116 +220,99 @@ public class SettlerMonitor
             alreadyMonitoredSymmetricKey.Add(serviceUri);
         }
 
-        var symkeythread = new Thread(async () =>
+        HubMonitor hubMonitor = new HubMonitor();
+        await hubMonitor.StartAsync(async () => { }, async () =>
         {
-            while (true)
+
             {
-                try
+                var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
+                              where i.PublicKey == this.gigGossipNode.PublicKey
+                              && i.SymmetricKey == null
+                              && i.ServiceUri == serviceUri
+                              select i).ToList();
+
+                foreach (var kv in kToMon)
                 {
+                    var signedRequestPayloadId = kv.SignedRequestPayloadId;
+                    var stat = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedRequestPayloadId.ToString(), kv.ReplierCertificateId.ToString(), CancellationTokenSource.Token));
+                    if (!string.IsNullOrWhiteSpace(stat))
                     {
-                        var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
-                                      where i.PublicKey == this.gigGossipNode.PublicKey
-                                      && i.SymmetricKey == null
-                                      && i.ServiceUri == serviceUri
-                                      select i).ToList();
-
-                        foreach (var kv in kToMon)
-                        {
-                            var signedRequestPayloadId = kv.SignedRequestPayloadId;
-                            var stat = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedRequestPayloadId.ToString(), kv.ReplierCertificateId.ToString(), CancellationTokenSource.Token));
-                            if (!string.IsNullOrWhiteSpace(stat))
-                            {
-                                var prts = stat.Split('|');
-                                var status = prts[0];
-                                var key = prts[1];
-                                if (status == "Accepted")
-                                {
-                                    gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
-                                    kv.SymmetricKey = key;
-                                    gigGossipNode.nodeContext.Value.SaveObject(kv);
-                                }
-                                else if (status == "Cancelled")
-                                {
-                                    gigGossipNode.OnGigCancelled(kv.Data);
-                                    kv.Status = status;
-                                    kv.Status = status;
-                                    gigGossipNode.nodeContext.Value.SaveObject(kv);
-                                }
-                            }
-                        }
-                    }
-
-                    await foreach (var symkeyupd in (await this.gigGossipNode.GetGigStatusClientAsync(serviceUri)).StreamAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), CancellationTokenSource.Token))
-                    {
-                        var pp = symkeyupd.Split('|');
-                        var gigId = Guid.Parse(pp[0]);
-                        var repliercertificateid = Guid.Parse(pp[1]);
-                        var status = pp[2];
+                        var prts = stat.Split('|');
+                        var status = prts[0];
+                        var key = prts[1];
                         if (status == "Accepted")
                         {
-                            var symkey = pp[3];
-                            var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
-                                          where i.PublicKey == this.gigGossipNode.PublicKey
-                                          && i.SignedRequestPayloadId == gigId
-                                          && i.ReplierCertificateId == repliercertificateid
-                                          && i.SymmetricKey == null
-                                          select i).FirstOrDefault();
-
-                            if (kToMon != null)
-                            {
-                                gigGossipNode.OnSymmetricKeyRevealed(kToMon.Data, symkey);
-                                kToMon.SymmetricKey = symkey;
-                                kToMon.Status = status;
-                                gigGossipNode.nodeContext.Value.SaveObject(kToMon);
-                            }
+                            gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
+                            kv.SymmetricKey = key;
+                            gigGossipNode.nodeContext.Value.SaveObject(kv);
                         }
                         else if (status == "Cancelled")
                         {
-                            var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
-                                          where i.PublicKey == this.gigGossipNode.PublicKey
-                                          && i.SignedRequestPayloadId == gigId
-                                          && i.ReplierCertificateId == repliercertificateid
-                                          && i.Status != "Cancelled"
-                                          select i).FirstOrDefault();
-
-                            if (kToMon != null)
-                            {
-                                gigGossipNode.OnGigCancelled(kToMon.Data);
-                                kToMon.Status = status;
-                                gigGossipNode.nodeContext.Value.SaveObject(kToMon);
-                            }
+                            gigGossipNode.OnGigCancelled(kv.Data);
+                            kv.Status = status;
+                            kv.Status = status;
+                            gigGossipNode.nodeContext.Value.SaveObject(kv);
                         }
                     }
                 }
-                catch (OperationCanceledException)
+            }
+
+            await foreach (var symkeyupd in (await this.gigGossipNode.GetGigStatusClientAsync(serviceUri)).StreamAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), CancellationTokenSource.Token))
+            {
+                var pp = symkeyupd.Split('|');
+                var gigId = Guid.Parse(pp[0]);
+                var repliercertificateid = Guid.Parse(pp[1]);
+                var status = pp[2];
+                if (status == "Accepted")
                 {
-                    //stream closed
-                    return;
+                    var symkey = pp[3];
+                    var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
+                                  where i.PublicKey == this.gigGossipNode.PublicKey
+                                  && i.SignedRequestPayloadId == gigId
+                                  && i.ReplierCertificateId == repliercertificateid
+                                  && i.SymmetricKey == null
+                                  select i).FirstOrDefault();
+
+                    if (kToMon != null)
+                    {
+                        gigGossipNode.OnSymmetricKeyRevealed(kToMon.Data, symkey);
+                        kToMon.SymmetricKey = symkey;
+                        kToMon.Status = status;
+                        gigGossipNode.nodeContext.Value.SaveObject(kToMon);
+                    }
                 }
-                catch (Exception ex) when (ex is Microsoft.AspNetCore.SignalR.HubException ||
-                                           ex is TimeoutException ||
-                                           ex is WebSocketException)
+                else if (status == "Cancelled")
                 {
-                    this.gigGossipNode.DisposeGigStatusClient(serviceUri);
-                    await gigGossipNode.FlowLogger.TraceWarningAsync("Timeout on " + serviceUri.AbsolutePath + "/revealsymmetrickey, reconnecting");
-                    Thread.Sleep(1000);
-                    //reconnect
+                    var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
+                                  where i.PublicKey == this.gigGossipNode.PublicKey
+                                  && i.SignedRequestPayloadId == gigId
+                                  && i.ReplierCertificateId == repliercertificateid
+                                  && i.Status != "Cancelled"
+                                  select i).FirstOrDefault();
+
+                    if (kToMon != null)
+                    {
+                        gigGossipNode.OnGigCancelled(kToMon.Data);
+                        kToMon.Status = status;
+                        gigGossipNode.nodeContext.Value.SaveObject(kToMon);
+                    }
                 }
             }
-        });
+        },
+        serviceUri,
+        gigGossipNode.RetryPolicy,
+        CancellationTokenSource.Token);
 
-        lock (monitoringThreads)
-            monitoringThreads.Add(symkeythread);
-        symkeythread.Start();
+        lock (monitoredHubs)
+            monitoredHubs.Add(hubMonitor);
     }
 
     public void Stop()
     {
-        CancellationTokenSource.Cancel();
-        lock (monitoringThreads)
+        lock (monitoredHubs)
         {
-            foreach (var thread in monitoringThreads)
-                thread.Join();
+            foreach (var hubMonitor in monitoredHubs)
+                hubMonitor.Stop(CancellationTokenSource);
         }
     }
 }
