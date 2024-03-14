@@ -71,6 +71,7 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
 
     public async Task StartAsync()
     {
+        this.OnServerConnectionState += PaymentStatusUpdatesMonitor_OnServerConnectionState;
         PaymentStatusUpdatesClient = gigGossipNode.GetWalletClient().CreatePaymentStatusUpdatesClient();
 
         await base.StartAsync(
@@ -131,8 +132,14 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
         );
     }
 
+    private void PaymentStatusUpdatesMonitor_OnServerConnectionState(object? sender, ServerConnectionStateEventArgs e)
+    {
+        gigGossipNode.FireOnServerConnectionState(ServerConnectionSource.WalletAPI, e.State, e.Uri);
+    }
+
     public void Stop()
     {
+        OnServerConnectionState -= PaymentStatusUpdatesMonitor_OnServerConnectionState;
         base.Stop(CancellationTokenSource);
     }
 }

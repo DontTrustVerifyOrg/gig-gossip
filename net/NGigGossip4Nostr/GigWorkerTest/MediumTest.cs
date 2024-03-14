@@ -14,6 +14,7 @@ using GigLNDWalletAPIClient;
 using GigGossipSettlerAPIClient;
 using System.Net.Http;
 using Microsoft.AspNetCore.SignalR.Client;
+using NetworkClientToolkit;
 
 namespace GigWorkerMediumTest;
 
@@ -315,6 +316,10 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
     public void OnEoseArrived(GigGossipNode me)
     {
     }
+
+    public void OnServerConnectionState(GigGossipNode me, ServerConnectionSource source, ServerConnectionState state, Uri uri)
+    {
+    }
 }
 
 public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
@@ -408,6 +413,10 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
     }
 
     public void OnEoseArrived(GigGossipNode me)
+    {
+    }
+
+    public void OnServerConnectionState(GigGossipNode me, ServerConnectionSource source, ServerConnectionState state, Uri uri)
     {
     }
 }
@@ -515,6 +524,10 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     }
 
     public void OnEoseArrived(GigGossipNode me)
+    {
+    }
+
+    public void OnServerConnectionState(GigGossipNode me, ServerConnectionSource source, ServerConnectionState state, Uri uri)
     {
     }
 }

@@ -161,6 +161,8 @@ public class SettlerMonitor
         }
 
         HubMonitor hubMonitor = new HubMonitor();
+        hubMonitor.OnServerConnectionState += HubMonitor_OnServerConnectionState;
+
         await hubMonitor.StartAsync(async () => { }, async () =>
             {
                 {
@@ -206,7 +208,6 @@ public class SettlerMonitor
             gigGossipNode.RetryPolicy,
             CancellationTokenSource.Token);
 
-
         lock (monitoredHubs)
             monitoredHubs.Add(hubMonitor);
     }
@@ -221,6 +222,7 @@ public class SettlerMonitor
         }
 
         HubMonitor hubMonitor = new HubMonitor();
+        hubMonitor.OnServerConnectionState += HubMonitor_OnServerConnectionState;
         await hubMonitor.StartAsync(async () => { }, async () =>
         {
 
@@ -307,12 +309,21 @@ public class SettlerMonitor
             monitoredHubs.Add(hubMonitor);
     }
 
+    private void HubMonitor_OnServerConnectionState(object? sender, ServerConnectionStateEventArgs e)
+    {
+        gigGossipNode.FireOnServerConnectionState(ServerConnectionSource.SettlerAPI, e.State, e.Uri);
+    }
+
     public void Stop()
     {
         lock (monitoredHubs)
         {
             foreach (var hubMonitor in monitoredHubs)
+            {
+                hubMonitor.OnServerConnectionState -= HubMonitor_OnServerConnectionState;
                 hubMonitor.Stop(CancellationTokenSource);
+            }
+            monitoredHubs = new();
         }
     }
 }

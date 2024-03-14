@@ -26,6 +26,8 @@ public class GigGossipNodeEventSource : IGigGossipNodeEventSource
 
     public event EventHandler<NewContactEventArgs> OnNewContact;
 
+    public event EventHandler<ServerConnectionSourceStateEventArgs> OnServerConnectionState;
+
     public readonly GigGossipNodeEvents GigGossipNodeEvents;
 
     public void FireOnAcceptBroadcast(AcceptBroadcastEventArgs args) => OnAcceptBroadcast?.Invoke(this, args);
@@ -45,4 +47,5 @@ public class GigGossipNodeEventSource : IGigGossipNodeEventSource
     public void FireOnPaymentStatusChange(PaymentStatusChangeEventArgs args) => OnPaymentStatusChange?.Invoke(this, args);
 
     public void FireOnNewContact(NewContactEventArgs args) => OnNewContact?.Invoke(this, args);
+    public void FireOnServerConnectionState(ServerConnectionSourceStateEventArgs args) => OnServerConnectionState?.Invoke(this, args);
 }

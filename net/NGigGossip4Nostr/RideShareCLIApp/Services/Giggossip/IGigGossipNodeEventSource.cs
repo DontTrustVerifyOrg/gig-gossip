@@ -1,5 +1,6 @@
 ﻿using CryptoToolkit;
 using GigLNDWalletAPIClient;
+using NetworkClientToolkit;
 using NGigGossip4Nostr;
 using RideShareFrames;
 
@@ -23,6 +24,8 @@ public interface IGigGossipNodeEventSource
 
     public event EventHandler<PaymentStatusChangeEventArgs> OnPaymentStatusChange;
     public event EventHandler<NewContactEventArgs> OnNewContact;
+
+    public event EventHandler<ServerConnectionSourceStateEventArgs> OnServerConnectionState;
 }
 
 public class AcceptBroadcastEventArgs : EventArgs
@@ -104,4 +107,12 @@ public class NewContactEventArgs : EventArgs
 {
     public required GigGossipNode GigGossipNode;
     public required string PublicKey;
+}
+
+public class ServerConnectionSourceStateEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required ServerConnectionSource Source;
+    public required ServerConnectionState State;
+    public required Uri Uri;
 }

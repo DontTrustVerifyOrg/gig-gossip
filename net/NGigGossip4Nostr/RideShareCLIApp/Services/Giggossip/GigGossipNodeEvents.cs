@@ -1,5 +1,7 @@
 ﻿using CryptoToolkit;
 using GigLNDWalletAPIClient;
+using NBitcoin;
+using NetworkClientToolkit;
 using NGigGossip4Nostr;
 using RideShareFrames;
 
@@ -143,6 +145,17 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnEoseArrived(GigGossipNode me)
     {
+    }
+
+    public void OnServerConnectionState(GigGossipNode me, ServerConnectionSource source, ServerConnectionState state, Uri uri)
+    {
+        _gigGossipNodeEventSource.FireOnServerConnectionState(new ServerConnectionSourceStateEventArgs
+        {
+            GigGossipNode = me,
+            Source = source,
+            State = state,
+            Uri = uri
+        });
     }
 }
 

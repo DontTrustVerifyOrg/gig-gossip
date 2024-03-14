@@ -43,6 +43,12 @@ public class PaymentData
     public required string PaymentHash { get; set; }
 }
 
+public enum ServerConnectionSource
+{
+    NostrRelay = 0,
+    SettlerAPI = 1,
+    WalletAPI = 2,
+}
 
 public interface IGigGossipNodeEvents
 {
@@ -61,6 +67,8 @@ public interface IGigGossipNodeEvents
     public void OnNewContact(GigGossipNode me, string pubkey);
     public void OnSettings(GigGossipNode me, string settings);
     public void OnEoseArrived(GigGossipNode me);
+
+    public void OnServerConnectionState(GigGossipNode me, ServerConnectionSource source, ServerConnectionState state, Uri uri);
 }
 
 public class AcceptBroadcastResponse
@@ -78,6 +86,7 @@ public class AcceptBroadcastReturnValue
     public required PayReq DecodedReplyInvoice { get; set; }
     public required string ReplyInvoiceHash { get; set; }
 }
+
 
 public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaymentStatusUpdatesMonitorEvents, ISettlerMonitorEvents
 {
@@ -118,6 +127,8 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         RegisterFrameType<CancelBroadcastFrame>();
         RegisterFrameType<ReplyFrame>();
 
+        this.OnServerConnectionState += GigGossipNode_OnServerConnectionState;
+
         this.nodeContext = new ThreadLocal<GigGossipNodeContext>(() => new GigGossipNodeContext(connectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))));
         nodeContext.Value.Database.EnsureCreated();
     }
@@ -156,9 +167,10 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         this.defaultWalletUri = defaultWalletUri;
         this.mySettlerUri = mySettlerUri;
 
+        this.gigGossipNodeEvents = gigGossipNodeEvents;
+
         try
         {
-
             await base.StartAsync(nostrRelays, new FlowLogger(traceEnabled, this.PublicKey, myLoggerUri, httpClientFactory));
 
             WalletSelector = new SimpleGigLNDWalletSelector(httpClientFactory,FlowLogger,RetryPolicy);
@@ -170,8 +182,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             _settlerMonitor = new SettlerMonitor(this);
 
             LoadContactList();
-
-            this.gigGossipNodeEvents = gigGossipNodeEvents;
 
             LoadMessageLocks();
 
@@ -189,12 +199,20 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
+    private void GigGossipNode_OnServerConnectionState(object? sender, ServerConnectionStateEventArgs e)
+    {
+        FireOnServerConnectionState(ServerConnectionSource.NostrRelay, e.State, e.Uri);
+    }
+
     public override async Task StopAsync()
     {
         await base.StopAsync();
-        this._invoiceStateUpdatesMonitor.Stop();
-        this._paymentStatusUpdatesMonitor.Stop();
-        this._settlerMonitor.Stop();
+        if (this._invoiceStateUpdatesMonitor != null)
+            this._invoiceStateUpdatesMonitor.Stop();
+        if (this._paymentStatusUpdatesMonitor != null)
+            this._paymentStatusUpdatesMonitor.Stop();
+        if(this._settlerMonitor!=null)
+            this._settlerMonitor.Stop();
     }
 
     public IWalletAPI GetWalletClient()
@@ -228,6 +246,11 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     public override void OnEose()
     {
         this.gigGossipNodeEvents.OnEoseArrived(this);
+    }
+
+    public void FireOnServerConnectionState(ServerConnectionSource source, ServerConnectionState state, Uri uri)
+    {
+        this.gigGossipNodeEvents.OnServerConnectionState(this, source, state, uri);
     }
 
     public void AddContact(string contactPublicKey, string petname, string relay = "")

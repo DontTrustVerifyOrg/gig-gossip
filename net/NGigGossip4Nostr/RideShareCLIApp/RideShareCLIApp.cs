@@ -70,7 +70,6 @@ public partial class RideShareCLIApp
 {
     Settings settings;
     GigGossipNode gigGossipNode;
-    HttpClient httpClient = new HttpClient();
     IGigGossipNodeEventSource gigGossipNodeEventSource = new GigGossipNodeEventSource();
 
     bool inDriverMode = false;
@@ -128,6 +127,12 @@ public partial class RideShareCLIApp
         gigGossipNodeEventSource.OnPaymentStatusChange += GigGossipNodeEventSource_OnPaymentStatusChange;
         gigGossipNodeEventSource.OnInvoiceSettled += GigGossipNodeEventSource_OnInvoiceSettled;
         gigGossipNodeEventSource.OnNewContact += GigGossipNodeEventSource_OnNewContact;
+        gigGossipNodeEventSource.OnServerConnectionState += GigGossipNodeEventSource_OnServerConnectionState;
+    }
+
+    private void GigGossipNodeEventSource_OnServerConnectionState(object? sender, ServerConnectionSourceStateEventArgs e)
+    {
+        AnsiConsole.WriteLine("ServerConnectionState "+ e.Source.ToString() +" "+ e.State.ToString() +" "+ e.Uri?.AbsoluteUri);
     }
 
     private async void GigGossipNodeEventSource_OnInvoiceSettled(object? sender, InvoiceSettledEventArgs e)

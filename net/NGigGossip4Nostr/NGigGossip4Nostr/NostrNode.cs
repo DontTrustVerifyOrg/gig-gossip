@@ -297,6 +297,7 @@ public abstract class NostrNode
                         async () =>
                         {
                             await FlowLogger.TraceWarningAsync(this, g__, m__, "Connection to NOSTR relay lost, reconnecting");
+                            await SoftStopAsync();
                             await StartAsync(NostrRelays, FlowLogger);
                             await FlowLogger.TraceWarningAsync(this, g__, m__, "Connection to NOSTR restored");
                         },
@@ -391,6 +392,16 @@ public abstract class NostrNode
         {
             //ignore all exceptions and move on
         }
+    }
+
+    private async Task SoftStopAsync()
+    {
+        if (nostrClient == null)
+            return;
+        await nostrClient.CloseSubscription(subscriptionId);
+        await nostrClient.Disconnect();
+        nostrClient.Dispose();
+        nostrClient = null;
     }
 
     public virtual async Task StopAsync()

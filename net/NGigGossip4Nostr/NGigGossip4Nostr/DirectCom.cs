@@ -3,6 +3,7 @@ using NBitcoin.Protocol;
 using System.Diagnostics;
 using NBitcoin.Secp256k1;
 using System.Collections.Concurrent;
+using NetworkClientToolkit;
 
 namespace NGigGossip4Nostr;
 
@@ -19,12 +20,18 @@ public class DirectCom : NostrNode
     private GigGossipNode gigGossipNode;
     public DirectCom(GigGossipNode gigGossipNode) : base(gigGossipNode, gigGossipNode.ChunkSize,false)
     {
+        OnServerConnectionState += DirectCom_OnServerConnectionState;
         this.gigGossipNode = gigGossipNode;
     }
 
     public async Task StartAsync(string[] nostrRelays)
     {
         await base.StartAsync(nostrRelays, gigGossipNode.FlowLogger);
+    }
+
+    private void DirectCom_OnServerConnectionState(object? sender, ServerConnectionStateEventArgs e)
+    {
+        gigGossipNode.FireOnServerConnectionState(ServerConnectionSource.NostrRelay, e.State, e.Uri);
     }
 
     public event EventHandler<DirectMessageEventArgs> OnDirectMessage;

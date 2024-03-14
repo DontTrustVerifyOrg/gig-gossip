@@ -13,6 +13,7 @@ using NBitcoin.RPC;
 using GigLNDWalletAPIClient;
 using GigGossipSettlerAPIClient;
 using Microsoft.AspNetCore.SignalR.Client;
+using NetworkClientToolkit;
 
 namespace GigWorkerBasicTest;
 
@@ -263,6 +264,10 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
     public void OnEoseArrived(GigGossipNode me)
     {
     }
+
+    public void OnServerConnectionState(GigGossipNode me, ServerConnectionSource source, ServerConnectionState state, Uri uri)
+    {
+    }
 }
 
 public class CustomerGossipNodeEvents : IGigGossipNodeEvents
@@ -332,6 +337,10 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     }
 
     public void OnEoseArrived(GigGossipNode me)
+    {
+    }
+
+    public void OnServerConnectionState(GigGossipNode me, ServerConnectionSource source, ServerConnectionState state, Uri uri)
     {
     }
 }

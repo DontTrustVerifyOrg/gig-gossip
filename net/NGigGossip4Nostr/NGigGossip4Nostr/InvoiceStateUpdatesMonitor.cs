@@ -57,6 +57,7 @@ namespace NGigGossip4Nostr
 
         public async Task StartAsync()
         {
+            this.OnServerConnectionState += InvoiceStateUpdatesMonitor_OnServerConnectionState;
             InvoiceStateUpdatesClient = gigGossipNode.GetWalletClient().CreateInvoiceStateUpdatesClient();
 
             await base.StartAsync(
@@ -115,9 +116,15 @@ namespace NGigGossip4Nostr
             );
         }
 
+        private void InvoiceStateUpdatesMonitor_OnServerConnectionState(object? sender, ServerConnectionStateEventArgs e)
+        {
+
+            gigGossipNode.FireOnServerConnectionState(ServerConnectionSource.WalletAPI, e.State, e.Uri);
+        }
 
         public void Stop()
 		{
+            OnServerConnectionState -= InvoiceStateUpdatesMonitor_OnServerConnectionState;
             base.Stop(CancellationTokenSource);
         }
 
