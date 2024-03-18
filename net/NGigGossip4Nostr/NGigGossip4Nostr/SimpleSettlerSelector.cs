@@ -168,6 +168,23 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
         }
     }
 
+    public async Task<RouteRetResult> GetRouteAsync(string authToken, double fromLat, double fromLon, double toLat, double toLon, CancellationToken cancellationToken)
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__, authToken, fromLat, fromLon, toLat, toLon);
+            return await TraceOutAsync(g__, m__,
+                await api.GetRouteAsync(authToken, fromLat, fromLon, toLat, toLon, cancellationToken)
+            );
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
     public async Task<GigGossipSettlerAPIClient.Result> GiveUserPropertyAsync(string authToken, string pubkey, string name, string value, string secret, long validHours, CancellationToken cancellationToken)
     {
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }

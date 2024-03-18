@@ -148,7 +148,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     }
 
     public async Task StartAsync(bool traceEnabled, int fanout, long priceAmountForRouting, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
-        string[] nostrRelays, IGigGossipNodeEvents gigGossipNodeEvents, Func<HttpClient> httpClientFactory, Uri defaultWalletUri,Uri myLoggerUri, Uri mySettlerUri, HttpMessageHandler? httpMessageHandler=null)
+        string[] nostrRelays, IGigGossipNodeEvents gigGossipNodeEvents, Func<HttpClient> httpClientFactory, Uri defaultWalletUri,Uri myLoggerUri, Uri mySettlerUri)
     {
 
         this.messageLocks = new();

@@ -149,6 +149,84 @@
         }
       }
     },
+    "/getroute": {
+      "get": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "summary": "Return route beetween two points",
+        "description": "Return route beetween two points.",
+        "operationId": "GetRoute",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fromLat",
+            "in": "query",
+            "description": "Latitude of the first point",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "fromLon",
+            "in": "query",
+            "description": "Longitude of the first point",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "toLat",
+            "in": "query",
+            "description": "Latitude of the second point",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "toLon",
+            "in": "query",
+            "description": "Longitude of the second point",
+            "required": true,
+            "style": "form",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteRetResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/addressgeocode": {
       "get": {
         "tags": [
@@ -1422,6 +1500,43 @@
       "Result": {
         "type": "object",
         "properties": {
+          "errorCode": {
+            "$ref": "#/components/schemas/SettlerErrorCode"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RouteRet": {
+        "type": "object",
+        "properties": {
+          "distance": {
+            "type": "number",
+            "format": "double"
+          },
+          "duration": {
+            "type": "number",
+            "format": "double"
+          },
+          "geometry": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GeolocationRet"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RouteRetResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/RouteRet"
+          },
           "errorCode": {
             "$ref": "#/components/schemas/SettlerErrorCode"
           },

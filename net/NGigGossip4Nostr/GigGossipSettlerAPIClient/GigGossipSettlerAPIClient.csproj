@@ -28,11 +28,11 @@
     <None Remove="OpenAPIs\swagger.json" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\NetworkClientToolkit\NetworkClientToolkit.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <OpenApiReference Include="OpenAPIs\swagger.json" Namespace="GigGossipSettlerAPIClient">
       <SourceUri>http://localhost:7189/swagger/v1/swagger.json</SourceUri>
     </OpenApiReference>
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\NetworkClientToolkit\NetworkClientToolkit.csproj" />
   </ItemGroup>
 </Project>

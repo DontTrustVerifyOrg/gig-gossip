@@ -15,6 +15,7 @@ public interface ISettlerAPI
     Task<StringArrayResult> AddressAutocompleteAsync(string authToken, string query, string country, CancellationToken cancellationToken);
     Task<GeolocationRetResult> AddressGeocodeAsync(string authToken, string address, string country, CancellationToken cancellationToken);
     Task<StringResult> LocationGeocodeAsync(string authToken, double lat, double lon, CancellationToken cancellationToken);
+    Task<RouteRetResult> GetRouteAsync(string authToken, double fromLat, double fromLon, double toLat, double toLon, CancellationToken cancellationToken);
     Task<Result> GiveUserPropertyAsync(string authToken, string pubkey, string name, string value, string secret, long validHours, CancellationToken cancellationToken);
     Task<Result> GiveUserFileAsync(string authToken, string pubkey, string name, long validHours, FileParameter value, FileParameter secret, CancellationToken cancellationToken);
     Task<Result> SaveUserTracePropertyAsync(string authToken, string pubkey, string name, string value, CancellationToken cancellationToken);
@@ -190,5 +191,10 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
     public async Task<Result> CancelGigAsync(string authToken, string gigId, string repliperCertificateId, CancellationToken cancellationToken)
     {
         return await RetryPolicy.WithRetryPolicy(() => api.CancelGigAsync(authToken, gigId, repliperCertificateId, cancellationToken));
+    }
+
+    public async Task<RouteRetResult> GetRouteAsync(string authToken, double fromLat, double fromLon, double toLat, double toLon, CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.GetRouteAsync(authToken, fromLat, fromLon, toLat, toLon, cancellationToken));
     }
 }

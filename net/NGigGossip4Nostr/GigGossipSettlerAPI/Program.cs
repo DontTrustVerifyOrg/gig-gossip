@@ -22,6 +22,8 @@ using GoogleApi.Entities.Maps.Geocoding.Common.Enums;
 using NBitcoin.Protocol;
 using Microsoft.AspNetCore.SignalR.Client;
 using NetworkToolkit;
+using GoogleApi.Entities.Maps.Directions.Request;
+using GoogleApi.Entities.Maps.Common;
 
 #pragma warning disable 1591
 
@@ -203,6 +205,59 @@ app.MapGet("/addressautocomplete", async (string authToken, string query, string
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
     g.Parameters[1].Description = "Query";
     g.Parameters[2].Description = "Country";
+    return g;
+});
+
+
+app.MapGet("/getroute", async (string authToken, double fromLat, double fromLon, double toLat, double toLon) =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+
+        var request = new DirectionsRequest
+        {
+            Key = settlerSettings.GoogleMapsAPIKey,
+            Origin = new LocationEx(new CoordinateEx(fromLat, fromLon)),
+            Destination = new LocationEx(new CoordinateEx(toLat, toLon)),
+            TravelMode = GoogleApi.Entities.Maps.Common.Enums.TravelMode.Driving,
+            Units = GoogleApi.Entities.Maps.Common.Enums.Units.Metric,
+            Alternatives = false,
+        };
+
+        var response = await GoogleMaps.Directions.QueryAsync(request);
+
+        var route = response.Routes.FirstOrDefault();
+        if (route == null)
+            throw new Exception("Not found");
+
+        var leg = route.Legs.FirstOrDefault();
+        if (leg == null)
+            throw new Exception("Not found");
+
+        return new Result<RouteRet>(
+            new RouteRet {
+                Distance = leg.Distance.Value,
+                Duration = leg.Duration.Value,
+                Geometry = (from pt in route.OverviewPath.Line select new GeolocationRet { Lat = pt.Latitude, Lon = pt.Longitude }).ToArray()
+            });
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<RouteRet>(ex);
+    }
+})
+.WithName("GetRoute")
+.WithSummary("Return route beetween two points")
+.WithDescription("Return route beetween two points.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Latitude of the first point";
+    g.Parameters[2].Description = "Longitude of the first point";
+    g.Parameters[3].Description = "Latitude of the second point";
+    g.Parameters[4].Description = "Longitude of the second point";
     return g;
 });
 
@@ -775,6 +830,14 @@ public struct GeolocationRet
 {
     public double Lat { get; set; }
     public double Lon { get; set; }
+}
+
+[Serializable]
+public struct RouteRet
+{
+    public double Distance { get; set; }
+    public double Duration { get; set; }
+    public GeolocationRet[] Geometry { get; set; }
 }
 
 public class SettlerSettings

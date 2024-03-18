@@ -8,6 +8,7 @@ using NGeoHash;
 using NGigGossip4Nostr;
 using RideShareFrames;
 using Spectre.Console;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace RideShareCLIApp;
 
@@ -184,18 +185,25 @@ public partial class RideShareCLIApp
 
         var requestPayloadId = detparams.SignedRequestPayloadId;
         var pubkey = directPubkeys[requestPayloadId];
-        foreach (var (idx, location) in GeoSteps(myStartLocation, detparams.FromLocation, 5))
+
+        var route = SettlerAPIResult.Get<RouteRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+            .GetRouteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi),
+            myStartLocation.Latitude, myStartLocation.Longitude,
+            detparams.FromLocation.Latitude, detparams.FromLocation.Longitude,
+            CancellationTokenSource.Token));
+
+        foreach (var location in route.Geometry)
         {
-            AnsiConsole.MarkupLine($"({idx}) I am [orange1]driving[/] to meet rider");
+            AnsiConsole.MarkupLine($"({location.Lat},{location.Lon}) I am [orange1]driving[/] to meet rider");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 SignedRequestPayloadId = requestPayloadId,
-                Location = location,
+                Location =  new GeoLocation { Latitude = location.Lat, Longitude=location.Lon },
                 Message = "I am going",
                 RideStatus = RideState.Started,
                 Direction = 0,
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-            Thread.Sleep(1000);
+            Thread.Sleep(100);
         }
         AnsiConsole.MarkupLine("I have [orange1]arrived[/]");
         for (int i = 3; i > 0; i--)
@@ -212,18 +220,24 @@ public partial class RideShareCLIApp
             Thread.Sleep(1000);
         }
         AnsiConsole.MarkupLine("Rider [orange1]in the car[/]");
-        foreach(var(idx, location) in GeoSteps(detparams.FromLocation, detparams.ToLocation, 5))
+
+        var route2 = SettlerAPIResult.Get<RouteRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+            .GetRouteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi),
+            detparams.FromLocation.Latitude, detparams.FromLocation.Longitude,
+            detparams.ToLocation.Latitude, detparams.ToLocation.Longitude,
+            CancellationTokenSource.Token));
+        foreach (var location in route.Geometry)
         {
-            AnsiConsole.MarkupLine($"({idx}) We are going [orange1]togheter[/]");
+            AnsiConsole.MarkupLine($"({location.Lat},{location.Lon}) We are going [orange1]togheter[/]");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 SignedRequestPayloadId = requestPayloadId,
-                Location = location,
+                Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
                 Message = "We are driving",
                 RideStatus = RideState.RiderPickedUp,
                 Direction = 0,
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-            Thread.Sleep(1000);
+            Thread.Sleep(100);
         }
         AnsiConsole.MarkupLine("We have [orange1]reached[/] the destination");
         await directCom.SendMessageAsync(pubkey, new LocationFrame
