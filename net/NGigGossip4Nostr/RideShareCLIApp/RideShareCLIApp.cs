@@ -166,10 +166,6 @@ public partial class RideShareCLIApp
         TopUp,
         [Display(Name = "New Address")]
         NewAddress,
-        [Display(Name = "New Bitcoin Address")]
-        NewBitcoinAddress,
-        [Display(Name = "Send To Address")]
-        SendToAddress,
         [Display(Name = "Enter Driver Mode")]
         DriverMode,
         [Display(Name = "Request Ride")]
@@ -283,20 +279,6 @@ public partial class RideShareCLIApp
             {
                 var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().NewAddressAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationToken.None));
                 AnsiConsole.WriteLine(newBitcoinAddressOfCustomer);
-            }
-            else if (cmd == CommandEnum.NewBitcoinAddress)
-            {
-                var newBitcoinAddressOfBitcoinWallet = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().NewBitcoinAddressAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationToken.None));
-                AnsiConsole.WriteLine(newBitcoinAddressOfBitcoinWallet);
-            }
-            else if (cmd == CommandEnum.SendToAddress)
-            {
-                var satoshis = Prompt.Input<int>("How much to send", 100000);
-                if (satoshis > 0)
-                {
-                    var bitcoinAddressOfCustomer = Prompt.Input<string>("Bitcoin Address");
-                    WalletAPIResult.Check(await gigGossipNode.GetWalletClient().SendToAddressAsync(await gigGossipNode.MakeWalletAuthToken(),bitcoinAddressOfCustomer, satoshis, CancellationToken.None));
-                }
             }
             else if (cmd == CommandEnum.SetupMyInfo)
             {
