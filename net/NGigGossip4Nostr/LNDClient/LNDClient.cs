@@ -94,7 +94,7 @@ public static class LND
 
     public static string NewAddress(NodeSettings conf, string account = null)
     {
-        var nar = new NewAddressRequest() { Type = AddressType.NestedPubkeyHash };
+        var nar = new NewAddressRequest() { Type = AddressType.WitnessPubkeyHash };
         if (account != null)
             nar.Account = account;
         var response = LightningClient(conf).NewAddress(nar,
