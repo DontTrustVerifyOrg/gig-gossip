@@ -14,17 +14,17 @@ namespace RideShareCLIApp;
 
 public partial class RideShareCLIApp
 {
-    Dictionary<Guid,List<AcceptBroadcastEventArgs>> receivedBroadcastsForPayloadId = new();
+    Dictionary<Guid, List<AcceptBroadcastEventArgs>> receivedBroadcastsForPayloadId = new();
     Dictionary<Guid, AcceptBroadcastReturnValue> payReqsForPayloadId = new();
     Dictionary<Guid, int> receivedBroadcastIdxesForPayloadIds = new();
-    Dictionary<Guid,long> receivedBroadcastsFees = new();
+    Dictionary<Guid, long> receivedBroadcastsFees = new();
     Dictionary<Guid, string> directSecrets = new();
     DataTable receivedBroadcastsTable = null;
 
     const string DATE_FORMAT = "dd MMM HH:mm";
 
     Dictionary<Guid, long> feesPerBroadcastId = new();
-    
+
     Guid ActiveSignedRequestPayloadId = Guid.Empty;
 
     private async void GigGossipNodeEventSource_OnAcceptBroadcast(object? sender, AcceptBroadcastEventArgs e)
@@ -53,7 +53,7 @@ public partial class RideShareCLIApp
             else
             {
                 receivedBroadcastsForPayloadId[id].Add(e);
-                receivedBroadcastsTable.UpdateCell(receivedBroadcastIdxesForPayloadIds[id],2, receivedBroadcastsForPayloadId[id].Count.ToString());
+                receivedBroadcastsTable.UpdateCell(receivedBroadcastIdxesForPayloadIds[id], 2, receivedBroadcastsForPayloadId[id].Count.ToString());
             }
             return;
         }
@@ -173,7 +173,33 @@ public partial class RideShareCLIApp
         for (int i = 0; i <= steps; i++)
         {
             var delta = i / (double)steps;
-            yield return (steps-i, new GeoLocation(from.Latitude + (to.Latitude - from.Latitude) * delta, from.Longitude + (to.Longitude - from.Longitude) * delta));
+            yield return (steps - i, new GeoLocation(from.Latitude + (to.Latitude - from.Latitude) * delta, from.Longitude + (to.Longitude - from.Longitude) * delta));
+        }
+    }
+
+    private static IEnumerable<(int idx, GeolocationRet location)> GeoSteps(ICollection<GeolocationRet> geometr, int steps)
+    {
+        var geometry = geometr.ToArray();
+        var jump = (int)(geometry.Count() / steps);
+        if (jump == 0)
+        {
+            int cnt = geometry.Count();
+            int i = 0;
+            foreach (var g in geometry)
+                yield return (cnt - i, g);
+        }
+        else
+        {
+            int i = 0;
+            foreach (var g in geometry)
+            {
+                int x;
+                var r = Math.DivRem(i, jump, out x);
+                if (r == 0)
+                    yield return (steps - x, g);
+                i++;
+            }
+            yield return (0, geometry.Last());
         }
     }
 
@@ -186,24 +212,26 @@ public partial class RideShareCLIApp
         var requestPayloadId = detparams.SignedRequestPayloadId;
         var pubkey = directPubkeys[requestPayloadId];
 
-        var route = SettlerAPIResult.Get<RouteRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-            .GetRouteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi),
-            myStartLocation.Latitude, myStartLocation.Longitude,
-            detparams.FromLocation.Latitude, detparams.FromLocation.Longitude,
-            CancellationTokenSource.Token));
-
-        foreach (var location in route.Geometry)
         {
-            AnsiConsole.MarkupLine($"({location.Lat},{location.Lon}) I am [orange1]driving[/] to meet rider");
-            await directCom.SendMessageAsync(pubkey, new LocationFrame
+            var route = SettlerAPIResult.Get<RouteRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+                .GetRouteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi),
+                myStartLocation.Latitude, myStartLocation.Longitude,
+                detparams.FromLocation.Latitude, detparams.FromLocation.Longitude,
+                CancellationTokenSource.Token));
+
+            foreach (var (idx,location) in GeoSteps(route.Geometry,100))
             {
-                SignedRequestPayloadId = requestPayloadId,
-                Location =  new GeoLocation { Latitude = location.Lat, Longitude=location.Lon },
-                Message = "I am going",
-                RideStatus = RideState.Started,
-                Direction = 0,
-            }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-            Thread.Sleep(100);
+                AnsiConsole.MarkupLine($"({idx},{location.Lat},{location.Lon}) I am [orange1]driving[/] to meet rider");
+                await directCom.SendMessageAsync(pubkey, new LocationFrame
+                {
+                    SignedRequestPayloadId = requestPayloadId,
+                    Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
+                    Message = "I am going",
+                    RideStatus = RideState.Started,
+                    Direction = 0,
+                }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
+                Thread.Sleep(100);
+            }
         }
         AnsiConsole.MarkupLine("I have [orange1]arrived[/]");
         for (int i = 3; i > 0; i--)
@@ -219,25 +247,28 @@ public partial class RideShareCLIApp
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
+
         AnsiConsole.MarkupLine("Rider [orange1]in the car[/]");
 
-        var route2 = SettlerAPIResult.Get<RouteRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-            .GetRouteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi),
-            detparams.FromLocation.Latitude, detparams.FromLocation.Longitude,
-            detparams.ToLocation.Latitude, detparams.ToLocation.Longitude,
-            CancellationTokenSource.Token));
-        foreach (var location in route.Geometry)
         {
-            AnsiConsole.MarkupLine($"({location.Lat},{location.Lon}) We are going [orange1]togheter[/]");
-            await directCom.SendMessageAsync(pubkey, new LocationFrame
+            var route = SettlerAPIResult.Get<RouteRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+                .GetRouteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi),
+                detparams.FromLocation.Latitude, detparams.FromLocation.Longitude,
+                detparams.ToLocation.Latitude, detparams.ToLocation.Longitude,
+                CancellationTokenSource.Token));
+            foreach (var (idx, location) in GeoSteps(route.Geometry, 100))
             {
-                SignedRequestPayloadId = requestPayloadId,
-                Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
-                Message = "We are driving",
-                RideStatus = RideState.RiderPickedUp,
-                Direction = 0,
-            }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-            Thread.Sleep(100);
+                AnsiConsole.MarkupLine($"({idx},{location.Lat},{location.Lon}) We are going [orange1]togheter[/]");
+                await directCom.SendMessageAsync(pubkey, new LocationFrame
+                {
+                    SignedRequestPayloadId = requestPayloadId,
+                    Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
+                    Message = "We are driving",
+                    RideStatus = RideState.RiderPickedUp,
+                    Direction = 0,
+                }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
+                Thread.Sleep(100);
+            }
         }
         AnsiConsole.MarkupLine("We have [orange1]reached[/] the destination");
         await directCom.SendMessageAsync(pubkey, new LocationFrame
