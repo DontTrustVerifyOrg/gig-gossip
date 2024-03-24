@@ -18,6 +18,8 @@ using System.Collections.Concurrent;
 using static NBitcoin.Scripting.OutputDescriptor.TapTree;
 using System.Security.Cryptography.X509Certificates;
 using TraceExColor;
+using Routerrpc;
+using System.Threading;
 
 namespace LNDWallet;
 
@@ -232,12 +234,10 @@ public class LNDAccountManager
 
     CancellationTokenSource trackPaymentsCancallationTokenSource = new();
 
-    public async Task SendPaymentAsync(string paymentRequest, int timeout, long txfee, long feelimit)
+
+    public RouteFeeResponse EstimateRouteFee(string paymentRequest, long txfee)
     {
         var decinv = LND.DecodeInvoice(conf, paymentRequest);
-        var accountBallance = GetAccountBallance();
-        if (decinv.NumSatoshis > accountBallance -feelimit)
-            throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds);
 
         var selfInvQuery = (from inv in walletContext.Value.Invoices
                             where inv.PaymentHash == decinv.PaymentHash
@@ -245,6 +245,39 @@ public class LNDAccountManager
         var selfInv = selfInvQuery.FirstOrDefault();
         if (selfInv != null) // selfpayment
         {
+            if (selfInv.State == InvoiceState.Settled)
+                throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadySettled);
+
+            if (selfInv.State == InvoiceState.Cancelled)
+                throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadyCancelled);
+
+            if ((selfInv.State == InvoiceState.Accepted))
+                throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadyAccepted);
+
+            return new RouteFeeResponse { RoutingFeeMsat = txfee * 1000, TimeLockDelay = 0 };
+        }
+        else
+        {
+            var x = LND.EstimateRouteFee(conf, decinv);
+            x.RoutingFeeMsat += txfee * 1000;
+            return x;
+        }
+    }
+
+    public async Task SendPaymentAsync(string paymentRequest, int timeout, long txfee, long feelimit)
+    {
+        var decinv = LND.DecodeInvoice(conf, paymentRequest);
+        var accountBallance = GetAccountBallance();
+
+        var selfInvQuery = (from inv in walletContext.Value.Invoices
+                            where inv.PaymentHash == decinv.PaymentHash
+                            select inv);
+        var selfInv = selfInvQuery.FirstOrDefault();
+        if (selfInv != null) // selfpayment
+        {
+            if (decinv.NumSatoshis > accountBallance -txfee)
+                throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds);
+
             if (selfInv.State == InvoiceState.Settled)
                 throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadySettled);
 
@@ -276,6 +309,8 @@ public class LNDAccountManager
         }
         else
         {
+            if (decinv.NumSatoshis > accountBallance - feelimit-txfee)
+                throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds);
             var stream = LND.SendPaymentV2(conf, paymentRequest, timeout, (long)feelimit);
             LNDWallet.PaymentStatus paymentStatus = PaymentStatus.Unknown;
             while (await stream.ResponseStream.MoveNext(trackPaymentsCancallationTokenSource.Token))
@@ -384,6 +419,44 @@ public class LNDAccountManager
                 throw new LNDWalletException(LNDWalletErrorCode.OperationFailed, ex.Status.Detail);
             }
         }
+    }
+
+    public Lnrpc.Invoice[] ListInvoices()
+    {
+        List<Lnrpc.Invoice> ret = new();
+        var allInvs = new Dictionary<string, Lnrpc.Invoice>(
+            (from inv in LND.ListInvoices(conf).Invoices
+             select KeyValuePair.Create(inv.RHash.ToArray().AsHex(), inv)));
+
+        var myInvoices = (from inv in walletContext.Value.Invoices where inv.PublicKey == this.PublicKey select inv);
+
+        foreach (var inv in myInvoices)
+        {
+            if (allInvs.ContainsKey(inv.PaymentHash))
+            {
+                ret.Add(allInvs[inv.PaymentHash]);
+            }
+        }
+        return ret.ToArray();
+    }
+
+    public Lnrpc.Payment[] ListPayments()
+    {
+        List<Lnrpc.Payment> ret = new();
+        var allInvs = new Dictionary<string, Lnrpc.Payment>(
+            (from pay in LND.ListPayments(conf).Payments
+             select KeyValuePair.Create(pay.PaymentHash, pay)));
+
+        var myPayments = (from pay in walletContext.Value.Payments where pay.PublicKey == this.PublicKey select pay);
+
+        foreach (var pay in myPayments)
+        {
+            if (allInvs.ContainsKey(pay.PaymentHash))
+            {
+                ret.Add(allInvs[pay.PaymentHash]);
+            }
+        }
+        return ret.ToArray();
     }
 
     public PaymentStatus GetPaymentStatus(string paymentHash)

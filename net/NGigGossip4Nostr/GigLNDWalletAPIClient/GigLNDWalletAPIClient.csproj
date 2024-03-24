@@ -23,18 +23,14 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="7.0.15" />
   </ItemGroup>
   <ItemGroup>
-    <None Remove="OpenAPIs\" />
+    <ProjectReference Include="..\NetworkClientToolkit\NetworkClientToolkit.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <None Remove="OpenAPIs\swagger.json" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="OpenAPIs\" />
-  </ItemGroup>
-  <ItemGroup>
-    <OpenApiReference Include="OpenAPIs\swagger.json">
+    <OpenApiReference Include="OpenAPIs\swagger.json" Namespace="GigLNDWalletAPIClient">
       <SourceUri>http://localhost:7101/swagger/v1/swagger.json</SourceUri>
     </OpenApiReference>
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\NetworkClientToolkit\NetworkClientToolkit.csproj" />
   </ItemGroup>
 </Project>

@@ -100,7 +100,7 @@ public class BasicTest
             TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(gigWorkerSettings.InvoicePaymentTimeoutSec),
             gigWorkerSettings.GetNostrRelays(),
-            new GigWorkerGossipNodeEvents(gigWorkerSettings.SettlerOpenApi),
+            new GigWorkerGossipNodeEvents { SettlerUri = gigWorkerSettings.SettlerOpenApi, FeeLimit = gigWorkerSettings.FeeLimit },
             ()=> new HttpClient(),
             gigWorkerSettings.GigWalletOpenApi,
             gigWorkerSettings.LoggerOpenApi,
@@ -113,7 +113,7 @@ public class BasicTest
             TimeSpan.FromMilliseconds(customerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(customerSettings.InvoicePaymentTimeoutSec),
             customerSettings.GetNostrRelays(),
-            new CustomerGossipNodeEvents(),
+            new CustomerGossipNodeEvents { FeeLimit = customerSettings.FeeLimit},
             () => new HttpClient(),
             customerSettings.GigWalletOpenApi,
             customerSettings.LoggerOpenApi,
@@ -177,11 +177,8 @@ public class BasicTest
 
 public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 {
-    Uri settlerUri;
-    public GigWorkerGossipNodeEvents(Uri settlerUri)
-    {
-        this.settlerUri = settlerUri;
-    }
+    public required Uri SettlerUri;
+    public required long FeeLimit;
 
     public async void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
@@ -196,7 +193,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
                     Properties = new string[] {"drive" },
                     Message = Encoding.Default.GetBytes(me.PublicKey),
                     Fee = 4321,
-                    SettlerServiceUri = settlerUri
+                    SettlerServiceUri = SettlerUri
                 },
                 CancellationToken.None);
             await me.FlowLogger.NewNoteAsync(me.PublicKey, "AcceptBraodcast");
@@ -205,7 +202,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
     public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
-        var paymentResult=await me.PayNetworkInvoiceAsync(iac, CancellationToken.None);
+        var paymentResult=await me.PayNetworkInvoiceAsync(iac, FeeLimit, CancellationToken.None);
         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
             Console.WriteLine(paymentResult);
     }
@@ -220,7 +217,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice)
     {
 
     }
@@ -272,6 +269,8 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
 public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 {
+    public required long FeeLimit;
+
     public CustomerGossipNodeEvents()
     {
     }
@@ -288,10 +287,10 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     {
     }
 
-    public async void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    public async void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice)
     {
         await me.FlowLogger.NewNoteAsync(me.PublicKey, "AcceptResponse");
-        var paymentResult = await me.AcceptResponseAsync(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice, CancellationToken.None);
+        var paymentResult = await me.AcceptResponseAsync(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice, FeeLimit, CancellationToken.None);
         if(paymentResult!= GigLNDWalletAPIErrorCode.Ok)
             Console.WriteLine(paymentResult);
     }
@@ -369,6 +368,7 @@ public class NodeSettings
     public required long InvoicePaymentTimeoutSec { get; set; }
     public required int ChunkSize { get; set; }
     public required int Fanout { get; set; }
+    public required long FeeLimit { get; set; }
 
     public string[] GetNostrRelays()
     {

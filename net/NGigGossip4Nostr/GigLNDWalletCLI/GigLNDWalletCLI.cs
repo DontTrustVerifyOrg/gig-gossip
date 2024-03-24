@@ -118,6 +118,8 @@ public class GigLNDWalletCLI
         AddInvoice,
         [Display(Name = "Add Hodl Invoice")]
         AddHodlInvoice,
+        [Display(Name = "Estimate Route Fee")]
+        EstimateRouteFee,
         [Display(Name = "Accept Invoice")]
         AcceptInvoice,
         [Display(Name = "Cancel Invoice")]
@@ -127,6 +129,10 @@ public class GigLNDWalletCLI
         [Display(Name = "Get Invoice State")]
         GetInvoiceState,
         [Display(Name = "Get Payment Status")]
+        ListInvoices,
+        [Display(Name = "List Invoices")]
+        ListPayments,
+        [Display(Name = "List Payments")]
         GetPaymentStatus,
         [Display(Name = "Payout")]
         Payout,
@@ -236,7 +242,7 @@ public class GigLNDWalletCLI
             try
             {
                 await WriteBalance();
-                var cmd = Prompt.Select<CommandEnum>("Select command",pageSize:6);
+                var cmd = Prompt.Select<CommandEnum>("Select command", pageSize: 6);
                 if (cmd == CommandEnum.Exit)
                 {
                     if (cmd == CommandEnum.Exit)
@@ -358,15 +364,15 @@ public class GigLNDWalletCLI
                 {
                     var paymentreq = Prompt.Input<string>("Payment Request", FromClipboard(ClipType.Invoice));
                     AnsiConsole.WriteLine(paymentreq);
-                    var pay = WalletAPIResult.Get<PayReq>(await walletClient.DecodeInvoiceAsync(await MakeToken(), paymentreq, CancellationToken.None));
-                    AnsiConsole.WriteLine($"Satoshis:{pay.NumSatoshis}");
+                    var pay = WalletAPIResult.Get<PayReqRet>(await walletClient.DecodeInvoiceAsync(await MakeToken(), paymentreq, CancellationToken.None));
+                    AnsiConsole.WriteLine($"Satoshis:{pay.ValueSat}");
                     AnsiConsole.WriteLine($"Memo:{pay.Description}");
                     AnsiConsole.WriteLine($"Expiry:{pay.Expiry}");
                     AnsiConsole.WriteLine($"Payment Hash:{pay.PaymentHash}");
                     ToClipboard(ClipType.PaymentHash, pay.PaymentHash);
                     var timeout = Prompt.Input<int>("Timeout", 1000);
                     await paymentStatusUpdatesClient.MonitorAsync(await MakeToken(), pay.PaymentHash, CancellationTokenSource.Token);
-                    WalletAPIResult.Check(await walletClient.SendPaymentAsync(await MakeToken(), paymentreq, timeout, CancellationToken.None));
+                    WalletAPIResult.Check(await walletClient.SendPaymentAsync(await MakeToken(), paymentreq, timeout, userSettings.FeeLimitSat, CancellationToken.None));
                 }
                 else if (cmd == CommandEnum.CancelInvoice)
                 {
@@ -401,6 +407,28 @@ public class GigLNDWalletCLI
                     var invState = WalletAPIResult.Get<string>(await walletClient.GetInvoiceStateAsync(await MakeToken(), paymenthash, CancellationToken.None));
                     AnsiConsole.WriteLine($"Invoice State:{invState}");
                 }
+                else if (cmd == CommandEnum.EstimateRouteFee)
+                {
+                    var paymentreq = Prompt.Input<string>("Payment Request", FromClipboard(ClipType.Invoice));
+                    AnsiConsole.WriteLine(paymentreq);
+                    var fee = WalletAPIResult.Get<RouteFeeResponse>(await walletClient.EstimateRouteFeeAsync(await MakeToken(), paymentreq, CancellationToken.None));
+                    AnsiConsole.WriteLine($"Satoshis:{fee.RoutingFeeMsat / 1000.0}");
+                    AnsiConsole.WriteLine($"TimeLockDelay:{fee.TimeLockDelay}");
+                }
+                else if (cmd == CommandEnum.ListInvoices)
+                {
+/*                    AnsiConsole.WriteLine($"Satoshis:{pay.NumSatoshis}");
+                    AnsiConsole.WriteLine($"Memo:{pay.Description}");
+                    AnsiConsole.WriteLine($"Expiry:{pay.Expiry}");
+                    AnsiConsole.WriteLine($"Payment Hash:{pay.PaymentHash}");
+
+                    var invoices = WalletAPIResult.Get<Invoice[]>(await walletClient.ListInvoicesAsync(await MakeToken(), CancellationToken.None));
+                    AnsiConsole.Write(new Table() { Rows= (from i in invoices select new string[] {i.Value.ToString(), i.Memo, i.Expiry,i.State }) }*/
+                }
+                else if (cmd == CommandEnum.ListPayments)
+                {
+
+                }
             }
             catch (Exception ex)
             {
@@ -419,4 +447,5 @@ public class UserSettings
 {
     public required string GigWalletOpenApi { get; set; }
     public required string UserPrivateKey { get; set; }
+    public required long FeeLimitSat { get; set; }
 }

@@ -180,27 +180,14 @@ public partial class RideShareCLIApp
     private static IEnumerable<(int idx, GeolocationRet location)> GeoSteps(ICollection<GeolocationRet> geometr, int steps)
     {
         var geometry = geometr.ToArray();
-        var jump = (int)(geometry.Count() / steps);
-        if (jump == 0)
+        var jump = (int)(geometry.Count() / steps) + 1;
+        int z = steps;
+        for (int i = 0; i < geometry.Count(); i += jump)
         {
-            int cnt = geometry.Count();
-            int i = 0;
-            foreach (var g in geometry)
-                yield return (cnt - i, g);
+            z--;
+            yield return (z, geometry[i]);
         }
-        else
-        {
-            int i = 0;
-            foreach (var g in geometry)
-            {
-                int x;
-                var r = Math.DivRem(i, jump, out x);
-                if (r == 0)
-                    yield return (steps - x, g);
-                i++;
-            }
-            yield return (0, geometry.Last());
-        }
+        yield return (0, geometry.Last());
     }
 
     private async Task DriverJourneyAsync(DetailedParameters detparams)
@@ -219,7 +206,7 @@ public partial class RideShareCLIApp
                 detparams.FromLocation.Latitude, detparams.FromLocation.Longitude,
                 CancellationTokenSource.Token));
 
-            foreach (var (idx,location) in GeoSteps(route.Geometry,100))
+            foreach (var (idx,location) in GeoSteps(route.Geometry,10))
             {
                 AnsiConsole.MarkupLine($"({idx},{location.Lat},{location.Lon}) I am [orange1]driving[/] to meet rider");
                 await directCom.SendMessageAsync(pubkey, new LocationFrame
@@ -230,7 +217,7 @@ public partial class RideShareCLIApp
                     RideStatus = RideState.Started,
                     Direction = 0,
                 }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-                Thread.Sleep(100);
+                Thread.Sleep(1000);
             }
         }
         AnsiConsole.MarkupLine("I have [orange1]arrived[/]");
@@ -256,7 +243,7 @@ public partial class RideShareCLIApp
                 detparams.FromLocation.Latitude, detparams.FromLocation.Longitude,
                 detparams.ToLocation.Latitude, detparams.ToLocation.Longitude,
                 CancellationTokenSource.Token));
-            foreach (var (idx, location) in GeoSteps(route.Geometry, 100))
+            foreach (var (idx, location) in GeoSteps(route.Geometry, 10))
             {
                 AnsiConsole.MarkupLine($"({idx},{location.Lat},{location.Lon}) We are going [orange1]togheter[/]");
                 await directCom.SendMessageAsync(pubkey, new LocationFrame
@@ -267,7 +254,7 @@ public partial class RideShareCLIApp
                     RideStatus = RideState.RiderPickedUp,
                     Direction = 0,
                 }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-                Thread.Sleep(100);
+                Thread.Sleep(1000);
             }
         }
         AnsiConsole.MarkupLine("We have [orange1]reached[/] the destination");

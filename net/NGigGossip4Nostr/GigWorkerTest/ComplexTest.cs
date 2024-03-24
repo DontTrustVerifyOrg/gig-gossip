@@ -104,7 +104,7 @@ public class ComplexTest
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
                 gridNodeSettings.GetNostrRelays(),
-                new GigWorkerGossipNodeEvents(gridNodeSettings.SettlerOpenApi),
+                new GigWorkerGossipNodeEvents { SettlerUri = gridNodeSettings.SettlerOpenApi, FeeLimit = gridNodeSettings.FeeLimit },
                 ()=>new HttpClient(),
                 gridNodeSettings.GigWalletOpenApi,
                 gridNodeSettings.LoggerOpenApi,
@@ -131,7 +131,7 @@ public class ComplexTest
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
                  gridNodeSettings.GetNostrRelays(),
-                new CustomerGossipNodeEvents(),
+                new CustomerGossipNodeEvents { FeeLimit = gridNodeSettings.FeeLimit },
                 () => new HttpClient(),
                 gridNodeSettings.GigWalletOpenApi,
                 gridNodeSettings.LoggerOpenApi,
@@ -147,7 +147,7 @@ public class ComplexTest
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
                 gridNodeSettings.GetNostrRelays(),
-                new NetworkEarnerNodeEvents(),
+                new NetworkEarnerNodeEvents { FeeLimit = gridNodeSettings.FeeLimit },
                 ()=> new HttpClient(),
                 gridNodeSettings.GigWalletOpenApi,
                 gridNodeSettings.LoggerOpenApi,
@@ -246,6 +246,8 @@ public class ComplexTest
 
 public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
 {
+    public required long FeeLimit;
+
     public async void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
         var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(broadcastFrame.SignedRequestPayload.Value.Topic);
@@ -273,7 +275,7 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
 
     public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
-        var paymentResult = await me.PayNetworkInvoiceAsync(iac, CancellationToken.None);
+        var paymentResult = await me.PayNetworkInvoiceAsync(iac, FeeLimit, CancellationToken.None);
         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
         {
             Console.WriteLine(paymentResult);
@@ -285,7 +287,7 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice)
     {
     }
     public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
@@ -333,11 +335,8 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
 
 public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 {
-    Uri settlerUri;
-    public GigWorkerGossipNodeEvents(Uri settlerUri)
-    {
-        this.settlerUri = settlerUri;
-    }
+    public required Uri SettlerUri;
+    public required long FeeLimit;
 
     public async void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
@@ -352,7 +351,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
                     Properties = new string[] { "drive"},
                     Message = Encoding.Default.GetBytes(me.PublicKey),
                     Fee = 4321,
-                    SettlerServiceUri = settlerUri,
+                    SettlerServiceUri = SettlerUri,
                 },
                 CancellationToken.None);
             await me.FlowLogger.NewNoteAsync(me.PublicKey, "AcceptBraodcast");
@@ -361,7 +360,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
     public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
-        var paymentResult = await me.PayNetworkInvoiceAsync(iac, CancellationToken.None);
+        var paymentResult = await me.PayNetworkInvoiceAsync(iac, FeeLimit, CancellationToken.None);
         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
         {
             Console.WriteLine(paymentResult);
@@ -382,7 +381,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
             Monitor.PulseAll(MainThreadControl.Ctrl);
         }
     }
-    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice)
     {
     }
     public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
@@ -430,9 +429,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
 public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 {
-    public CustomerGossipNodeEvents()
-    {
-    }
+    public required long FeeLimit;
 
     public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
@@ -441,7 +438,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     Timer timer = null;
     int old_cnt = 0;
 
-    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice)
     {
         lock (this)
         {
@@ -452,14 +449,15 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                     var resps = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Id);
                     if (resps.Count == old_cnt)
                     {
-                        resps.Sort((a, b) => (int)(Crypto.DeserializeObject<PayReq>(a.DecodedNetworkInvoice).NumSatoshis - Crypto.DeserializeObject<PayReq>(b.DecodedNetworkInvoice).NumSatoshis));
+                        resps.Sort((a, b) => (int)(Crypto.DeserializeObject<PayReqRet>(a.DecodedNetworkInvoice).ValueSat - Crypto.DeserializeObject<PayReqRet>(b.DecodedNetworkInvoice).ValueSat));
                         var win = resps[0];
                         var paymentResult = await me.AcceptResponseAsync(
                             Crypto.DeserializeObject<Certificate<ReplyPayloadValue>>(win.TheReplyPayload),
                             win.ReplyInvoice,
-                            Crypto.DeserializeObject<PayReq>(win.DecodedReplyInvoice),
+                            Crypto.DeserializeObject<PayReqRet>(win.DecodedReplyInvoice),
                             win.NetworkInvoice,
-                            Crypto.DeserializeObject<PayReq>(win.DecodedNetworkInvoice),
+                            Crypto.DeserializeObject<PayReqRet>(win.DecodedNetworkInvoice),
+                            FeeLimit,
                             CancellationToken.None);
                         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
                         {
@@ -562,6 +560,7 @@ public class NodeSettings
     public required long InvoicePaymentTimeoutSec { get; set; }
     public required int ChunkSize { get; set; }
     public required int Fanout { get; set; }
+    public required long FeeLimit { get; set; }
 
     public string[] GetNostrRelays()
     {

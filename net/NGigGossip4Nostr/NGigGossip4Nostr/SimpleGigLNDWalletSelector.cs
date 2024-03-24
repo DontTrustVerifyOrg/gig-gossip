@@ -119,7 +119,7 @@ public class WalletAPILoggingWrapper : LogWrapper<IWalletAPI>, IWalletAPI
         }
     }
 
-    public async Task<PayReqResult> DecodeInvoiceAsync(string authToken, string paymentRequest, CancellationToken cancellationToken)
+    public async Task<PayReqRetResult> DecodeInvoiceAsync(string authToken, string paymentRequest, CancellationToken cancellationToken)
     {
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
         try
@@ -357,14 +357,14 @@ public class WalletAPILoggingWrapper : LogWrapper<IWalletAPI>, IWalletAPI
         }
     }
 
-    public async Task<Result> SendPaymentAsync(string authToken, string paymentrequest, int timeout, CancellationToken cancellationToken)
+    public async Task<Result> SendPaymentAsync(string authToken, string paymentrequest, int timeout, long feelimit, CancellationToken cancellationToken)
     {
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
         try
         {
             await TraceInAsync(g__, m__, authToken, paymentrequest, timeout);
             return await TraceOutAsync(g__, m__,
-                await api.SendPaymentAsync(authToken, paymentrequest, timeout, cancellationToken)
+                await api.SendPaymentAsync(authToken, paymentrequest, timeout, feelimit, cancellationToken)
             );
         }
         catch (Exception ex)
@@ -382,6 +382,58 @@ public class WalletAPILoggingWrapper : LogWrapper<IWalletAPI>, IWalletAPI
             await TraceInAsync(g__, m__, authToken, bitcoinAddr, satoshis);
             return await TraceOutAsync(g__, m__,
                 await api.SendToAddressAsync(authToken, bitcoinAddr, satoshis, cancellationToken)
+            );
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
+
+    public async Task<RouteFeeResponseResult> EstimateRouteFeeAsync(string authToken, string paymentrequest, CancellationToken cancellationToken)
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__, authToken, paymentrequest);
+            return await TraceOutAsync(g__, m__,
+                await api.EstimateRouteFeeAsync(authToken, paymentrequest, cancellationToken)
+            );
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
+    public async Task<InvoiceRetArrayResult> ListInvoicesAsync(string authToken, CancellationToken cancellationToken)
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__, authToken);
+            return await TraceOutAsync(g__, m__,
+                await api.ListInvoicesAsync(authToken, cancellationToken)
+            );
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
+    public async Task<PaymentRetArrayResult> ListPaymentsAsync(string authToken, CancellationToken cancellationToken)
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__, authToken);
+            return await TraceOutAsync(g__, m__,
+                await api.ListPaymentsAsync(authToken, cancellationToken)
             );
         }
         catch (Exception ex)
@@ -434,6 +486,7 @@ public class WalletAPILoggingWrapper : LogWrapper<IWalletAPI>, IWalletAPI
     {
         return new PaymentStatusUpdatesClientWrapper(flowLogger,api.CreatePaymentStatusUpdatesClient());
     }
+
 }
 
 internal class InvoiceStateUpdatesClientWrapper : LogWrapper<IInvoiceStateUpdatesClient>, IInvoiceStateUpdatesClient

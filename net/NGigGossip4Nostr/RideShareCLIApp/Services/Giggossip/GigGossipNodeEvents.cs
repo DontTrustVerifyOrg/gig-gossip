@@ -46,7 +46,7 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
         });
     }
 
-    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayloadCert, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice)
+    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayloadCert, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice)
     {
         _gigGossipNodeEventSource.FireOnNewResponse(new NewResponseEventArgs()
         {

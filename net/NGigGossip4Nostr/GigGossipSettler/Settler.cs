@@ -282,7 +282,7 @@ public class Settler : CertificationAuthority
 
     public async Task<SettlementTrust> GenerateSettlementTrustAsync(string replierpubkey, string[] replierproperties, byte[] message, string replyInvoice, Certificate<RequestPayloadValue> signedRequestPayload)
     {
-        var decodedInv = WalletAPIResult.Get<PayReq>(await lndWalletClient.DecodeInvoiceAsync(MakeAuthToken(), replyInvoice, CancellationTokenSource.Token));
+        var decodedInv = WalletAPIResult.Get<PayReqRet>(await lndWalletClient.DecodeInvoiceAsync(MakeAuthToken(), replyInvoice, CancellationTokenSource.Token));
         var invPaymentHash = decodedInv.PaymentHash;
         if ((from pi in settlerContext.Value.Preimages where pi.SignedRequestPayloadId == signedRequestPayload.Id && pi.PaymentHash == invPaymentHash select pi).FirstOrDefault() == null)
             throw new UnknownPreimageException();
@@ -334,7 +334,7 @@ public class Settler : CertificationAuthority
             ServiceUri = this.ServiceUri,
             RequestersServiceUri = signedRequestPayload.ServiceUri,
             HashOfEncryptedReplyPayload = hashOfEncryptedReplyPayload,
-            ReplyPaymentAmount = decodedInv.NumSatoshis,
+            ReplyPaymentAmount = decodedInv.ValueSat,
             NetworkPaymentHash = networkInvoicePaymentHash.AsBytes(),
         };
         signedSettlementPromise.Sign(_CaPrivateKey);

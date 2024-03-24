@@ -456,7 +456,22 @@ app.MapGet("/addinvoice", (string authToken, long satoshis, string memo, long ex
         var acc = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
         var ph = acc.AddInvoice(satoshis, memo, walletSettings.AddInvoiceTxFee, expiry).PaymentRequest;
         var pa = acc.DecodeInvoice(ph);
-        return new Result<InvoiceRet>(new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph });
+        return new Result<InvoiceRet>(
+            new InvoiceRet
+            {
+                Description = pa.Description,
+                DescriptionHash = pa.DescriptionHash,
+                Expiry = pa.Expiry,
+                ValueSat = pa.NumSatoshis,
+                PaymentHash = pa.PaymentHash,
+                PaymentAddr = pa.PaymentAddr.ToArray().AsHex(),
+                PaymentRequest = ph,
+                CreationDate = pa.Timestamp,
+                AmtPaidSat = 0,
+                Preimage = "",
+                SettleDate = 0,
+                State = InvoiceState.Open.ToString()
+            });
     }
     catch (Exception ex)
     {
@@ -484,7 +499,22 @@ app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, str
         var acc = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
         var ph = acc.AddHodlInvoice(satoshis, memo, hashb, walletSettings.AddInvoiceTxFee, expiry).PaymentRequest;
         var pa = acc.DecodeInvoice(ph);
-        return new Result<InvoiceRet>(new InvoiceRet() { PaymentHash = pa.PaymentHash, PaymentRequest = ph });
+        return new Result<InvoiceRet>(
+            new InvoiceRet
+            {
+                Description = pa.Description,
+                DescriptionHash = pa.DescriptionHash,
+                Expiry = pa.Expiry,
+                ValueSat = pa.NumSatoshis,
+                PaymentHash = pa.PaymentHash,
+                PaymentAddr = pa.PaymentAddr.ToArray().AsHex(),
+                PaymentRequest = ph,
+                CreationDate = pa.Timestamp,
+                AmtPaidSat = 0,
+                Preimage = "",
+                SettleDate = 0,
+                State = InvoiceState.Open.ToString()
+            });
     }
     catch (Exception ex)
     {
@@ -509,12 +539,23 @@ app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
 {
     try
     {
-        return new Result<Lnrpc.PayReq>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).DecodeInvoice(paymentRequest));
+        var pr = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).DecodeInvoice(paymentRequest);
+        return new Result<PayReqRet>(
+            new PayReqRet
+            {
+                PaymentHash = pr.PaymentHash,
+                PaymentAddr = pr.PaymentAddr.ToArray().AsHex(),
+                Description = pr.Description,
+                DescriptionHash = pr.DescriptionHash,
+                Expiry = pr.Expiry,
+                Timestamp = pr.Timestamp,
+                ValueSat = pr.NumSatoshis
+            });
     }
     catch (Exception ex)
     {
         TraceEx.TraceException(ex);
-        return new Result<Lnrpc.PayReq>(ex);
+        return new Result<PayReqRet>(ex);
     }
 })
 .WithName("DecodeInvoice")
@@ -528,11 +569,11 @@ app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
 });
 
 
-app.MapGet("/sendpayment", async (string authToken, string paymentrequest, int timeout) =>
+app.MapGet("/sendpayment", async (string authToken, string paymentrequest, int timeout, long feelimit) =>
 {
     try
     {
-        await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SendPaymentAsync(paymentrequest, timeout, walletSettings.SendPaymentTxFee, walletSettings.FeeLimit);
+        await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SendPaymentAsync(paymentrequest, timeout, walletSettings.SendPaymentTxFee, feelimit);
         return new Result();
     }
     catch (Exception ex)
@@ -549,6 +590,28 @@ app.MapGet("/sendpayment", async (string authToken, string paymentrequest, int t
     g.Parameters[0].Description = "Authorisation token for the communication";
     g.Parameters[1].Description = "A bare-bones invoice for a payment within the Lightning Network. With the details of the invoice, the sender has all the data necessary to send a payment to the recipient.";
     g.Parameters[2].Description = "An upper limit on the amount of time we should spend when attempting to fulfill the payment. This is expressed in seconds.";
+    return g;
+});
+
+app.MapGet("/estimateroutefee", (string authToken, string paymentrequest) =>
+{
+    try
+    {
+        return new Result<Routerrpc.RouteFeeResponse>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).EstimateRouteFee(paymentrequest, walletSettings.SendPaymentTxFee));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<Routerrpc.RouteFeeResponse>(ex);
+    }
+})
+.WithName("EstimateRouteFee")
+.WithSummary("Estimates Route Fee for a payment via lightning network for the given payment request")
+.WithDescription("Estimates Route Fee for a payment described by the passed paymentrequest to the final destination.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication";
+    g.Parameters[1].Description = "A bare-bones invoice for a payment within the Lightning Network. With the details of the invoice, the sender has all the data necessary to send a payment to the recipient.";
     return g;
 });
 
@@ -620,6 +683,77 @@ app.MapGet("/getinvoicestate", (string authToken, string paymenthash) =>
     return g;
 });
 
+app.MapGet("/listinvoices", (string authToken) =>
+{
+    try
+    {
+        var invoices = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).ListInvoices();
+        return new Result<InvoiceRet[]>(
+            (from inv in invoices
+             select new InvoiceRet
+             {
+                 AmtPaidSat = inv.AmtPaidSat,
+                 CreationDate = inv.CreationDate,
+                 Expiry = inv.Expiry,
+                 Description = inv.Memo,
+                 DescriptionHash = inv.DescriptionHash.ToArray().AsHex(),
+                 PaymentHash = inv.RHash.ToArray().AsHex(),
+                 PaymentAddr = inv.PaymentAddr.ToArray().AsHex(),
+                 PaymentRequest = inv.PaymentRequest,
+                 Preimage = inv.RPreimage.ToArray().AsHex(),
+                 SettleDate = inv.SettleDate,
+                 State = inv.State.ToString(),
+                 ValueSat = inv.Value
+             }).ToArray());
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<InvoiceRet[]>(ex);
+    }
+})
+.WithName("ListInvoices")
+.WithSummary("Returns list of all invoices related to the account")
+.WithDescription("Returns list of all invoices related to the account")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication";
+    return g;
+});
+
+app.MapGet("/listpayments", (string authToken) =>
+{
+    try
+    {
+        var payments = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).ListPayments();
+        return new Result<PaymentRet[]>((from pay in payments
+                                         select
+                                          new PaymentRet
+                                          {
+                                              CreationTimeNs = pay.CreationTimeNs,
+                                              FeeSat = pay.FeeSat,
+                                              PaymentHash = pay.PaymentHash,
+                                              Status = pay.Status.ToString(),
+                                              ValueSat = pay.ValueSat,
+                                              PaymentRequest = pay.PaymentRequest
+                                          }).ToArray());
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<PaymentRet[]>(ex);
+    }
+})
+.WithName("ListPayments")
+.WithSummary("Returns list of all payments related to the account")
+.WithDescription("Returns list of all payments related to the account")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication";
+    return g;
+});
+
+
 app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
 {
     try
@@ -678,6 +812,7 @@ public struct Result<T>
     public string ErrorMessage { get; set; } = "";
 }
 
+
 [Serializable]
 public struct FeeEstimateRet
 {
@@ -686,12 +821,51 @@ public struct FeeEstimateRet
 }
 
 [Serializable]
-public struct InvoiceRet
+public struct PaymentRequestAndHashRet
 {
     public string PaymentRequest { get; set; }
     public string PaymentHash { get; set; }
 }
 
+[Serializable]
+public struct InvoiceRet
+{
+    public required string Description { get; set; }
+    public required string DescriptionHash { get; set; }
+    public required string Preimage { get; set; }
+    public required string PaymentHash { get; set; }
+    public required string PaymentAddr { get; set; }
+    public required long ValueSat { get; set; }
+    public required long CreationDate { get; set; }
+    public required long SettleDate { get; set; }
+    public required string PaymentRequest { get; set; }
+    public required long Expiry { get; set; }
+    public required long AmtPaidSat { get; set; }
+    public required string State { get; set; }
+}
+
+[Serializable]
+public struct PayReqRet
+{
+    public required long ValueSat { get; set; }
+    public required long Timestamp { get; set; }
+    public required long Expiry { get; set; }
+    public required string Description { get; set; }
+    public required string DescriptionHash { get; set; }
+    public required string PaymentHash { get; set; }
+    public required string PaymentAddr { get; set; }
+}
+
+[Serializable]
+public struct PaymentRet
+{
+    public required string PaymentHash { get; set; }
+    public required long ValueSat { get; set; }
+    public required long CreationTimeNs { get; set; }
+    public required long FeeSat { get; set; }
+    public required string Status { get; set; }
+    public required string PaymentRequest { get; set; }
+}
 
 [Serializable]
 public struct LndWalletBallanceRet
@@ -711,7 +885,6 @@ public class WalletSettings
     public long NewAddressTxFee { get; set; }
     public long AddInvoiceTxFee { get; set; }
     public long SendPaymentTxFee { get; set; }
-    public long FeeLimit { get; set; }
     public long EstimatedTxFee { get; set; }
     public bool AllowLocalBitcoinNode { get; set; }
 }

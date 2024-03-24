@@ -46,6 +46,7 @@ public class NodeSettings
     public required long InvoicePaymentTimeoutSec { get; set; }
     public required int ChunkSize { get; set; }
     public required int Fanout { get; set; }
+    public required long FeeLimitSat { get; set; }
     public required string RiderProperties { get; set; }
     public required string DriverProperties { get; set; }
     public required int GeohashPrecision { get; set; }

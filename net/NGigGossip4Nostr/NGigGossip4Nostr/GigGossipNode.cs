@@ -52,7 +52,7 @@ public enum ServerConnectionSource
 
 public interface IGigGossipNodeEvents
 {
-    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice);
+    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice);
     public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key);
     public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload);
     public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame);
@@ -83,7 +83,7 @@ public class AcceptBroadcastResponse
 public class AcceptBroadcastReturnValue
 {
     public required Guid ReplierCertificateId { get; set; }
-    public required PayReq DecodedReplyInvoice { get; set; }
+    public required PayReqRet DecodedReplyInvoice { get; set; }
     public required string ReplyInvoiceHash { get; set; }
 }
 
@@ -468,7 +468,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     public async Task<AcceptBroadcastReturnValue> AcceptBroadcastAsync(string peerPublicKey, BroadcastFrame broadcastFrame, AcceptBroadcastResponse acceptBroadcastResponse, CancellationToken cancellationToken)
     {
         ReplyFrame responseFrame;
-        PayReq decodedReplyInvoice;
+        PayReqRet decodedReplyInvoice;
         Guid replierCertificateId;
         string replyPaymentHash;
 
@@ -490,7 +490,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 var replyInvoice = WalletAPIResult.Get<InvoiceRet>(await GetWalletClient().AddHodlInvoiceAsync(await MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)InvoicePaymentTimeout.TotalSeconds, cancellationToken)).PaymentRequest;
                 await FlowLogger.NewMessageAsync(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), replyPaymentHash, "hash");
                 await FlowLogger.NewMessageAsync(this.PublicKey, replyPaymentHash, "create");
-                decodedReplyInvoice = WalletAPIResult.Get<PayReq>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), replyInvoice, cancellationToken));
+                decodedReplyInvoice = WalletAPIResult.Get<PayReqRet>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), replyInvoice, cancellationToken));
                 await this._invoiceStateUpdatesMonitor.MonitorInvoiceAsync(
                     replyPaymentHash,
                     Crypto.SerializeObject(new InvoiceData()
@@ -515,7 +515,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 var settlementTrust = Crypto.DeserializeObject<SettlementTrust>(Convert.FromBase64String(settr));
                 var signedSettlementPromise = settlementTrust.SettlementPromise;
                 var networkInvoice = settlementTrust.NetworkInvoice;
-                var decodedNetworkInvoice = WalletAPIResult.Get<PayReq>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), networkInvoice, cancellationToken));
+                var decodedNetworkInvoice = WalletAPIResult.Get<PayReqRet>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), networkInvoice, cancellationToken));
                 await FlowLogger.NewMessageAsync(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), decodedNetworkInvoice.PaymentHash, "create");
                 var encryptedReplyPayload = settlementTrust.EncryptedReplyPayload;
 
@@ -551,7 +551,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             else
             {
                 replyPaymentHash = alreadyBroadcasted.ReplyInvoiceHash;
-                decodedReplyInvoice = Crypto.DeserializeObject<PayReq>(alreadyBroadcasted.DecodedReplyInvoice);
+                decodedReplyInvoice = Crypto.DeserializeObject<PayReqRet>(alreadyBroadcasted.DecodedReplyInvoice);
                 replierCertificateId = alreadyBroadcasted.ReplierCertificateId;
                 responseFrame = new ReplyFrame()
                 {
@@ -582,7 +582,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         await alreadyBroadcastedSemaphore.WaitAsync();
         try
         {
-            var decodedNetworkInvoice = WalletAPIResult.Get<PayReq>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), responseFrame.NetworkInvoice, cancellationToken));
+            var decodedNetworkInvoice = WalletAPIResult.Get<PayReqRet>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), responseFrame.NetworkInvoice, cancellationToken));
             if (responseFrame.ForwardOnion.IsEmpty())
             {
                 await FlowLogger.NewMessageAsync(peerPublicKey, this.PublicKey, "reply");
@@ -595,7 +595,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 }
                 await _settlerMonitor.MonitorGigStatusAsync(responseFrame.SignedSettlementPromise.ServiceUri, replyPayload.Value.SignedRequestPayload.Id, replyPayload.Id, Crypto.SerializeObject(replyPayload));
 
-                var decodedReplyInvoice = WalletAPIResult.Get<PayReq>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), replyPayload.Value.ReplyInvoice, cancellationToken));
+                var decodedReplyInvoice = WalletAPIResult.Get<PayReqRet>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), replyPayload.Value.ReplyInvoice, cancellationToken));
 
                 await this._invoiceStateUpdatesMonitor.MonitorInvoiceAsync(
                     decodedReplyInvoice.PaymentHash,
@@ -652,7 +652,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
                     var networkInvoice = WalletAPIResult.Get<InvoiceRet>(await GetWalletClient().AddHodlInvoiceAsync(
                         await this.MakeWalletAuthToken(),
-                        decodedNetworkInvoice.NumSatoshis + this.priceAmountForRouting,
+                        decodedNetworkInvoice.ValueSat + this.priceAmountForRouting,
                         relatedNetworkPaymentHash, "", (long)InvoicePaymentTimeout.TotalSeconds, cancellationToken));
                     await FlowLogger.NewMessageAsync(this.PublicKey, relatedNetworkPaymentHash, "create");
                     await this._invoiceStateUpdatesMonitor.MonitorInvoiceAsync(
@@ -779,7 +779,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public async Task<GigLNDWalletAPIErrorCode> PayNetworkInvoiceAsync(InvoiceData iac,CancellationToken cancellationToken)
+    public async Task<GigLNDWalletAPIErrorCode> PayNetworkInvoiceAsync(InvoiceData iac, long feelimit, CancellationToken cancellationToken)
     {
         if (_paymentStatusUpdatesMonitor.IsPaymentMonitored(iac.PaymentHash))
             return GigLNDWalletAPIErrorCode.AlreadyPayed;
@@ -790,7 +790,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 PaymentHash = iac.PaymentHash
             }));
         var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(
-            await MakeWalletAuthToken(), iac.Invoice, iac.TotalSeconds, cancellationToken
+            await MakeWalletAuthToken(), iac.Invoice, iac.TotalSeconds, feelimit, cancellationToken
             ));
         if (paymentStatus != GigLNDWalletAPIErrorCode.Ok)
         {
@@ -839,8 +839,12 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         gigGossipNodeEvents.OnResponseCancelled(this, replyPayload);
     }
 
-    public async Task<GigLNDWalletAPIErrorCode> AcceptResponseAsync(Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReq decodedReplyInvoice, string networkInvoice, PayReq decodedNetworkInvoice, CancellationToken cancellationToken)
+    public async Task<GigLNDWalletAPIErrorCode> AcceptResponseAsync(Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice, long feelimit, CancellationToken cancellationToken)
     {
+        var ballance = WalletAPIResult.Get<int>(await GetWalletClient().GetBalanceAsync(await MakeWalletAuthToken(), cancellationToken));
+        if (ballance < decodedReplyInvoice.ValueSat + decodedNetworkInvoice.ValueSat + 2 * feelimit)
+            return GigLNDWalletAPIErrorCode.NotEnoughFunds;
+
         if (!_paymentStatusUpdatesMonitor.IsPaymentMonitored(decodedNetworkInvoice.PaymentHash))
         {
             await _paymentStatusUpdatesMonitor.MonitorPaymentAsync(decodedNetworkInvoice.PaymentHash, Crypto.SerializeObject(
@@ -849,7 +853,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 Invoice = networkInvoice,
                 PaymentHash = decodedNetworkInvoice.PaymentHash
             }));
-            var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), networkInvoice, (int)this.InvoicePaymentTimeout.TotalSeconds, cancellationToken));
+            var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), networkInvoice, (int)this.InvoicePaymentTimeout.TotalSeconds, feelimit,cancellationToken));
             if(paymentStatus!= GigLNDWalletAPIErrorCode.Ok)
             {
                 await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(decodedNetworkInvoice.PaymentHash);
@@ -865,7 +869,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 Invoice = replyInvoice,
                 PaymentHash = decodedReplyInvoice.PaymentHash
             }));
-            var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), replyInvoice, (int)this.InvoicePaymentTimeout.TotalSeconds, cancellationToken));
+            var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), replyInvoice, (int)this.InvoicePaymentTimeout.TotalSeconds, feelimit,cancellationToken));
             if (paymentStatus != GigLNDWalletAPIErrorCode.Ok)
             {
                 await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(decodedNetworkInvoice.PaymentHash);

@@ -54,9 +54,9 @@ public partial class RideShareCLIApp
         var paymentHash = receivedResponsesTable.GetCell(idx, 0);
 
         var evs = receivedResponsesForPaymentHashes[paymentHash];
-        var e = evs.Aggregate((curMin, x) => (curMin == null || x.DecodedNetworkInvoice.NumSatoshis < curMin.DecodedNetworkInvoice.NumSatoshis) ? x : curMin);
+        var e = evs.Aggregate((curMin, x) => (curMin == null || x.DecodedNetworkInvoice.ValueSat < curMin.DecodedNetworkInvoice.ValueSat) ? x : curMin);
 
-        var paymentResult = await e.GigGossipNode.AcceptResponseAsync(e.ReplyPayloadCert, e.ReplyInvoice, e.DecodedReplyInvoice, e.NetworkInvoice, e.DecodedNetworkInvoice, CancellationTokenSource.Token);
+        var paymentResult = await e.GigGossipNode.AcceptResponseAsync(e.ReplyPayloadCert, e.ReplyInvoice, e.DecodedReplyInvoice, e.NetworkInvoice, e.DecodedNetworkInvoice, settings.NodeSettings.FeeLimitSat, CancellationTokenSource.Token);
         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
         {
             AnsiConsole.MarkupLine($"[red]{paymentResult}[/]");
@@ -84,8 +84,8 @@ public partial class RideShareCLIApp
                 receivedResponsesForPaymentHashes[paymentHash] = new List<NewResponseEventArgs> { e };
                 receivedResponseIdxesForReplyPayloadId[e.ReplyPayloadCert.Id] = receivedResponsesForPaymentHashes.Count - 1;
                 receivedResponseIdxesForPaymentHashes[paymentHash] = receivedResponsesForPaymentHashes.Count - 1;
-                var fee = e.DecodedReplyInvoice.NumSatoshis;
-                var netfee = e.DecodedNetworkInvoice.NumSatoshis;
+                var fee = e.DecodedReplyInvoice.ValueSat;
+                var netfee = e.DecodedNetworkInvoice.ValueSat;
 
                 var taxiTopic = Crypto.DeserializeObject<RideTopic>(e.ReplyPayloadCert.Value.SignedRequestPayload.Value.Topic);
                 var from = taxiTopic.FromGeohash;
@@ -99,7 +99,7 @@ public partial class RideShareCLIApp
             {
                 receivedResponsesForPaymentHashes[paymentHash].Add(e);
                 receivedResponsesTable.UpdateCell(receivedResponseIdxesForPaymentHashes[paymentHash], 2, receivedResponsesForPaymentHashes[paymentHash].Count.ToString());
-                var minNetPr = (from ev in receivedResponsesForPaymentHashes[paymentHash] select ev.DecodedNetworkInvoice.NumSatoshis).Min();
+                var minNetPr = (from ev in receivedResponsesForPaymentHashes[paymentHash] select ev.DecodedNetworkInvoice.ValueSat).Min();
                 receivedResponsesTable.UpdateCell(receivedResponseIdxesForPaymentHashes[paymentHash], 7, minNetPr.ToString());
             }
         }

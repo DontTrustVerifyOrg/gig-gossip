@@ -158,17 +158,27 @@ public static class LND
             Metadata(conf), deadline, cancellationToken);
     }
 
+    public static RouteFeeResponse EstimateRouteFee(NodeSettings conf, PayReq di, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    {
+        return RouterClient(conf).EstimateRouteFee(
+            new RouteFeeRequest
+            {
+                AmtSat = di.NumSatoshis,
+                Dest = Google.Protobuf.ByteString.CopyFrom(di.Destination.AsBytes())
+            },
+            Metadata(conf), deadline, cancellationToken);
+    }
+
     public static AsyncServerStreamingCall<Payment> SendPaymentV2(NodeSettings conf, string paymentRequest, int timeout, long feelimit, ulong[] outChanIds = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var spr = new SendPaymentRequest()
         {
             PaymentRequest = paymentRequest,
             TimeoutSeconds = timeout,
-            FeeLimitSat = feelimit,
+            FeeLimitSat = feelimit, 
         };
         if (outChanIds != null)
             spr.OutgoingChanIds.AddRange(outChanIds);
-
         var stream = RouterClient(conf).SendPaymentV2(
             spr,
             Metadata(conf), deadline, cancellationToken);

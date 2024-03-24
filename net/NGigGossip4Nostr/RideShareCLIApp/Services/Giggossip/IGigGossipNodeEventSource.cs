@@ -45,9 +45,9 @@ public class NewResponseEventArgs : EventArgs
 {
     public required GigGossipNode GigGossipNode;
     public required string ReplyInvoice;
-    public required PayReq DecodedReplyInvoice;
+    public required PayReqRet DecodedReplyInvoice;
     public required string NetworkInvoice;
-    public required PayReq DecodedNetworkInvoice;
+    public required PayReqRet DecodedNetworkInvoice;
     public required Certificate<ReplyPayloadValue> ReplyPayloadCert;
 }
 public class ResponseReadyEventArgs : EventArgs
