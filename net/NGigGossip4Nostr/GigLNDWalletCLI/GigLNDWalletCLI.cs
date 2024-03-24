@@ -129,11 +129,11 @@ public class GigLNDWalletCLI
         [Display(Name = "Get Invoice State")]
         GetInvoiceState,
         [Display(Name = "Get Payment Status")]
-        ListInvoices,
-        [Display(Name = "List Invoices")]
-        ListPayments,
-        [Display(Name = "List Payments")]
         GetPaymentStatus,
+        [Display(Name = "List Invoices")]
+        ListInvoices,
+        [Display(Name = "List Payments")]
+        ListPayments,
         [Display(Name = "Payout")]
         Payout,
         [Display(Name = "Open Reserve")]
@@ -158,17 +158,17 @@ public class GigLNDWalletCLI
 
     private async Task WriteBalanceDetails()
     {
-        var ballanceDetails = WalletAPIResult.Get<AccountBallanceDetails>(await walletClient.GetBalanceDetailsAsync(await MakeToken(), CancellationToken.None));                
+        var ballanceDetails = WalletAPIResult.Get<AccountBallanceDetails>(await walletClient.GetBalanceDetailsAsync(await MakeToken(), CancellationToken.None));
         AnsiConsole.WriteLine(JsonConvert.SerializeObject(ballanceDetails, Formatting.Indented, new JsonConverter[] { new StringEnumConverter() }));
     }
 
     enum ClipType
     {
-        Invoice=0,
-        PaymentHash=1,
-        Preimage=2,
-        BitcoinAddr=3,
-        ReserveId=4,
+        Invoice = 0,
+        PaymentHash = 1,
+        Preimage = 2,
+        BitcoinAddr = 3,
+        ReserveId = 4,
     }
 
     private void ToClipboard(ClipType clipType, string value)
@@ -201,7 +201,7 @@ public class GigLNDWalletCLI
     {
         invoiceMonitorThread = new Thread(async () =>
         {
-            await invoiceStateUpdatesClient.ConnectAsync(await MakeToken(),CancellationToken.None);
+            await invoiceStateUpdatesClient.ConnectAsync(await MakeToken(), CancellationToken.None);
             try
             {
                 await foreach (var invstateupd in invoiceStateUpdatesClient.StreamAsync(await MakeToken(), CancellationTokenSource.Token))
@@ -220,12 +220,12 @@ public class GigLNDWalletCLI
 
         paymentMonitorThread = new Thread(async () =>
         {
-            await paymentStatusUpdatesClient.ConnectAsync(await MakeToken(),CancellationToken.None);
+            await paymentStatusUpdatesClient.ConnectAsync(await MakeToken(), CancellationToken.None);
             try
-            { 
+            {
                 await foreach (var paystateupd in paymentStatusUpdatesClient.StreamAsync(await MakeToken(), CancellationTokenSource.Token))
                 {
-                    AnsiConsole.MarkupLine("[yellow]Payment Status Change:" + paystateupd+"[/]");
+                    AnsiConsole.MarkupLine("[yellow]Payment Status Change:" + paystateupd + "[/]");
                     await WriteBalance();
                 }
             }
@@ -417,17 +417,43 @@ public class GigLNDWalletCLI
                 }
                 else if (cmd == CommandEnum.ListInvoices)
                 {
-/*                    AnsiConsole.WriteLine($"Satoshis:{pay.NumSatoshis}");
-                    AnsiConsole.WriteLine($"Memo:{pay.Description}");
-                    AnsiConsole.WriteLine($"Expiry:{pay.Expiry}");
-                    AnsiConsole.WriteLine($"Payment Hash:{pay.PaymentHash}");
-
-                    var invoices = WalletAPIResult.Get<Invoice[]>(await walletClient.ListInvoicesAsync(await MakeToken(), CancellationToken.None));
-                    AnsiConsole.Write(new Table() { Rows= (from i in invoices select new string[] {i.Value.ToString(), i.Memo, i.Expiry,i.State }) }*/
+                    string[] columns = {
+                        "Payment Hash",
+                        "State",
+                        "Satoshis",
+                        "Memo",
+                        "Expiry",
+                        "Paid"
+                    };
+                    var invoices = WalletAPIResult.Get<List<InvoiceRet>>(await walletClient.ListInvoicesAsync(await MakeToken(), CancellationToken.None));
+                    var rows = (from inv in invoices
+                                select new string[] {
+                        inv.PaymentHash,
+                        inv.State,
+                        inv.ValueSat.ToString(),
+                        inv.Description,
+                        inv.Expiry.ToString(),
+                        inv.AmtPaidSat.ToString(),
+                    }).ToArray();
+                    DrawTable(columns, rows);
                 }
                 else if (cmd == CommandEnum.ListPayments)
                 {
-
+                    string[] columns = {
+                        "Payment Hash",
+                        "Status",
+                        "Satoshis",
+                        "Fee"
+                    };
+                    var payments = WalletAPIResult.Get< List<PaymentRet>>(await walletClient.ListPaymentsAsync(await MakeToken(), CancellationToken.None));
+                    var rows = (from pay in payments
+                                select new string[] {
+                        pay.PaymentHash,
+                        pay.Status,
+                        pay.ValueSat.ToString(),
+                        pay.FeeSat.ToString(),
+                    }).ToArray();
+                    DrawTable(columns, rows);
                 }
             }
             catch (Exception ex)
@@ -440,6 +466,17 @@ public class GigLNDWalletCLI
         CancellationTokenSource.Cancel();
         invoiceMonitorThread.Join();
         paymentMonitorThread.Join();
+    }
+
+    private void DrawTable(string[] columnNames, string[][] rows)
+    {
+        var table = new Table()
+            .Border(TableBorder.Rounded);
+        foreach (var c in columnNames)
+            table = table.AddColumn(c);
+        foreach (var row in rows)
+            table = table.AddRow(row);
+        AnsiConsole.Write(table);
     }
 }
 
