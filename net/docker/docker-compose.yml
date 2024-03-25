@@ -89,12 +89,12 @@ services:
 
 
   nostr:
-    image: python:3.10.13-alpine3.18
+    image: python:3.9.17-slim-bookworm
 
     container_name: giggossip_nostr
     restart: on-failure
     working_dir: /work/locallnd/.nostr_relay
-    command: sh -c "pip install nostr-relay && nostr-relay -c config.yaml serve"
+    command: sh -c "pip install nostr-relay && pip install SQLAlchemy==2.0.27 && nostr-relay -c config.yaml serve"
     ports:
       - 6969:6969
     volumes:
