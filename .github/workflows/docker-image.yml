@@ -27,3 +27,17 @@ jobs:
           file: ./net/docker/docker_services_build/gigossip_backend.Dockerfile
           push: true
           tags: awazcognitum/giggossip-backend:latest
+      - # deploy image
+        name: restart services
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.REMOTE_PRIVATE_KEY }}
+          script: |
+            whoami
+            cd /giggossip_staging/gig-gossip/net/docker/
+            docker compose pull logger_api_staging settler_api_staging_1 wallet_api_staging_1
+            docker compose up -d logger_api_staging settler_api_staging_1 wallet_api_staging_1
+
+
