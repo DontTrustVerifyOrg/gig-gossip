@@ -39,5 +39,6 @@ jobs:
             cd /giggossip_staging/gig-gossip/net/docker/
             docker compose pull logger_api_staging settler_api_staging_1 wallet_api_staging_1
             docker compose up -d logger_api_staging settler_api_staging_1 wallet_api_staging_1
+            docker restart swag
 
 
