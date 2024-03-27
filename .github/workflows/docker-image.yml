@@ -26,4 +26,4 @@ jobs:
           context: ./net
           file: ./net/docker/docker_services_build/gigossip_backend.Dockerfile
           push: true
-          tags: $/my-image-name:$(date +%s)
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/my-image-name:$(date +%s)
