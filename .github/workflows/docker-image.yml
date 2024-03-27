@@ -15,4 +15,4 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build the Docker image
-      run: docker build . --file /net/docker/docker_services_build/gigossip_backend.Dockerfile --tag my-image-name:$(date +%s)
+      run: docker build . --file net/docker/docker_services_build/gigossip_backend.Dockerfile --tag my-image-name:$(date +%s)
