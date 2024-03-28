@@ -163,10 +163,11 @@ services:
 
 
   logger_api:
-    image: giggossip_backend
-    build: 
-      context: ../.
-      dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
+    # image: giggossip_backend
+    # build: 
+    #   context: ../.
+    #   dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
+    image: awazcognitum/giggossip-backend:latest
 
     container_name: logger_api
     restart: on-failure
@@ -182,10 +183,11 @@ services:
 
 
   wallet_api:
-    image: giggossip_backend
-    build: 
-      context: ../.
-      dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
+    # image: giggossip_backend
+    # build: 
+    #   context: ../.
+    #   dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
+    image: awazcognitum/giggossip-backend:latest
 
     container_name: wallet_api
     restart: on-failure
@@ -201,10 +203,11 @@ services:
 
 
   settler_api:
-    image: giggossip_backend
-    build: 
-      context: ../.
-      dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
+    # image: giggossip_backend
+    # build: 
+    #   context: ../.
+    #   dockerfile: ./docker/docker_services_build/gigossip_backend.Dockerfile
+    image: awazcognitum/giggossip-backend:latest
 
     container_name: settler_api
     restart: on-failure
