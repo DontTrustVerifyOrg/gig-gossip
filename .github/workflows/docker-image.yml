@@ -36,9 +36,10 @@ jobs:
           key: ${{ secrets.REMOTE_PRIVATE_KEY }}
           script: |
             whoami
-            cd /giggossip_staging/gig-gossip/net/docker/
+            cd /giggossip_dev/gig-gossip/net/docker/
             docker compose pull logger_api settler_api wallet_api
             docker compose up -d logger_api settler_api wallet_api
+            cd /giggossip_staging/gig-gossip/net/docker/
             docker compose pull logger_api_staging settler_api_staging_1 wallet_api_staging_1
             docker compose up -d logger_api_staging settler_api_staging_1 wallet_api_staging_1
             docker exec -it giggossip_bitcoin /work/bitcoin/src/bitcoin-cli -datadir=/work/locallnd/.bitcoin loadwallet testwallet
