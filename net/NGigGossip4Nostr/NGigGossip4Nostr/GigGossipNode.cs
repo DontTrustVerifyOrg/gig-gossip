@@ -841,7 +841,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     public async Task<GigLNDWalletAPIErrorCode> AcceptResponseAsync(Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice, long feelimit, CancellationToken cancellationToken)
     {
-        var ballance = WalletAPIResult.Get<int>(await GetWalletClient().GetBalanceAsync(await MakeWalletAuthToken(), cancellationToken));
+        var ballance = WalletAPIResult.Get<long>(await GetWalletClient().GetBalanceAsync(await MakeWalletAuthToken(), cancellationToken));
         if (ballance < decodedReplyInvoice.ValueSat + decodedNetworkInvoice.ValueSat + 2 * feelimit)
             return GigLNDWalletAPIErrorCode.NotEnoughFunds;
 

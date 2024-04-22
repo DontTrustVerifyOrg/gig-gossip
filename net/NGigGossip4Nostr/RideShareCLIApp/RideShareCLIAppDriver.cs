@@ -206,7 +206,7 @@ public partial class RideShareCLIApp
                 detparams.FromLocation.Latitude, detparams.FromLocation.Longitude,
                 CancellationTokenSource.Token));
 
-            foreach (var (idx,location) in GeoSteps(route.Geometry,10))
+            foreach (var (idx,location) in GeoSteps(route.Geometry,20))
             {
                 AnsiConsole.MarkupLine($"({idx},{location.Lat},{location.Lon}) I am [orange1]driving[/] to meet rider");
                 await directCom.SendMessageAsync(pubkey, new LocationFrame
@@ -243,7 +243,7 @@ public partial class RideShareCLIApp
                 detparams.FromLocation.Latitude, detparams.FromLocation.Longitude,
                 detparams.ToLocation.Latitude, detparams.ToLocation.Longitude,
                 CancellationTokenSource.Token));
-            foreach (var (idx, location) in GeoSteps(route.Geometry, 10))
+            foreach (var (idx, location) in GeoSteps(route.Geometry, 20))
             {
                 AnsiConsole.MarkupLine($"({idx},{location.Lat},{location.Lon}) We are going [orange1]togheter[/]");
                 await directCom.SendMessageAsync(pubkey, new LocationFrame
