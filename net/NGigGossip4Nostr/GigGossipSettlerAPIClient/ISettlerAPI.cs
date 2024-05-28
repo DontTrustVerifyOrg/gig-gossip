@@ -1,4 +1,5 @@
 ﻿using System;
+using GoogleApi.Entities.Translate.Translate.Request.Enums;
 using Microsoft.AspNetCore.SignalR.Client;
 using NetworkClientToolkit;
 
@@ -16,6 +17,10 @@ public interface ISettlerAPI
     Task<GeolocationRetResult> AddressGeocodeAsync(string authToken, string address, string country, CancellationToken cancellationToken);
     Task<StringResult> LocationGeocodeAsync(string authToken, double lat, double lon, CancellationToken cancellationToken);
     Task<RouteRetResult> GetRouteAsync(string authToken, double fromLat, double fromLon, double toLat, double toLon, CancellationToken cancellationToken);
+    Task<StringResult> IssueNewAccessCodeAsync(string authToken, bool singleUse, long validTill, string memo, CancellationToken cancellationToken);
+    Task<BooleanResult> ValidateAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken);
+    Task<Result> RevokeAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken);
+
     Task<Result> GiveUserPropertyAsync(string authToken, string pubkey, string name, string value, string secret, long validHours, CancellationToken cancellationToken);
     Task<Result> GiveUserFileAsync(string authToken, string pubkey, string name, long validHours, FileParameter value, FileParameter secret, CancellationToken cancellationToken);
     Task<Result> SaveUserTracePropertyAsync(string authToken, string pubkey, string name, string value, CancellationToken cancellationToken);
@@ -196,5 +201,20 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
     public async Task<RouteRetResult> GetRouteAsync(string authToken, double fromLat, double fromLon, double toLat, double toLon, CancellationToken cancellationToken)
     {
         return await RetryPolicy.WithRetryPolicy(() => api.GetRouteAsync(authToken, fromLat, fromLon, toLat, toLon, cancellationToken));
+    }
+
+    public async Task<StringResult> IssueNewAccessCodeAsync(string authToken, bool singleUse, long validTill, string memo, CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.IssueNewAccessCodeAsync(authToken, singleUse, validTill, memo, cancellationToken));
+    }
+
+    public async Task<BooleanResult> ValidateAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.ValidateAccessCodeAsync(authToken, accessCodeId, cancellationToken));
+    }
+
+    public async Task<Result> RevokeAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.RevokeAccessCodeAsync(authToken, accessCodeId, cancellationToken));
     }
 }

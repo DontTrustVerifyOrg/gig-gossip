@@ -176,6 +176,12 @@ public partial class RideShareCLIApp
         Exit,
         [Display(Name = "Enable/Disable Debug Log")]
         DebLog,
+        [Display(Name = "Issue new AccessCode")]
+        IssueNewAccessCode,
+        [Display(Name = "Validate AccessCode")]
+        ValidateAccessCode,
+        [Display(Name = "Revoke AccessCode")]
+        RevokeAccessCode,
     }
 
     public async Task<ECPrivKey> GetPrivateKeyAsync()
@@ -265,6 +271,26 @@ public partial class RideShareCLIApp
             {
                 if (cmd == CommandEnum.Exit)
                     break;
+            }
+            else if (cmd == CommandEnum.IssueNewAccessCode)
+            {
+                var singleUse = Prompt.Input<bool>("Single use");
+                var validMin = Prompt.Input<int>("valid Minutes");
+                var memo = Prompt.Input<string>("Memo");
+                var accessCodeId = await IssueNewAccessCode(singleUse, validMin, memo);
+                AnsiConsole.WriteLine(accessCodeId.ToString());
+            }
+            else if (cmd == CommandEnum.ValidateAccessCode)
+            {
+                var accessCodeId = Prompt.Input<string>("Access Code Id");
+                var res = await ValidateAccessCode(accessCodeId);
+                AnsiConsole.WriteLine(res);
+            }
+            else if (cmd == CommandEnum.RevokeAccessCode)
+            {
+                var accessCodeId = Prompt.Input<string>("Access Code Id");
+                await RevokeAccessCode(accessCodeId);
+                AnsiConsole.WriteLine("Revoked");
             }
             else if (cmd == CommandEnum.TopUp)
             {
@@ -490,6 +516,24 @@ public partial class RideShareCLIApp
     {
         return SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
             .LocationGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), lat, lon, CancellationTokenSource.Token));
+    }
+
+    private async Task<string> IssueNewAccessCode(bool singleUse, long validMin, string memo)
+    {
+        return SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+            .IssueNewAccessCodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), singleUse,validMin,memo, CancellationTokenSource.Token));
+    }
+
+    private async Task<bool> ValidateAccessCode(string accessCodeId)
+    {
+        return SettlerAPIResult.Get<bool>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+            .ValidateAccessCodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), accessCodeId, CancellationTokenSource.Token));
+    }
+
+    private async Task RevokeAccessCode(string accessCodeId)
+    {
+        SettlerAPIResult.Check(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+            .RevokeAccessCodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), accessCodeId, CancellationTokenSource.Token));
     }
 
     private async Task WriteBalance()

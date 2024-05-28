@@ -330,6 +330,78 @@ app.MapGet("/locationgeocode", async (string authToken, double lat, double lon) 
     return g;
 });
 
+app.MapGet("/issuenewaccesscode", async (string authToken, bool singleUse, long validTillMin, string Memo) =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+        var accessCodeId = Singlethon.Settler.IssueNewAccessCode(singleUse, validTillMin, Memo);
+        return new Result<string>(accessCodeId.ToString("N"));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
+    }
+})
+.WithName("IssueNewAccessCode")
+.WithSummary("Issuse new access code")
+.WithDescription("Issuse new access code.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Is Single Use";
+    g.Parameters[2].Description = "Valid till";
+    g.Parameters[3].Description = "Memo";
+    return g;
+});
+
+app.MapGet("/validateaccesscode", async (string authToken, string accessCodeId) =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+        return new Result<bool>(Singlethon.Settler.ValidateAccessCode(Guid.ParseExact(accessCodeId,"N")));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<bool>(ex);
+    }
+})
+.WithName("ValidateAccessCode")
+.WithSummary("Validate access code")
+.WithDescription("Validate access code.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Access code identifier";
+    return g;
+});
+
+app.MapGet("/revokeaccesscode", async (string authToken, string accessCodeId) =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.RevokeAccessCode(Guid.ParseExact(accessCodeId, "N"));
+        return new Result();
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result(ex);
+    }
+})
+.WithName("RevokeAccessCode")
+.WithSummary("Revoke access code")
+.WithDescription("Revoke access code.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Access code identifier";
+    return g;
+});
 
 app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, string value, string secret, long validHours) =>
 {

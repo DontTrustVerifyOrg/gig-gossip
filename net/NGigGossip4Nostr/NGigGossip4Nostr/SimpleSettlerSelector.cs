@@ -483,6 +483,57 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
     {
         return new PreimageRevealClientWrapper(this.flowLogger, api.CreatePreimageRevealClient());
     }
+
+    public async Task<GigGossipSettlerAPIClient.StringResult> IssueNewAccessCodeAsync(string authToken, bool singleUse, long validTill, string memo, CancellationToken cancellationToken)
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__, authToken, singleUse, validTill, memo);
+            return await TraceOutAsync(g__, m__,
+                await api.IssueNewAccessCodeAsync(authToken, singleUse, validTill, memo, cancellationToken)
+            );
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
+    public async Task<BooleanResult> ValidateAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__, authToken, accessCodeId);
+            return await TraceOutAsync(g__, m__,
+                await api.ValidateAccessCodeAsync(authToken, accessCodeId, cancellationToken)
+            );
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
+    public async Task<GigGossipSettlerAPIClient.Result> RevokeAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__, authToken, accessCodeId);
+            return await TraceOutAsync(g__, m__,
+                await api.RevokeAccessCodeAsync(authToken, accessCodeId, cancellationToken)
+            );
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
 }
 
 internal class GigStatusClientWrapper : LogWrapper<IGigStatusClient>, IGigStatusClient

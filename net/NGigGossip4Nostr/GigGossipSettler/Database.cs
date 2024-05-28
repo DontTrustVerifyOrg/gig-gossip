@@ -8,6 +8,23 @@ using System.Diagnostics;
 
 namespace GigGossipSettler;
 
+
+public class AccessCode
+{
+    [Key]
+    public required Guid AccessCodeId { get; set; }
+
+    public required bool SingleUse { get; set; }
+
+    public required int UseCount { get; set; }
+
+    public required DateTime ValidTill { get; set; }
+
+    public required bool IsRevoked { get; set; }
+
+    public required string Memo { get;set; }
+}
+
 /// <summary>
 /// This class represents a property of the subject of the certificate granted by Settlers Certification Authority.
 /// </summary>
@@ -285,6 +302,8 @@ public class SettlerContext : DbContext
     /// </summary>
     public DbSet<Gig> Gigs { get; set; }
 
+    public DbSet<AccessCode> AccessCodes { get; set; }
+
     /// <summary>
     /// User properties table.
     /// </summary>
@@ -332,7 +351,10 @@ public class SettlerContext : DbContext
             return this.UserCertificates;
         else if (obj is UserTraceProperty)
             return this.UserTraceProperties;
-        throw new InvalidOperationException();
+        else if (obj is AccessCode)
+            return this.AccessCodes;
+        else
+            throw new InvalidOperationException();
     }
 
     public void SaveObject<T>(T obj)

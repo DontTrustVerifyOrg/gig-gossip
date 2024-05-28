@@ -127,6 +127,44 @@ public class Settler : CertificationAuthority
         return t.TokenId;
     }
 
+    public Guid IssueNewAccessCode(bool singleUse, long validTillMin, string Memo)
+    {
+        Guid accessCodeId = Guid.NewGuid();
+        settlerContext.Value.AddObject(new AccessCode()
+        {
+            AccessCodeId = accessCodeId,
+            SingleUse = singleUse,
+            ValidTill = DateTime.UtcNow.AddMinutes(validTillMin),
+            Memo = Memo,
+            UseCount = 0,
+            IsRevoked = false,
+        });
+        return accessCodeId;
+    }
+
+    public bool ValidateAccessCode(Guid accessCodeId)
+    {
+        var ac = (from a in settlerContext.Value.AccessCodes where a.AccessCodeId == accessCodeId && !a.IsRevoked && a.ValidTill >= DateTime.UtcNow select a).FirstOrDefault();
+        if (ac == null)
+            return false;
+        if (ac.SingleUse)
+            ac.IsRevoked = true;
+        ac.UseCount++;
+        settlerContext.Value.SaveObject(ac);
+        return true;
+    }
+
+    public void RevokeAccessCode(Guid accessCodeId)
+    {
+        var ac = (from a in settlerContext.Value.AccessCodes where a.AccessCodeId == accessCodeId select a).FirstOrDefault();
+        if (ac != null)
+        {
+            ac.IsRevoked = true;
+            settlerContext.Value.SaveObject(ac);
+        }
+    }
+
+
 
     public string ValidateAuthToken(string authTokenBase64)
     {
