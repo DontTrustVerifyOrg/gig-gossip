@@ -361,7 +361,10 @@ app.MapGet("/validateaccesscode", async (string authToken, string accessCodeId) 
     try
     {
         Singlethon.Settler.ValidateAuthToken(authToken);
-        return new Result<bool>(Singlethon.Settler.ValidateAccessCode(Guid.ParseExact(accessCodeId,"N")));
+        Guid guid;
+        if (!Guid.TryParseExact(accessCodeId, "N", out guid))
+            return new Result<bool>(false);
+        return new Result<bool>(Singlethon.Settler.ValidateAccessCode(guid));
     }
     catch (Exception ex)
     {
