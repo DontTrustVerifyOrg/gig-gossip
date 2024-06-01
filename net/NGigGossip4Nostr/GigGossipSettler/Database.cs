@@ -8,20 +8,40 @@ using System.Diagnostics;
 
 namespace GigGossipSettler;
 
-
+/// <summary>
+/// This class represents the access rights of a user. 
+/// </summary>
 public class AccessCode
 {
+    /// <summary>
+    /// The unique identifier of the access code.
+    /// </summary>
     [Key]
     public required Guid AccessCodeId { get; set; }
 
+    /// <summary>
+    /// Indicates whether the access code is single use.
+    /// </summary>
     public required bool SingleUse { get; set; }
 
+    /// <summary>
+    /// Indicates how many times the access code was used.
+    /// </summary> 
     public required int UseCount { get; set; }
 
+    /// <summary>
+    /// Indicates the deadline for the access code.
+    /// </summary>
     public required DateTime ValidTill { get; set; }
 
+    /// <summary>
+    /// Indicates whether the access code is revoked.
+    /// </summary>
     public required bool IsRevoked { get; set; }
 
+    /// <summary>
+    /// Additional information about the access code.
+    /// </summary>
     public required string Memo { get;set; }
 }
 
@@ -251,6 +271,43 @@ public class Gig
     public required DateTime DisputeDeadline { get; set; }
 }
 
+
+[Flags]
+public enum AccessRights
+{
+// flags
+    Valid = 1,
+    KYC = 2,
+    Screening = 4,
+    Disputes = 8,
+    AccessCodes = 16,
+    AccessRights = 0x00800000,
+// roles
+    Anonymous = 0,
+    ValidUser = Valid,
+    KnownUser = Valid|KYC,
+    Operator = Screening|Disputes|AccessCodes,
+    Admin = 0x00FFFFFF,
+    Owner = ~0,
+}
+
+/// <summary>
+/// This class represents access rights of all the users.
+/// </summary>
+public class UserAccessRights
+{
+    /// <summary>
+    /// The public key of the subject.
+    /// </summary>
+    [Key]
+    public required string PublicKey { get; set; }
+
+    /// <summary>
+    /// Access rights of the user.
+    /// </summary>
+    public required AccessRights AccessRights { get; set; }
+}
+
 /// <summary>
 /// This class represents an authorisation token.
 /// </summary>
@@ -292,6 +349,11 @@ public class SettlerContext : DbContext
     /// </summary>
     public DbSet<Token> Tokens { get; set; }
  
+    /// <summary>
+    /// UserAccessRights table.
+    /// </summary>
+    public DbSet<UserAccessRights> UserAccessRights { get; set; }
+
      /// <summary>
     /// Preimages table.
     /// </summary>
@@ -339,6 +401,8 @@ public class SettlerContext : DbContext
 
         if (obj is Token)
             return this.Tokens;
+        else if (obj is UserAccessRights)
+            return this.UserAccessRights;
         else if (obj is InvoicePreimage)
             return this.Preimages;
         else if (obj is Gig)

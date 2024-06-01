@@ -23,6 +23,10 @@ public enum SettlerErrorCode
     UnknownPreimage = 4,
 
     OperationFailed = 5,
+
+    AccessDenied = 6,
+
+    NotFound = 7,
 }
 
 public static class SettlerErrorCodeExtensions
@@ -34,6 +38,8 @@ public static class SettlerErrorCodeExtensions
         "Unknown certificate",
         "Unknown preimage",
         "Operation failed",
+        "Access Denied",
+        "Not Found",
     };
 
     /// <summary>
@@ -76,4 +82,5 @@ public class SettlerException : Exception
     {
         ErrorCode = settlerErrorCode;
     }
+    
 }

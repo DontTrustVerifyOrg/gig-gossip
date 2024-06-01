@@ -16,7 +16,7 @@
     </PackageReference>
     <PackageReference Include="Grpc.Net.Client" Version="2.60.0" />
     <PackageReference Include="Google.Protobuf" Version="3.25.2" />
-    <PackageReference Include="NBitcoin" Version="7.0.34" />
+    <PackageReference Include="NBitcoin" Version="7.0.37" />
   </ItemGroup>
   <ItemGroup>
 <Protobuf Include="GRPC\lightning.proto" GrpcService="Client" />

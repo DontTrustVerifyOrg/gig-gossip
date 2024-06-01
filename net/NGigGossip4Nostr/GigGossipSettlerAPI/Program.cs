@@ -96,7 +96,12 @@ Singlethon.Settler = new Settler(
             new DefaultRetryPolicy()
     );
 
-await Singlethon.Settler.InitAsync(lndWalletClient, settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+await Singlethon.Settler.InitAsync(
+    lndWalletClient, 
+    settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)),
+    settlerSettings.OwnerPublicKey
+    );
+
 Singlethon.Settler.OnGigStatus += (sender, e) =>
     {
         foreach (var asyncCom in Singlethon.GigStatusAsyncComQueue4ConnectionId.Values)
@@ -173,11 +178,69 @@ app.MapGet("/gettoken", (string pubkey) =>
     return g;
 });
 
+app.MapGet("/grantaccessrights", (string authToken, string pubkey, string accessRights) =>
+{
+    try
+    {
+        var ar = (AccessRights)Enum.Parse(typeof(AccessRights), accessRights);
+        if((ar&AccessRights.AccessRights)==AccessRights.AccessRights)
+            Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Owner);
+        else
+            Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.AccessRights);
+        Singlethon.Settler.GrantAccessRights(pubkey, ar);
+        return new Result();
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result(ex);
+    }
+})
+.WithName("GrantAccessRights")
+.WithSummary("Grants access rights to the subject.")
+.WithDescription("Grants access rights to the subject. Only authorised users can grant the rights.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
+    g.Parameters[1].Description = "Public key of the subject.";
+    g.Parameters[2].Description = "Access rights to be granted.";
+    return g;
+});
+
+app.MapGet("revokeaccessrights", (string authToken, string pubkey, string accessRights) =>
+{
+    try
+    {
+        var ar = (AccessRights)Enum.Parse(typeof(AccessRights), accessRights);
+        if((ar&AccessRights.AccessRights)==AccessRights.AccessRights)
+            Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Owner);
+        else
+            Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.AccessRights);
+        Singlethon.Settler.RevokeAccessRights(pubkey, ar);
+        return new Result();
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result(ex);
+    }
+})
+.WithName("RevokeAccessRights")
+.WithSummary("Revokes access rights from the subject.")
+.WithDescription("Revokes access rights from the subject. Only authorised users can revoke the rights.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
+    g.Parameters[1].Description = "Public key of the subject.";
+    g.Parameters[2].Description = "Access rights to be revoked.";
+    return g;
+});
+
 app.MapGet("/addressautocomplete", async (string authToken, string query, string country)=>
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
 
         var request = new PlacesAutoCompleteRequest
         {
@@ -213,14 +276,14 @@ app.MapGet("/getroute", async (string authToken, double fromLat, double fromLon,
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
 
         var request = new DirectionsRequest
         {
             Key = settlerSettings.GoogleMapsAPIKey,
             Origin = new LocationEx(new CoordinateEx(fromLat, fromLon)),
             Destination = new LocationEx(new CoordinateEx(toLat, toLon)),
-            TravelMode = GoogleApi.Entities.Maps.Common.Enums.TravelMode.Driving,
+            TravelMode = GoogleApi.Entities.Maps.Common.Enums.TravelMode.DRIVING,
             Units = GoogleApi.Entities.Maps.Common.Enums.Units.Metric,
             Alternatives = false,
         };
@@ -229,11 +292,11 @@ app.MapGet("/getroute", async (string authToken, double fromLat, double fromLon,
 
         var route = response.Routes.FirstOrDefault();
         if (route == null)
-            throw new Exception("Not found");
+            throw new NotFoundException();
 
         var leg = route.Legs.FirstOrDefault();
         if (leg == null)
-            throw new Exception("Not found");
+            throw new NotFoundException();
 
         return new Result<RouteRet>(
             new RouteRet {
@@ -265,7 +328,7 @@ app.MapGet("/addressgeocode", async (string authToken, string address, string co
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
 
         var response = await GoogleMaps.Geocode.AddressGeocode.QueryAsync(new GoogleApi.Entities.Maps.Geocoding.Address.Request.AddressGeocodeRequest() {
             Key = settlerSettings.GoogleMapsAPIKey,
@@ -275,7 +338,7 @@ app.MapGet("/addressgeocode", async (string authToken, string address, string co
         });
         var loc = response.Results.FirstOrDefault();
         if (loc == null)
-            throw new Exception("Not found");
+            throw new NotFoundException();
         return new Result<GeolocationRet>(new GeolocationRet { Lat = loc.Geometry.Location.Latitude, Lon = loc.Geometry.Location.Longitude });
     }
     catch (Exception ex)
@@ -300,7 +363,7 @@ app.MapGet("/locationgeocode", async (string authToken, double lat, double lon) 
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
 
         var response = await GoogleMaps.Geocode.LocationGeocode.QueryAsync(new  GoogleApi.Entities.Maps.Geocoding.Location.Request.LocationGeocodeRequest()
         {
@@ -310,7 +373,7 @@ app.MapGet("/locationgeocode", async (string authToken, double lat, double lon) 
         });
         var loc = response.Results.FirstOrDefault();
         if (loc == null)
-            throw new Exception("Not found");
+            throw new NotFoundException();
         return new Result<string>(loc.FormattedAddress);
     }
     catch (Exception ex)
@@ -334,7 +397,7 @@ app.MapGet("/issuenewaccesscode", async (string authToken, bool singleUse, long 
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.AccessCodes);
         var accessCodeId = Singlethon.Settler.IssueNewAccessCode(singleUse, validTillMin, Memo);
         return new Result<string>(accessCodeId.ToString("N"));
     }
@@ -386,7 +449,7 @@ app.MapGet("/revokeaccesscode", async (string authToken, string accessCodeId) =>
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.AccessCodes);
         Singlethon.Settler.RevokeAccessCode(Guid.ParseExact(accessCodeId, "N"));
         return new Result();
     }
@@ -410,7 +473,7 @@ app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, s
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
         Singlethon.Settler.GiveUserProperty(pubkey, name, Convert.FromBase64String(value), Convert.FromBase64String(secret), DateTime.Now.AddHours(validHours));
         return new Result();
     }
@@ -441,7 +504,7 @@ app.MapPost("/giveuserfile/{authToken}/{pubkey}/{name}/{validHours}", async (Htt
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken.ToString());
+        Singlethon.Settler.ValidateAuthToken(authToken.ToString(), AccessRights.Valid);
         Singlethon.Settler.GiveUserProperty(pubkey, name, await value.ToBytes(), await secret.ToBytes(), DateTime.Now.AddHours(validHours));
         return new Result();
     }
@@ -455,11 +518,34 @@ app.MapPost("/giveuserfile/{authToken}/{pubkey}/{name}/{validHours}", async (Htt
 .WithSummary("Grants a file property to the subject.")
 .WithDescription("Grants a file property to the subject (e.g. driving licence). Only authorised users can grant the property.");
 
+app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name) =>
+{
+    try
+    { 
+        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Screening);
+        Singlethon.Settler.RevokeUserProperty(pubkey, name);
+        return new Result();
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result(ex);
+    }
+})
+.WithDescription("Revokes a property from the subject (e.g. driving licence is taken by the police). Only authorised users can revoke the property.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Public key of the subject.";
+    g.Parameters[2].Description = "Name of the property.";
+    return g;
+});
+
 app.MapGet("/saveusertraceproperty", (string authToken, string pubkey, string name, string value) =>
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
         Singlethon.Settler.SaveUserTraceProperty(pubkey, name, Convert.FromBase64String(value));
         return new Result();
     }
@@ -498,7 +584,7 @@ app.MapGet("/verifychannel", async (string authToken, string pubkey, string name
                 message = "Welcome to Fairide Security Center, your verification code is " + code + ". Use this to complete your registration.",
             });
             if (resp.statuscode != 200)
-                throw new Exception("Cannot send");
+                throw new InvalidOperationException("SMS sending failed");
             Singlethon.channelSmsCodes.TryAdd(new ChannelKey { PubKey = pubkey, Channel = value }, new ChannelVal { Code = code, Retries = settlerSettings.SMSCodeRetryNumber, Deadline=DateTime.UtcNow.AddMinutes(settlerSettings.SMSCodeTimeoutMin)  });
         }
         else
@@ -540,6 +626,7 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
                 {
                     if (code.Code == secret)
                     {
+                        Singlethon.Settler.GrantAccessRights(pubkey, AccessRights.Valid);
                         Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes("valid"), Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
                         Singlethon.channelSmsCodes.TryRemove(key, out _);
                         return new Result<int>(-1);
@@ -617,34 +704,12 @@ app.MapGet("/ischannelverified", (string authToken, string pubkey, string name, 
     return g;
 });
 
-app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name) =>
-{
-    try
-    { 
-        Singlethon.Settler.ValidateAuthToken(authToken);
-        Singlethon.Settler.RevokeUserProperty(pubkey, name);
-        return new Result();
-    }
-    catch (Exception ex)
-    {
-        TraceEx.TraceException(ex);
-        return new Result(ex);
-    }
-})
-.WithDescription("Revokes a property from the subject (e.g. driving licence is taken by the police). Only authorised users can revoke the property.")
-.WithOpenApi(g =>
-{
-    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
-    g.Parameters[1].Description = "Public key of the subject.";
-    g.Parameters[2].Description = "Name of the property.";
-    return g;
-});
 
 app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid gigId, string repliperPubKey) =>
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
         return new Result<string>(Singlethon.Settler.GenerateReplyPaymentPreimage(pubkey, gigId, repliperPubKey));
     }
     catch (Exception ex)
@@ -668,7 +733,7 @@ app.MapGet("/generaterelatedpreimage", (string authToken, string paymentHash) =>
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
         return new Result<string>(Singlethon.Settler.GenerateRelatedPreimage(pubkey, paymentHash));
     }
     catch (Exception ex)
@@ -691,7 +756,7 @@ app.MapGet("/validaterelatedpaymenthashes", (string authToken, string paymentHas
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
         return new Result<bool>(Singlethon.Settler.ValidateRelatedPaymentHashes(pubkey, paymentHash1, paymentHash2));
     }
     catch (Exception ex)
@@ -715,7 +780,7 @@ app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
         return new Result<string>(Singlethon.Settler.RevealPreimage(pubkey, paymentHash));
     }
     catch (Exception ex)
@@ -738,7 +803,7 @@ app.MapGet("/getgigstatus", (string authToken, Guid signedRequestPayloadId,Guid 
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
         return new Result<string>(Singlethon.Settler.GetGigStatus(signedRequestPayloadId, repliperCertificateId));
     }
     catch (Exception ex)
@@ -762,7 +827,7 @@ app.MapPost("/generaterequestpayload/{authToken}/{properties}", async (string au
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
         var st = Singlethon.Settler.GenerateRequestPayload(pubkey, properties.Split(","), await serialisedTopic.ToBytes());
         return new Result<string>(Convert.ToBase64String(Crypto.SerializeObject(st)));
     }
@@ -780,7 +845,7 @@ app.MapPost("/generatesettlementtrust/{authToken}/{properties}/{replyinvoice}", 
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
         var signedRequestPayload = Crypto.DeserializeObject<Certificate<RequestPayloadValue>>(await signedRequestPayloadSerialized.ToBytes());
         var st = await Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, properties.Split(","), await message.ToBytes(), replyinvoice, signedRequestPayload);
         return new Result<string>(Convert.ToBase64String(Crypto.SerializeObject(st)));
@@ -799,7 +864,11 @@ app.MapPost("/encryptobjectforcertificateid/{certificateId}", async (Guid certif
 {
     try
     {
-        byte[] encryptedReplyPayload = Singlethon.Settler.EncryptObjectForCertificateId(await objectSerialized.ToBytes(), certificateId);
+        var pubkey = Singlethon.Settler.GetPubkeyFromCertificateId(certificateId);
+
+        if(!Singlethon.Settler.HasAccessRights(pubkey, AccessRights.Valid))
+            throw new AccessDeniedException();
+        byte[] encryptedReplyPayload = Singlethon.Settler.EncryptObjectForPubkey(pubkey, await objectSerialized.ToBytes());
         return new Result<string>(Convert.ToBase64String(encryptedReplyPayload));
     }
     catch (Exception ex)
@@ -816,7 +885,7 @@ app.MapGet("/managedispute", async (string authToken, Guid gigId, Guid repliperC
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.ValidateAuthToken(authToken, open?AccessRights.Valid : AccessRights.Disputes);
         await Singlethon.Settler.ManageDisputeAsync(gigId, repliperCertificateId, open);
         return new Result();
     }
@@ -842,7 +911,7 @@ app.MapGet("/cancelgig", async (string authToken, Guid gigId, Guid repliperCerti
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
         await Singlethon.Settler.CancelGigAsync(gigId, repliperCertificateId);
         return new Result();
     }
@@ -854,7 +923,7 @@ app.MapGet("/cancelgig", async (string authToken, Guid gigId, Guid repliperCerti
 })
 .WithName("CancelGig")
 .WithSummary("Cancels existing gig")
-.WithDescription("Allows opening and closing disputes. After opening, the dispute needs to be solved positively before the HODL invoice timeouts occure. Otherwise all the invoices and payments will be cancelled.")
+.WithDescription("Allows cancelling existing gig. The gig can be cancelled only if the gig-job is not marked as settled.")
 .WithOpenApi(g =>
 {
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
@@ -923,6 +992,7 @@ public class SettlerSettings
     public required long PriceAmountForSettlement { get; set; }
     public required string ConnectionString { get; set; }
     public required string SettlerPrivateKey { get; set; }
+    public required string OwnerPublicKey { get; set; }
     public required long InvoicePaymentTimeoutSec { get; set; }
     public required long DisputeTimeoutSec { get; set; }
     public required string GoogleMapsAPIKey { get; set; }

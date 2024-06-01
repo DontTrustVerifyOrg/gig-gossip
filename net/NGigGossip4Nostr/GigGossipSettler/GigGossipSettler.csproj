@@ -21,6 +21,6 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.15" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.15" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="7.0.15" />
-    <PackageReference Include="Quartz" Version="3.8.0" />
+    <PackageReference Include="Quartz" Version="3.9.0" />
   </ItemGroup>
 </Project>

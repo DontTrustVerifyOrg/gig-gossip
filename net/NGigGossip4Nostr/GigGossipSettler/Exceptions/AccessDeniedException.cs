@@ -6,11 +6,10 @@ using System.Threading.Tasks;
 
 namespace GigGossipSettler.Exceptions
 {
-    public class InvalidAuthTokenException: SettlerException
+    public class AccessDeniedException: SettlerException
     {
-        public InvalidAuthTokenException() : base(SettlerErrorCode.InvalidToken)
+        public AccessDeniedException() : base(SettlerErrorCode.AccessDenied)
         {
         }
     }
-
 }

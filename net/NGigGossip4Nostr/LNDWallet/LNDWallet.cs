@@ -617,12 +617,13 @@ public class LNDWalletManager : LNDEventSource
     private CancellationTokenSource trackPaymentsCancallationTokenSource;
     private Thread trackPaymentsThread;
 
-    public LNDWalletManager(string connectionString, LND.NodeSettings conf)
+    public LNDWalletManager(string connectionString, LND.NodeSettings conf, string ownerPubkey)
     {
         this.connectionString = connectionString;
         this.walletContext = new ThreadLocal<WaletContext>(() => new WaletContext(connectionString));
         this.conf = conf;
         walletContext.Value.Database.EnsureCreated();
+        EnsureOwnerAccessRights(ownerPubkey);
     }
 
     public ListPeersResponse ListPeers()
@@ -824,15 +825,12 @@ public class LNDWalletManager : LNDEventSource
         return tk.pubkey;
     }
 
-    public void ValidateAdminToken(string authTokenBase64)
+    public string ValidateAuthToken(string authTokenBase64,AccessRights accessRights)
     {
         var pubkey = ValidateAuthToken(authTokenBase64);
-    }
-
-    public bool ValidateAndCheckIfAdminToken(string authTokenBase64)
-    {
-        var pubkey = ValidateAuthToken(authTokenBase64);
-        return true;
+        if (!HasAccessRights(pubkey, accessRights))
+            throw new LNDWalletException(LNDWalletErrorCode.AccessDenied);
+        return pubkey;
     }
 
     public LNDAccountManager ValidateAuthTokenAndGetAccount(string authTokenBase64)
@@ -840,9 +838,64 @@ public class LNDWalletManager : LNDEventSource
         return GetAccount(ValidateAuthToken(authTokenBase64).AsECXOnlyPubKey());
     }
 
+    public LNDAccountManager ValidateAuthTokenAndGetAccount(string authTokenBase64,AccessRights accessRights)
+    {
+        return GetAccount(ValidateAuthToken(authTokenBase64,accessRights).AsECXOnlyPubKey());
+    }
+
     public LNDAccountManager GetAccount(ECXOnlyPubKey pubkey)
     {
         return new LNDAccountManager(conf, this.connectionString, pubkey, this);
+    }
+
+    private void EnsureOwnerAccessRights(string pubkey)
+    {
+        var ar = (from a in walletContext.Value.UserAccessRights where a.AccessRights == AccessRights.Owner select a).FirstOrDefault();
+        if (ar != null)
+        {
+            if(ar.PublicKey != pubkey)
+            {
+                ar.PublicKey = pubkey;
+                walletContext.Value.SaveObject(ar);
+            }
+        }
+        else 
+        {
+            walletContext.Value.AddObject(new UserAccessRights() { PublicKey = pubkey, AccessRights = AccessRights.Owner });
+        }
+    }
+
+    public void GrantAccessRights(string pubkey, AccessRights accessRights)
+    {
+        var ar = (from a in walletContext.Value.UserAccessRights where a.PublicKey == pubkey select a).FirstOrDefault();
+        if (ar == null)
+        {
+            ar = new UserAccessRights() { PublicKey = pubkey, AccessRights = accessRights };
+            walletContext.Value.AddObject(ar);
+        }
+        else
+        {
+            ar.AccessRights |= accessRights;
+            walletContext.Value.SaveObject(ar);
+        }
+    }
+
+    public void RevokeAccessRights(string pubkey, AccessRights accessRights)
+    {
+        var ar = (from a in walletContext.Value.UserAccessRights where a.PublicKey == pubkey select a).FirstOrDefault();
+        if (ar != null)
+        {
+            ar.AccessRights &= ~accessRights;
+            walletContext.Value.SaveObject(ar);
+        }
+    }
+
+    public bool HasAccessRights(string pubkey, AccessRights accessRights)
+    {
+        var ar = (from a in walletContext.Value.UserAccessRights where a.PublicKey == pubkey select a).FirstOrDefault();
+        if (ar == null)
+            return false;
+        return (ar.AccessRights & accessRights) == accessRights;
     }
 
     public Guid GetTokenGuid(string pubkey)

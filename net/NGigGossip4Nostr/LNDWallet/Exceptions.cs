@@ -45,6 +45,8 @@ public enum LNDWalletErrorCode
 
     /// <summary>Indicates that operation failed</summary>
     OperationFailed = 12,
+
+    AccessDenied = 13,
 }
 
 /// <summary>
@@ -66,7 +68,8 @@ public static class Extensions
         "Payout is not opened",
         "Payout is already completed",
         "Operation failed",
-    };
+        "Access Denied",
+     };
 
     /// <summary>
     /// Gets a user-friendly message that corresponds to the specified <paramref name="errorCode"/>.

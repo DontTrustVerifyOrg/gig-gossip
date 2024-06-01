@@ -74,7 +74,8 @@ while (true)
 
 Singlethon.LNDWalletManager = new LNDWalletManager(
     walletSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)),
-    lndConf);
+    lndConf,
+    walletSettings.OwnerPublicKey);
 
 Singlethon.LNDWalletManager.OnInvoiceStateChanged += (sender, e) =>
 {
@@ -124,17 +125,79 @@ app.MapGet("/gettoken", (string pubkey) =>
     return g;
 });
 
+
+app.MapGet("/grantaccessrights", (string authToken, string pubkey, string accessRights) =>
+{
+    try
+    {
+        var ar = (AccessRights)Enum.Parse(typeof(AccessRights), accessRights);
+        if((ar&AccessRights.AccessRights)==AccessRights.AccessRights)
+            Singlethon.LNDWalletManager.ValidateAuthToken(authToken, AccessRights.Owner);
+        else
+            Singlethon.LNDWalletManager.ValidateAuthToken(authToken, AccessRights.AccessRights);
+        Singlethon.LNDWalletManager.GrantAccessRights(pubkey, ar);
+        return new Result();
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result(ex);
+    }
+})
+.WithName("GrantAccessRights")
+.WithSummary("Grants access rights to the subject.")
+.WithDescription("Grants access rights to the subject. Only authorised users can grant the rights.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
+    g.Parameters[1].Description = "Public key of the subject.";
+    g.Parameters[2].Description = "Access rights to be granted.";
+    return g;
+});
+
+app.MapGet("revokeaccessrights", (string authToken, string pubkey, string accessRights) =>
+{
+    try
+    {
+        var ar = (AccessRights)Enum.Parse(typeof(AccessRights), accessRights);
+        if((ar&AccessRights.AccessRights)==AccessRights.AccessRights)
+            Singlethon.LNDWalletManager.ValidateAuthToken(authToken, AccessRights.Owner);
+        else
+            Singlethon.LNDWalletManager.ValidateAuthToken(authToken, AccessRights.AccessRights);
+        Singlethon.LNDWalletManager.RevokeAccessRights(pubkey, ar);
+        return new Result();
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result(ex);
+    }
+})
+.WithName("RevokeAccessRights")
+.WithSummary("Revokes access rights from the subject.")
+.WithDescription("Revokes access rights from the subject. Only authorised users can revoke the rights.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
+    g.Parameters[1].Description = "Public key of the subject.";
+    g.Parameters[2].Description = "Access rights to be revoked.";
+    return g;
+});
+
 app.MapGet("/topupandmine6blocks", (string authToken, string bitcoinAddr, long satoshis) =>
 {
     try
     {
-        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        Singlethon.LNDWalletManager.ValidateAuthToken(authToken);
         if (Singlethon.BitcoinNodeUtils != null)
         {
             if (Singlethon.BitcoinNodeUtils.IsRegTest)
                 Singlethon.BitcoinNodeUtils.TopUpAndMine6Blocks(bitcoinAddr, satoshis);
-
+            else
+                throw new InvalidOperationException("Bitcoin node is not in RegTest");
         }
+        else
+            throw new InvalidOperationException("Bitcoin node is not available");
         return new Result();
     }
     catch (Exception ex)
@@ -157,7 +220,7 @@ app.MapGet("/sendtoaddress", (string authToken, string bitcoinAddr, long satoshi
 {
     try
     {
-        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        Singlethon.LNDWalletManager.ValidateAuthToken(authToken,AccessRights.Bitcoin);
         if (Singlethon.BitcoinNodeUtils != null)
         {
             if (Singlethon.BitcoinNodeUtils.IsRegTest)
@@ -186,13 +249,17 @@ app.MapGet("/generateblocks", (string authToken, int blocknum) =>
 {
     try
     {
-        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        Singlethon.LNDWalletManager.ValidateAuthToken(authToken);
         if (Singlethon.BitcoinNodeUtils != null)
         {
             if (Singlethon.BitcoinNodeUtils.IsRegTest)
                 Singlethon.BitcoinNodeUtils.GenerateBlocks(blocknum);
-
+            else
+                throw new InvalidOperationException("Bitcoin node is not in RegTest");
         }
+        else
+            throw new InvalidOperationException("Bitcoin node is not available");
+
         return new Result();
     }
     catch (Exception ex)
@@ -214,7 +281,7 @@ app.MapGet("/newbitcoinaddress", (string authToken) =>
 {
     try
     {
-        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        Singlethon.LNDWalletManager.ValidateAuthToken(authToken,AccessRights.Bitcoin);
         return new Result<string>(Singlethon.BitcoinNodeUtils.NewAddress());
     }
     catch (Exception ex)
@@ -236,7 +303,7 @@ app.MapGet("/getbitcoinwalletballance", (string authToken, int minConf) =>
 {
     try
     {
-        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        Singlethon.LNDWalletManager.ValidateAuthToken(authToken,AccessRights.Bitcoin);
         return new Result<long>(Singlethon.BitcoinNodeUtils.WalletBallance(minConf));
     }
     catch (Exception ex)
@@ -260,7 +327,7 @@ app.MapGet("/getlndwalletballance", (string authToken) =>
 {
     try
     {
-        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        Singlethon.LNDWalletManager.ValidateAuthToken(authToken,AccessRights.Bitcoin);
         var ret = Singlethon.LNDWalletManager.GetWalletBalance();
         return new Result<LndWalletBallanceRet>(
             new LndWalletBallanceRet
@@ -292,7 +359,7 @@ app.MapGet("/openreserve", (string authToken, long satoshis) =>
 {
     try
     {
-        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        Singlethon.LNDWalletManager.ValidateAuthToken(authToken,AccessRights.Bitcoin);
         return new Result<Guid>(Singlethon.LNDWalletManager.OpenReserve(satoshis));
     }
     catch (Exception ex)
@@ -314,7 +381,7 @@ app.MapGet("/closereserve", (string authToken, Guid reserveId) =>
 {
     try
     {
-        Singlethon.LNDWalletManager.ValidateAdminToken(authToken);
+        Singlethon.LNDWalletManager.ValidateAuthToken(authToken,AccessRights.Bitcoin);
         Singlethon.LNDWalletManager.CloseReserve(reserveId);
         return new Result();
     }
@@ -335,17 +402,18 @@ app.MapGet("/closereserve", (string authToken, Guid reserveId) =>
 
 app.MapGet("/estimatefee", (string authToken, string address, long satoshis) =>
 {
-    bool isAdmin = false;
+    bool isMoneyMover = false;
     try
     {
-        isAdmin = Singlethon.LNDWalletManager.ValidateAndCheckIfAdminToken(authToken);
+        var pubKey = Singlethon.LNDWalletManager.ValidateAuthToken(authToken);
+        isMoneyMover = Singlethon.LNDWalletManager.HasAccessRights(authToken,AccessRights.Bitcoin);
         var (feesat, satspervbyte) = Singlethon.LNDWalletManager.EstimateFee(address, satoshis);
         return new Result<FeeEstimateRet>(new FeeEstimateRet { FeeSat = feesat, SatPerVbyte = satspervbyte });
     }
     catch (Exception ex)
     {
         TraceEx.TraceException(ex);
-        if (isAdmin)
+        if (isMoneyMover)
             return new Result<FeeEstimateRet>(ex);
         else
             return new Result<FeeEstimateRet>(new FeeEstimateRet { FeeSat = -1, SatPerVbyte = 0 });
@@ -887,6 +955,7 @@ public class WalletSettings
     public long SendPaymentTxFee { get; set; }
     public long EstimatedTxFee { get; set; }
     public bool AllowLocalBitcoinNode { get; set; }
+    public required string OwnerPublicKey { get; set; }
 }
 
 public class LndSettings : LND.NodeSettings

@@ -14,6 +14,7 @@ using System.Diagnostics;
 
 namespace GigGossipSettler;
 
+
 public class PreimageRevealEventArgs : EventArgs
 {
     public required string PaymentHash { get; set; }
@@ -82,7 +83,7 @@ public class Settler : CertificationAuthority
         this.RetryPolicy = retryPolicy;
     }
 
-    public async Task InitAsync(IWalletAPI lndWalletClient, string connectionString)
+    public async Task InitAsync(IWalletAPI lndWalletClient, string connectionString,string ownerPublicKey)
     {
         this.lndWalletClient = lndWalletClient;
 
@@ -93,6 +94,7 @@ public class Settler : CertificationAuthority
 
         settlerContext = new ThreadLocal<SettlerContext>(() => new SettlerContext(connectionString));
         settlerContext.Value.Database.EnsureCreated();
+        EnsureOwnerAccessRights(ownerPublicKey);
 
         _invoiceStateUpdatesMonitor = new InvoiceStateUpdatesMonitor(this);
 
@@ -114,6 +116,56 @@ public class Settler : CertificationAuthority
     public string MakeAuthToken()
     {
         return Crypto.MakeSignedTimedToken(this._CaPrivateKey, DateTime.UtcNow, this.walletTokenGuid);
+    }
+
+    private void EnsureOwnerAccessRights(string pubkey)
+    {
+        var ar = (from a in settlerContext.Value.UserAccessRights where a.AccessRights == AccessRights.Owner select a).FirstOrDefault();
+        if (ar != null)
+        {
+            if(ar.PublicKey != pubkey)
+            {
+                ar.PublicKey = pubkey;
+                settlerContext.Value.SaveObject(ar);
+            }
+        }
+        else 
+        {
+            settlerContext.Value.AddObject(new UserAccessRights() { PublicKey = pubkey, AccessRights = AccessRights.Owner });
+        }
+    }
+
+    public void GrantAccessRights(string pubkey, AccessRights accessRights)
+    {
+        var ar = (from a in settlerContext.Value.UserAccessRights where a.PublicKey == pubkey select a).FirstOrDefault();
+        if (ar == null)
+        {
+            ar = new UserAccessRights() { PublicKey = pubkey, AccessRights = accessRights };
+            settlerContext.Value.AddObject(ar);
+        }
+        else
+        {
+            ar.AccessRights |= accessRights;
+            settlerContext.Value.SaveObject(ar);
+        }
+    }
+
+    public void RevokeAccessRights(string pubkey, AccessRights accessRights)
+    {
+        var ar = (from a in settlerContext.Value.UserAccessRights where a.PublicKey == pubkey select a).FirstOrDefault();
+        if (ar != null)
+        {
+            ar.AccessRights &= ~accessRights;
+            settlerContext.Value.SaveObject(ar);
+        }
+    }
+
+    public bool HasAccessRights(string pubkey, AccessRights accessRights)
+    {
+        var ar = (from a in settlerContext.Value.UserAccessRights where a.PublicKey == pubkey select a).FirstOrDefault();
+        if (ar == null)
+            return false;
+        return (ar.AccessRights & accessRights) == accessRights;
     }
 
     public Guid GetTokenGuid(string pubkey)
@@ -164,8 +216,6 @@ public class Settler : CertificationAuthority
         }
     }
 
-
-
     public string ValidateAuthToken(string authTokenBase64)
     {
         var timedToken = CryptoToolkit.Crypto.VerifySignedTimedToken(authTokenBase64, 120.0);
@@ -177,6 +227,14 @@ public class Settler : CertificationAuthority
             throw new InvalidAuthTokenException();
 
         return tk.PublicKey;
+    }
+
+    public string ValidateAuthToken(string authTokenBase64,AccessRights accessRights)
+    {
+        var pubkey = ValidateAuthToken(authTokenBase64);
+        if (!HasAccessRights(pubkey, accessRights))
+            throw new AccessDeniedException();
+        return pubkey;
     }
 
     public void SaveUserTraceProperty(string pubkey, string name, byte[] value)
@@ -388,11 +446,16 @@ public class Settler : CertificationAuthority
         };
     }
 
-    public byte[] EncryptObjectForCertificateId(byte[] bytes, Guid certificateId)
+    public string GetPubkeyFromCertificateId(Guid certificateId)
     {
         var pubkey = (from cert in settlerContext.Value.UserCertificates where cert.CertificateId == certificateId && !cert.IsRevoked select cert.PublicKey).FirstOrDefault();
-        if (pubkey == null)
-            return null;
+        if(pubkey==null)
+            throw new NotFoundException();
+        return pubkey;
+    }
+
+    public byte[] EncryptObjectForPubkey(string pubkey, byte[] bytes)
+    {
         return Crypto.EncryptObject(Crypto.DeserializeObject<Certificate<ReplyPayloadValue>>(bytes), pubkey.AsECXOnlyPubKey(), this._CaPrivateKey);
     }
 

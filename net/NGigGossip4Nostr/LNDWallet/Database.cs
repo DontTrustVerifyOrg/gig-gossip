@@ -191,6 +191,40 @@ public class Reserve
     public required long Satoshis { get; set; }
 }
 
+[Flags]
+public enum AccessRights
+{
+// flags
+    Valid = 1,
+    KYC = 2,
+    Bitcoin = 4,
+    AccessRights = 0x00800000,
+// roles
+    Anonymous = 0,
+    ValidUser = Valid,
+    KnownUser = Valid|KYC,
+    Admin = 0x00FFFFFF,
+    Owner = ~0,
+}
+
+/// <summary>
+/// This class represents access rights of all the users.
+/// </summary>
+public class UserAccessRights
+{
+    /// <summary>
+    /// The public key of the subject.
+    /// </summary>
+    [Key]
+    public required string PublicKey { get; set; }
+
+    /// <summary>
+    /// Access rights of the user.
+    /// </summary>
+    public required AccessRights AccessRights { get; set; }
+}
+
+
 /// <summary>
 /// This class represents an authorisation token.
 /// </summary>
@@ -253,6 +287,11 @@ public class WaletContext : DbContext
     public DbSet<Payment> Payments { get; set; }
 
     /// <summary>
+    /// UserAccessRights table.
+    /// </summary>
+    public DbSet<UserAccessRights> UserAccessRights { get; set; }
+
+    /// <summary>
     /// Tokens table.
     /// </summary>
     public DbSet<Token> Tokens { get; set; }
@@ -282,6 +321,8 @@ public class WaletContext : DbContext
             return this.Invoices;
         else if (obj is Payment)
             return this.Payments;
+        else if (obj is UserAccessRights)
+            return this.UserAccessRights;
         else if (obj is Token)
             return this.Tokens;
 
