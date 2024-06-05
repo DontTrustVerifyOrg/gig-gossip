@@ -29,16 +29,16 @@ class Program
                 {
                     string mnemonic;
                     ECPrivKey privKey;
-                    if(options.Mnemonic==null)
-                    {
-                        mnemonic = CryptoToolkit.Crypto.GenerateMnemonic();
-                        AnsiConsole.WriteLine(mnemonic);
-                    }
-                    else
-                        mnemonic = options.Mnemonic;
-
                     if(options.PrivateKey==null)
                     {
+                        if(options.Mnemonic==null)
+                        {
+                            mnemonic = CryptoToolkit.Crypto.GenerateMnemonic();
+                            AnsiConsole.WriteLine(mnemonic);
+                        }
+                        else
+                            mnemonic = options.Mnemonic;
+
                         privKey = CryptoToolkit.Crypto.DeriveECPrivKeyFromMnemonic(mnemonic);
                         AnsiConsole.WriteLine(privKey.AsHex());
                     }

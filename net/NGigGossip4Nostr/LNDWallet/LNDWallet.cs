@@ -813,7 +813,7 @@ public class LNDWalletManager : LNDEventSource
         trackPaymentsThread.Join();
     }
 
-    public string ValidateAuthToken(string authTokenBase64)
+    private string ValidateAuthToken(string authTokenBase64)
     {
         var timedToken = CryptoToolkit.Crypto.VerifySignedTimedToken(authTokenBase64, 120.0);
         if (timedToken == null)
@@ -828,8 +828,9 @@ public class LNDWalletManager : LNDEventSource
     public string ValidateAuthToken(string authTokenBase64,AccessRights accessRights)
     {
         var pubkey = ValidateAuthToken(authTokenBase64);
-        if (!HasAccessRights(pubkey, accessRights))
-            throw new LNDWalletException(LNDWalletErrorCode.AccessDenied);
+        if(accessRights!=AccessRights.Anonymous)
+            if (!HasAccessRights(pubkey, accessRights))
+                throw new LNDWalletException(LNDWalletErrorCode.AccessDenied);
         return pubkey;
     }
 
@@ -888,6 +889,12 @@ public class LNDWalletManager : LNDEventSource
             ar.AccessRights &= ~accessRights;
             walletContext.Value.SaveObject(ar);
         }
+    }
+
+    public AccessRights GetAccessRights(string pubkey)
+    {
+        var ar = (from a in walletContext.Value.UserAccessRights where a.PublicKey == pubkey select a).FirstOrDefault();
+        return (ar==null) ? AccessRights.Anonymous : ar.AccessRights;
     }
 
     public bool HasAccessRights(string pubkey, AccessRights accessRights)

@@ -79,7 +79,10 @@ public class ComplexTest
                 gridNodeSettings.ConnectionString,
                 Crypto.GeneratECPrivKey(),
                 gridNodeSettings.ChunkSize,
-            new DefaultRetryPolicy()
+                new DefaultRetryPolicy(),
+                () => new HttpClient(),
+                true,
+                gridNodeSettings.LoggerOpenApi
             );
             things[nn].ClearContacts();
         }
@@ -98,16 +101,13 @@ public class ComplexTest
                  ));
 
             await gigWorker.StartAsync (
-                true,
                 gridNodeSettings.Fanout,
                 gridNodeSettings.PriceAmountForRouting,
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
                 gridNodeSettings.GetNostrRelays(),
                 new GigWorkerGossipNodeEvents { SettlerUri = gridNodeSettings.SettlerOpenApi, FeeLimit = gridNodeSettings.FeeLimit },
-                ()=>new HttpClient(),
                 gridNodeSettings.GigWalletOpenApi,
-                gridNodeSettings.LoggerOpenApi,
                 gridNodeSettings.SettlerOpenApi
                 );
         }
@@ -125,32 +125,26 @@ public class ComplexTest
              ));
 
             await customer.StartAsync(
-                true,
                 gridNodeSettings.Fanout,
                 gridNodeSettings.PriceAmountForRouting,
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
                  gridNodeSettings.GetNostrRelays(),
                 new CustomerGossipNodeEvents { FeeLimit = gridNodeSettings.FeeLimit },
-                () => new HttpClient(),
                 gridNodeSettings.GigWalletOpenApi,
-                gridNodeSettings.LoggerOpenApi,
                 gridNodeSettings.SettlerOpenApi);
             customers.Add(customer);
         }
         foreach (var node in thingsList)
         {
             await node.Value.StartAsync(
-                true,
                 gridNodeSettings.Fanout,
                 gridNodeSettings.PriceAmountForRouting,
                 TimeSpan.FromMilliseconds(gridNodeSettings.TimestampToleranceMs),
                 TimeSpan.FromSeconds(gridNodeSettings.InvoicePaymentTimeoutSec),
                 gridNodeSettings.GetNostrRelays(),
                 new NetworkEarnerNodeEvents { FeeLimit = gridNodeSettings.FeeLimit },
-                ()=> new HttpClient(),
                 gridNodeSettings.GigWalletOpenApi,
-                gridNodeSettings.LoggerOpenApi,
                 gridNodeSettings.SettlerOpenApi);
         }
 

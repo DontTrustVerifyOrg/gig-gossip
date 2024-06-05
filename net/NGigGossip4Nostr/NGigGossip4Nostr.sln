@@ -51,6 +51,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetworkClientToolkit", "Net
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeyPairGen", "KeyPairGen\KeyPairGen.csproj", "{DA8DFD39-F055-4681-AED8-2D23768D466C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GigGossipSettlerCLI", "GigGossipSettlerCLI\GigGossipSettlerCLI.csproj", "{FF66802B-927A-491D-9FF7-E3E997EF9ABE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -153,6 +155,10 @@ Global
 		{DA8DFD39-F055-4681-AED8-2D23768D466C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DA8DFD39-F055-4681-AED8-2D23768D466C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DA8DFD39-F055-4681-AED8-2D23768D466C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FF66802B-927A-491D-9FF7-E3E997EF9ABE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FF66802B-927A-491D-9FF7-E3E997EF9ABE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FF66802B-927A-491D-9FF7-E3E997EF9ABE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FF66802B-927A-491D-9FF7-E3E997EF9ABE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

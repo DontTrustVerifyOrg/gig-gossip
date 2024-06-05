@@ -13,7 +13,7 @@ public class GigStatusHub : Hub
     public override async Task OnConnectedAsync()
     {
         var authToken = Context?.GetHttpContext()?.Request.Query["authtoken"].First();
-        var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
+        var publicKey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
         Context.Items["publicKey"] = publicKey;
         Singlethon.GigStatusAsyncComQueue4ConnectionId.TryAdd(Context.ConnectionId, new AsyncComQueue<GigStatusEventArgs>());
         await base.OnConnectedAsync();
@@ -29,7 +29,7 @@ public class GigStatusHub : Hub
     {
         string publicKey;
         lock (Singlethon.Settler)
-            publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
+            publicKey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
 
         Singlethon.GigStatus4UserPublicKey.AddItem(publicKey, new GigReplCert { SignerRequestPayloadId = signedRequestPayload, ReplierCertificateId = replierCertificateId });
     }
@@ -38,7 +38,7 @@ public class GigStatusHub : Hub
     {
         string publicKey;
         lock (Singlethon.Settler)
-            publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
+            publicKey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
 
         AsyncComQueue<GigStatusEventArgs> asyncCom;
         if (Singlethon.GigStatusAsyncComQueue4ConnectionId.TryGetValue(Context.ConnectionId, out asyncCom))

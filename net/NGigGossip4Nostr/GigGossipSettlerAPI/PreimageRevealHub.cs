@@ -14,7 +14,7 @@ public class PreimageRevealHub : Hub
     public override async Task OnConnectedAsync()
     {
         var authToken = Context?.GetHttpContext()?.Request.Query["authtoken"].First();
-        var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
+        var publicKey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
         Context.Items["publicKey"] = publicKey;
         Singlethon.PreimagesAsyncComQueue4ConnectionId.TryAdd(Context.ConnectionId, new AsyncComQueue<PreimageRevealEventArgs>());
         await base.OnConnectedAsync();
@@ -30,7 +30,7 @@ public class PreimageRevealHub : Hub
     {
         string publicKey;
         lock (Singlethon.Settler)
-            publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
+            publicKey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
 
         Singlethon.Preimages4UserPublicKey.AddItem(publicKey, paymentHash);
     }
@@ -39,7 +39,7 @@ public class PreimageRevealHub : Hub
     {
         string publicKey;
         lock (Singlethon.Settler)
-            publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
+            publicKey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
 
         AsyncComQueue<PreimageRevealEventArgs> asyncCom;
         if (Singlethon.PreimagesAsyncComQueue4ConnectionId.TryGetValue(Context.ConnectionId, out asyncCom))

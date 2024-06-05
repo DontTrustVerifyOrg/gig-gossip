@@ -157,11 +157,20 @@ public class Settler : CertificationAuthority
         {
             ar.AccessRights &= ~accessRights;
             settlerContext.Value.SaveObject(ar);
+     
         }
+    }
+
+    public AccessRights GetAccessRights(string pubkey)
+    {
+        var ar = (from a in settlerContext.Value.UserAccessRights where a.PublicKey == pubkey select a).FirstOrDefault();
+        return (ar==null) ? AccessRights.Anonymous : ar.AccessRights;
     }
 
     public bool HasAccessRights(string pubkey, AccessRights accessRights)
     {
+        if(accessRights==AccessRights.Anonymous)
+            return true;
         var ar = (from a in settlerContext.Value.UserAccessRights where a.PublicKey == pubkey select a).FirstOrDefault();
         if (ar == null)
             return false;
@@ -179,24 +188,40 @@ public class Settler : CertificationAuthority
         return t.TokenId;
     }
 
-    public Guid IssueNewAccessCode(bool singleUse, long validTillMin, string Memo)
+    string GenerateRandomString(int length)
     {
-        Guid accessCodeId = Guid.NewGuid();
-        settlerContext.Value.AddObject(new AccessCode()
-        {
-            AccessCodeId = accessCodeId,
-            SingleUse = singleUse,
-            ValidTill = DateTime.UtcNow.AddMinutes(validTillMin),
-            Memo = Memo,
-            UseCount = 0,
-            IsRevoked = false,
-        });
-        return accessCodeId;
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        var random = new Random();
+        var randomString = new string(Enumerable.Repeat(chars, length)
+            .Select(s => s[random.Next(s.Length)]).ToArray());
+        return randomString;
     }
 
-    public bool ValidateAccessCode(Guid accessCodeId)
+    public string IssueNewAccessCode(int length, bool singleUse, long validTillMin, string Memo)
     {
-        var ac = (from a in settlerContext.Value.AccessCodes where a.AccessCodeId == accessCodeId && !a.IsRevoked && a.ValidTill >= DateTime.UtcNow select a).FirstOrDefault();
+        for(int i=0;i<100;i++)
+        {
+            var code = GenerateRandomString(length);
+            if(settlerContext.Value.AccessCodes.Where(a => a.Code == code).Count() == 0)
+            {
+                settlerContext.Value.AddObject(new AccessCode()
+                {
+                    Code = code,
+                    SingleUse = singleUse,
+                    ValidTill = DateTime.UtcNow.AddMinutes(validTillMin),
+                    Memo = Memo,
+                    UseCount = 0,
+                    IsRevoked = false,
+                });
+                return code;
+            }
+        };
+        throw new Exception("Failed to generate unique access code");
+    }
+
+    public bool ValidateAccessCode(string code)
+    {
+        var ac = (from a in settlerContext.Value.AccessCodes where a.Code == code && !a.IsRevoked && a.ValidTill >= DateTime.UtcNow select a).FirstOrDefault();
         if (ac == null)
             return false;
         if (ac.SingleUse)
@@ -206,9 +231,9 @@ public class Settler : CertificationAuthority
         return true;
     }
 
-    public void RevokeAccessCode(Guid accessCodeId)
+    public void RevokeAccessCode(string code)
     {
-        var ac = (from a in settlerContext.Value.AccessCodes where a.AccessCodeId == accessCodeId select a).FirstOrDefault();
+        var ac = (from a in settlerContext.Value.AccessCodes where a.Code == code select a).FirstOrDefault();
         if (ac != null)
         {
             ac.IsRevoked = true;
@@ -216,7 +241,15 @@ public class Settler : CertificationAuthority
         }
     }
 
-    public string ValidateAuthToken(string authTokenBase64)
+    public string GetMemoFromAccessCode(string code)
+    {
+        var ac = (from a in settlerContext.Value.AccessCodes where a.Code == code && !a.IsRevoked && a.ValidTill >= DateTime.UtcNow select a).FirstOrDefault();
+        if (ac == null)
+            return "";
+        return ac.Memo;
+    }
+
+    private string ValidateAuthToken(string authTokenBase64)
     {
         var timedToken = CryptoToolkit.Crypto.VerifySignedTimedToken(authTokenBase64, 120.0);
         if (timedToken == null)

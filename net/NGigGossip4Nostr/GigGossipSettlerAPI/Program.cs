@@ -207,7 +207,7 @@ app.MapGet("/grantaccessrights", (string authToken, string pubkey, string access
     return g;
 });
 
-app.MapGet("revokeaccessrights", (string authToken, string pubkey, string accessRights) =>
+app.MapGet("/revokeaccessrights", (string authToken, string pubkey, string accessRights) =>
 {
     try
     {
@@ -233,6 +233,29 @@ app.MapGet("revokeaccessrights", (string authToken, string pubkey, string access
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
     g.Parameters[1].Description = "Public key of the subject.";
     g.Parameters[2].Description = "Access rights to be revoked.";
+    return g;
+});
+
+app.MapGet("/getaccessrights", (string authToken, string pubkey) =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.AccessRights);
+        return new Result<string>(Singlethon.Settler.GetAccessRights(pubkey).ToString());
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
+    }
+})
+.WithName("GetAccessRights")
+.WithSummary("Gets access rights to the subject.")
+.WithDescription("Gets access rights to the subject. Only authorised users can grant the rights.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
+    g.Parameters[1].Description = "Public key of the subject.";
     return g;
 });
 
@@ -393,13 +416,13 @@ app.MapGet("/locationgeocode", async (string authToken, double lat, double lon) 
     return g;
 });
 
-app.MapGet("/issuenewaccesscode", async (string authToken, bool singleUse, long validTillMin, string Memo) =>
+app.MapGet("/issuenewaccesscode", async (string authToken, int length, bool singleUse, long validTillMin, string Memo) =>
 {
     try
     {
         Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.AccessCodes);
-        var accessCodeId = Singlethon.Settler.IssueNewAccessCode(singleUse, validTillMin, Memo);
-        return new Result<string>(accessCodeId.ToString("N"));
+        var code = Singlethon.Settler.IssueNewAccessCode(length, singleUse, validTillMin, Memo);
+        return new Result<string>(code);
     }
     catch (Exception ex)
     {
@@ -413,23 +436,21 @@ app.MapGet("/issuenewaccesscode", async (string authToken, bool singleUse, long 
 .WithOpenApi(g =>
 {
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
-    g.Parameters[1].Description = "Is Single Use";
-    g.Parameters[2].Description = "Valid till";
-    g.Parameters[3].Description = "Memo";
+    g.Parameters[1].Description = "Required length of the access code";
+    g.Parameters[2].Description = "Is Single Use";
+    g.Parameters[3].Description = "Valid till";
+    g.Parameters[4].Description = "Memo";
     return g;
 });
 
-app.MapGet("/validateaccesscode", async (string authToken, string accessCodeId) =>
+app.MapGet("/validateaccesscode", async (string authToken, string code) =>
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken);
-        if(accessCodeId=="ABCD")
+        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Anonymous);
+        if(code=="ABCD")
             return new Result<bool>(true);
-        Guid guid;
-        if (!Guid.TryParseExact(accessCodeId, "N", out guid))
-            return new Result<bool>(false);
-        return new Result<bool>(Singlethon.Settler.ValidateAccessCode(guid));
+        return new Result<bool>(Singlethon.Settler.ValidateAccessCode(code));
     }
     catch (Exception ex)
     {
@@ -447,12 +468,12 @@ app.MapGet("/validateaccesscode", async (string authToken, string accessCodeId) 
     return g;
 });
 
-app.MapGet("/revokeaccesscode", async (string authToken, string accessCodeId) =>
+app.MapGet("/revokeaccesscode", async (string authToken, string code) =>
 {
     try
     {
         Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.AccessCodes);
-        Singlethon.Settler.RevokeAccessCode(Guid.ParseExact(accessCodeId, "N"));
+        Singlethon.Settler.RevokeAccessCode(code);
         return new Result();
     }
     catch (Exception ex)
@@ -464,6 +485,31 @@ app.MapGet("/revokeaccesscode", async (string authToken, string accessCodeId) =>
 .WithName("RevokeAccessCode")
 .WithSummary("Revoke access code")
 .WithDescription("Revoke access code.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Access code identifier";
+    return g;
+});
+
+app.MapGet("/getmemofromaccesscode", async (string authToken, string code) =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.AccessCodes);
+        if(code=="ABCD")
+            return new Result<string>("general access code");
+        return new Result<string>(Singlethon.Settler.GetMemoFromAccessCode(code));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
+    }
+})
+.WithName("GetMemoFromAccessCode")
+.WithSummary("Get Memo from access code")
+.WithDescription("Get Memo from access code.")
 .WithOpenApi(g =>
 {
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
@@ -534,6 +580,7 @@ app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name)
         return new Result(ex);
     }
 })
+.WithName("RevokeUserPropertyAsync")
 .WithDescription("Revokes a property from the subject (e.g. driving licence is taken by the police). Only authorised users can revoke the property.")
 .WithOpenApi(g =>
 {
@@ -573,7 +620,7 @@ app.MapGet("/verifychannel", async (string authToken, string pubkey, string name
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Anonymous);
         if (name.ToLower() == "phonenumber" && method.ToLower() == "sms")
         {
             var creds = settlerSettings.SMSGlobalAPIKeySecret.Split(":");
@@ -616,7 +663,7 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.ValidateAuthToken(authToken,AccessRights.Anonymous);
         if (name.ToLower() == "phonenumber" && method.ToLower() == "sms")
         {
             var key = new ChannelKey { PubKey = pubkey, Channel = value };
@@ -673,7 +720,7 @@ app.MapGet("/ischannelverified", (string authToken, string pubkey, string name, 
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken);
+        Singlethon.Settler.ValidateAuthToken(authToken,AccessRights.Anonymous);
         if (name.ToLower() == "phonenumber")
         {
             var prop = Singlethon.Settler.GetUserProperty(pubkey, name);

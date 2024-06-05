@@ -174,9 +174,9 @@ public class GigLNDWalletCLI
     private void ToClipboard(ClipType clipType, string value)
     {
         var clip = TextCopy.ClipboardService.GetText();
-        if (string.IsNullOrWhiteSpace(clip) || !clip.StartsWith("GigLNDWalletTest\n"))
+        if (string.IsNullOrWhiteSpace(clip) || !clip.StartsWith("GigGossipClipboard\n"))
         {
-            var ini = new List<string>() { "GigLNDWalletTest" };
+            var ini = new List<string>() { "GigGossipClipboard" };
             for (var i = 0; i <= Enum.GetValues(typeof(ClipType)).Cast<int>().Max(); i++)
                 ini.Add("");
             clip = string.Join("\n", ini);

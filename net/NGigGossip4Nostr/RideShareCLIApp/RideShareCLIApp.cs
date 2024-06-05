@@ -176,12 +176,6 @@ public partial class RideShareCLIApp
         Exit,
         [Display(Name = "Enable/Disable Debug Log")]
         DebLog,
-        [Display(Name = "Issue new AccessCode")]
-        IssueNewAccessCode,
-        [Display(Name = "Validate AccessCode")]
-        ValidateAccessCode,
-        [Display(Name = "Revoke AccessCode")]
-        RevokeAccessCode,
     }
 
     public async Task<ECPrivKey> GetPrivateKeyAsync()
@@ -231,7 +225,10 @@ public partial class RideShareCLIApp
             settings.NodeSettings.ConnectionString.Replace("$ID", settings.Id),
             privateKey,
             settings.NodeSettings.ChunkSize,
-            new DefaultRetryPolicy()
+            new DefaultRetryPolicy(),
+            () => new HttpClient(),
+            false,
+            settings.NodeSettings.LoggerOpenApi
             );
 
         AnsiConsole.WriteLine("privkey:" + privateKey.AsHex());
@@ -241,8 +238,6 @@ public partial class RideShareCLIApp
         directCom.RegisterFrameType<AckFrame>();
         directCom.RegisterFrameType<LocationFrame>();
         directCom.OnDirectMessage += DirectCom_OnDirectMessage;
-
-        await StartAsync();
 
         var phoneNumber = await GetPhoneNumberAsync();
         if (phoneNumber == null || !(await IsPhoneNumberValidated(phoneNumber)))
@@ -263,6 +258,8 @@ public partial class RideShareCLIApp
             await SetPhoneNumberAsync(phoneNumber);
         }
 
+        await StartAsync();
+
         while (true)
         {
             await WriteBalance();
@@ -271,26 +268,6 @@ public partial class RideShareCLIApp
             {
                 if (cmd == CommandEnum.Exit)
                     break;
-            }
-            else if (cmd == CommandEnum.IssueNewAccessCode)
-            {
-                var singleUse = Prompt.Input<bool>("Single use");
-                var validMin = Prompt.Input<int>("valid Minutes");
-                var memo = Prompt.Input<string>("Memo");
-                var accessCodeId = await IssueNewAccessCode(singleUse, validMin, memo);
-                AnsiConsole.WriteLine(accessCodeId.ToString());
-            }
-            else if (cmd == CommandEnum.ValidateAccessCode)
-            {
-                var accessCodeId = Prompt.Input<string>("Access Code Id");
-                var res = await ValidateAccessCode(accessCodeId);
-                AnsiConsole.WriteLine(res);
-            }
-            else if (cmd == CommandEnum.RevokeAccessCode)
-            {
-                var accessCodeId = Prompt.Input<string>("Access Code Id");
-                await RevokeAccessCode(accessCodeId);
-                AnsiConsole.WriteLine("Revoked");
             }
             else if (cmd == CommandEnum.TopUp)
             {
@@ -518,24 +495,6 @@ public partial class RideShareCLIApp
             .LocationGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), lat, lon, CancellationTokenSource.Token));
     }
 
-    private async Task<string> IssueNewAccessCode(bool singleUse, long validMin, string memo)
-    {
-        return SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-            .IssueNewAccessCodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), singleUse,validMin,memo, CancellationTokenSource.Token));
-    }
-
-    private async Task<bool> ValidateAccessCode(string accessCodeId)
-    {
-        return SettlerAPIResult.Get<bool>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-            .ValidateAccessCodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), accessCodeId, CancellationTokenSource.Token));
-    }
-
-    private async Task RevokeAccessCode(string accessCodeId)
-    {
-        SettlerAPIResult.Check(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-            .RevokeAccessCodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), accessCodeId, CancellationTokenSource.Token));
-    }
-
     private async Task WriteBalance()
     {
         var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token));
@@ -567,16 +526,13 @@ public partial class RideShareCLIApp
     {
 
         await gigGossipNode.StartAsync(
-            false,
             settings.NodeSettings.Fanout,
             settings.NodeSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(settings.NodeSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(settings.NodeSettings.InvoicePaymentTimeoutSec), 
             settings.NodeSettings.GetNostrRelays(), 
             ((GigGossipNodeEventSource) gigGossipNodeEventSource).GigGossipNodeEvents,
-            ()=>new HttpClient(),
             settings.NodeSettings.GigWalletOpenApi,
-            settings.NodeSettings.LoggerOpenApi,
             settings.NodeSettings.SettlerOpenApi);
 
         var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token));

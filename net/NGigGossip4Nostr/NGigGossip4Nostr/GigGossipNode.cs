@@ -26,6 +26,7 @@ using System.Net.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR.Client;
 using NetworkClientToolkit;
+using GoogleApi;
 
 [Serializable]
 public class InvoiceData
@@ -116,12 +117,14 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     private IGigGossipNodeEvents gigGossipNodeEvents;
     private Uri defaultWalletUri;
     private Uri mySettlerUri;
+    private Func<HttpClient> httpClientFactory;
+    private FlowLogger flowLogger;
 
     internal ThreadLocal<GigGossipNodeContext> nodeContext;
 
     ConcurrentDictionary<string, bool> messageLocks;
 
-    public GigGossipNode(string connectionString, ECPrivKey privKey, int chunkSize, IRetryPolicy retryPolicy) : base(privKey, chunkSize,true, retryPolicy)
+    public GigGossipNode(string connectionString, ECPrivKey privKey, int chunkSize, IRetryPolicy retryPolicy, Func<HttpClient> httpClientFactory, bool traceEnabled, Uri myLoggerUri) : base(privKey, chunkSize,true, retryPolicy)
     {
         RegisterFrameType<BroadcastFrame>();
         RegisterFrameType<CancelBroadcastFrame>();
@@ -131,6 +134,14 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
         this.nodeContext = new ThreadLocal<GigGossipNodeContext>(() => new GigGossipNodeContext(connectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))));
         nodeContext.Value.Database.EnsureCreated();
+
+        this.httpClientFactory = httpClientFactory;
+
+        flowLogger = new FlowLogger(traceEnabled, this.PublicKey, myLoggerUri, httpClientFactory);
+        WalletSelector = new SimpleGigLNDWalletSelector(httpClientFactory, flowLogger, RetryPolicy);
+        SettlerSelector = new SimpleSettlerSelector(httpClientFactory, flowLogger, RetryPolicy);
+        _settlerToken = new();
+
     }
 
     public async Task<string> MakeWalletAuthToken()
@@ -147,8 +158,8 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             await _settlerToken.GetOrAddAsync(serviceUri, async (serviceUri) => SettlerAPIResult.Get<Guid>(await SettlerSelector.GetSettlerClient(serviceUri).GetTokenAsync(this.PublicKey,CancellationTokenSource.Token))));
     }
 
-    public async Task StartAsync(bool traceEnabled, int fanout, long priceAmountForRouting, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
-        string[] nostrRelays, IGigGossipNodeEvents gigGossipNodeEvents, Func<HttpClient> httpClientFactory, Uri defaultWalletUri,Uri myLoggerUri, Uri mySettlerUri)
+    public async Task StartAsync(int fanout, long priceAmountForRouting, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
+        string[] nostrRelays, IGigGossipNodeEvents gigGossipNodeEvents, Uri defaultWalletUri,  Uri mySettlerUri)
     {
 
         this.messageLocks = new();
@@ -171,10 +182,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
         try
         {
-            await base.StartAsync(nostrRelays, new FlowLogger(traceEnabled, this.PublicKey, myLoggerUri, httpClientFactory));
-
-            WalletSelector = new SimpleGigLNDWalletSelector(httpClientFactory,FlowLogger,RetryPolicy);
-            SettlerSelector = new SimpleSettlerSelector(httpClientFactory, FlowLogger, RetryPolicy);
+            await base.StartAsync(nostrRelays, flowLogger);
 
             _invoiceStateUpdatesMonitor = new InvoiceStateUpdatesMonitor(this);
             _paymentStatusUpdatesMonitor = new PaymentStatusUpdatesMonitor(this);
@@ -185,12 +193,11 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
             LoadMessageLocks();
 
-            _settlerToken = new();
-                await _invoiceStateUpdatesMonitor.StartAsync();
-                await _paymentStatusUpdatesMonitor.StartAsync();
-                await _settlerMonitor.StartAsync();
+            await _invoiceStateUpdatesMonitor.StartAsync();
+            await _paymentStatusUpdatesMonitor.StartAsync();
+            await _settlerMonitor.StartAsync();
 
-                await SayHelloAsync();
+            await SayHelloAsync();
         }
         catch(Exception ex)
         {

@@ -13,13 +13,18 @@ public interface ISettlerAPI
     Task<StringResult> GetCaPublicKeyAsync(CancellationToken cancellationToken);
     Task<BooleanResult> IsCertificateRevokedAsync(string certid, CancellationToken cancellationToken);
     Task<GuidResult> GetTokenAsync(string pubkey, CancellationToken cancellationToken);
+    Task<Result> GrantAccessRightsAsync(string authToken, string pubkey, string accessRights, System.Threading.CancellationToken cancellationToken);
+    Task<Result> RevokeAccessRightsAsync(string authToken, string pubkey, string accessRights, System.Threading.CancellationToken cancellationToken);
+    Task<StringResult> GetAccessRightsAsync(string authToken, string pubkey, System.Threading.CancellationToken cancellationToken);
+
     Task<StringArrayResult> AddressAutocompleteAsync(string authToken, string query, string country, CancellationToken cancellationToken);
     Task<GeolocationRetResult> AddressGeocodeAsync(string authToken, string address, string country, CancellationToken cancellationToken);
     Task<StringResult> LocationGeocodeAsync(string authToken, double lat, double lon, CancellationToken cancellationToken);
     Task<RouteRetResult> GetRouteAsync(string authToken, double fromLat, double fromLon, double toLat, double toLon, CancellationToken cancellationToken);
-    Task<StringResult> IssueNewAccessCodeAsync(string authToken, bool singleUse, long validTill, string memo, CancellationToken cancellationToken);
+    Task<StringResult> IssueNewAccessCodeAsync(string authToken, int length, bool singleUse, long validTill, string memo, CancellationToken cancellationToken);
     Task<BooleanResult> ValidateAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken);
     Task<Result> RevokeAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken);
+    Task<StringResult> GetMemoFromAccessCodeAsync(string authToken, string accessCodeId, System.Threading.CancellationToken cancellationToken);
 
     Task<Result> GiveUserPropertyAsync(string authToken, string pubkey, string name, string value, string secret, long validHours, CancellationToken cancellationToken);
     Task<Result> GiveUserFileAsync(string authToken, string pubkey, string name, long validHours, FileParameter value, FileParameter secret, CancellationToken cancellationToken);
@@ -27,7 +32,7 @@ public interface ISettlerAPI
     Task<Result> VerifyChannelAsync(string authToken, string pubkey, string name, string method, string value, CancellationToken cancellationToken);
     Task<Int32Result> SubmitChannelSecretAsync(string authToken, string pubkey, string name, string method, string value, string secret, CancellationToken cancellationToken);
     Task<BooleanResult> IsChannelVerifiedAsync(string authToken, string pubkey, string name, string value, CancellationToken cancellationToken);
-    Task<Result> RevokeuserpropertyAsync(string authToken, string pubkey, string name, CancellationToken cancellationToken);
+    Task<Result> RevokeUserPropertyAsync(string authToken, string pubkey, string name, CancellationToken cancellationToken);
     Task<StringResult> GenerateReplyPaymentPreimageAsync(string authToken, string gigId, string repliperPubKey, CancellationToken cancellationToken);
     Task<StringResult> GenerateRelatedPreimageAsync(string authToken, string paymentHash, CancellationToken cancellationToken);
     Task<BooleanResult> ValidateRelatedPaymentHashesAsync(string authToken, string paymentHash1, string paymentHash2, CancellationToken cancellationToken);
@@ -98,6 +103,21 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
         return await RetryPolicy.WithRetryPolicy(() => api.GetTokenAsync(pubkey, cancellationToken));
     }
 
+    public async Task<Result> GrantAccessRightsAsync(string authToken, string pubkey, string accessRights, System.Threading.CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.GrantAccessRightsAsync(authToken, pubkey, accessRights, cancellationToken));
+    }
+
+    public async Task<Result> RevokeAccessRightsAsync(string authToken, string pubkey, string accessRights, System.Threading.CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.RevokeAccessRightsAsync(authToken, pubkey, accessRights, cancellationToken));
+    }
+
+    public async Task<StringResult> GetAccessRightsAsync(string authToken, string pubkey, System.Threading.CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.GetAccessRightsAsync(authToken, pubkey, cancellationToken));
+    }
+
     public async Task<StringArrayResult> AddressAutocompleteAsync(string authToken, string query, string country, CancellationToken cancellationToken)
     {
         return await RetryPolicy.WithRetryPolicy(() => api.AddressAutocompleteAsync(authToken, query, country, cancellationToken));
@@ -143,9 +163,9 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
         return await RetryPolicy.WithRetryPolicy(() => api.IsChannelVerifiedAsync(authToken, pubkey, name, value, cancellationToken));
     }
 
-    public async Task<Result> RevokeuserpropertyAsync(string authToken, string pubkey, string name, CancellationToken cancellationToken)
+    public async Task<Result> RevokeUserPropertyAsync(string authToken, string pubkey, string name, CancellationToken cancellationToken)
     {
-        return await RetryPolicy.WithRetryPolicy(() => api.RevokeuserpropertyAsync(authToken, pubkey, name, cancellationToken));
+        return await RetryPolicy.WithRetryPolicy(() => api.RevokeUserPropertyAsync(authToken, pubkey, name, cancellationToken));
     }
 
     public async Task<StringResult> GenerateReplyPaymentPreimageAsync(string authToken, string gigId, string repliperPubKey, CancellationToken cancellationToken)
@@ -203,9 +223,9 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
         return await RetryPolicy.WithRetryPolicy(() => api.GetRouteAsync(authToken, fromLat, fromLon, toLat, toLon, cancellationToken));
     }
 
-    public async Task<StringResult> IssueNewAccessCodeAsync(string authToken, bool singleUse, long validTill, string memo, CancellationToken cancellationToken)
+    public async Task<StringResult> IssueNewAccessCodeAsync(string authToken, int length, bool singleUse, long validTill, string memo, CancellationToken cancellationToken)
     {
-        return await RetryPolicy.WithRetryPolicy(() => api.IssueNewAccessCodeAsync(authToken, singleUse, validTill, memo, cancellationToken));
+        return await RetryPolicy.WithRetryPolicy(() => api.IssueNewAccessCodeAsync(authToken, length, singleUse, validTill, memo, cancellationToken));
     }
 
     public async Task<BooleanResult> ValidateAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
@@ -216,5 +236,10 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
     public async Task<Result> RevokeAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
     {
         return await RetryPolicy.WithRetryPolicy(() => api.RevokeAccessCodeAsync(authToken, accessCodeId, cancellationToken));
+    }
+
+    public async Task<StringResult> GetMemoFromAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.GetMemoFromAccessCodeAsync(authToken, accessCodeId, cancellationToken));
     }
 }

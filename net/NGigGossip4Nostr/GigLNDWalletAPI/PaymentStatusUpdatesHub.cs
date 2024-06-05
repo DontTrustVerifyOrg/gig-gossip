@@ -10,10 +10,11 @@ namespace GigLNDWalletAPI;
 
 public class PaymentStatusUpdatesHub : Hub
 {
+    public static AccessRights AccessRights;
     public override async Task OnConnectedAsync()
     {
         var authToken = Context?.GetHttpContext()?.Request.Query["authtoken"].First();
-        var account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
+        var account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken,AccessRights);
         Context.Items["publicKey"] = account.PublicKey;
         Singlethon.PaymentAsyncComQueue4ConnectionId.TryAdd(Context.ConnectionId, new AsyncComQueue<PaymentStatusChangedEventArgs>());
         await base.OnConnectedAsync();

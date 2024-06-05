@@ -72,7 +72,10 @@ public class MediumTest
             gigWorkerSettings.ConnectionString,
             gigWorkerSettings.PrivateKey.AsECPrivKey(),
             gigWorkerSettings.ChunkSize,
-            new DefaultRetryPolicy()
+            new DefaultRetryPolicy(),
+            () => new HttpClient(),
+            true,
+            gigWorkerSettings.LoggerOpenApi
             );
 
         SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
@@ -88,7 +91,10 @@ public class MediumTest
                 gossiperSettings.ConnectionString,
                 Crypto.GeneratECPrivKey(),
                 gossiperSettings.ChunkSize,
-            new DefaultRetryPolicy()
+                new DefaultRetryPolicy(),
+                () => new HttpClient(),
+                true,
+                gossiperSettings.LoggerOpenApi
                 );
             gossipers.Add(gossiper);
         }
@@ -97,7 +103,10 @@ public class MediumTest
             customerSettings.ConnectionString,
             customerSettings.PrivateKey.AsECPrivKey(),
             customerSettings.ChunkSize,
-            new DefaultRetryPolicy()
+            new DefaultRetryPolicy(),
+            () => new HttpClient(),
+            true,
+            customerSettings.LoggerOpenApi
             );
 
 
@@ -108,16 +117,13 @@ public class MediumTest
          ));
 
         await gigWorker.StartAsync(
-            true,
             gigWorkerSettings.Fanout,
             gigWorkerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(gigWorkerSettings.InvoicePaymentTimeoutSec),
             gigWorkerSettings.GetNostrRelays(),
             new GigWorkerGossipNodeEvents {  SettlerUri =gigWorkerSettings.SettlerOpenApi, FeeLimit = gigWorkerSettings.FeeLimit },
-            ()=>new HttpClient(),
             gigWorkerSettings.GigWalletOpenApi,
-            gigWorkerSettings.LoggerOpenApi,
             gigWorkerSettings.SettlerOpenApi
             );
         gigWorker.ClearContacts();
@@ -125,31 +131,25 @@ public class MediumTest
         foreach(var node in gossipers)
         {
             await node.StartAsync(
-                true,
                 gossiperSettings.Fanout,
                 gossiperSettings.PriceAmountForRouting,
                 TimeSpan.FromMilliseconds(gossiperSettings.TimestampToleranceMs),
                 TimeSpan.FromSeconds(gossiperSettings.InvoicePaymentTimeoutSec),
                 gossiperSettings.GetNostrRelays(),
                 new NetworkEarnerNodeEvents { FeeLimit = gossiperSettings.FeeLimit },
-                () => new HttpClient(),
                 gossiperSettings.GigWalletOpenApi,
-                gossiperSettings.LoggerOpenApi,
                 gossiperSettings.SettlerOpenApi);
             node.ClearContacts();
         }
 
         await customer.StartAsync(
-            true,
             customerSettings.Fanout,
             customerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(customerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(customerSettings.InvoicePaymentTimeoutSec),
             customerSettings.GetNostrRelays(),
             new CustomerGossipNodeEvents { Test = this, FeeLimit = customerSettings.FeeLimit },
-            () => new HttpClient(),
             customerSettings.GigWalletOpenApi,
-            customerSettings.LoggerOpenApi,
             customerSettings.SettlerOpenApi);
         customer.ClearContacts();
 

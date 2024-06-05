@@ -17,7 +17,7 @@ public class AccessCode
     /// The unique identifier of the access code.
     /// </summary>
     [Key]
-    public required Guid AccessCodeId { get; set; }
+    public required string Code { get; set; }
 
     /// <summary>
     /// Indicates whether the access code is single use.

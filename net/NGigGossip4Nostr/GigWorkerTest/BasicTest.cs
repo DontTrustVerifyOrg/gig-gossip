@@ -71,7 +71,10 @@ public class BasicTest
             gigWorkerSettings.ConnectionString,
             gigWorkerSettings.PrivateKey.AsECPrivKey(),
             gigWorkerSettings.ChunkSize,
-            new DefaultRetryPolicy()
+            new DefaultRetryPolicy(),
+            () => new HttpClient(),
+            true,
+            gigWorkerSettings.LoggerOpenApi
             );
 
         SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
@@ -84,7 +87,10 @@ public class BasicTest
             customerSettings.ConnectionString,
             customerSettings.PrivateKey.AsECPrivKey(),
             customerSettings.ChunkSize,
-            new DefaultRetryPolicy()
+            new DefaultRetryPolicy(),
+            () => new HttpClient(),
+            true,
+            customerSettings.LoggerOpenApi
             );
 
         SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
@@ -94,29 +100,23 @@ public class BasicTest
          ));
 
         await gigWorker.StartAsync(
-            true,
             gigWorkerSettings.Fanout,
             gigWorkerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(gigWorkerSettings.InvoicePaymentTimeoutSec),
             gigWorkerSettings.GetNostrRelays(),
             new GigWorkerGossipNodeEvents { SettlerUri = gigWorkerSettings.SettlerOpenApi, FeeLimit = gigWorkerSettings.FeeLimit },
-            ()=> new HttpClient(),
             gigWorkerSettings.GigWalletOpenApi,
-            gigWorkerSettings.LoggerOpenApi,
             gigWorkerSettings.SettlerOpenApi);
 
         await customer.StartAsync(
-            true,
             customerSettings.Fanout,
             customerSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(customerSettings.TimestampToleranceMs),
             TimeSpan.FromSeconds(customerSettings.InvoicePaymentTimeoutSec),
             customerSettings.GetNostrRelays(),
             new CustomerGossipNodeEvents { FeeLimit = customerSettings.FeeLimit},
-            () => new HttpClient(),
             customerSettings.GigWalletOpenApi,
-            customerSettings.LoggerOpenApi,
             customerSettings.SettlerOpenApi);
 
         var ballanceOfCustomer = WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken(), CancellationToken.None));
