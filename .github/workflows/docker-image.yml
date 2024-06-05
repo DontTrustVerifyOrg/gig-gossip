@@ -19,15 +19,15 @@ jobs:
       - # checkout to the repository on the build machine
         name: Checkout
         uses: actions/checkout@v3
-
+    
     # Install the .NET SDK indicated in the global.json file
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
-
+    
     # Create the NuGet package in the folder from the environment variable NuGetDirectory
     - run: cd ${GITHUB_WORKSPACE}/net/NGigGossip4Nostr/CryptoToolkit
     - run: dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
-
+    
     - name: Publish NuGet package
       run: |
         foreach($file in (Get-ChildItem "${{ env.NuGetDirectory }}" -Recurse -Include *.nupkg)) {
