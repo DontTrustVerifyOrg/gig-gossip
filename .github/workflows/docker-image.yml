@@ -49,7 +49,7 @@ jobs:
   #           sleep 60
   #           docker restart swag
 
-  build-nuget-packages:
+  buildnugetpackages:
     runs-on: ubuntu-latest
     steps:
       - # checkout to the repository on the build machine
