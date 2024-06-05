@@ -26,8 +26,7 @@ jobs:
         uses: actions/setup-dotnet@v4
 
       # Create the NuGet package in the folder from the environment variable NuGetDirectory
-      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/CryptoToolkit
-      - run: dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
+      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/CryptoToolkit && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
 
       - name: Publish NuGet package
         run: |
