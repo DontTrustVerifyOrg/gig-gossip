@@ -4,6 +4,14 @@ on:
   push:
     branches: [ "main" ]
 
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  NuGetDirectory: ${{ github.workspace }}/nuget
+
+defaults:
+  run:
+    shell: pwsh
+
 jobs:
   # build-backend-image:
   #   runs-on: ubuntu-latest
