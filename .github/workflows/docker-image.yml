@@ -7,6 +7,7 @@ on:
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
   NuGetDirectory: ${{ github.workspace }}/nuget
+  RepoDirectory: ${{ GITHUB_WORKSPACE }}
 
 defaults:
   run:
@@ -25,7 +26,7 @@ jobs:
         uses: actions/setup-dotnet@v4
 
       # Create the NuGet package in the folder from the environment variable NuGetDirectory
-      - run: cd ${{ env.GITHUB_WORKSPACE }}/net/NGigGossip4Nostr/CryptoToolkit
+      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/CryptoToolkit
       - run: dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
 
       - name: Publish NuGet package
