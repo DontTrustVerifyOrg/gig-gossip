@@ -7,7 +7,7 @@ on:
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
   NuGetDirectory: ${{ github.workspace }}/nuget
-  RepoDirectory: ${{ GITHUB_WORKSPACE }}
+  RepoDirectory: ${{ github.workspace }}
 
 defaults:
   run:
