@@ -4,8 +4,45 @@ on:
   push:
     branches: [ "main" ]
 
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  NuGetDirectory: ${{ github.workspace }}/nuget
+  RepoDirectory: ${{ github.workspace }}
+
+defaults:
+  run:
+    shell: pwsh
+
 jobs:
-  build:
+  build-nuget-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - # checkout to the repository on the build machine
+        name: Checkout
+        uses: actions/checkout@v3
+
+      # Install the .NET SDK indicated in the global.json file
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+
+      # Create the NuGet package in the folder from the environment variable NuGetDirectory
+      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/CryptoToolkit && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
+      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/NGigGossip4Nostr && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
+      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/GigDebugLoggerAPIClient && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
+      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/GigGossipSettlerAPIClient && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
+      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/GigLNDWalletAPIClient && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
+      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/NetworkClientToolkit && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
+      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/RideShareFrames && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
+      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/GigGossipFrames && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
+
+      - name: Publish NuGet package
+        run: |
+          foreach($file in (Get-ChildItem "${{ env.NuGetDirectory }}" -Recurse -Include *.nupkg)) {
+              dotnet nuget push $file --api-key "${{ secrets.NUGET_APIKEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+          }
+
+
+  build-backend-image:
     runs-on: ubuntu-latest
     steps:
       - # checkout to the repository on the build machine
@@ -48,5 +85,3 @@ jobs:
             docker exec -it giggossip_bitcoin /work/bitcoin/src/bitcoin-cli -datadir=/work/locallnd/.bitcoin -generate 6
             sleep 60
             docker restart swag
-
-
