@@ -106,14 +106,23 @@ public class SettlerMonitor
 
             foreach (var kv in pToMon)
             {
-                var serviceUri = kv.ServiceUri;
-                var phash = kv.PaymentHash;
-                var preimage = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash, CancellationTokenSource.Token));
-                if (!string.IsNullOrWhiteSpace(preimage))
+                try
+                { 
+                    var serviceUri = kv.ServiceUri;
+                    var phash = kv.PaymentHash;
+                    var preimage = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash, CancellationTokenSource.Token));
+                    if (!string.IsNullOrWhiteSpace(preimage))
+                    {
+                        await gigGossipNode.OnPreimageRevealedAsync(serviceUri, phash, preimage, CancellationTokenSource.Token);
+                        kv.Preimage = preimage;
+                        gigGossipNode.nodeContext.Value.SaveObject(kv);
+                    }
+                    else
+                        await AttachMonitorPreimageAsync(serviceUri);
+                }
+                catch (Exception ex)
                 {
-                    await gigGossipNode.OnPreimageRevealedAsync(serviceUri, phash, preimage, CancellationTokenSource.Token);
-                    kv.Preimage = preimage;
-                    gigGossipNode.nodeContext.Value.SaveObject(kv);
+                    Console.WriteLine(ex.Message);
                 }
             }
         }
@@ -125,27 +134,36 @@ public class SettlerMonitor
 
             foreach (var kv in kToMon)
             {
-                var serviceUri = kv.ServiceUri;
-                var signedReqestPayloadId = kv.SignedRequestPayloadId;
-                var stat = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedReqestPayloadId.ToString(), kv.ReplierCertificateId.ToString(), CancellationTokenSource.Token));
-                if (!string.IsNullOrWhiteSpace(stat))
+                try
                 {
-                    var prts = stat.Split('|');
-                    var status = prts[0];
-                    var key = prts[1];
-                    if (status == "Accepted")
+                    var serviceUri = kv.ServiceUri;
+                    var signedReqestPayloadId = kv.SignedRequestPayloadId;
+                    var stat = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedReqestPayloadId.ToString(), kv.ReplierCertificateId.ToString(), CancellationTokenSource.Token));
+                    if (!string.IsNullOrWhiteSpace(stat))
                     {
-                        gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
-                        kv.SymmetricKey = key;
-                        kv.Status = status;
-                        gigGossipNode.nodeContext.Value.SaveObject(kv);
+                        var prts = stat.Split('|');
+                        var status = prts[0];
+                        var key = prts[1];
+                        if (status == "Accepted")
+                        {
+                            gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
+                            kv.SymmetricKey = key;
+                            kv.Status = status;
+                            gigGossipNode.nodeContext.Value.SaveObject(kv);
+                        }
+                        else if (status == "Cancelled")
+                        {
+                            gigGossipNode.OnGigCancelled(kv.Data);
+                            kv.Status = status;
+                            gigGossipNode.nodeContext.Value.SaveObject(kv);
+                        }
+                        else
+                            await AttachMonitorGigStatusAsync(serviceUri);
                     }
-                    else if (status == "Cancelled")
-                    {
-                        gigGossipNode.OnGigCancelled(kv.Data);
-                        kv.Status = status;
-                        gigGossipNode.nodeContext.Value.SaveObject(kv);
-                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
                 }
             }
         }

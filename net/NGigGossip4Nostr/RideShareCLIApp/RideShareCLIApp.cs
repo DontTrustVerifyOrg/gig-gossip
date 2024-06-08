@@ -10,6 +10,7 @@ using System.Numerics;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
+using System.Timers;
 using CryptoToolkit;
 using GigGossipFrames;
 using GigGossipSettlerAPIClient;
@@ -29,6 +30,7 @@ using RideShareFrames;
 using Sharprompt;
 using Spectre;
 using Spectre.Console;
+using SQLitePCL;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using static NBitcoin.Scripting.OutputDescriptor;
 
@@ -74,6 +76,7 @@ public partial class RideShareCLIApp
 
     bool inDriverMode = false;
     DirectCom directCom;
+    System.Timers.Timer directTimer;
     Dictionary<Guid, string> directPubkeys = new();
 
     CancellationTokenSource CancellationTokenSource = new();
@@ -237,7 +240,10 @@ public partial class RideShareCLIApp
         directCom = new DirectCom(gigGossipNode);
         directCom.RegisterFrameType<AckFrame>();
         directCom.RegisterFrameType<LocationFrame>();
+        directCom.RegisterFrameType<PingPongFrame>();
         directCom.OnDirectMessage += DirectCom_OnDirectMessage;
+        directTimer = new System.Timers.Timer(1000);
+        directTimer.Elapsed += DirectTimer_Elapsed;
 
         var phoneNumber = await GetPhoneNumberAsync();
         if (phoneNumber == null || !(await IsPhoneNumberValidated(phoneNumber)))
@@ -518,6 +524,7 @@ public partial class RideShareCLIApp
 
     async Task StopAsync()
     {
+        directTimer.Stop();
         await directCom.StopAsync();
         await gigGossipNode.StopAsync();
     }
@@ -544,6 +551,44 @@ public partial class RideShareCLIApp
             AnsiConsole.WriteLine("contact :" + contact);
     }
 
+    private async void DirectTimer_Elapsed(object? sender, ElapsedEventArgs e)
+    {
+        string pubkey = null;
+        Guid requestPayloadId = Guid.Empty;
+        DateTime lastSeen = DateTime.MinValue;
+        if(inDriverMode)
+        {
+            if(ActiveSignedRequestPayloadId != Guid.Empty)
+                if(directPubkeys.ContainsKey(ActiveSignedRequestPayloadId))
+                {
+                    pubkey = directPubkeys[ActiveSignedRequestPayloadId];
+                    requestPayloadId=ActiveSignedRequestPayloadId;
+                    lastSeen = lastRiderSeenAt;
+                }
+        }
+        else
+        {
+            if(requestedRide != null)
+                if(directPubkeys.ContainsKey(requestedRide.SignedRequestPayload.Id))
+                {
+                    pubkey = directPubkeys[requestedRide.SignedRequestPayload.Id];
+                    requestPayloadId=requestedRide.SignedRequestPayload.Id;
+                    lastSeen = lastDriverSeenAt;
+                }
+        }
+
+        if(pubkey!=null)
+        {
+            AnsiConsole.MarkupLine($"{pubkey} last seen {(DateTime.UtcNow- lastSeen).Seconds} seconds ago");
+
+            await directCom.SendMessageAsync(pubkey, 
+                new PingPongFrame
+                {
+                    SignedRequestPayloadId = requestPayloadId,
+                }, true);
+        }
+    }
+
     private async void DirectCom_OnDirectMessage(object? sender, DirectMessageEventArgs e)
     {
         if (e.Frame is LocationFrame locationFrame)
@@ -566,6 +611,23 @@ public partial class RideShareCLIApp
         else if (e.Frame is AckFrame ackframe)
         {
             await OnAckFrame(e.SenderPublicKey, ackframe);
+        }
+        else if(e.Frame is PingPongFrame pingPongFrame)
+        {
+            if (e.IsNew)
+            {
+                if (directPubkeys.ContainsKey(pingPongFrame.SignedRequestPayloadId))
+                {
+                    var pubkey = directPubkeys[pingPongFrame.SignedRequestPayloadId];
+                    if (pubkey == e.SenderPublicKey)
+                    {
+                        if (inDriverMode)
+                            await OnRiderPingPong(e.SenderPublicKey, pingPongFrame);
+                        else
+                            await OnDriverPingPong(e.SenderPublicKey, pingPongFrame);
+                    }
+                }
+            }
         }
     }
 

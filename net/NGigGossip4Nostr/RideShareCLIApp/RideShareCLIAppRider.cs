@@ -117,6 +117,7 @@ public partial class RideShareCLIApp
         {
             await e.GigGossipNode.CancelBroadcastAsync(requestedRide.SignedCancelRequestPayload);
             await directCom.StartAsync(e.Reply.Relays);
+            directTimer.Start();
             directPubkeys[e.RequestPayloadId] = e.Reply.PublicKey;
             new Thread(async () => await RiderJourneyAsync(e.RequestPayloadId, e.Reply.Secret)).Start();
         }
@@ -194,9 +195,12 @@ public partial class RideShareCLIApp
         }
         AnsiConsole.MarkupLine("I have reached the [orange1]destination[/]");
         requestedRide = null;
+        directTimer.Stop();
+        await directCom.StopAsync();
     }
 
     GeoLocation lastDriverLocation;
+    DateTime lastDriverSeenAt = DateTime.MinValue;
 
     private async Task OnDriverLocation(string senderPublicKey, LocationFrame locationFrame)
     {
@@ -213,6 +217,23 @@ public partial class RideShareCLIApp
             if (locationFrame.RideStatus >= RideState.RiderDroppedOff)
                 riderDroppedOff = true;
             lastDriverLocation = locationFrame.Location;
+            lastDriverSeenAt = DateTime.UtcNow;
+        }
+        else
+            AnsiConsole.WriteLine("SignedRequestPayloadId mismatch");
+    }
+
+    private async Task OnDriverPingPong(string senderPublicKey, PingPongFrame pingPongFrame)
+    {
+        if (requestedRide == null)
+        {
+            AnsiConsole.WriteLine("requestedRide is empty");
+            return;
+        }
+        if (pingPongFrame.SignedRequestPayloadId == requestedRide.SignedRequestPayload.Id)
+        {
+            AnsiConsole.WriteLine("driver pingpong:" + senderPublicKey);
+            lastDriverSeenAt = DateTime.UtcNow;
         }
         else
             AnsiConsole.WriteLine("SignedRequestPayloadId mismatch");

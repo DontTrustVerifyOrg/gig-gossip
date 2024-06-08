@@ -155,6 +155,7 @@ public partial class RideShareCLIApp
                     }
                 }
                 await directCom.StartAsync(e.GigGossipNode.NostrRelays);
+                directTimer.Start();
             }
         }
     }
@@ -268,6 +269,8 @@ public partial class RideShareCLIApp
         }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
         AnsiConsole.MarkupLine("Good [orange1]bye[/]");
         ActiveSignedRequestPayloadId = Guid.Empty;
+        directTimer.Stop();
+        await directCom.StopAsync();
         inDriverMode = false;
     }
 
@@ -290,6 +293,8 @@ public partial class RideShareCLIApp
         }
     }
 
+    DateTime lastRiderSeenAt = DateTime.MinValue;
+
     private async Task OnRiderLocation(string senderPublicKey, LocationFrame locationFrame)
     {
         if (ActiveSignedRequestPayloadId == Guid.Empty)
@@ -298,6 +303,18 @@ public partial class RideShareCLIApp
         {
             var pubkey = directPubkeys[locationFrame.SignedRequestPayloadId];
             AnsiConsole.WriteLine("rider location:" + senderPublicKey + "|" + locationFrame.RideStatus.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
+            lastRiderSeenAt = DateTime.UtcNow;
+        }
+    }
+
+    private async Task OnRiderPingPong(string senderPublicKey, PingPongFrame pingPongFrame)
+    {
+        if (ActiveSignedRequestPayloadId == Guid.Empty)
+            return;
+        if (pingPongFrame.SignedRequestPayloadId == ActiveSignedRequestPayloadId)
+        {
+            AnsiConsole.WriteLine("rider pingpong:" + senderPublicKey);
+            lastRiderSeenAt = DateTime.UtcNow;
         }
     }
 }

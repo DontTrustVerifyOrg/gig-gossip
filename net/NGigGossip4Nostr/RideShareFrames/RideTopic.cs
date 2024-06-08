@@ -55,3 +55,9 @@ public class LocationFrame
     public required string Message { get; set; }
     public required RideState RideStatus { get; set; }
 }
+
+[Serializable]
+public class PingPongFrame
+{
+    public required Guid SignedRequestPayloadId { get; set; }
+}

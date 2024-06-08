@@ -436,7 +436,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             {
                 SignedCancelRequestPayload = cancelRequestPayload
             };
-            await this.SendMessageAsync(peerPublicKey, cancelBroadcastFrame, true);
+            await this.SendMessageAsync(peerPublicKey, cancelBroadcastFrame, false, DateTime.UtcNow.AddMinutes(2));
         }
     }
 
@@ -898,16 +898,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     public override bool CommitMessage(string id)
     {
-        try
-        {
-            this.nodeContext.Value.AddObject(new MessageDoneRow() { MessageId = id, PublicKey = this.PublicKey });
-            return true;
-        }
-        catch(DbUpdateException)
-        {
-            //already in the database
-            return false;
-        }
+        return this.nodeContext.Value.TryAddObject(new MessageDoneRow() { MessageId = id, PublicKey = this.PublicKey });
     }
 
     public override void AbortMessage(string id)
