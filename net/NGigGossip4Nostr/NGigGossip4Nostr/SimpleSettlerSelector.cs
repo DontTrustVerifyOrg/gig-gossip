@@ -236,6 +236,41 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
         }
     }
 
+
+    public async Task<GigGossipSettlerAPIClient.StringResult> GetMyPropertyValueAsync(string authToken, string name, CancellationToken cancellationToken)
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__, authToken, name);
+            return await TraceOutAsync(g__, m__,
+                await api.GetMyPropertyValueAsync(authToken, name, cancellationToken)
+            );
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
+    public async Task<GigGossipSettlerAPIClient.StringResult> GetMyPropertySecretAsync(string authToken, string name, CancellationToken cancellationToken)
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__, authToken, name);
+            return await TraceOutAsync(g__, m__,
+                await api.GetMyPropertySecretAsync(authToken, name, cancellationToken)
+            );
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
     public async Task<GigGossipSettlerAPIClient.Result> VerifyChannelAsync(string authToken, string pubkey, string name, string method, string value, CancellationToken cancellationToken)
     {
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
@@ -601,6 +636,7 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
             throw;
         }
     }
+
 }
 
 internal class GigStatusClientWrapper : LogWrapper<IGigStatusClient>, IGigStatusClient

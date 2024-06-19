@@ -2,6 +2,7 @@
 using GoogleApi.Entities.Translate.Translate.Request.Enums;
 using Microsoft.AspNetCore.SignalR.Client;
 using NetworkClientToolkit;
+using Newtonsoft.Json.Linq;
 
 namespace GigGossipSettlerAPIClient;
 
@@ -29,6 +30,8 @@ public interface ISettlerAPI
     Task<Result> GiveUserPropertyAsync(string authToken, string pubkey, string name, string value, string secret, long validHours, CancellationToken cancellationToken);
     Task<Result> GiveUserFileAsync(string authToken, string pubkey, string name, long validHours, FileParameter value, FileParameter secret, CancellationToken cancellationToken);
     Task<Result> SaveUserTracePropertyAsync(string authToken, string pubkey, string name, string value, CancellationToken cancellationToken);
+    Task<StringResult> GetMyPropertyValueAsync(string authToken, string name, CancellationToken cancellationToken);
+    Task<StringResult> GetMyPropertySecretAsync(string authToken, string name, System.Threading.CancellationToken cancellationToken);
     Task<Result> VerifyChannelAsync(string authToken, string pubkey, string name, string method, string value, CancellationToken cancellationToken);
     Task<Int32Result> SubmitChannelSecretAsync(string authToken, string pubkey, string name, string method, string value, string secret, CancellationToken cancellationToken);
     Task<BooleanResult> IsChannelVerifiedAsync(string authToken, string pubkey, string name, string value, CancellationToken cancellationToken);
@@ -148,6 +151,16 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
         return await RetryPolicy.WithRetryPolicy(() => api.SaveUserTracePropertyAsync(authToken, pubkey, name, value, cancellationToken));
     }
 
+    public async Task<StringResult> GetMyPropertyValueAsync(string authToken, string name, CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.GetMyPropertyValueAsync(authToken, name, cancellationToken));
+    }
+
+    public async Task<StringResult> GetMyPropertySecretAsync(string authToken, string name, CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.GetMyPropertySecretAsync(authToken, name, cancellationToken));
+    }
+
     public async Task<Result> VerifyChannelAsync(string authToken, string pubkey, string name, string method, string value, CancellationToken cancellationToken)
     {
         return await RetryPolicy.WithRetryPolicy(() => api.VerifyChannelAsync(authToken, pubkey, name, method, value, cancellationToken));
@@ -242,4 +255,6 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
     {
         return await RetryPolicy.WithRetryPolicy(() => api.GetMemoFromAccessCodeAsync(authToken, accessCodeId, cancellationToken));
     }
+
+
 }
