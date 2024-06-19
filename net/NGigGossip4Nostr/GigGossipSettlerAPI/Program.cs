@@ -545,7 +545,55 @@ app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, s
     return g;
 });
 
+app.MapGet("/getmypropertyvalue", (string authToken, string name) =>
+{
+    try
+    {
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Anonymous);
+        var prop = Singlethon.Settler.GetUserProperty(pubkey, name);
 
+        return new Result<string>(Convert.ToBase64String(prop.Value));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
+    }
+})
+.WithName("GetMyPropertyValue")
+.WithSummary("Gets My Property Value")
+.WithDescription("Gets a property given to the subject. Only subject can read it.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Name of the property.";
+    return g;
+});
+
+app.MapGet("/getmypropertysecret", (string authToken, string name) =>
+{
+    try
+    {
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Anonymous);
+        var prop = Singlethon.Settler.GetUserProperty(pubkey, name);
+
+        return new Result<string>(Convert.ToBase64String(prop.Secret));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
+    }
+})
+.WithName("GetMyPropertySecret")
+.WithSummary("Gets My Property Secret")
+.WithDescription("Gets a property secret given to the subject. Only subject can read it property.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Name of the property.";
+    return g;
+});
 
 app.MapPost("/giveuserfile/{authToken}/{pubkey}/{name}/{validHours}", async (HttpRequest request, string authToken, string pubkey, string name, long validHours, [FromForm] IFormFile value, [FromForm] IFormFile secret)
     =>

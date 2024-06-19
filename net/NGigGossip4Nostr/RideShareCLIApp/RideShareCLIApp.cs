@@ -78,6 +78,7 @@ public partial class RideShareCLIApp
     DirectCom directCom;
     System.Timers.Timer directTimer;
     Dictionary<Guid, string> directPubkeys = new();
+    string privkeypassed;
 
     CancellationTokenSource CancellationTokenSource = new();
 
@@ -98,7 +99,7 @@ public partial class RideShareCLIApp
         return builder.Build();
     }
 
-    public RideShareCLIApp(string[] args, string id, string baseDir, string sfx)
+    public RideShareCLIApp(string[] args, string id, string baseDir, string sfx, string privkey)
     {
         if (id == null)
             id = AnsiConsole.Prompt(new TextPrompt<string>("Enter this node [orange1]Id[/]?"));
@@ -108,6 +109,10 @@ public partial class RideShareCLIApp
 
         sfx = (string.IsNullOrWhiteSpace(sfx)) ? "" : "_" + sfx;
 
+        if (string.IsNullOrWhiteSpace(privkey))
+            privkeypassed = AnsiConsole.Prompt(new TextPrompt<string>("Enter the [orange1]private key[/]?").AllowEmpty());
+        else
+            privkeypassed = privkey;
 
         IConfigurationRoot config = GetConfigurationRoot(baseDir, args, ".giggossip", "ridesharecli" + sfx + ".conf");
 
@@ -131,11 +136,12 @@ public partial class RideShareCLIApp
         gigGossipNodeEventSource.OnInvoiceSettled += GigGossipNodeEventSource_OnInvoiceSettled;
         gigGossipNodeEventSource.OnNewContact += GigGossipNodeEventSource_OnNewContact;
         gigGossipNodeEventSource.OnServerConnectionState += GigGossipNodeEventSource_OnServerConnectionState;
+
     }
 
     private void GigGossipNodeEventSource_OnServerConnectionState(object? sender, ServerConnectionSourceStateEventArgs e)
     {
-        AnsiConsole.WriteLine("ServerConnectionState "+ e.Source.ToString() +" "+ e.State.ToString() +" "+ e.Uri?.AbsoluteUri);
+        AnsiConsole.WriteLine("ServerConnectionState " + e.Source.ToString() + " " + e.State.ToString() + " " + e.Uri?.AbsoluteUri);
     }
 
     private async void GigGossipNodeEventSource_OnInvoiceSettled(object? sender, InvoiceSettledEventArgs e)
@@ -146,7 +152,7 @@ public partial class RideShareCLIApp
 
     private async void GigGossipNodeEventSource_OnPaymentStatusChange(object? sender, PaymentStatusChangeEventArgs e)
     {
-        AnsiConsole.WriteLine("Payment "+e.Status);
+        AnsiConsole.WriteLine("Payment " + e.Status);
         await WriteBalance();
     }
 
@@ -209,20 +215,31 @@ public partial class RideShareCLIApp
 
     public async Task RunAsync()
     {
-
-        var privateKey = await GetPrivateKeyAsync();
-        if (privateKey == null)
+        ECPrivKey privateKey;
+        if (string.IsNullOrWhiteSpace(privkeypassed))
         {
-            var mnemonic = Crypto.GenerateMnemonic().Split(" ");
-            AnsiConsole.WriteLine($"Initializing private key for {settings.Id}");
-            AnsiConsole.WriteLine(string.Join(" ", mnemonic));
-            privateKey = Crypto.DeriveECPrivKeyFromMnemonic(string.Join(" ", mnemonic));
-            await SetPrivateKeyAsync(privateKey);
+            privateKey = await GetPrivateKeyAsync();
+            if (privateKey == null)
+            {
+                var mnemonic = Crypto.GenerateMnemonic().Split(" ");
+                AnsiConsole.WriteLine($"Initializing private key for {settings.Id}");
+                AnsiConsole.WriteLine(string.Join(" ", mnemonic));
+                privateKey = Crypto.DeriveECPrivKeyFromMnemonic(string.Join(" ", mnemonic));
+            }
         }
         else
         {
-            AnsiConsole.WriteLine($"Loading private key for {settings.Id}");
+            privateKey = await GetPrivateKeyAsync();
+            if (privateKey != null && privkeypassed != privateKey.AsHex())
+            {
+                if (Prompt.Confirm("Private key already set to different value. Overwrite?"))
+                    privateKey = privkeypassed.AsECPrivKey();
+            }
+            else
+                privateKey = privkeypassed.AsECPrivKey();
         }
+        AnsiConsole.WriteLine($"Loading private key for {settings.Id}");
+        await SetPrivateKeyAsync(privateKey);
 
         gigGossipNode = new GigGossipNode(
             settings.NodeSettings.ConnectionString.Replace("$ID", settings.Id),
@@ -246,24 +263,27 @@ public partial class RideShareCLIApp
         directTimer.Elapsed += DirectTimer_Elapsed;
 
         var phoneNumber = await GetPhoneNumberAsync();
-        if (phoneNumber == null || !(await IsPhoneNumberValidated(phoneNumber)))
+        if (phoneNumber == null)
         {
             phoneNumber = Prompt.Input<string>("Phone number");
-            await ValidatePhoneNumber(phoneNumber);
-            while (true)
+            if (!await IsPhoneNumberValidated(phoneNumber))
             {
-                var secret = Prompt.Input<string>("Enter code");
-                var retries = await SubmitPhoneNumberSecret(phoneNumber, secret);
-                if (retries == -1)
-                    break;
-                else if (retries == 0)
-                    throw new Exception("Invalid code");
-                else
-                    AnsiConsole.WriteLine($"Wrong code retries left {retries}");
+
+                await ValidatePhoneNumber(phoneNumber);
+                while (true)
+                {
+                    var secret = Prompt.Input<string>("Enter code");
+                    var retries = await SubmitPhoneNumberSecret(phoneNumber, secret);
+                    if (retries == -1)
+                        break;
+                    else if (retries == 0)
+                        throw new Exception("Invalid code");
+                    else
+                        AnsiConsole.WriteLine($"Wrong code retries left {retries}");
+                }
             }
             await SetPhoneNumberAsync(phoneNumber);
         }
-
         await StartAsync();
 
         while (true)
@@ -490,7 +510,7 @@ public partial class RideShareCLIApp
 
     private async Task<GeoLocation> GetAddressGeocodeAsync(string query)
     {
-        var r= SettlerAPIResult.Get<GeolocationRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+        var r = SettlerAPIResult.Get<GeolocationRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
             .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au", CancellationTokenSource.Token));
         return new GeoLocation(r.Lat, r.Lon);
     }
@@ -536,9 +556,9 @@ public partial class RideShareCLIApp
             settings.NodeSettings.Fanout,
             settings.NodeSettings.PriceAmountForRouting,
             TimeSpan.FromMilliseconds(settings.NodeSettings.TimestampToleranceMs),
-            TimeSpan.FromSeconds(settings.NodeSettings.InvoicePaymentTimeoutSec), 
-            settings.NodeSettings.GetNostrRelays(), 
-            ((GigGossipNodeEventSource) gigGossipNodeEventSource).GigGossipNodeEvents,
+            TimeSpan.FromSeconds(settings.NodeSettings.InvoicePaymentTimeoutSec),
+            settings.NodeSettings.GetNostrRelays(),
+            ((GigGossipNodeEventSource)gigGossipNodeEventSource).GigGossipNodeEvents,
             settings.NodeSettings.GigWalletOpenApi,
             settings.NodeSettings.SettlerOpenApi);
 
@@ -556,32 +576,32 @@ public partial class RideShareCLIApp
         string pubkey = null;
         Guid requestPayloadId = Guid.Empty;
         DateTime lastSeen = DateTime.MinValue;
-        if(inDriverMode)
+        if (inDriverMode)
         {
-            if(ActiveSignedRequestPayloadId != Guid.Empty)
-                if(directPubkeys.ContainsKey(ActiveSignedRequestPayloadId))
+            if (ActiveSignedRequestPayloadId != Guid.Empty)
+                if (directPubkeys.ContainsKey(ActiveSignedRequestPayloadId))
                 {
                     pubkey = directPubkeys[ActiveSignedRequestPayloadId];
-                    requestPayloadId=ActiveSignedRequestPayloadId;
+                    requestPayloadId = ActiveSignedRequestPayloadId;
                     lastSeen = lastRiderSeenAt;
                 }
         }
         else
         {
-            if(requestedRide != null)
-                if(directPubkeys.ContainsKey(requestedRide.SignedRequestPayload.Id))
+            if (requestedRide != null)
+                if (directPubkeys.ContainsKey(requestedRide.SignedRequestPayload.Id))
                 {
                     pubkey = directPubkeys[requestedRide.SignedRequestPayload.Id];
-                    requestPayloadId=requestedRide.SignedRequestPayload.Id;
+                    requestPayloadId = requestedRide.SignedRequestPayload.Id;
                     lastSeen = lastDriverSeenAt;
                 }
         }
 
-        if(pubkey!=null)
+        if (pubkey != null)
         {
-            AnsiConsole.MarkupLine($"{pubkey} last seen {(DateTime.UtcNow- lastSeen).Seconds} seconds ago");
+            AnsiConsole.MarkupLine($"{pubkey} last seen {(DateTime.UtcNow - lastSeen).Seconds} seconds ago");
 
-            await directCom.SendMessageAsync(pubkey, 
+            await directCom.SendMessageAsync(pubkey,
                 new PingPongFrame
                 {
                     SignedRequestPayloadId = requestPayloadId,
@@ -612,7 +632,7 @@ public partial class RideShareCLIApp
         {
             await OnAckFrame(e.SenderPublicKey, ackframe);
         }
-        else if(e.Frame is PingPongFrame pingPongFrame)
+        else if (e.Frame is PingPongFrame pingPongFrame)
         {
             if (e.IsNew)
             {

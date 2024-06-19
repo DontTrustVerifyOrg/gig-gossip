@@ -20,6 +20,9 @@ class Program
 
         [Option('s', "sfx", Required = false, HelpText = "Configuration file suffix")]
         public string? Sfx { get; set; }
+
+        [Option('s', "privkey", Required=false, HelpText="Private Key")]
+        public string? PrivKey { get; set; }
     }
 
 
@@ -46,7 +49,7 @@ class Program
 
                     AnsiConsole.WriteLine();
 
-                    new RideShareCLIApp(args, options.Id, options.BaseDir, options.Sfx).RunAsync().Wait();
+                    new RideShareCLIApp(args, options.Id, options.BaseDir, options.Sfx, options.PrivKey).RunAsync().Wait();
                 }
                 catch (Exception ex)
                 {
