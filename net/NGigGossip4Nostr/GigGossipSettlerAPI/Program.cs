@@ -551,8 +551,10 @@ app.MapGet("/getmypropertyvalue", (string authToken, string name) =>
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Anonymous);
         var prop = Singlethon.Settler.GetUserProperty(pubkey, name);
-
-        return new Result<string>(Convert.ToBase64String(prop.Value));
+        if(prop!=null)
+            return new Result<string>(Convert.ToBase64String(prop.Value));
+        else
+            return new Result<string>((string)null);
     }
     catch (Exception ex)
     {
@@ -576,8 +578,10 @@ app.MapGet("/getmypropertysecret", (string authToken, string name) =>
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Anonymous);
         var prop = Singlethon.Settler.GetUserProperty(pubkey, name);
-
-        return new Result<string>(Convert.ToBase64String(prop.Secret));
+        if(prop!=null)
+            return new Result<string>(Convert.ToBase64String(prop.Secret));
+        else
+            return new Result<string>((string)null);
     }
     catch (Exception ex)
     {
