@@ -1,7 +1,7 @@
 FROM ubuntu:22.04
 
 RUN apt update
-RUN apt install -y build-essential libtool autotools-dev automake pkg-config bsdmainutils python3 libevent-dev libboost-dev libsqlite3-dev libminiupnpc-dev libnatpmp-dev libzmq3-dev systemtap-sdt-dev dotnet-sdk-7.0 nano wget git inetutils-ping
+RUN apt install -y build-essential libtool autotools-dev automake pkg-config bsdmainutils python3 libevent-dev libboost-dev libsqlite3-dev libminiupnpc-dev libnatpmp-dev libzmq3-dev systemtap-sdt-dev dotnet-sdk-8.0 nano wget git inetutils-ping
 
 # install go (in apt only 1.18 version is availabe, >1.19 is required)
 WORKDIR /root/tmp/
