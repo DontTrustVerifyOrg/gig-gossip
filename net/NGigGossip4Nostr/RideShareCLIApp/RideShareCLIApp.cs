@@ -255,9 +255,7 @@ public partial class RideShareCLIApp
         AnsiConsole.WriteLine("pubkey :" + gigGossipNode.PublicKey);
 
         directCom = new DirectCom(gigGossipNode);
-        directCom.RegisterFrameType<AckFrame>();
         directCom.RegisterFrameType<LocationFrame>();
-        directCom.RegisterFrameType<PingPongFrame>();
         directCom.OnDirectMessage += DirectCom_OnDirectMessage;
         directTimer = new System.Timers.Timer(1000);
         directTimer.Elapsed += DirectTimer_Elapsed;
@@ -363,7 +361,11 @@ public partial class RideShareCLIApp
                         {
                             if (me.GetCell(me.SelectedRowIdx, 0) != "sent")
                             {
-                                await AcceptRideAsync(me.SelectedRowIdx);
+                                var keys = new List<string>(MockData.FakeAddresses.Keys);
+                                var myAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+                                var myStartLocation = new GeoLocation(MockData.FakeAddresses[myAddress].Latitude, MockData.FakeAddresses[myAddress].Longitude);
+
+                                await AcceptRideAsync(me.SelectedRowIdx, myStartLocation,"Hello from Driver!");
                                 me.UpdateCell(me.SelectedRowIdx, 0, "sent");
                             }
                             else
@@ -571,6 +573,8 @@ public partial class RideShareCLIApp
             AnsiConsole.WriteLine("contact :" + contact);
     }
 
+    LocationFrame myLastLocationFrame = null;
+
     private async void DirectTimer_Elapsed(object? sender, ElapsedEventArgs e)
     {
         string pubkey = null;
@@ -599,13 +603,13 @@ public partial class RideShareCLIApp
 
         if (pubkey != null)
         {
-            AnsiConsole.MarkupLine($"{pubkey} last seen {(DateTime.UtcNow - lastSeen).Seconds} seconds ago");
+            if (myLastLocationFrame != null)
+            {
+                AnsiConsole.MarkupLine($"{pubkey} last seen {(DateTime.UtcNow - lastSeen).Seconds} seconds ago");
 
-            await directCom.SendMessageAsync(pubkey,
-                new PingPongFrame
-                {
-                    SignedRequestPayloadId = requestPayloadId,
-                }, true);
+                await directCom.SendMessageAsync(pubkey,
+                    myLastLocationFrame, true);
+            }
         }
     }
 
@@ -615,38 +619,10 @@ public partial class RideShareCLIApp
         {
             if (e.IsNew)
             {
-                if (directPubkeys.ContainsKey(locationFrame.SignedRequestPayloadId))
-                {
-                    var pubkey = directPubkeys[locationFrame.SignedRequestPayloadId];
-                    if (pubkey == e.SenderPublicKey)
-                    {
-                        if (inDriverMode)
-                            await OnRiderLocation(e.SenderPublicKey, locationFrame);
-                        else
-                            await OnDriverLocation(e.SenderPublicKey, locationFrame);
-                    }
-                }
-            }
-        }
-        else if (e.Frame is AckFrame ackframe)
-        {
-            await OnAckFrame(e.SenderPublicKey, ackframe);
-        }
-        else if (e.Frame is PingPongFrame pingPongFrame)
-        {
-            if (e.IsNew)
-            {
-                if (directPubkeys.ContainsKey(pingPongFrame.SignedRequestPayloadId))
-                {
-                    var pubkey = directPubkeys[pingPongFrame.SignedRequestPayloadId];
-                    if (pubkey == e.SenderPublicKey)
-                    {
-                        if (inDriverMode)
-                            await OnRiderPingPong(e.SenderPublicKey, pingPongFrame);
-                        else
-                            await OnDriverPingPong(e.SenderPublicKey, pingPongFrame);
-                    }
-                }
+                if (inDriverMode)
+                    await OnRiderLocation(e.SenderPublicKey, locationFrame);
+                else
+                    await OnDriverLocation(e.SenderPublicKey, locationFrame);
             }
         }
     }

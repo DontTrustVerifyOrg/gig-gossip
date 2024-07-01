@@ -49,18 +49,15 @@ public class HubMonitor : ServerListener
             {
                 await LoopAsync(async () =>
                 {
-                    if (OnServerConnectionState != null)
-                        OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs() { State = ServerConnectionState.Connecting, Uri = uri });
+                    OnServerConnectionState?.Invoke(this, new ServerConnectionStateEventArgs() { State = ServerConnectionState.Connecting, Uri = uri });
                     await connect();
-                    if (OnServerConnectionState != null)
-                        OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs() { State = ServerConnectionState.Open, Uri = uri });
+                    OnServerConnectionState?.Invoke(this, new ServerConnectionStateEventArgs() { State = ServerConnectionState.Open, Uri = uri });
                     NotifyClientIsConnected();
                     await func();
                 },
                 async (retryContext) =>
                 {
-                    if (OnServerConnectionState != null)
-                        OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs() { State = ServerConnectionState.Closed, Uri = uri });
+                    OnServerConnectionState?.Invoke(this, new ServerConnectionStateEventArgs() { State = ServerConnectionState.Closed, Uri = uri });
                 }, retryPolicy, cancellationToken
                 );
             });

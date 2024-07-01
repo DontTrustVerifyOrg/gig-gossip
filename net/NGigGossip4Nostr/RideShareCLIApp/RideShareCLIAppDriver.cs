@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using CryptoToolkit;
 using GigGossipSettlerAPIClient;
@@ -65,7 +66,7 @@ public partial class RideShareCLIApp
         }
     }
 
-    private async Task AcceptRideAsync(int idx)
+    private async Task AcceptRideAsync(int idx, GeoLocation myLocation, string message)
     {
         var id = Guid.Parse(receivedBroadcastsTable.GetCell(idx, 1));
 
@@ -84,7 +85,9 @@ public partial class RideShareCLIApp
             {
                 PublicKey = e.GigGossipNode.PublicKey,
                 Relays = e.GigGossipNode.NostrRelays,
-                Secret = secret
+                Secret = secret,
+                Location = myLocation,
+                Message = message,
             };
 
             var payReq = await e.GigGossipNode.AcceptBroadcastAsync(e.PeerPublicKey, e.BroadcastFrame,
@@ -191,20 +194,20 @@ public partial class RideShareCLIApp
         yield return (0, geometry.Last());
     }
 
-    private async Task DriverJourneyAsync(DetailedParameters detparams)
+    private async Task DriverJourneyAsync(LocationFrame locationFrame)
     {
         var keys = new List<string>(MockData.FakeAddresses.Keys);
         var myAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
         var myStartLocation = new GeoLocation(MockData.FakeAddresses[myAddress].Latitude, MockData.FakeAddresses[myAddress].Longitude);
 
-        var requestPayloadId = detparams.SignedRequestPayloadId;
+        var requestPayloadId = locationFrame.SignedRequestPayloadId;
         var pubkey = directPubkeys[requestPayloadId];
 
         {
             var route = SettlerAPIResult.Get<RouteRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
                 .GetRouteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi),
                 myStartLocation.Latitude, myStartLocation.Longitude,
-                detparams.FromLocation.Latitude, detparams.FromLocation.Longitude,
+                locationFrame.FromLocation.Latitude, locationFrame.FromLocation.Longitude,
                 CancellationTokenSource.Token));
 
             foreach (var (idx,location) in GeoSteps(route.Geometry,20))
@@ -216,7 +219,11 @@ public partial class RideShareCLIApp
                     Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
                     Message = "I am going",
                     RideStatus = RideState.Started,
-                    Direction = 0,
+                    FromAddress = locationFrame.FromAddress,
+                    ToAddress = locationFrame.ToAddress,
+                    FromLocation = locationFrame.FromLocation,
+                    ToLocation = locationFrame.ToLocation,
+                    Secret = locationFrame.Secret,
                 }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
                 Thread.Sleep(1000);
             }
@@ -228,10 +235,14 @@ public partial class RideShareCLIApp
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 SignedRequestPayloadId = requestPayloadId,
-                Location = detparams.FromLocation,
+                Location = locationFrame.FromLocation,
+                FromAddress = locationFrame.FromAddress,
+                ToAddress = locationFrame.ToAddress,
+                FromLocation = locationFrame.FromLocation,
+                ToLocation = locationFrame.ToLocation,
+                Secret = locationFrame.Secret,
                 Message = "I am waiting",
                 RideStatus = RideState.DriverWaitingForRider,
-                Direction = 0,
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
@@ -241,8 +252,8 @@ public partial class RideShareCLIApp
         {
             var route = SettlerAPIResult.Get<RouteRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
                 .GetRouteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi),
-                detparams.FromLocation.Latitude, detparams.FromLocation.Longitude,
-                detparams.ToLocation.Latitude, detparams.ToLocation.Longitude,
+                locationFrame.FromLocation.Latitude, locationFrame.FromLocation.Longitude,
+                locationFrame.ToLocation.Latitude, locationFrame.ToLocation.Longitude,
                 CancellationTokenSource.Token));
             foreach (var (idx, location) in GeoSteps(route.Geometry, 20))
             {
@@ -253,7 +264,11 @@ public partial class RideShareCLIApp
                     Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
                     Message = "We are driving",
                     RideStatus = RideState.RiderPickedUp,
-                    Direction = 0,
+                    FromAddress = locationFrame.FromAddress,
+                    ToAddress = locationFrame.ToAddress,
+                    FromLocation = locationFrame.FromLocation,
+                    ToLocation = locationFrame.ToLocation,
+                    Secret = locationFrame.Secret,
                 }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
                 Thread.Sleep(1000);
             }
@@ -262,10 +277,14 @@ public partial class RideShareCLIApp
         await directCom.SendMessageAsync(pubkey, new LocationFrame
         {
             SignedRequestPayloadId = requestPayloadId,
-            Location = detparams.ToLocation,
+            Location = locationFrame.ToLocation,
             Message = "Thank you",
             RideStatus = RideState.RiderDroppedOff,
-            Direction = 0,
+            FromAddress = locationFrame.FromAddress,
+            ToAddress = locationFrame.ToAddress,
+            FromLocation = locationFrame.FromLocation,
+            ToLocation = locationFrame.ToLocation,
+            Secret = locationFrame.Secret,
         }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
         AnsiConsole.MarkupLine("Good [orange1]bye[/]");
         ActiveSignedRequestPayloadId = Guid.Empty;
@@ -274,24 +293,6 @@ public partial class RideShareCLIApp
         inDriverMode = false;
     }
 
-    private async Task OnAckFrame(string senderPublicKey, AckFrame ackframe)
-    {
-        if (ActiveSignedRequestPayloadId == Guid.Empty)
-            return;
-        if (ackframe.Parameters.SignedRequestPayloadId == ActiveSignedRequestPayloadId)
-        {
-            if (directSecrets.ContainsKey(ackframe.Parameters.SignedRequestPayloadId))
-            {
-                if (directSecrets[ackframe.Parameters.SignedRequestPayloadId] == ackframe.Secret)
-                {
-                    directPubkeys[ackframe.Parameters.SignedRequestPayloadId] = senderPublicKey;
-                    AnsiConsole.WriteLine("rider ack:" + senderPublicKey);
-                    receivedBroadcastsTable.Exit();
-                    new Thread(async () => await DriverJourneyAsync(ackframe.Parameters)).Start();
-                }
-            }
-        }
-    }
 
     DateTime lastRiderSeenAt = DateTime.MinValue;
 
@@ -301,21 +302,28 @@ public partial class RideShareCLIApp
             return;
         if (locationFrame.SignedRequestPayloadId == ActiveSignedRequestPayloadId)
         {
-            var pubkey = directPubkeys[locationFrame.SignedRequestPayloadId];
-            AnsiConsole.WriteLine("rider location:" + senderPublicKey + "|" + locationFrame.RideStatus.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
-            lastRiderSeenAt = DateTime.UtcNow;
+            if (directSecrets.ContainsKey(locationFrame.SignedRequestPayloadId))
+            {
+                if (directSecrets[locationFrame.SignedRequestPayloadId] == locationFrame.Secret)
+                {
+                    if (!directPubkeys.ContainsKey(locationFrame.SignedRequestPayloadId))
+                    {
+                        directPubkeys[locationFrame.SignedRequestPayloadId] = senderPublicKey;
+                        AnsiConsole.WriteLine("rider ack:" + senderPublicKey);
+                        receivedBroadcastsTable.Exit();
+                        new Thread(async () => await DriverJourneyAsync(locationFrame)).Start();
+                    }
+                    else
+                    {
+                        var pubkey = directPubkeys[locationFrame.SignedRequestPayloadId];
+                        AnsiConsole.WriteLine("rider location:" + senderPublicKey + "|" + locationFrame.RideStatus.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
+                        lastRiderSeenAt = DateTime.UtcNow;
+                    }
+                }
+            }
         }
+
     }
 
-    private async Task OnRiderPingPong(string senderPublicKey, PingPongFrame pingPongFrame)
-    {
-        if (ActiveSignedRequestPayloadId == Guid.Empty)
-            return;
-        if (pingPongFrame.SignedRequestPayloadId == ActiveSignedRequestPayloadId)
-        {
-            AnsiConsole.WriteLine("rider pingpong:" + senderPublicKey);
-            lastRiderSeenAt = DateTime.UtcNow;
-        }
-    }
 }
 

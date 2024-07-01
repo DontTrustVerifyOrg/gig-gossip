@@ -159,11 +159,18 @@ public partial class RideShareCLIApp
         riderDroppedOff = false;
         var pubkey = directPubkeys[requestPayloadId];
         AnsiConsole.MarkupLine("I am [orange1]sending[/] my location to the driver");
-        await directCom.SendMessageAsync(pubkey, new AckFrame()
-        {
-            Secret = secret,
-            Parameters = new DetailedParameters { SignedRequestPayloadId = requestPayloadId, FromAddress = fromAddress, FromLocation = fromLocation, ToAddress = toAddress, ToLocation = toLocation }
-        }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
+        await directCom.SendMessageAsync(pubkey, new LocationFrame
+            {
+                Secret = secret,
+                SignedRequestPayloadId = requestPayloadId,
+                Location = fromLocation,
+                Message = "Hello From Rider!",
+                RideStatus = RideState.Started,
+                FromAddress = fromAddress,
+                FromLocation = fromLocation,
+                ToAddress = toAddress,
+                ToLocation = toLocation,
+            }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
 
         lastDriverLocation = fromLocation;
 
@@ -172,11 +179,15 @@ public partial class RideShareCLIApp
             AnsiConsole.MarkupLine("I am [orange1]waiting[/] for the driver");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
+                Secret = secret,
                 SignedRequestPayloadId = requestPayloadId,
                 Location = fromLocation,
                 Message = "I am waiting",
                 RideStatus = RideState.Started,
-                Direction = 0,
+                FromAddress = fromAddress,
+                FromLocation = fromLocation,
+                ToAddress = toAddress,
+                ToLocation = toLocation,
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout) ;
             Thread.Sleep(1000);
         }
@@ -185,11 +196,15 @@ public partial class RideShareCLIApp
             AnsiConsole.MarkupLine("I am [orange1]in the car[/]");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
+                Secret = secret,
                 SignedRequestPayloadId = requestPayloadId,
                 Location = lastDriverLocation,
                 Message = "I am in the car",
                 RideStatus = RideState.RiderPickedUp,
-                Direction = 0,
+                FromAddress = fromAddress,
+                FromLocation = fromLocation,
+                ToAddress = toAddress,
+                ToLocation = toLocation,
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
@@ -223,20 +238,5 @@ public partial class RideShareCLIApp
             AnsiConsole.WriteLine("SignedRequestPayloadId mismatch");
     }
 
-    private async Task OnDriverPingPong(string senderPublicKey, PingPongFrame pingPongFrame)
-    {
-        if (requestedRide == null)
-        {
-            AnsiConsole.WriteLine("requestedRide is empty");
-            return;
-        }
-        if (pingPongFrame.SignedRequestPayloadId == requestedRide.SignedRequestPayload.Id)
-        {
-            AnsiConsole.WriteLine("driver pingpong:" + senderPublicKey);
-            lastDriverSeenAt = DateTime.UtcNow;
-        }
-        else
-            AnsiConsole.WriteLine("SignedRequestPayloadId mismatch");
-    }
 }
 

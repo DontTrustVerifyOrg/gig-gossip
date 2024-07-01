@@ -18,23 +18,8 @@ public class ConnectionReply
     public required string PublicKey { get; set; }
     public required string[] Relays { get; set; }
     public required string Secret { get; set; }
-}
-
-[Serializable]
-public class AckFrame
-{
-    public required string Secret { get; set; }
-    public required DetailedParameters Parameters { get; set; }
-}
-
-[Serializable]
-public class DetailedParameters
-{
-    public required Guid SignedRequestPayloadId { get; set; }
-    public GeoLocation FromLocation { get; set; }
-    public GeoLocation ToLocation { get; set; }
-    public string FromAddress { get; set; }
-    public string ToAddress { get; set; }
+    public required GeoLocation Location { get; set; }
+    public required string Message { get; set; }
 }
 
 [Serializable]
@@ -50,14 +35,12 @@ public enum RideState
 public class LocationFrame
 {
     public required Guid SignedRequestPayloadId { get; set; }
+    public required string Secret { get; set; }
+    public required GeoLocation FromLocation { get; set; }
+    public required GeoLocation ToLocation { get; set; }
+    public required string FromAddress { get; set; }
+    public required string ToAddress { get; set; }
     public required GeoLocation Location { get; set; }
-    public required float Direction { get; set; }
     public required string Message { get; set; }
     public required RideState RideStatus { get; set; }
-}
-
-[Serializable]
-public class PingPongFrame
-{
-    public required Guid SignedRequestPayloadId { get; set; }
 }
