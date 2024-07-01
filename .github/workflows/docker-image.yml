@@ -6,6 +6,8 @@ on:
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_VERSION: 8.0.x
+  XCODE_VERSION: 15.2
   NuGetDirectory: ${{ github.workspace }}/nuget
   RepoDirectory: ${{ github.workspace }}
 
@@ -21,9 +23,11 @@ jobs:
         name: Checkout
         uses: actions/checkout@v3
 
-      # Install the .NET SDK indicated in the global.json file
+      # Install the .NET SDK
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
       # Create the NuGet package in the folder from the environment variable NuGetDirectory
       - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/CryptoToolkit && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
