@@ -10,8 +10,6 @@
     <WarningLevel>4</WarningLevel>
     <NoWarn>1701;1702;1998;8600;8601;8602;8603;8604;8618;8625</NoWarn>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(RunConfiguration)' == 'httpL1' " />
-  <PropertyGroup Condition=" '$(RunConfiguration)' == 'httpL2' " />
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.6" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
