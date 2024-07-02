@@ -1,4 +1,4 @@
-FROM docker pull bitnami/dotnet-sdk:8
+FROM bitnami/dotnet-sdk:8
 
 WORKDIR /work/gig-gossip-build
 COPY ./NGigGossip4Nostr/ ./NGigGossip4Nostr/
