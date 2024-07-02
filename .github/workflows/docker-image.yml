@@ -86,6 +86,6 @@ jobs:
             docker compose up -d logger_api_staging settler_api_staging_1 wallet_api_staging_1
             sleep 60
             docker exec -it giggossip_bitcoin /work/bitcoin/src/bitcoin-cli -datadir=/work/locallnd/.bitcoin loadwallet testwallet
-            docker exec -it giggossip_bitcoin /work/bitcoin/src/bitcoin-cli -datadir=/work/locallnd/.bitcoin -generate 6
-            sleep 60
+            docker exec -it giggossip_bitcoin /work/bitcoin/src/bitcoin-cli -datadir=/work/locallnd/.bitcoin -generate 101
+            sleep 120
             docker restart swag
