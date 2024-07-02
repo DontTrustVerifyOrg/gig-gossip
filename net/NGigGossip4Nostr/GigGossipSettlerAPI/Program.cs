@@ -133,7 +133,9 @@ app.MapGet("/getcapublickey", () =>
 .WithName("GetCaPublicKey")
 .WithSummary("Public key of this Certification Authority.")
 .WithDescription("Public key of this Certification Authority that can be used to validate signatures of e.g. issued certificates.")
-.WithOpenApi();
+.WithOpenApi()
+.DisableAntiforgery();
+
 
 app.MapGet("/iscertificaterevoked", (Guid certid) =>
 {
@@ -154,7 +156,8 @@ app.MapGet("/iscertificaterevoked", (Guid certid) =>
 {
     g.Parameters[0].Description = "Serial number of the certificate.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 
 app.MapGet("/gettoken", (string pubkey) =>
@@ -176,7 +179,8 @@ app.MapGet("/gettoken", (string pubkey) =>
 {
     g.Parameters[0].Description = "public key identifies the API user";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/grantaccessrights", (string authToken, string pubkey, string accessRights) =>
 {
@@ -205,7 +209,8 @@ app.MapGet("/grantaccessrights", (string authToken, string pubkey, string access
     g.Parameters[1].Description = "Public key of the subject.";
     g.Parameters[2].Description = "Access rights to be granted.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/revokeaccessrights", (string authToken, string pubkey, string accessRights) =>
 {
@@ -234,7 +239,8 @@ app.MapGet("/revokeaccessrights", (string authToken, string pubkey, string acces
     g.Parameters[1].Description = "Public key of the subject.";
     g.Parameters[2].Description = "Access rights to be revoked.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/getaccessrights", (string authToken, string pubkey) =>
 {
@@ -257,7 +263,8 @@ app.MapGet("/getaccessrights", (string authToken, string pubkey) =>
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
     g.Parameters[1].Description = "Public key of the subject.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/addressautocomplete", async (string authToken, string query, string country)=>
 {
@@ -292,7 +299,8 @@ app.MapGet("/addressautocomplete", async (string authToken, string query, string
     g.Parameters[1].Description = "Query";
     g.Parameters[2].Description = "Country";
     return g;
-});
+})
+.DisableAntiforgery();
 
 
 app.MapGet("/getroute", async (string authToken, double fromLat, double fromLon, double toLat, double toLon) =>
@@ -345,7 +353,8 @@ app.MapGet("/getroute", async (string authToken, double fromLat, double fromLon,
     g.Parameters[3].Description = "Latitude of the second point";
     g.Parameters[4].Description = "Longitude of the second point";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/addressgeocode", async (string authToken, string address, string country) =>
 {
@@ -379,7 +388,8 @@ app.MapGet("/addressgeocode", async (string authToken, string address, string co
     g.Parameters[1].Description = "Address";
     g.Parameters[2].Description = "Country";
     return g;
-});
+})
+.DisableAntiforgery();
 
 
 app.MapGet("/locationgeocode", async (string authToken, double lat, double lon) =>
@@ -414,7 +424,8 @@ app.MapGet("/locationgeocode", async (string authToken, double lat, double lon) 
     g.Parameters[1].Description = "Lat";
     g.Parameters[2].Description = "Lon";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/issuenewaccesscode", async (string authToken, int length, bool singleUse, long validTillMin, string Memo) =>
 {
@@ -441,7 +452,8 @@ app.MapGet("/issuenewaccesscode", async (string authToken, int length, bool sing
     g.Parameters[3].Description = "Valid till";
     g.Parameters[4].Description = "Memo";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/validateaccesscode", async (string authToken, string code) =>
 {
@@ -466,7 +478,8 @@ app.MapGet("/validateaccesscode", async (string authToken, string code) =>
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
     g.Parameters[1].Description = "Access code identifier";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/revokeaccesscode", async (string authToken, string code) =>
 {
@@ -490,7 +503,8 @@ app.MapGet("/revokeaccesscode", async (string authToken, string code) =>
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
     g.Parameters[1].Description = "Access code identifier";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/getmemofromaccesscode", async (string authToken, string code) =>
 {
@@ -515,7 +529,8 @@ app.MapGet("/getmemofromaccesscode", async (string authToken, string code) =>
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
     g.Parameters[1].Description = "Access code identifier";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, string value, string secret, long validHours) =>
 {
@@ -543,7 +558,8 @@ app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, s
     g.Parameters[4].Description = "Secret value of the property.";
     g.Parameters[5].Description = "How long the property is valid in hours";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/getmypropertyvalue", (string authToken, string name) =>
 {
@@ -570,7 +586,8 @@ app.MapGet("/getmypropertyvalue", (string authToken, string name) =>
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
     g.Parameters[1].Description = "Name of the property.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/getmypropertysecret", (string authToken, string name) =>
 {
@@ -597,7 +614,8 @@ app.MapGet("/getmypropertysecret", (string authToken, string name) =>
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
     g.Parameters[1].Description = "Name of the property.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapPost("/giveuserfile/{authToken}/{pubkey}/{name}/{validHours}", async (HttpRequest request, string authToken, string pubkey, string name, long validHours, [FromForm] IFormFile value, [FromForm] IFormFile secret)
     =>
@@ -616,7 +634,8 @@ app.MapPost("/giveuserfile/{authToken}/{pubkey}/{name}/{validHours}", async (Htt
 })
 .WithName("GiveUserFile")
 .WithSummary("Grants a file property to the subject.")
-.WithDescription("Grants a file property to the subject (e.g. driving licence). Only authorised users can grant the property.");
+.WithDescription("Grants a file property to the subject (e.g. driving licence). Only authorised users can grant the property.")
+.DisableAntiforgery();
 
 app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name) =>
 {
@@ -640,7 +659,8 @@ app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name)
     g.Parameters[1].Description = "Public key of the subject.";
     g.Parameters[2].Description = "Name of the property.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/saveusertraceproperty", (string authToken, string pubkey, string name, string value) =>
 {
@@ -666,7 +686,8 @@ app.MapGet("/saveusertraceproperty", (string authToken, string pubkey, string na
     g.Parameters[2].Description = "Name of the property.";
     g.Parameters[3].Description = "Public value of the property.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/verifychannel", async (string authToken, string pubkey, string name, string method, string value) =>
 {
@@ -709,7 +730,8 @@ app.MapGet("/verifychannel", async (string authToken, string pubkey, string name
     g.Parameters[3].Description = "Method (sms,call,message)";
     g.Parameters[4].Description = "Value of Channel for the method (phone number, email address).";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name, string method, string value, string secret) =>
 {
@@ -766,7 +788,8 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
     g.Parameters[4].Description = "Value of Channel for the method (phone number, email address).";
     g.Parameters[5].Description = "Secret received from the channel.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/ischannelverified", (string authToken, string pubkey, string name, string value) =>
 {
@@ -803,7 +826,8 @@ app.MapGet("/ischannelverified", (string authToken, string pubkey, string name, 
     g.Parameters[1].Description = "Public key of the subject.";
     g.Parameters[2].Description = "Channel name (phone,email,...)";
     return g;
-});
+})
+.DisableAntiforgery();
 
 
 app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid gigId, string repliperPubKey) =>
@@ -828,7 +852,8 @@ app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid gigId, strin
     g.Parameters[1].Description = "gig-job identifier";
     g.Parameters[2].Description = "Public key of the replier.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/generaterelatedpreimage", (string authToken, string paymentHash) =>
 {
@@ -851,7 +876,8 @@ app.MapGet("/generaterelatedpreimage", (string authToken, string paymentHash) =>
     g.Parameters[0].Description = "Authorisation token for the communication.";
     g.Parameters[1].Description = "Payment hash of related HODL invoice.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/validaterelatedpaymenthashes", (string authToken, string paymentHash1,string paymentHash2) =>
 {
@@ -875,7 +901,8 @@ app.MapGet("/validaterelatedpaymenthashes", (string authToken, string paymentHas
     g.Parameters[1].Description = "Payment hash of related HODL invoice.";
     g.Parameters[2].Description = "Payment hash of related HODL invoice.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
 {
@@ -898,7 +925,8 @@ app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
     g.Parameters[0].Description = "Authorisation token for the communication.";
     g.Parameters[1].Description = "Payment hash of related HODL invoice.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/getgigstatus", (string authToken, Guid signedRequestPayloadId,Guid repliperCertificateId) =>
 {
@@ -922,7 +950,8 @@ app.MapGet("/getgigstatus", (string authToken, Guid signedRequestPayloadId,Guid 
     g.Parameters[1].Description = "Request Payload Id.";
     g.Parameters[2].Description = "Replier.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapPost("/generaterequestpayload/{authToken}/{properties}", async (string authToken, string properties, [FromForm] IFormFile serialisedTopic) =>
 {
@@ -940,7 +969,9 @@ app.MapPost("/generaterequestpayload/{authToken}/{properties}", async (string au
 })
 .WithName("GenerateRequestPayload")
 .WithSummary("Genertes RequestPayload for the specific topic.")
-.WithDescription("Genertes RequestPayload for the specific topic.");
+.WithDescription("Genertes RequestPayload for the specific topic.")
+.DisableAntiforgery();
+
 
 app.MapPost("/generatesettlementtrust/{authToken}/{properties}/{replyinvoice}", async (string authToken, string properties, string replyinvoice, [FromForm] IFormFile message, [FromForm] IFormFile signedRequestPayloadSerialized) =>
 {
@@ -959,7 +990,8 @@ app.MapPost("/generatesettlementtrust/{authToken}/{properties}/{replyinvoice}", 
 })
 .WithName("GenerateSettlementTrust")
 .WithSummary("Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.")
-.WithDescription("Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.");
+.WithDescription("Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.")
+.DisableAntiforgery();
 
 app.MapPost("/encryptobjectforcertificateid/{certificateId}", async (Guid certificateId, [FromForm] IFormFile objectSerialized) =>
 {
@@ -980,7 +1012,8 @@ app.MapPost("/encryptobjectforcertificateid/{certificateId}", async (Guid certif
 })
 .WithName("EncryptObjectForCertificateId")
 .WithSummary("Encrypts the object using public key related to the specific certioficate id.")
-.WithDescription("Encrypts the object using public key related to the specific certioficate id.");
+.WithDescription("Encrypts the object using public key related to the specific certioficate id.")
+.DisableAntiforgery();
 
 app.MapGet("/managedispute", async (string authToken, Guid gigId, Guid repliperCertificateId, bool open) =>
 {
@@ -1006,7 +1039,8 @@ app.MapGet("/managedispute", async (string authToken, Guid gigId, Guid repliperC
     g.Parameters[2].Description = "CertificateId of the replier.";
     g.Parameters[3].Description = "True to open/False to close dispute.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/cancelgig", async (string authToken, Guid gigId, Guid repliperCertificateId) =>
 {
@@ -1031,10 +1065,14 @@ app.MapGet("/cancelgig", async (string authToken, Guid gigId, Guid repliperCerti
     g.Parameters[1].Description = "Gig-job identifier.";
     g.Parameters[2].Description = "CertificateId of the replier.";
     return g;
-});
+})
+.DisableAntiforgery();
 
-app.MapHub<PreimageRevealHub>("/preimagereveal");
-app.MapHub<GigStatusHub>("/gigstatus");
+app.MapHub<PreimageRevealHub>("/preimagereveal")
+.DisableAntiforgery();
+
+app.MapHub<GigStatusHub>("/gigstatus")
+.DisableAntiforgery();
 
 app.Run(settlerSettings.ListenHost.AbsoluteUri);
 

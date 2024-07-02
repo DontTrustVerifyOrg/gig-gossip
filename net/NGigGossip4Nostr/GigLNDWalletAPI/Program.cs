@@ -639,8 +639,8 @@ app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
 {
     try
     {
-        var ar=walletSettings.AllowAnonymous?AccessRights.Anonymous:AccessRights.Valid;
-        var pr = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken,ar).DecodeInvoice(paymentRequest);
+        var ar = walletSettings.AllowAnonymous ? AccessRights.Anonymous : AccessRights.Valid;
+        var pr = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken, ar).DecodeInvoice(paymentRequest);
         return new Result<PayReqRet>(
             new PayReqRet
             {
@@ -667,7 +667,8 @@ app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
     g.Parameters[0].Description = "Authorisation token for the communication";
     g.Parameters[1].Description = "The payment request string to be decoded.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 
 app.MapGet("/sendpayment", async (string authToken, string paymentrequest, int timeout, long feelimit) =>
@@ -693,7 +694,8 @@ app.MapGet("/sendpayment", async (string authToken, string paymentrequest, int t
     g.Parameters[1].Description = "A bare-bones invoice for a payment within the Lightning Network. With the details of the invoice, the sender has all the data necessary to send a payment to the recipient.";
     g.Parameters[2].Description = "An upper limit on the amount of time we should spend when attempting to fulfill the payment. This is expressed in seconds.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/estimateroutefee", (string authToken, string paymentrequest) =>
 {
@@ -716,7 +718,8 @@ app.MapGet("/estimateroutefee", (string authToken, string paymentrequest) =>
     g.Parameters[0].Description = "Authorisation token for the communication";
     g.Parameters[1].Description = "A bare-bones invoice for a payment within the Lightning Network. With the details of the invoice, the sender has all the data necessary to send a payment to the recipient.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/settleinvoice", (string authToken, string preimage) =>
 {
@@ -740,7 +743,8 @@ app.MapGet("/settleinvoice", (string authToken, string preimage) =>
     g.Parameters[0].Description = "Authorisation token for the communication";
     g.Parameters[1].Description = "Externally discovered pre-image that should be used to settle the hold invoice.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/cancelinvoice", (string authToken, string paymenthash) =>
 {
@@ -764,7 +768,8 @@ app.MapGet("/cancelinvoice", (string authToken, string paymenthash) =>
     g.Parameters[0].Description = "Authorisation token for the communication";
     g.Parameters[1].Description = "Hash corresponding to the invoice to cancel.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/getinvoicestate", (string authToken, string paymenthash) =>
 {
@@ -787,7 +792,8 @@ app.MapGet("/getinvoicestate", (string authToken, string paymenthash) =>
     g.Parameters[0].Description = "Authorisation token for the communication";
     g.Parameters[1].Description = "Hash corresponding to the invoice.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/listinvoices", (string authToken) =>
 {
@@ -826,7 +832,8 @@ app.MapGet("/listinvoices", (string authToken) =>
 {
     g.Parameters[0].Description = "Authorisation token for the communication";
     return g;
-});
+})
+.DisableAntiforgery();
 
 app.MapGet("/listpayments", (string authToken) =>
 {
@@ -859,7 +866,8 @@ app.MapGet("/listpayments", (string authToken) =>
 {
     g.Parameters[0].Description = "Authorisation token for the communication";
     return g;
-});
+})
+.DisableAntiforgery();
 
 
 app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
@@ -883,13 +891,16 @@ app.MapGet("/getpaymentstatus", (string authToken, string paymenthash) =>
     g.Parameters[0].Description = "Authorisation token for the communication";
     g.Parameters[1].Description = "Hash corresponding to the payment.";
     return g;
-});
+})
+.DisableAntiforgery();
 
 InvoiceStateUpdatesHub.AccessRights=walletSettings.AllowAnonymous?AccessRights.Anonymous:AccessRights.Valid;
-app.MapHub<InvoiceStateUpdatesHub>("/invoicestateupdates");
+app.MapHub<InvoiceStateUpdatesHub>("/invoicestateupdates")
+.DisableAntiforgery();
 
 PaymentStatusUpdatesHub.AccessRights=walletSettings.AllowAnonymous?AccessRights.Anonymous:AccessRights.Valid;
-app.MapHub<PaymentStatusUpdatesHub>("/paymentstatusupdates");
+app.MapHub<PaymentStatusUpdatesHub>("/paymentstatusupdates")
+.DisableAntiforgery();
 
 app.Run(walletSettings.ListenHost.AbsoluteUri);
 
