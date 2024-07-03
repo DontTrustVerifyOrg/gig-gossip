@@ -29,6 +29,8 @@ public enum RideState
     DriverWaitingForRider = 1,
     RiderPickedUp = 2,
     RiderDroppedOff = 3,
+    Disputed = 4,
+    Failed = 5,
 }
 
 [Serializable]
