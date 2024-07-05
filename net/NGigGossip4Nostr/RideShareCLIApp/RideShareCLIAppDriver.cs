@@ -194,6 +194,19 @@ public partial class RideShareCLIApp
         yield return (0, geometry.Last());
     }
 
+    private void SupportPause()
+    {
+        if (Console.KeyAvailable)
+        {
+            var k = Console.ReadKey().Key;
+            if (k == ConsoleKey.Spacebar)
+            {
+                AnsiConsole.WriteLine("PAUSED");
+                Console.ReadLine();
+            }
+        }
+    }
+
     private async Task DriverJourneyAsync(LocationFrame locationFrame)
     {
         var keys = new List<string>(MockData.FakeAddresses.Keys);
@@ -212,6 +225,7 @@ public partial class RideShareCLIApp
 
             foreach (var (idx,location) in GeoSteps(route.Geometry,20))
             {
+                SupportPause();
                 AnsiConsole.MarkupLine($"({idx},{location.Lat},{location.Lon}) I am [orange1]driving[/] to meet rider");
                 await directCom.SendMessageAsync(pubkey, new LocationFrame
                 {
@@ -231,6 +245,7 @@ public partial class RideShareCLIApp
         AnsiConsole.MarkupLine("I have [orange1]arrived[/]");
         for (int i = 3; i > 0; i--)
         {
+            SupportPause();
             AnsiConsole.MarkupLine($"({i}) I am [orange1]waiting[/] for rider");
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
@@ -257,6 +272,7 @@ public partial class RideShareCLIApp
                 CancellationTokenSource.Token));
             foreach (var (idx, location) in GeoSteps(route.Geometry, 20))
             {
+                SupportPause();
                 AnsiConsole.MarkupLine($"({idx},{location.Lat},{location.Lon}) We are going [orange1]togheter[/]");
                 await directCom.SendMessageAsync(pubkey, new LocationFrame
                 {

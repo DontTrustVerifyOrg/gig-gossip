@@ -331,8 +331,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-
-
     public async Task<IGigStatusClient> GetGigStatusClientAsync(Uri serviceUri)
     {
         return await settlerGigStatusClients.GetOrAddAsync(

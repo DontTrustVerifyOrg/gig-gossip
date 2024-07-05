@@ -181,7 +181,12 @@ public class SettlerMonitor
         HubMonitor hubMonitor = new HubMonitor();
         hubMonitor.OnServerConnectionState += HubMonitor_OnServerConnectionState;
 
-        await hubMonitor.StartAsync(async () => { }, async () =>
+        await hubMonitor.StartAsync(async () =>
+            {
+                gigGossipNode.SettlerSelector.RemoveSettlerClient(serviceUri);
+                gigGossipNode.DisposePreimageRevealClient(serviceUri);
+                gigGossipNode.DisposeGigStatusClient(serviceUri);
+            }, async () =>
             {
                 {
                     var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
@@ -241,7 +246,12 @@ public class SettlerMonitor
 
         HubMonitor hubMonitor = new HubMonitor();
         hubMonitor.OnServerConnectionState += HubMonitor_OnServerConnectionState;
-        await hubMonitor.StartAsync(async () => { }, async () =>
+        await hubMonitor.StartAsync(async () =>
+        {
+            gigGossipNode.DisposeGigStatusClient(serviceUri);
+            gigGossipNode.DisposePreimageRevealClient(serviceUri);
+            gigGossipNode.SettlerSelector.RemoveSettlerClient(serviceUri);
+        }, async () =>
         {
 
             {

@@ -13,6 +13,7 @@ namespace GigGossipSettler;
 public interface ISettlerSelector : ICertificationAuthorityAccessor
 {
     ISettlerAPI GetSettlerClient(Uri ServiceUri);
+    void RemoveSettlerClient(Uri ServiceUri);
 }
 
 public class SimpleSettlerSelector : ISettlerSelector
@@ -42,6 +43,11 @@ public class SimpleSettlerSelector : ISettlerSelector
     public async Task<bool> IsRevokedAsync(Uri serviceUri, Guid id, CancellationToken cancellationToken)
     {
         return await revokedCertificates.GetOrAddAsync(id, async (id) => SettlerAPIResult.Get<bool>(await GetSettlerClient(serviceUri).IsCertificateRevokedAsync(id.ToString(), cancellationToken)));
+    }
+
+    public void RemoveSettlerClient(Uri ServiceUri)
+    {
+        swaggerClients.TryRemove(ServiceUri, out _);
     }
 }
 
