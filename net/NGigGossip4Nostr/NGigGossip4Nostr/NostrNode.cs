@@ -34,6 +34,8 @@ public abstract class NostrNode
     private string subscriptionId;
     private bool eoseReceived = false;
     private SemaphoreSlim eventSemSlim = new(1, 1);
+    private ConcurrentQueue<NostrEvent> nostrEvents = new();
+    private ConcurrentQueue<NostrEvent> nostrEventsSend = new();
     private bool consumeCL;
     protected CancellationTokenSource CancellationTokenSource = new();
     public IRetryPolicy RetryPolicy;
@@ -77,7 +79,7 @@ public abstract class NostrNode
         return _registeredFrameTypes[name];
     }
 
-    public async static Task TryConnectingToRelayAsync(Uri relay,CancellationToken cancellationToken)
+    public async static Task TryConnectingToRelayAsync(Uri relay, CancellationToken cancellationToken)
     {
         var n = new NNostr.Client.NostrClient(relay);
         await n.ConnectAndWaitUntilConnected(cancellationToken);
@@ -99,7 +101,7 @@ public abstract class NostrNode
                     Tags = { },
                 };
                 await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
-                await RetryPolicy.WithRetryPolicy(() => nostrClient.PublishEvent(newEvent, CancellationTokenSource.Token));
+                EnqueueForSend(new[] { newEvent });
             }
             await FlowLogger.TraceVoidAsync(this, g__, m__);
         }
@@ -129,7 +131,7 @@ public abstract class NostrNode
                     Tags = tags,
                 };
                 await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
-                await RetryPolicy.WithRetryPolicy(() => nostrClient.PublishEvent(newEvent, CancellationTokenSource.Token));
+                EnqueueForSend(new[] { newEvent });
             }
             await FlowLogger.TraceVoidAsync(this, g__, m__);
         }
@@ -156,7 +158,7 @@ public abstract class NostrNode
                 };
                 await newEvent.EncryptNip04EventAsync(this.privateKey, skipKindVerification: true);
                 await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
-                await RetryPolicy.WithRetryPolicy(() => nostrClient.PublishEvent(newEvent,CancellationTokenSource.Token));
+                EnqueueForSend(new[] { newEvent });
             }
             await FlowLogger.TraceVoidAsync(this, g__, m__);
         }
@@ -207,9 +209,7 @@ public abstract class NostrNode
                     await newEvent.ComputeIdAndSignAsync(this.privateKey, handlenip4: false);
                     events.Add(newEvent);
                 }
-
-                foreach (var e in events)
-                    await RetryPolicy.WithRetryPolicy(() => nostrClient.PublishEvent(e, CancellationTokenSource.Token));
+                EnqueueForSend(events.ToArray());
                 return await FlowLogger.TraceOutAsync(this, g__, m__, evid);
             }
         }
@@ -238,17 +238,20 @@ public abstract class NostrNode
         if (OnServerConnectionState != null)
             OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Connecting });
 
+        StartEventThread();
+        StartSendingEventThread();
+
         CancellationTokenSource = new();
         FlowLogger = flowLogger;
         NostrRelays = nostrRelays;
         nostrClient = new CompositeNostrClient((from rel in nostrRelays select new System.Uri(rel)).ToArray());
         this.eoseReceived = false;
-        await RetryPolicy.WithRetryPolicy(() => nostrClient.ConnectAndWaitUntilConnected(CancellationTokenSource.Token));
+        await RetryPolicy.WithRetryPolicy(async () => await nostrClient.ConnectAndWaitUntilConnected(CancellationTokenSource.Token));
         nostrClient.EventsReceived += NostrClient_EventsReceived;
         nostrClient.EoseReceived += NostrClient_EoseReceived;
         nostrClient.StateChanged += NostrClient_StateChanged;
         subscriptionId = Guid.NewGuid().ToString();
-        await RetryPolicy.WithRetryPolicy(() => nostrClient.CreateSubscription(subscriptionId, new[]{
+        await RetryPolicy.WithRetryPolicy(async () => await nostrClient.CreateSubscription(subscriptionId, new[]{
                         new NostrSubscriptionFilter()
                         {
                             Kinds = new []{SettingsKind},
@@ -297,7 +300,7 @@ public abstract class NostrNode
                         async () =>
                         {
                             await FlowLogger.TraceWarningAsync(this, g__, m__, "Connection to NOSTR relay lost, reconnecting");
-                            await SoftStopAsync();
+                            await StopAsync();
                             await StartAsync(NostrRelays, FlowLogger);
                             await FlowLogger.TraceWarningAsync(this, g__, m__, "Connection to NOSTR restored");
                         },
@@ -347,6 +350,103 @@ public abstract class NostrNode
         }
     }
 
+    Thread monitorThread;
+    private object queueMonitor = new object();
+    private bool EventThreadClosing = false;
+
+    private void StartEventThread()
+    {
+        EventThreadClosing = false;
+
+        monitorThread = new Thread(async () =>
+        {
+            while (!EventThreadClosing)
+            {
+                List<NostrEvent> events = new();
+                lock (queueMonitor)
+                {
+                    if (nostrEvents.IsEmpty)
+                        Monitor.Wait(queueMonitor);
+                    if (EventThreadClosing)
+                        return;
+                    while (nostrEvents.TryDequeue(out var nostrEvent))
+                        events.Add(nostrEvent);
+                }
+                foreach (var nostrEvent in events)
+                {
+                    if (nostrEvent.Kind == SettingsKind)
+                        await ProcessSettingsAsync(nostrEvent);
+                    else if (nostrEvent.Kind == HelloKind)
+                        await ProcessHelloAsync(nostrEvent);
+                    else if (nostrEvent.Kind == ContactListKind)
+                        await ProcessContactListAsync(nostrEvent);
+                    else
+                        await ProcessNewMessageAsync(nostrEvent);
+                }
+            }
+        });
+        monitorThread.Start();
+    }
+
+    void NotifyEventThreadClosing()
+    {
+        lock (queueMonitor)
+        {
+            EventThreadClosing = true;
+            Monitor.PulseAll(queueMonitor);
+        }
+    }
+
+    Thread monitorThreadSend;
+    private object queueMonitorSend = new object();
+    private bool EventThreadClosingSend = false;
+
+    private void StartSendingEventThread()
+    {
+        EventThreadClosingSend = false;
+
+        monitorThreadSend = new Thread(async () =>
+        {
+            while (!EventThreadClosingSend)
+            {
+                List<NostrEvent> events = new();
+                lock (queueMonitorSend)
+                {
+                    if (nostrEventsSend.IsEmpty)
+                        Monitor.Wait(queueMonitorSend);
+                    if (EventThreadClosingSend)
+                        return;
+                    while (nostrEventsSend.TryDequeue(out var nostrEvent))
+                        events.Add(nostrEvent);
+                }
+                foreach (var e in events)
+                {
+                    await RetryPolicy.WithRetryPolicy(async () => await nostrClient.PublishEvent(e, CancellationTokenSource.Token));
+                }
+            }
+        });
+        monitorThreadSend.Start();
+    }
+
+    void EnqueueForSend(NostrEvent[] nostrEvents)
+    {
+        lock (queueMonitorSend)
+        {
+            foreach (var e in nostrEvents)
+                nostrEventsSend.Enqueue(e);
+            Monitor.PulseAll(queueMonitorSend);
+        }
+    }
+
+    void NotifyEventThreadSendClosing()
+    {
+        lock (queueMonitorSend)
+        {
+            EventThreadClosingSend = true;
+            Monitor.PulseAll(queueMonitorSend);
+        }
+    }
+
     private async void NostrClient_EventsReceived(object? sender, (string subscriptionId, NostrEvent[] events) e)
     {
         try
@@ -358,24 +458,13 @@ public abstract class NostrNode
                 {
                     if (e.subscriptionId == subscriptionId)
                     {
-                        await eventSemSlim.WaitAsync();
-                        try
+                        lock (queueMonitor)
                         {
                             foreach (var nostrEvent in e.events)
                             {
-                                if (nostrEvent.Kind == SettingsKind)
-                                    await ProcessSettingsAsync(nostrEvent);
-                                else if (nostrEvent.Kind == HelloKind)
-                                    await ProcessHelloAsync(nostrEvent);
-                                else if (nostrEvent.Kind == ContactListKind)
-                                    await ProcessContactListAsync(nostrEvent);
-                                else
-                                    await ProcessNewMessageAsync(nostrEvent);
+                                nostrEvents.Enqueue(nostrEvent);
+                                Monitor.PulseAll(queueMonitor);
                             }
-                        }
-                        finally
-                        {
-                            eventSemSlim.Release();
                         }
                     }
                 }
@@ -394,26 +483,18 @@ public abstract class NostrNode
         }
     }
 
-    private async Task SoftStopAsync()
+    public virtual async Task StopAsync()
     {
         if (nostrClient == null)
             return;
+        NotifyEventThreadClosing();
+        NotifyEventThreadSendClosing();
         await nostrClient.CloseSubscription(subscriptionId);
         await nostrClient.Disconnect();
         nostrClient.Dispose();
         nostrClient = null;
     }
 
-    public virtual async Task StopAsync()
-    {
-        if (nostrClient == null)
-            return;
-        CancellationTokenSource.Cancel();
-        await nostrClient.CloseSubscription(subscriptionId);
-        await nostrClient.Disconnect();
-        nostrClient.Dispose();
-        nostrClient = null;
-    }
 
     private ConcurrentDictionary<string, ConcurrentDictionary<int, string>> _partial_messages = new();
 

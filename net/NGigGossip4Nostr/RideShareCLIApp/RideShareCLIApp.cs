@@ -415,9 +415,14 @@ public partial class RideShareCLIApp
 
                     var keys = new List<string>(MockData.FakeAddresses.Keys);
 
-                    fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
-                    toAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
-
+                    while(true)
+                    {
+                        fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+                        toAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+                        if(fromAddress != toAddress)
+                            break;
+                    }
+                    
                     fromLocation = new GeoLocation(MockData.FakeAddresses[fromAddress].Latitude, MockData.FakeAddresses[fromAddress].Longitude);
                     toLocation = new GeoLocation(MockData.FakeAddresses[toAddress].Latitude, MockData.FakeAddresses[toAddress].Longitude);
                 }
@@ -617,13 +622,10 @@ public partial class RideShareCLIApp
     {
         if (e.Frame is LocationFrame locationFrame)
         {
-            if (e.IsNew)
-            {
-                if (inDriverMode)
-                    await OnRiderLocation(e.SenderPublicKey, locationFrame);
-                else
-                    await OnDriverLocation(e.SenderPublicKey, locationFrame);
-            }
+            if (inDriverMode)
+                await OnRiderLocation(e.SenderPublicKey, locationFrame);
+            else
+                await OnDriverLocation(e.SenderPublicKey, locationFrame);
         }
     }
 

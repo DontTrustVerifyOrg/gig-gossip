@@ -196,6 +196,7 @@ public partial class RideShareCLIApp
 
     private void SupportPause()
     {
+        return;
         if (Console.KeyAvailable)
         {
             var k = Console.ReadKey().Key;
