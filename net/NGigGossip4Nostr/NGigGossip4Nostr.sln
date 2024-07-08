@@ -55,8 +55,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GigGossipSettlerCLI", "GigG
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GeoLibraryTest", "GeoLibraryTest\GeoLibraryTest.csproj", "{88B7DA2A-5538-4537-83FD-198517E7DF0D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nostr.Client", "nostr-client\src\Nostr.Client\Nostr.Client.csproj", "{EE363A36-CE24-418E-B4D9-8A7B914821D4}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -167,10 +165,6 @@ Global
 		{88B7DA2A-5538-4537-83FD-198517E7DF0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{88B7DA2A-5538-4537-83FD-198517E7DF0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{88B7DA2A-5538-4537-83FD-198517E7DF0D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{EE363A36-CE24-418E-B4D9-8A7B914821D4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{EE363A36-CE24-418E-B4D9-8A7B914821D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{EE363A36-CE24-418E-B4D9-8A7B914821D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{EE363A36-CE24-418E-B4D9-8A7B914821D4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

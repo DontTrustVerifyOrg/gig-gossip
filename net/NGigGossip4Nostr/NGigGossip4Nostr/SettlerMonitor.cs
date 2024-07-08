@@ -107,7 +107,7 @@ public class SettlerMonitor
             foreach (var kv in pToMon)
             {
                 try
-                {
+                { 
                     var serviceUri = kv.ServiceUri;
                     var phash = kv.PaymentHash;
                     var preimage = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash, CancellationTokenSource.Token));
@@ -144,7 +144,7 @@ public class SettlerMonitor
                         var prts = stat.Split('|');
                         var status = prts[0];
                         var key = prts[1];
-                        if (status == "Accepted" || status == "Completed" || status == "Disputed")
+                        if (status == "Accepted" || status=="Completed" || status=="Disputed")
                         {
                             gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
                             kv.SymmetricKey = key;
@@ -182,51 +182,51 @@ public class SettlerMonitor
         hubMonitor.OnServerConnectionState += HubMonitor_OnServerConnectionState;
 
         await hubMonitor.StartAsync(async () =>
-        {
-            gigGossipNode.SettlerSelector.RemoveSettlerClient(serviceUri);
-            gigGossipNode.DisposePreimageRevealClient(serviceUri);
-            gigGossipNode.DisposeGigStatusClient(serviceUri);
-        }, async () =>
-        {
             {
-                var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
-                              where i.PublicKey == this.gigGossipNode.PublicKey
-                              && i.Preimage == null
-                              && i.ServiceUri == serviceUri
-                              select i).ToList();
-
-                foreach (var kv in pToMon)
+                gigGossipNode.SettlerSelector.RemoveSettlerClient(serviceUri);
+                gigGossipNode.DisposePreimageRevealClient(serviceUri);
+                gigGossipNode.DisposeGigStatusClient(serviceUri);
+            }, async () =>
+            {
                 {
-                    var phash = kv.PaymentHash;
-                    var preimage = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash, CancellationTokenSource.Token));
-                    if (!string.IsNullOrWhiteSpace(preimage))
+                    var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
+                                  where i.PublicKey == this.gigGossipNode.PublicKey
+                                  && i.Preimage == null
+                                  && i.ServiceUri == serviceUri
+                                  select i).ToList();
+
+                    foreach (var kv in pToMon)
                     {
-                        await gigGossipNode.OnPreimageRevealedAsync(serviceUri, phash, preimage, CancellationTokenSource.Token);
-                        kv.Preimage = preimage;
-                        gigGossipNode.nodeContext.Value.SaveObject(kv);
+                        var phash = kv.PaymentHash;
+                        var preimage = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).RevealPreimageAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash, CancellationTokenSource.Token));
+                        if (!string.IsNullOrWhiteSpace(preimage))
+                        {
+                            await gigGossipNode.OnPreimageRevealedAsync(serviceUri, phash, preimage, CancellationTokenSource.Token);
+                            kv.Preimage = preimage;
+                            gigGossipNode.nodeContext.Value.SaveObject(kv);
+                        }
                     }
                 }
-            }
 
-            await foreach (var preimupd in (await this.gigGossipNode.GetPreimageRevealClientAsync(serviceUri)).StreamAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), CancellationTokenSource.Token))
-            {
-                var pp = preimupd.Split('|');
-                var payhash = pp[0];
-                var preimage = pp[1];
-
-                var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
-                              where i.PublicKey == this.gigGossipNode.PublicKey
-                              && i.PaymentHash == payhash
-                              && i.Preimage == null
-                              select i).FirstOrDefault();
-                if (pToMon != null)
+                await foreach (var preimupd in (await this.gigGossipNode.GetPreimageRevealClientAsync(serviceUri)).StreamAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), CancellationTokenSource.Token))
                 {
-                    await gigGossipNode.OnPreimageRevealedAsync(pToMon.ServiceUri, pToMon.PaymentHash, preimage, CancellationTokenSource.Token);
-                    pToMon.Preimage = preimage;
-                    gigGossipNode.nodeContext.Value.SaveObject(pToMon);
+                    var pp = preimupd.Split('|');
+                    var payhash = pp[0];
+                    var preimage = pp[1];
+
+                    var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
+                                  where i.PublicKey == this.gigGossipNode.PublicKey
+                                  && i.PaymentHash == payhash
+                                  && i.Preimage == null
+                                  select i).FirstOrDefault();
+                    if (pToMon != null)
+                    {
+                        await gigGossipNode.OnPreimageRevealedAsync(pToMon.ServiceUri, pToMon.PaymentHash, preimage, CancellationTokenSource.Token);
+                        pToMon.Preimage = preimage;
+                        gigGossipNode.nodeContext.Value.SaveObject(pToMon);
+                    }
                 }
-            }
-        },
+            },
             serviceUri,
             gigGossipNode.RetryPolicy,
             CancellationTokenSource.Token);
