@@ -1,0 +1,49 @@
+﻿@page "/relay"
+@inject RelayList Relays
+
+<Stack Orientation="Orientation.Vertical" VerticalGap="10">
+
+    <PageHeader Title="Relays" Subtitle="Connect to any Nostr relay"></PageHeader>
+    
+    <div style="margin-bottom: 10px"></div>
+    
+    @foreach (var relay in Relays.Relays)
+    {
+        <RelaySelector Relay="relay" Connect="OnConnect"></RelaySelector>
+    }
+
+    <div>
+        <h4>History</h4>
+
+        <ul>
+            @foreach (var item in _history.ToArray().Reverse())
+            {
+                <li>
+                    <span>@item</span>
+                </li>
+            }
+        </ul>
+    </div>
+
+</Stack>
+
+@code {
+    private readonly List<string> _history = new();
+
+    protected override void OnInitialized()
+    {
+        Relays.HistoryStream.Subscribe(OnHistory);
+        base.OnInitialized();
+    }
+
+    private void OnConnect(RelayConnection relay)
+    {
+        Relays.Connect(relay);
+    }
+
+    private void OnHistory(string item)
+    {
+        _history.Add(item);
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,196 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using BTCPayServer.Lightning
+@using Newtonsoft.Json
+@using Newtonsoft.Json.Linq
+@using Nostr.Client.Json
+@using Nostr.Client.Messages.Zaps
+@inject ClipboardService Clipboard;
+@inject IJSRuntime JsRuntime
+@inject EventStorage EventStorage;
+
+<div>
+    <PageHeader Title3="@_displayedEvent?.Kind.ToString()" DisplayBrowserTitle="false"></PageHeader>
+    @if (_displayedEvent is NostrMetadataEvent or NostrContactEvent)
+    {
+        <pre>@FormatEventContent(_displayedEvent?.Content)</pre>
+    }
+    else
+    {
+        <p style="font-size: 18px">@FormatEventContent(_displayedEvent?.Content)</p>
+    }
+       
+    @if (_displayedEvent?.Tags?.Any() == true)
+    {
+        <p>
+            <strong>Tags</strong>
+            <FluentTreeView>
+
+                @foreach (var tag in _displayedEvent.Tags.GroupBy(x => x.TagIdentifier))
+                {
+                    var data = tag
+                        .SelectMany(x => x.AdditionalData)
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .ToArray();
+                    <FluentTreeItem>
+                        <span>@tag.Key <small>(@data.Length)</small></span>
+
+                        @foreach (var otherTag in data)
+                        {
+                            if (!string.IsNullOrWhiteSpace(otherTag))
+                            {
+                                <FluentTreeItem>
+                                    @if (NostrConverter.IsHex(otherTag))
+                                    {
+                                        @switch (tag.Key)
+                                        {
+                                            case NostrEventTag.EventIdentifier:
+                                                <div><a class="clear-link" href="@ExternalLinks.GetLinkToEvent(otherTag)" target="_blank">@ExternalLinks.FormatToNote(otherTag)</a></div>
+                                                break;
+                                            case NostrEventTag.ProfileIdentifier:
+                                                <div><a class="clear-link" href="@ExternalLinks.GetLinkToProfile(otherTag)" target="_blank">@ExternalLinks.FormatToNpub(otherTag)</a></div>
+                                                break;
+                                            default:
+                                                <div><span>@otherTag</span></div>
+                                                break;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div><span>@otherTag</span></div>
+                                    }
+                                </FluentTreeItem>
+                            }
+                        }
+
+                    </FluentTreeItem>
+                }
+                    
+            </FluentTreeView>
+        </p>
+    }
+
+    <p>
+        <strong>Created at</strong>
+        <div>@_displayedEvent?.CreatedAt?.ToLocalTime().ToString("F")</div>
+    </p>
+    <p>
+        <strong>Id</strong>
+        @if (_displayedEvent?.Kind == NostrKind.ShortTextNote)
+        {
+            <div>@_displayedEvent?.Id</div>
+            <div><a class="clear-link" href="@ExternalLinks.GetLinkToEvent(_displayedEvent?.Id)" target="_blank">@ExternalLinks.FormatToNote(_displayedEvent?.Id)</a></div>
+        }
+        else
+        {
+            <div>@_displayedEvent?.Id</div>
+        }
+    </p>
+    <p>
+        <strong>Author</strong>
+        <div>@_displayedEvent?.Pubkey</div>
+        <div><a class="clear-link" href="@ExternalLinks.GetLinkToProfile(_displayedEvent?.Pubkey)" target="_blank">@ExternalLinks.FormatToNpub(_displayedEvent?.Pubkey)</a></div>
+    </p>
+    <p>
+        <strong>Relays</strong>
+        @foreach (var communicator in EventStorage.FindCommunicators(_displayedEvent?.Id).OrderBy(x => x))
+        {
+            <div>@communicator</div>
+        }
+    </p>
+
+    @if (_displayedEvent is NostrZapReceiptEvent zapEvent)
+    {
+        <p>
+            <strong>Invoice</strong>
+            <div>Sats: @zapEvent.DecodeBolt11()?.MinimumAmount.ToUnit(LightMoneyUnit.Satoshi)</div>
+            <div>Recipient <a class="clear-link" href="@ExternalLinks.GetLinkToProfile(zapEvent?.RecipientPubkey)" target="_blank">@ExternalLinks.FormatToNpub(zapEvent?.RecipientPubkey)</a></div>
+        </p>
+    }
+
+    <Stack Orientation="Orientation.Horizontal" HorizontalGap="10">
+        
+        @if (!_displayJson)
+        {
+            <FluentButton Appearance="Appearance.Neutral" @onclick="() => _displayJson = true">
+                <FluentIcon Name="@FluentIcons.WindowDevTools" Size="@IconSize.Size16" Color="Color.Neutral" Slot="start" />
+                Display JSON
+            </FluentButton>
+        }
+        
+        <FluentButton Appearance="Appearance.Neutral" @onclick="() => Clipboard.CopyToClipboard(_eventJson)">
+            <FluentIcon Name="@FluentIcons.Clipboard" Size="@IconSize.Size16" Color="Color.Neutral" Slot="start" />
+            Copy
+        </FluentButton>
+
+        <FluentButton Appearance="Appearance.Neutral" @onclick="OnOpenPublisher" title="Open in a new tab">
+            <FluentIcon Name="@FluentIcons.WindowNew" Size="@IconSize.Size16" Color="Color.Neutral" />
+            Publish...
+        </FluentButton>
+        
+    </Stack>
+
+    @if (_displayJson)
+    {
+        <hr/>
+        <pre>@_eventJson</pre>
+    }
+
+</div>
+
+@code {
+    private NostrEvent? _displayedEvent;
+    private string? _eventJson;
+    private bool _displayJson;
+
+    [Parameter]
+    [Required]
+    public NostrEvent? Event { get; set; } = new();
+
+    protected override void OnParametersSet()
+    {
+        if (Event == null || !Event.Equals(_displayedEvent))
+        {
+            _displayJson = false;
+            _eventJson = null;
+            _displayedEvent = Event;
+            GenerateJson();
+        }
+
+        base.OnParametersSet();
+    }
+
+    private static string FormatEventContent(string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return string.Empty;
+
+        try
+        {
+            var parsed = JsonConvert.DeserializeObject<JObject>(content);
+            return parsed?.ToString(Formatting.Indented) ?? content;
+        }
+        catch (Exception)
+        {
+            return content;
+        }
+    }
+
+    private void GenerateJson()
+    {
+        if (_displayedEvent == null)
+            return;
+
+        var settings = NostrSerializer.Settings;
+        settings.Formatting = Formatting.Indented;
+        _eventJson = JsonConvert.SerializeObject(_displayedEvent, settings);
+    }
+    
+    private async Task OnOpenPublisher()
+    {
+        if (_displayedEvent == null)
+            return;
+
+        var link = Publisher.GetUrl(_displayedEvent);
+        await JsRuntime.InvokeVoidAsync("open", link, "_blank");
+    }
+}

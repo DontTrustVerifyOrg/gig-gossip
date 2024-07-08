@@ -1,0 +1,103 @@
+﻿@using Nostr.Client.Requests
+@using Nostr.Client.Responses
+@using System.ComponentModel.DataAnnotations
+@using Nostr.Client.Messages;
+@using Nostr.Client.Messages.Mutable
+@inject RelayList Relays
+@inject EventStorage EventStorage;
+@implements IDisposable
+
+<Stack Orientation="Orientation.Vertical" HorizontalGap="0" VerticalGap="20">
+
+    <NostrEventEdit @ref="_eventEdit" @bind-Event="Event"></NostrEventEdit>
+
+    <Stack Orientation="Orientation.Horizontal" VerticalGap="10">
+        <FluentButton Appearance="Appearance.Accent" @onclick="OnSend">
+            Send
+            <FluentIcon Name="@FluentIcons.Send" Slot="end" Size="@IconSize.Size16" Color="Color.Fill" Variant="IconVariant.Filled" />
+        </FluentButton>
+
+        @if (_isSending)
+        {
+            <FluentProgressRing></FluentProgressRing>
+        }
+    </Stack>
+
+</Stack>
+
+@code {
+    private bool _isSending;
+    private string? _sendingEventId;
+
+    private IDisposable? _websocketHandlerOkData;
+    private IDisposable? _websocketHandlerNoticeData;
+
+    private NostrEventEdit? _eventEdit;
+
+    [Parameter]
+    [Required]
+    public NostrEventMutable Event { get; set; } = new()
+    {
+        Kind = NostrKind.ShortTextNote,
+        CreatedAt = DateTime.Now
+    };
+
+    [Parameter]
+    public EventCallback<NostrEventMutable> EventChanged { get; set; }
+    
+    [Parameter]
+    public EventCallback<NostrEventMutable> EventSent { get; set; }
+
+    public void Dispose()
+    {
+        _websocketHandlerOkData?.Dispose();
+        _websocketHandlerNoticeData?.Dispose();
+    }
+
+    public async Task ChangeEvent(NostrEvent ev)
+    {
+        if (_eventEdit == null)
+            return;
+        await _eventEdit.ChangeEvent(ev);
+    }
+    
+    protected override void OnInitialized()
+    {
+        _websocketHandlerOkData = Relays.Client.Streams.OkStream
+            .Subscribe(HandleOk);
+        _websocketHandlerNoticeData = Relays.Client.Streams.NoticeStream
+            .Subscribe(HandleNotice);
+
+        base.OnInitialized();
+    }
+
+    private void HandleOk(NostrOkResponse response)
+    {
+        if (response.EventId == _sendingEventId)
+        {
+            _isSending = false;
+        }
+        StateHasChanged();
+    }
+
+    private void HandleNotice(NostrNoticeResponse response)
+    {
+        // notice is not bound to any specific event, stop progress
+        _isSending = false;
+        StateHasChanged();
+    }
+
+    private async Task OnSend()
+    {
+        _isSending = true;
+        _sendingEventId = Event.Id;
+        var ev = Event.ToEvent();
+        EventStorage.Store(ev);
+        Relays.Client.Send(new NostrEventRequest(ev));
+        
+        if (EventSent.HasDelegate)
+        {
+            await EventSent.InvokeAsync(Event);
+        }
+    }
+}

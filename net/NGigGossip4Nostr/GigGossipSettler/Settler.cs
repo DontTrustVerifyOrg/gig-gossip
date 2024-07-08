@@ -400,13 +400,25 @@ public class Settler : CertificationAuthority
             return preimage.Preimage;
     }
 
+    public string RevealSymmetricKey(string pubkey, Guid signedRequestPayloadId, Guid repliercertificateId)
+    {
+        var gig = (from g in settlerContext.Value.Gigs
+                   where g.SignedRequestPayloadId == signedRequestPayloadId && g.ReplierCertificateId == repliercertificateId 
+                   select g).FirstOrDefault();
+
+        if (gig == null)
+            return "";
+        else
+            return gig.SymmetricKey;
+    }
+
     public string GetGigStatus(Guid signedRequestPayloadId, Guid repliercertificateid)
     {
         var gig = (from g in settlerContext.Value.Gigs where g.ReplierCertificateId == repliercertificateid && g.SignedRequestPayloadId == signedRequestPayloadId select g).FirstOrDefault();
         if (gig == null)
             return "";
         else
-            return gig.Status.ToString() + "|" + (gig.Status == GigStatus.Accepted ? gig.SymmetricKey : "");
+            return gig.Status.ToString() + "|" + gig.SymmetricKey;
     }
 
     public async Task<SettlementTrust> GenerateSettlementTrustAsync(string replierpubkey, string[] replierproperties, byte[] message, string replyInvoice, Certificate<RequestPayloadValue> signedRequestPayload)
@@ -588,6 +600,7 @@ public class Settler : CertificationAuthority
         gig.Status = GigStatus.Completed;
         gig.SubStatus = GigSubStatus.None;
         this.settlerContext.Value.SaveObject(gig);
+        FireOnGigStatus(gig.SignedRequestPayloadId, gig.ReplierCertificateId, GigStatus.Completed, gig.SymmetricKey);
         var settletPi = (from pi in preims where pi.PublicKey == this.CaXOnlyPublicKey.AsHex() select pi).FirstOrDefault();
         if (settletPi == null)
             throw new UnknownPreimageException();

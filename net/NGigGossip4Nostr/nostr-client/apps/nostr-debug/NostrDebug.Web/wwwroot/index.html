@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+	<!-- Primary Meta Tags -->
+	<title>Nostr Debug Tool</title>
+	<meta name="title" content="Nostr Debug Tool">
+	<meta name="description" content="Application to debug Nostr protocol and various useful tools">
+
+	<!-- Open Graph / Facebook -->
+	<meta property="og:type" content="website">
+	<meta property="og:url" content="https://nostrdebug.com/">
+	<meta property="og:title" content="Nostr Debug Tool">
+	<meta property="og:description" content="Application to debug Nostr protocol and various useful tools">
+	<meta property="og:image" content="https://nostrdebug.com/nostr-preview.png">
+
+	<!-- Twitter -->
+	<meta property="twitter:card" content="summary_large_image">
+	<meta property="twitter:url" content="https://nostrdebug.com/">
+	<meta property="twitter:title" content="Nostr Debug Tool">
+	<meta property="twitter:description" content="Application to debug Nostr protocol and various useful tools">
+	<meta property="twitter:image" content="https://nostrdebug.com/nostr-preview.png">
+
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+
+	<base href="/" />
+    <link href="_content/Microsoft.Fast.Components.FluentUI/css/reboot.css" rel="stylesheet" />
+	<link href="NostrDebug.Web.styles.css" rel="stylesheet">
+	<link href="css/app.css" rel="stylesheet" />
+</head>
+
+<body>
+	<div id="app" class="full-height">
+		<svg class="loading-progress">
+			<circle r="40%" cx="50%" cy="50%" />
+			<circle r="40%" cx="50%" cy="50%" />
+		</svg>
+		<div class="loading-progress-text"></div>
+	</div>
+
+	<div id="blazor-error-ui">
+		An unhandled error has occurred.
+		<a href="" class="reload">Reload</a>
+		<a class="dismiss">🗙</a>
+	</div>
+
+	<script src="_content/BlazorMonaco/jsInterop.js"></script>
+    <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/loader.js"></script>
+    <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/editor/editor.main.js"></script>
+    <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@fluentui/web-components/dist/web-components.min.js"></script>
+
+    <script type="module">
+	    import { BrotliDecode } from './decode.min.js';
+	    Blazor.start({
+		    loadBootResource: function (type, name, defaultUri, integrity) {
+			    if (type !== 'dotnetjs' && location.hostname !== 'localhost') {
+				    return (async function () {
+					    const response = await fetch(defaultUri + '.br', { cache: 'no-cache' });
+					    if (!response.ok) {
+						    throw new Error(response.statusText);
+					    }
+					    const originalResponseBuffer = await response.arrayBuffer();
+					    const originalResponseArray = new Int8Array(originalResponseBuffer);
+					    const decompressedResponseArray = BrotliDecode(originalResponseArray);
+					    const contentType = type ===
+						    'dotnetwasm' ? 'application/wasm' : 'application/octet-stream';
+					    return new Response(decompressedResponseArray,
+						    { headers: { 'content-type': contentType } });
+				    })();
+			    }
+		    }
+	    });
+    </script>
+</body>
+
+</html>

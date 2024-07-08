@@ -1,0 +1,145 @@
+﻿@using Microsoft.Fast.Components.FluentUI.DesignTokens
+@using Blazored.LocalStorage
+@inherits LayoutComponentBase
+@inject RelayList Relays
+@inject GlobalState GlobalState
+@inject BaseLayerLuminance BaseLayerLuminance
+@inject IJSRuntime JsRuntime
+@inject ILocalStorageService LocalStorage
+
+<div class="container" @ref="_container">
+    <div class="siteheader">
+        <a class="logo" href="/">
+            <p class="logo-text">
+                <span>Nostr</span>Debug
+            </p>
+        </a>
+        
+        <a class="m-left-auto clear-link cursor-hand menu-link" style="line-height: 44px" @onclick="OnDisplayRelayDialog">
+            
+            @if (Relays.AreAllConnected && Relays.IsAnyConnected)
+            {
+                <FluentIcon style="vertical-align: middle" Name="@FluentIcons.CloudCheckmark" Size="@IconSize.Size24" Variant="@IconVariant.Regular" Color="@Color.Success" />
+            }
+            else if (!Relays.AreAllConnected && Relays.IsAnyConnected)
+            {
+                <FluentIcon style="vertical-align: middle" Name="@FluentIcons.CloudCheckmark" Size="@IconSize.Size24" Variant="@IconVariant.Regular" Color="@Color.Warning" />
+            }
+            else
+            {
+                <FluentIcon style="vertical-align: middle" Name="@FluentIcons.CloudDismiss" Size="@IconSize.Size24" Variant="@IconVariant.Regular" Color="@Color.Error" />
+            }
+            
+            <span class="m-l">Relays</span>
+
+        </a>
+        
+        <div class="menu-link" style="line-height: 44px">
+            <FluentSwitch @bind-Value="@_inDarkMode" @onchange="SwitchTheme" title="Switch theme">
+                <span class="label">Theme</span>
+                <span slot="unchecked-message">light</span>
+                <span slot="checked-message">dark</span>
+            </FluentSwitch>
+        </div>
+
+        <div class="git-repo menu-link" style="line-height: 44px">
+            <a class="clear-link" href="https://github.com/marfusios/nostr-client-websocket" target="_blank">Github</a>
+        </div>
+    </div>
+    <div class="main">
+        <div class="navigation">
+            <NavMenu />
+        </div>
+
+        <div class="content">
+            <main>
+                <article class="content px-4">
+                   
+                    <ErrorBoundary @ref="_errorBoundary">
+                        <ChildContent>
+                            @Body
+                        </ChildContent>
+                        <ErrorContent Context="ex">
+                            <p class="error">@ex.Message</p>
+                        </ErrorContent>
+                    </ErrorBoundary>
+                </article>
+            </main>
+        </div>
+    </div>
+    
+    <FluentDialog @ref="_relayDialog" Modal="true" TrapFocus="true" @ondialogdismiss="OnHideRelayDialog">
+        <div class="dialog-content">
+            <Relay></Relay>
+        </div>
+    </FluentDialog>
+</div>
+
+@code {
+    private const string DarkModeKey = "darkMode";
+    private ElementReference _container;
+    private FluentDialog? _relayDialog;
+
+    private ErrorBoundary? _errorBoundary;
+    private bool _inDarkMode;
+    private StandardLuminance _baseLayerLuminance = StandardLuminance.LightMode;
+    private IJSObjectReference? _jsModule;
+
+    protected override void OnParametersSet()
+    {
+        _errorBoundary?.Recover();
+    }
+    
+    protected override async Task OnInitializedAsync()
+    {
+        Relays.ConnectionStream.Subscribe(connected =>
+        {
+            StateHasChanged();
+        });
+
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _relayDialog!.Hide();
+
+            _jsModule = await JsRuntime.InvokeAsync<IJSObjectReference>("import",
+                "./Components/MainLayout.razor.js");
+
+            var lastDarkMode = await LocalStorage.GetItemAsync<bool?>(DarkModeKey);
+            _inDarkMode = lastDarkMode ?? await _jsModule!.InvokeAsync<bool>("isDarkMode");
+
+            await SwitchTheme();
+            StateHasChanged();
+        }
+            
+    }
+
+    private void OnDisplayRelayDialog()
+    {
+        _relayDialog?.Show();
+    }
+
+    private void OnHideRelayDialog(DialogEventArgs? args)
+    {
+        if (args?.Reason is "dismiss")
+        {
+            _relayDialog!.Hide();
+        }
+    }
+
+    private async Task SwitchTheme()
+    {
+        await Task.Delay(50);
+
+        _baseLayerLuminance = _inDarkMode ? StandardLuminance.DarkMode : StandardLuminance.LightMode;
+        await BaseLayerLuminance.SetValueFor(_container, _baseLayerLuminance.GetLuminanceValue());
+        GlobalState.SetLuminance(_baseLayerLuminance);
+        await LocalStorage.SetItemAsync(DarkModeKey, _inDarkMode);
+        
+        // await _jsModule!.InvokeVoidAsync("switchHighlightStyle", _baseLayerLuminance == StandardLuminance.DarkMode);
+    }
+}

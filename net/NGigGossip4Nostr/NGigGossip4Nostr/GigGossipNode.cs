@@ -10,7 +10,6 @@ using System.Threading.Channels;
 using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading;
-using NNostr.Client;
 using CryptoToolkit;
 using System.Security.Cryptography.X509Certificates;
 using System.Runtime.ConstrainedExecution;
@@ -75,7 +74,7 @@ public interface IGigGossipNodeEvents
 public class AcceptBroadcastResponse
 {
     public required Uri SettlerServiceUri { get; set; }
-    public required string [] Properties { get; set; }
+    public required string[] Properties { get; set; }
     public required byte[] Message { get; set; }
     public required long Fee { get; set; }
 }
@@ -99,8 +98,8 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     private SemaphoreSlim alreadyBroadcastedSemaphore = new SemaphoreSlim(1, 1);
 
-    private ConcurrentDictionary<Uri, IGigStatusClient> settlerGigStatusClients ;
-    private ConcurrentDictionary<Uri, IPreimageRevealClient> settlerPreimageRevelClients ;
+    private ConcurrentDictionary<Uri, IGigStatusClient> settlerGigStatusClients;
+    private ConcurrentDictionary<Uri, IPreimageRevealClient> settlerPreimageRevelClients;
 
     protected ConcurrentDictionary<Uri, Guid> _walletToken;
     protected ConcurrentDictionary<Uri, Guid> _settlerToken;
@@ -112,7 +111,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     protected PaymentStatusUpdatesMonitor _paymentStatusUpdatesMonitor;
     protected SettlerMonitor _settlerMonitor;
 
-    Dictionary<string, NostrContact> _contactList ;
+    Dictionary<string, NostrContact> _contactList;
 
     private IGigGossipNodeEvents gigGossipNodeEvents;
     private Uri defaultWalletUri;
@@ -124,7 +123,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     ConcurrentDictionary<string, bool> messageLocks;
 
-    public GigGossipNode(string connectionString, ECPrivKey privKey, int chunkSize, IRetryPolicy retryPolicy, Func<HttpClient> httpClientFactory, bool traceEnabled, Uri myLoggerUri) : base(privKey, chunkSize,true, retryPolicy)
+    public GigGossipNode(string connectionString, ECPrivKey privKey, int chunkSize, IRetryPolicy retryPolicy, Func<HttpClient> httpClientFactory, bool traceEnabled, Uri myLoggerUri) : base(privKey, chunkSize, true, retryPolicy)
     {
         RegisterFrameType<BroadcastFrame>();
         RegisterFrameType<CancelBroadcastFrame>();
@@ -148,18 +147,18 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     {
         return Crypto.MakeSignedTimedToken(
             this.privateKey, DateTime.UtcNow,
-            await _walletToken.GetOrAddAsync(defaultWalletUri, async (serviceUri) => WalletAPIResult.Get<Guid>(await WalletSelector.GetWalletClient(serviceUri).GetTokenAsync(this.PublicKey,CancellationTokenSource.Token))));
+            await _walletToken.GetOrAddAsync(defaultWalletUri, async (serviceUri) => WalletAPIResult.Get<Guid>(await WalletSelector.GetWalletClient(serviceUri).GetTokenAsync(this.PublicKey, CancellationTokenSource.Token))));
     }
 
     public async Task<string> MakeSettlerAuthTokenAsync(Uri serviceUri)
     {
         return Crypto.MakeSignedTimedToken(
             this.privateKey, DateTime.UtcNow,
-            await _settlerToken.GetOrAddAsync(serviceUri, async (serviceUri) => SettlerAPIResult.Get<Guid>(await SettlerSelector.GetSettlerClient(serviceUri).GetTokenAsync(this.PublicKey,CancellationTokenSource.Token))));
+            await _settlerToken.GetOrAddAsync(serviceUri, async (serviceUri) => SettlerAPIResult.Get<Guid>(await SettlerSelector.GetSettlerClient(serviceUri).GetTokenAsync(this.PublicKey, CancellationTokenSource.Token))));
     }
 
     public async Task StartAsync(int fanout, long priceAmountForRouting, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
-        string[] nostrRelays, IGigGossipNodeEvents gigGossipNodeEvents, Uri defaultWalletUri,  Uri mySettlerUri)
+        string[] nostrRelays, IGigGossipNodeEvents gigGossipNodeEvents, Uri defaultWalletUri, Uri mySettlerUri)
     {
 
         this.messageLocks = new();
@@ -199,7 +198,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
             await SayHelloAsync();
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             await FlowLogger.TraceExceptionAsync(ex);
             throw;
@@ -218,7 +217,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             this._invoiceStateUpdatesMonitor.Stop();
         if (this._paymentStatusUpdatesMonitor != null)
             this._paymentStatusUpdatesMonitor.Stop();
-        if(this._settlerMonitor!=null)
+        if (this._settlerMonitor != null)
             this._settlerMonitor.Stop();
     }
 
@@ -511,7 +510,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                     replyPaymentHash);
                 var signedRequestPayloadSerialized = Crypto.SerializeObject(broadcastFrame.SignedRequestPayload);
                 var settr = SettlerAPIResult.Get<string>(await settlerClient.GenerateSettlementTrustAsync(authToken,
-                    string.Join(",",acceptBroadcastResponse.Properties),
+                    string.Join(",", acceptBroadcastResponse.Properties),
                     replyInvoice,
                     new FileParameter(new MemoryStream(acceptBroadcastResponse.Message)),
                     new FileParameter(new MemoryStream(signedRequestPayloadSerialized)),
@@ -811,7 +810,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         await FlowLogger.NewMessageAsync(this.PublicKey, pay.PaymentHash, "pay_" + status);
     }
 
-    public async Task<bool> OnPreimageRevealedAsync(Uri serviceUri, string phash, string preimage,CancellationToken cancellationToken)
+    public async Task<bool> OnPreimageRevealedAsync(Uri serviceUri, string phash, string preimage, CancellationToken cancellationToken)
     {
         try
         {
@@ -823,7 +822,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             await FlowLogger.NewMessageAsync(Encoding.Default.GetBytes(serviceUri.AbsoluteUri).AsHex(), phash, "revealed");
             await FlowLogger.NewMessageAsync(this.PublicKey, phash, "settled");
             gigGossipNodeEvents.OnInvoiceSettled(this, serviceUri, phash, preimage);
-            return true; 
+            return true;
         }
         catch (Exception ex)
         {
@@ -858,8 +857,8 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 Invoice = networkInvoice,
                 PaymentHash = decodedNetworkInvoice.PaymentHash
             }));
-            var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), networkInvoice, (int)this.InvoicePaymentTimeout.TotalSeconds, feelimit,cancellationToken));
-            if(paymentStatus!= GigLNDWalletAPIErrorCode.Ok)
+            var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), networkInvoice, (int)this.InvoicePaymentTimeout.TotalSeconds, feelimit, cancellationToken));
+            if (paymentStatus != GigLNDWalletAPIErrorCode.Ok)
             {
                 await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(decodedNetworkInvoice.PaymentHash);
                 return paymentStatus;
@@ -874,7 +873,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 Invoice = replyInvoice,
                 PaymentHash = decodedReplyInvoice.PaymentHash
             }));
-            var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), replyInvoice, (int)this.InvoicePaymentTimeout.TotalSeconds, feelimit,cancellationToken));
+            var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), replyInvoice, (int)this.InvoicePaymentTimeout.TotalSeconds, feelimit, cancellationToken));
             if (paymentStatus != GigLNDWalletAPIErrorCode.Ok)
             {
                 await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(decodedNetworkInvoice.PaymentHash);
@@ -930,7 +929,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         var settler = SettlerSelector.GetSettlerClient(mySettlerUri);
         var token = await MakeSettlerAuthTokenAsync(mySettlerUri);
         var topicByte = Crypto.SerializeObject(topic!);
-        var response = SettlerAPIResult.Get<string>(await settler.GenerateRequestPayloadAsync(token, string.Join(",",properties), new FileParameter(new MemoryStream(topicByte)), CancellationTokenSource.Token));
+        var response = SettlerAPIResult.Get<string>(await settler.GenerateRequestPayloadAsync(token, string.Join(",", properties), new FileParameter(new MemoryStream(topicByte)), CancellationTokenSource.Token));
         var base64Response = Convert.FromBase64String(response);
         var broadcastTopicResponse = Crypto.DeserializeObject<BroadcastTopicResponse>(base64Response);
 

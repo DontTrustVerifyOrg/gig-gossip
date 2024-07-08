@@ -1,0 +1,246 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using Nostr.Client.Requests
+
+<Stack Orientation="Orientation.Vertical" HorizontalGap="0" VerticalGap="10">
+    
+    <FluentToolbar Style="padding: 0">
+
+        <FluentButton @onclick="OnClear" Style="margin-left: 0">
+            <FluentIcon Name="@FluentIcons.Delete" Size="@IconSize.Size16" Color="Color.Neutral" />
+        </FluentButton>
+        
+        <FluentButton @onclick="OnJsonEdit">
+            <FluentIcon Name="@FluentIcons.WindowDevEdit" Size="@IconSize.Size16" Color="Color.Neutral" Slot="start" />
+            JSON edit
+        </FluentButton>
+
+    </FluentToolbar>
+
+    <NostrKindSelect @bind-Value="Filter.Kinds" @bind-Value:after="OnFilterChanged"></NostrKindSelect>
+
+    <Stack Orientation="Orientation.Horizontal" VerticalGap="10">
+
+        <FluentNumberField ValueExpression="() => _hoursSince" Value="@_hoursSince" @oninput="SetSince">
+            <strong>Since (hours)</strong>
+        </FluentNumberField>
+
+        <FluentNumberField ValueExpression="() => _hoursUntil" Value="@_hoursUntil" @oninput="SetUntil">
+            <strong>Until (hours)</strong>
+        </FluentNumberField>
+
+        <Stack Orientation="Orientation.Vertical" VerticalGap="0">
+            <strong>Selected range (@TimeZoneInfo.Local.StandardName)</strong>
+            <span>from @Filter.Since?.ToLocalTime().ToString("g")</span>
+            <span>to @Filter.Until?.ToLocalTime().ToString("g")</span>
+        </Stack>
+
+    </Stack>
+
+    <FluentNumberField Min="0" ValueExpression="() => Filter.Limit" Value="@Filter.Limit" @oninput="SetLimit">
+        <strong>Limit</strong>
+    </FluentNumberField>
+
+    <FluentTabs Style="width: 100%">
+        <FluentTab Style="padding-left: 0; margin-bottom: 10px">
+            <strong>Basic</strong>
+        </FluentTab>
+        <FluentTab>
+            <strong>Advanced</strong>
+        </FluentTab>
+
+        <FluentTabPanel>
+            <Stack Orientation="Orientation.Vertical" HorizontalGap="0" VerticalGap="10">
+                <FluentTextArea style="width: 100%" Placeholder="hex or npub1" Resize="TextAreaResize.Vertical" @bind-Value="_authorsText" @bind-Value:after="OnFilterChanged">
+                    <strong>Authors</strong>
+                </FluentTextArea>
+    
+                <FluentTextArea style="width: 100%" Placeholder="hex or note1" Resize="TextAreaResize.Vertical" @bind-Value="_idsText" @bind-Value:after="OnFilterChanged">
+                    <strong>Ids</strong>
+                </FluentTextArea>
+            </Stack>
+        </FluentTabPanel>
+        
+        <FluentTabPanel>
+            <Stack Orientation="Orientation.Vertical" HorizontalGap="0" VerticalGap="10">
+               <FluentTextArea style="width: 100%" Placeholder="hex or note1 in E tag" Resize="TextAreaResize.Vertical" @bind-Value="_eIdsText" @bind-Value:after="OnFilterChanged">
+                   <strong>Ids (E)</strong>
+               </FluentTextArea>
+   
+               <FluentTextArea style="width: 100%" Placeholder="hex or npub1 in P tag" Resize="TextAreaResize.Vertical" @bind-Value="_pIdsText" @bind-Value:after="OnFilterChanged">
+                   <strong>Ids (P)</strong>
+               </FluentTextArea>
+   
+               <FluentTextArea style="width: 100%" Placeholder="coordinate in A tag" Resize="TextAreaResize.Vertical" @bind-Value="_aIdsText" @bind-Value:after="OnFilterChanged">
+                   <strong>Coordinates (A)</strong>
+               </FluentTextArea> 
+            </Stack>
+        </FluentTabPanel>
+    </FluentTabs>
+
+    <NostrFilterEditJsonDialog @ref="_filterJsonDialog" Applied="ChangeFilter"></NostrFilterEditJsonDialog>
+
+</Stack>
+
+@code {
+    private bool _isWaitingForData;
+
+    private string? _authorsText;
+    private string? _idsText;
+    private string? _eIdsText;
+    private string? _pIdsText;
+    private string? _aIdsText;
+    private int? _hoursSince;
+    private int? _hoursUntil;
+
+    private NostrFilterEditJsonDialog? _filterJsonDialog;
+
+    [Parameter]
+    [Required]
+    public NostrFilter Filter { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<NostrFilter> FilterChanged { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        OnFilterRestored();
+        ConvertTextIds();
+        await base.OnInitializedAsync();
+    }
+
+    public async Task ChangeFilter(NostrFilter filter)
+    {
+        Filter = filter;
+        OnFilterRestored();
+        await OnFilterChanged();
+    }
+
+    private void OnFilterRestored()
+    {
+        _authorsText = ConvertTextIdsBack(Filter.Authors);
+        _idsText = ConvertTextIdsBack(Filter.Ids);
+        _eIdsText = ConvertTextIdsBack(Filter.E);
+        _pIdsText = ConvertTextIdsBack(Filter.P);
+        _aIdsText = ConvertTextIdsBack(Filter.A);
+
+        if (Filter.Since.HasValue)
+            _hoursSince = (int)Filter.Since.Value.Subtract(DateTimeUtils.UtcNowOnlyHours()).TotalHours;
+        else
+            _hoursSince = null;
+
+        if (Filter.Until.HasValue)
+            _hoursUntil = (int)Filter.Until.Value.Subtract(DateTimeUtils.UtcNowOnlyHours()).TotalHours;
+        else
+            _hoursUntil = null;
+    }
+
+    private async Task OnFilterChanged()
+    {
+        try
+        {
+            ConvertTextIds();
+
+            if (FilterChanged.HasDelegate)
+            {
+                await FilterChanged.InvokeAsync(Filter);
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Failed to update filter, error: {e.Message}");
+        }
+    }
+
+    private void ConvertTextIds()
+    {
+        Filter.Authors = ConvertTextIds(_authorsText);
+        Filter.Ids = ConvertTextIds(_idsText);
+        Filter.E = ConvertTextIds(_eIdsText);
+        Filter.P = ConvertTextIds(_pIdsText);
+        Filter.A = ConvertTextIds(_aIdsText);
+    }
+
+    private async Task SetSince(ChangeEventArgs args)
+    {
+        if (args.Value == null || string.IsNullOrWhiteSpace(args.Value as string))
+        {
+            _hoursSince = null;
+            Filter.Since = null;
+            return;
+        }
+        _hoursSince = Convert.ToInt32(args.Value);
+        Filter.Since = DateTimeUtils.UtcNowOnlyHours().AddHours(_hoursSince.Value);
+        await OnFilterChanged();
+    }
+
+    private async Task SetUntil(ChangeEventArgs args)
+    {
+        if (args.Value == null || string.IsNullOrWhiteSpace(args.Value as string))
+        {
+            _hoursUntil = null;
+            Filter.Until = null;
+            return;
+        }
+        _hoursUntil = Convert.ToInt32(args.Value);
+        Filter.Until = DateTimeUtils.UtcNowOnlyHours().AddHours(_hoursUntil.Value).ToUniversalTime();
+        await OnFilterChanged();
+    }
+
+    private async Task SetLimit(ChangeEventArgs args)
+    {
+        if (args.Value == null || string.IsNullOrWhiteSpace(args.Value as string))
+        {
+            Filter.Limit = null;
+            return;
+        }
+        Filter.Limit = Convert.ToInt32(args.Value);
+        await OnFilterChanged();
+    }
+
+    private string ConvertTextIdsBack(string[]? ids)
+    {
+        return string.Join(Environment.NewLine, ids ?? Array.Empty<string>());
+    }
+
+    private string[]? ConvertTextIds(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+        return text
+            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
+            .Select(TryConvertBech32)
+            .ToArray();
+    }
+
+    private string TryConvertBech32(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return key;
+        }
+
+        try
+        {
+            return NostrConverter.ToHex(key, out _) ?? key;
+        }
+        catch (Exception e)
+        {
+            return key;
+        }
+    }
+
+    private async Task OnJsonEdit()
+    {
+        if (_filterJsonDialog == null)
+            return;
+        await _filterJsonDialog.ShowFilter(Filter);
+    }
+
+    private async Task OnClear()
+    {
+        await ChangeFilter(new NostrFilter()
+        {
+            Kinds = new[] {NostrKind.ShortTextNote}
+        });
+    }
+}

@@ -904,6 +904,33 @@ app.MapGet("/validaterelatedpaymenthashes", (string authToken, string paymentHas
 })
 .DisableAntiforgery();
 
+
+app.MapGet("/revealsymmetrickey", (string authToken, Guid gigId, Guid replierId) =>
+{
+    try
+    {
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        return new Result<string>(Singlethon.Settler.RevealSymmetricKey(pubkey, gigId, replierId));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
+    }
+})
+.WithName("RevealSymmetricKey")
+.WithSummary("Reveals Symmetric Key")
+.WithDescription("Reveals symmetric key for the communication")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication.";
+    g.Parameters[1].Description = "Gig ID.";
+    g.Parameters[2].Description = "Replied Id";
+    return g;
+})
+.DisableAntiforgery();
+
+
 app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
 {
     try

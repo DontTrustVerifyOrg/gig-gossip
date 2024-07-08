@@ -6,7 +6,6 @@ using System.Text;
 using CryptoToolkit;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin.Protocol;
-using NNostr.Client;
 
 namespace NGigGossip4Nostr;
 
