@@ -30,7 +30,7 @@ public enum RideState
     RiderPickedUp = 2,
     RiderDroppedOff = 3,
     Disputed = 4,
-    Failed = 5
+    Failed = 5,
 }
 
 [Serializable]
