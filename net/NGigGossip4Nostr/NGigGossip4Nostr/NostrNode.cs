@@ -434,6 +434,7 @@ public abstract class NostrNode
             EventThreadClosing = true;
             Monitor.PulseAll(queueMonitor);
         }
+        monitorThread.Join();
     }
 
     Thread monitorThreadSend;
@@ -484,6 +485,7 @@ public abstract class NostrNode
             EventThreadClosingSend = true;
             Monitor.PulseAll(queueMonitorSend);
         }
+        monitorThreadSend.Join();
     }
 
     private async void NostrClient_EventsReceived(NostrEventResponse e)
