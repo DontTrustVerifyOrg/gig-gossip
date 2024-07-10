@@ -54,6 +54,7 @@ public class ResponseReadyEventArgs : EventArgs
 {
     public required GigGossipNode GigGossipNode;
     public required Guid RequestPayloadId;
+    public required Guid ReplierCertificateId;
     public required ConnectionReply Reply;
 }
 public class ResponseCancelledEventArgs : EventArgs

@@ -239,6 +239,8 @@ public partial class RideShareCLIApp
                     FromLocation = locationFrame.FromLocation,
                     ToLocation = locationFrame.ToLocation,
                     Secret = locationFrame.Secret,
+                    ReplierCertificateId = locationFrame.ReplierCertificateId,
+                    SettlerServiceUri = locationFrame.SettlerServiceUri,
                 }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
                 Thread.Sleep(1000);
             }
@@ -259,6 +261,8 @@ public partial class RideShareCLIApp
                 Secret = locationFrame.Secret,
                 Message = "I am waiting",
                 RideStatus = RideState.DriverWaitingForRider,
+                ReplierCertificateId = locationFrame.ReplierCertificateId,
+                SettlerServiceUri = locationFrame.SettlerServiceUri,
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
             Thread.Sleep(1000);
         }
@@ -286,6 +290,8 @@ public partial class RideShareCLIApp
                     FromLocation = locationFrame.FromLocation,
                     ToLocation = locationFrame.ToLocation,
                     Secret = locationFrame.Secret,
+                    ReplierCertificateId = locationFrame.ReplierCertificateId,
+                    SettlerServiceUri = locationFrame.SettlerServiceUri,
                 }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
                 Thread.Sleep(1000);
             }
@@ -302,6 +308,8 @@ public partial class RideShareCLIApp
             FromLocation = locationFrame.FromLocation,
             ToLocation = locationFrame.ToLocation,
             Secret = locationFrame.Secret,
+            ReplierCertificateId= locationFrame.ReplierCertificateId,
+            SettlerServiceUri = locationFrame.SettlerServiceUri,
         }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
         AnsiConsole.MarkupLine("Good [orange1]bye[/]");
         ActiveSignedRequestPayloadId = Guid.Empty;

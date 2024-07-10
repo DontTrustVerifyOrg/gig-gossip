@@ -119,7 +119,7 @@ public partial class RideShareCLIApp
             await directCom.StartAsync(e.Reply.Relays);
             directTimer.Start();
             directPubkeys[e.RequestPayloadId] = e.Reply.PublicKey;
-            new Thread(async () => await RiderJourneyAsync(e.RequestPayloadId, e.Reply.Secret)).Start();
+            new Thread(async () => await RiderJourneyAsync(e.RequestPayloadId, e.ReplierCertificateId, e.Reply.Secret, settings.NodeSettings.SettlerOpenApi)).Start();
         }
         else
             AnsiConsole.WriteLine("SignedRequestPayloadId mismatch 2");
@@ -153,16 +153,18 @@ public partial class RideShareCLIApp
 
 
 
-    private async Task RiderJourneyAsync(Guid requestPayloadId,string secret)
+    private async Task RiderJourneyAsync(Guid signedRequestPayloadId, Guid replierCertificateId, string secret, Uri settlerServiceUri)
     {
         driverApproached = false;
         riderDroppedOff = false;
-        var pubkey = directPubkeys[requestPayloadId];
+        var pubkey = directPubkeys[signedRequestPayloadId];
         AnsiConsole.MarkupLine("I am [orange1]sending[/] my location to the driver");
         await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 Secret = secret,
-                SignedRequestPayloadId = requestPayloadId,
+                SignedRequestPayloadId = signedRequestPayloadId,
+                ReplierCertificateId = replierCertificateId,
+                SettlerServiceUri = settlerServiceUri,
                 Location = fromLocation,
                 Message = "Hello From Rider!",
                 RideStatus = RideState.Started,
@@ -180,7 +182,9 @@ public partial class RideShareCLIApp
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 Secret = secret,
-                SignedRequestPayloadId = requestPayloadId,
+                SignedRequestPayloadId = signedRequestPayloadId,
+                ReplierCertificateId = replierCertificateId,
+                SettlerServiceUri = settlerServiceUri,
                 Location = fromLocation,
                 Message = "I am waiting",
                 RideStatus = RideState.Started,
@@ -197,7 +201,9 @@ public partial class RideShareCLIApp
             await directCom.SendMessageAsync(pubkey, new LocationFrame
             {
                 Secret = secret,
-                SignedRequestPayloadId = requestPayloadId,
+                SignedRequestPayloadId = signedRequestPayloadId,
+                ReplierCertificateId = replierCertificateId,
+                SettlerServiceUri = settlerServiceUri,
                 Location = lastDriverLocation,
                 Message = "I am in the car",
                 RideStatus = RideState.RiderPickedUp,

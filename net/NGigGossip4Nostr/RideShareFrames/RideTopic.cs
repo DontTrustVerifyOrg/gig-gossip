@@ -37,6 +37,8 @@ public enum RideState
 public class LocationFrame
 {
     public required Guid SignedRequestPayloadId { get; set; }
+    public required Guid ReplierCertificateId { get; set; }
+    public required Uri SettlerServiceUri { get; set; }
     public required string Secret { get; set; }
     public required GeoLocation FromLocation { get; set; }
     public required GeoLocation ToLocation { get; set; }
