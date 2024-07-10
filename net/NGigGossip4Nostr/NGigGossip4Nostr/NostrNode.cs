@@ -318,7 +318,8 @@ public abstract class NostrNode
             await FlowLogger.TraceInAsync(this, g__, m__);
             {
                 await FlowLogger.TraceWarningAsync(this, g__, m__, "Connection to NOSTR relay lost");
-                OnServerConnectionState?.Invoke(this, new ServerConnectionStateEventArgs { State = e.Type != Websocket.Client.DisconnectionType.NoMessageReceived ? ServerConnectionState.Closed : ServerConnectionState.Quiet, Uri = uri });
+                if (e.Type != Websocket.Client.DisconnectionType.NoMessageReceived)
+                    OnServerConnectionState?.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Quiet, Uri = uri });
                 await FlowLogger.TraceVoidAsync(this, g__, m__);
             }
         }
