@@ -45,8 +45,8 @@ public partial class RideShareCLIApp
                 PickupBefore = DateTime.Now.AddMinutes(waitingTimeForPickupMinutes),
                 Distance = fromLocation.Distance(toLocation),
             },
-            settings.NodeSettings.GetRiderProperties());
-
+            settings.NodeSettings.GetRiderProperties(),
+            async (_) => { });
     }
 
     private async Task AcceptDriverAsync(int idx)
@@ -187,7 +187,7 @@ public partial class RideShareCLIApp
                 SettlerServiceUri = settlerServiceUri,
                 Location = fromLocation,
                 Message = "I am waiting",
-                RideStatus = RideState.Started,
+                RideStatus = RideState.DriverGoingForRider,
                 FromAddress = fromAddress,
                 FromLocation = fromLocation,
                 ToAddress = toAddress,
@@ -206,7 +206,7 @@ public partial class RideShareCLIApp
                 SettlerServiceUri = settlerServiceUri,
                 Location = lastDriverLocation,
                 Message = "I am in the car",
-                RideStatus = RideState.RiderPickedUp,
+                RideStatus = RideState.DriverGoingWithRider,
                 FromAddress = fromAddress,
                 FromLocation = fromLocation,
                 ToAddress = toAddress,
@@ -235,7 +235,7 @@ public partial class RideShareCLIApp
             AnsiConsole.WriteLine("driver location:" + senderPublicKey + "|" + locationFrame.RideStatus.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
             if (locationFrame.RideStatus >= RideState.DriverWaitingForRider)
                 driverApproached = true;
-            if (locationFrame.RideStatus >= RideState.RiderDroppedOff)
+            if (locationFrame.RideStatus >= RideState.Completed)
                 riderDroppedOff = true;
             lastDriverLocation = locationFrame.Location;
             lastDriverSeenAt = DateTime.UtcNow;

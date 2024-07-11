@@ -214,7 +214,8 @@ public class ComplexTest
                 PickupAfter = DateTime.UtcNow,
                 DropoffBefore = DateTime.UtcNow.AddMinutes(20)
             },
-            new string[] { "ride" });
+            new string[] { "ride" },
+            async (_) => { });
 
         }
 
@@ -346,7 +347,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
                     Message = Encoding.Default.GetBytes(me.PublicKey),
                     Fee = 4321,
                     SettlerServiceUri = SettlerUri,
-                },
+                }, async (_) => { },
                 CancellationToken.None);
             await me.FlowLogger.NewNoteAsync(me.PublicKey, "AcceptBraodcast");
         }

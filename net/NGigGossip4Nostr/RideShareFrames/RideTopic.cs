@@ -26,11 +26,14 @@ public class ConnectionReply
 public enum RideState
 {
     Started = 0,
-    DriverWaitingForRider = 1,
-    RiderPickedUp = 2,
-    RiderDroppedOff = 3,
-    Disputed = 4,
-    Failed = 5,
+    DriverGoingForRider = 1,
+    DriverWaitingForRider = 2,
+    RiderPickedUp = 3,
+    DriverGoingWithRider = 4,
+    Completed = 5,
+    Disputed = 6,
+    Failed = 7,
+    Cancelled = 8,
 }
 
 [Serializable]

@@ -410,7 +410,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                     this.PublicKey,
                     peerPublicKey.AsECXOnlyPubKey())
             };
-            await SendMessageAsync(peerPublicKey, broadcastFrame, false, DateTime.UtcNow.AddMinutes(2));
+            await SendMessageAsync(peerPublicKey, broadcastFrame, true);
             await FlowLogger.NewMessageAsync(this.PublicKey, peerPublicKey, "broadcast");
         }
     }

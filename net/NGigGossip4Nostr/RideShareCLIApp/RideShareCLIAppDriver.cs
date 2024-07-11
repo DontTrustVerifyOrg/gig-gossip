@@ -98,10 +98,13 @@ public partial class RideShareCLIApp
                             Fee = fee,
                             SettlerServiceUri = settings.NodeSettings.SettlerOpenApi,
                         },
+                        async (payReq) =>
+                        {
+                            if (!payReqsForPayloadId.ContainsKey(id))
+                                payReqsForPayloadId[id] = payReq;
+                        },
                         CancellationTokenSource.Token);
 
-            if (!payReqsForPayloadId.ContainsKey(id))
-                payReqsForPayloadId[id] = payReq;
         }
     }
 
@@ -233,7 +236,7 @@ public partial class RideShareCLIApp
                     SignedRequestPayloadId = requestPayloadId,
                     Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
                     Message = "I am going",
-                    RideStatus = RideState.Started,
+                    RideStatus = idx==0 ? RideState.Started : RideState.DriverGoingForRider,
                     FromAddress = locationFrame.FromAddress,
                     ToAddress = locationFrame.ToAddress,
                     FromLocation = locationFrame.FromLocation,
@@ -284,7 +287,7 @@ public partial class RideShareCLIApp
                     SignedRequestPayloadId = requestPayloadId,
                     Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
                     Message = "We are driving",
-                    RideStatus = RideState.RiderPickedUp,
+                    RideStatus = idx==0?RideState.RiderPickedUp:RideState.DriverGoingWithRider,
                     FromAddress = locationFrame.FromAddress,
                     ToAddress = locationFrame.ToAddress,
                     FromLocation = locationFrame.FromLocation,
@@ -302,7 +305,7 @@ public partial class RideShareCLIApp
             SignedRequestPayloadId = requestPayloadId,
             Location = locationFrame.ToLocation,
             Message = "Thank you",
-            RideStatus = RideState.RiderDroppedOff,
+            RideStatus = RideState.Completed,
             FromAddress = locationFrame.FromAddress,
             ToAddress = locationFrame.ToAddress,
             FromLocation = locationFrame.FromLocation,

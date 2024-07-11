@@ -21,6 +21,7 @@ using System.Reactive.Linq;
 using Nostr.Client.Responses;
 using System.IO;
 using Nostr.Client.Requests;
+using static Microsoft.IO.RecyclableMemoryStreamManager;
 
 namespace NGigGossip4Nostr;
 
@@ -38,12 +39,9 @@ public abstract class NostrNode
     private string SubscriptionId;
     private bool eoseReceived = false;
     private SemaphoreSlim eventSemSlim = new(1, 1);
-    private ConcurrentQueue<NostrEvent> nostrEvents = new();
-    private ConcurrentQueue<NostrEvent> nostrEventsSend = new();
     private bool consumeCL;
     protected CancellationTokenSource CancellationTokenSource = new();
     public IRetryPolicy RetryPolicy;
-    private ServerListener serverListener = new();
 
     public IFlowLogger FlowLogger { get; private set; }
     public bool Started => nostrClient != null;
@@ -106,7 +104,7 @@ public abstract class NostrNode
                     Content = "",
                     Tags = { },
                 };
-                EnqueueForSend(new[] { newEvent.Sign(NostrPrivateKey.FromEc(this.privateKey)) });
+                SendEvent(newEvent.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
             }
             await FlowLogger.TraceVoidAsync(this, g__, m__);
         }
@@ -115,6 +113,55 @@ public abstract class NostrNode
             await FlowLogger.TraceExcAsync(this, g__, m__, ex);
             throw;
         }
+    }
+
+    object waitingForEvent = new object();
+    string waitedEventId;
+    bool eventReceived = false;
+    bool eventAccepted = false;
+
+    void EventAck(string eventId,bool accepted)
+    {
+        lock(waitingForEvent)
+        {
+            if (eventId == waitedEventId)
+            {
+                eventReceived = true;
+                eventAccepted = accepted;
+                Monitor.PulseAll(waitingForEvent);
+            }
+        }
+    }
+
+    void SendEvent(NostrEvent e, int retryCount,bool throwOnFailure)
+    {
+        for (int i = 0; i < retryCount; i++)
+        {
+            lock (waitingForEvent)
+            {
+                waitedEventId = e.Id;
+                eventReceived = false;
+                eventAccepted = false;
+                _ = Task.Run(() =>
+                    nostrClient.Send(new NostrEventRequest(e))
+                ); 
+                while (true)
+                {
+                    if (!Monitor.Wait(waitingForEvent, 60000))
+                        break;
+                    if (eventReceived)
+                    {
+                        if (eventAccepted)
+                            return;
+                        else
+                            break;
+                    }
+                }
+            }
+            Thread.Sleep(1000);
+        }
+        if (throwOnFailure)
+            throw new Exception();
     }
 
     protected async Task PublishContactListAsync(Dictionary<string, NostrContact> contactList)
@@ -136,7 +183,7 @@ public abstract class NostrNode
                     Content = "",
                     Tags = tags,
                 };
-                EnqueueForSend(new[] { newEvent.Sign(NostrPrivateKey.FromEc(this.privateKey)) });
+                SendEvent(newEvent.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
             }
             await FlowLogger.TraceVoidAsync(this, g__, m__);
         }
@@ -163,7 +210,7 @@ public abstract class NostrNode
                     Tags = new NostrEventTags(new NostrEventTag("p", this.PublicKey)),
                 };
                 var encrypted = NostrEncryptedEvent.Encrypt(newEvent, NostrPrivateKey.FromEc(this.privateKey), NostrKind.SettingsKind);
-                EnqueueForSend(new[] { encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)) });
+                SendEvent(newEvent.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
             }
             await FlowLogger.TraceVoidAsync(this, g__, m__);
         }
@@ -209,9 +256,11 @@ public abstract class NostrNode
                     };
 
                     var encrypted = newEvent.Encrypt(NostrPrivateKey.FromEc(this.privateKey), NostrPublicKey.FromHex(targetPublicKey), kind);
-                    events.Add(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)));
+                    if(ephemeral)
+                        SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)),1,false);
+                    else
+                        SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
                 }
-                EnqueueForSend(events.ToArray());
                 return await FlowLogger.TraceOutAsync(this, g__, m__, evid);
             }
         }
@@ -240,9 +289,6 @@ public abstract class NostrNode
         if (OnServerConnectionState != null)
             OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Connecting });
 
-        StartEventThread();
-        StartSendingEventThread();
-
         SubscriptionId = Guid.NewGuid().ToString();
 
         CancellationTokenSource = new();
@@ -265,7 +311,7 @@ public abstract class NostrNode
         var events = nostrClient.Streams.EventStream.Where(x => x.Event != null);
         events.Subscribe(NostrClient_EventsReceived);
         //        nostrClient.Streams.NoticeStream.Subscribe(NostrClient_NoticeReceived);
-        //        nostrClient.OkStream.NoticeStream.Subscribe(NostrClient_OkReceived)
+        nostrClient.Streams.OkStream.Subscribe(NostrClient_OkReceived);
         nostrClient.Streams.EoseStream.Subscribe(NostrClient_EoseReceived);
         //nostrClient.Streams.UnknownMessageStream.Subscribe(NostrClient_UnknownMessageStream);
         //        ForwardStream(client, client.Streams.UnknownRawStream, Streams.UnknownRawSubject);
@@ -273,6 +319,15 @@ public abstract class NostrNode
         if (OnServerConnectionState != null)
             OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Open });
 
+    }
+
+    public virtual async Task StopAsync()
+    {
+        if (nostrClient == null)
+            return;
+        Unsubscribe();
+        nostrClient.Dispose();
+        nostrClient = null;
     }
 
     private void Subscribe(INostrClient client)
@@ -372,8 +427,11 @@ public abstract class NostrNode
                     await eventSemSlim.WaitAsync();
                     try
                     {
-                        this.eoseReceived = true;
-                        OnEose();
+                        if (e.Subscription == SubscriptionId)
+                        {
+                            eoseReceived = true;
+                            OnEose();
+                        }
                     }
                     finally
                     {
@@ -390,103 +448,9 @@ public abstract class NostrNode
         }
     }
 
-    Thread monitorThread;
-    private object queueMonitor = new object();
-    private bool EventThreadClosing = false;
-
-    private void StartEventThread()
+    private async void NostrClient_OkReceived(NostrOkResponse e)
     {
-        EventThreadClosing = false;
-
-        monitorThread = new Thread(async () =>
-        {
-            while (!EventThreadClosing)
-            {
-                List<NostrEvent> events = new();
-                lock (queueMonitor)
-                {
-                    if (nostrEvents.IsEmpty)
-                        Monitor.Wait(queueMonitor);
-                    if (EventThreadClosing)
-                        return;
-                    while (nostrEvents.TryDequeue(out var nostrEvent))
-                        events.Add(nostrEvent);
-                }
-                foreach (var nostrEvent in events)
-                {
-                    if ((nostrEvent.Kind == NostrKind.SettingsKind) && nostrEvent is NostrEncryptedEvent encryptedSettingsNostrEvent)
-                        await ProcessSettingsAsync(encryptedSettingsNostrEvent);
-                    else if (nostrEvent.Kind == NostrKind.HelloKind)
-                        await ProcessHelloAsync(nostrEvent);
-                    else if (nostrEvent.Kind == NostrKind.Contacts)
-                        await ProcessContactListAsync(nostrEvent);
-                    else if (nostrEvent is NostrEncryptedEvent encryptedNostrEvent)
-                        await ProcessNewMessageAsync(encryptedNostrEvent);
-                }
-            }
-        });
-        monitorThread.Start();
-    }
-
-    void NotifyEventThreadClosing()
-    {
-        lock (queueMonitor)
-        {
-            EventThreadClosing = true;
-            Monitor.PulseAll(queueMonitor);
-        }
-        monitorThread.Join();
-    }
-
-    Thread monitorThreadSend;
-    private object queueMonitorSend = new object();
-    private bool EventThreadClosingSend = false;
-
-    private void StartSendingEventThread()
-    {
-        EventThreadClosingSend = false;
-
-        monitorThreadSend = new Thread(async () =>
-        {
-            while (!EventThreadClosingSend)
-            {
-                List<NostrEvent> events = new();
-                lock (queueMonitorSend)
-                {
-                    if (nostrEventsSend.IsEmpty)
-                        Monitor.Wait(queueMonitorSend);
-                    if (EventThreadClosingSend)
-                        return;
-                    while (nostrEventsSend.TryDequeue(out var nostrEvent))
-                        events.Add(nostrEvent);
-                }
-                foreach (var e in events)
-                {
-                    await RetryPolicy.WithRetryPolicy(async () => nostrClient.Send(new NostrEventRequest(e)));
-                }
-            }
-        });
-        monitorThreadSend.Start();
-    }
-
-    void EnqueueForSend(NostrEvent[] nostrEvents)
-    {
-        lock (queueMonitorSend)
-        {
-            foreach (var e in nostrEvents)
-                nostrEventsSend.Enqueue(e);
-            Monitor.PulseAll(queueMonitorSend);
-        }
-    }
-
-    void NotifyEventThreadSendClosing()
-    {
-        lock (queueMonitorSend)
-        {
-            EventThreadClosingSend = true;
-            Monitor.PulseAll(queueMonitorSend);
-        }
-        monitorThreadSend.Join();
+        EventAck(e.EventId,e.Accepted);
     }
 
     private async void NostrClient_EventsReceived(NostrEventResponse e)
@@ -498,11 +462,15 @@ public abstract class NostrNode
             {
                 if (e.Subscription == SubscriptionId)
                 {
-                    lock (queueMonitor)
-                    {
-                        nostrEvents.Enqueue(e.Event);
-                        Monitor.PulseAll(queueMonitor);
-                    }
+                    var nostrEvent = e.Event;
+                    if ((nostrEvent.Kind == NostrKind.SettingsKind) && nostrEvent is NostrEncryptedEvent encryptedSettingsNostrEvent)
+                        await ProcessSettingsAsync(encryptedSettingsNostrEvent);
+                    else if (nostrEvent.Kind == NostrKind.HelloKind)
+                        await ProcessHelloAsync(nostrEvent);
+                    else if (nostrEvent.Kind == NostrKind.Contacts)
+                        await ProcessContactListAsync(nostrEvent);
+                    else if (nostrEvent is NostrEncryptedEvent encryptedNostrEvent)
+                        await ProcessNewMessageAsync(encryptedNostrEvent);
                 }
             }
             await FlowLogger.TraceVoidAsync(this, g__, m__);
@@ -512,18 +480,6 @@ public abstract class NostrNode
             await FlowLogger.TraceExcAsync(this, g__, m__, ex);
         }
     }
-
-    public virtual async Task StopAsync()
-    {
-        if (nostrClient == null)
-            return;
-        Unsubscribe();
-        NotifyEventThreadClosing();
-        NotifyEventThreadSendClosing();
-        nostrClient.Dispose();
-        nostrClient = null;
-    }
-
 
     private ConcurrentDictionary<string, ConcurrentDictionary<int, string>> _partial_messages = new();
 
