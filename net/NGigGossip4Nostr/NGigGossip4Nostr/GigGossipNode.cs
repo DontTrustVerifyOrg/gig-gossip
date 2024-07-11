@@ -469,7 +469,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     }
 
 
-    public async Task<AcceptBroadcastReturnValue> AcceptBroadcastAsync(string peerPublicKey, BroadcastFrame broadcastFrame, AcceptBroadcastResponse acceptBroadcastResponse, CancellationToken cancellationToken)
+    public async Task<AcceptBroadcastReturnValue> AcceptBroadcastAsync(string peerPublicKey, BroadcastFrame broadcastFrame, AcceptBroadcastResponse acceptBroadcastResponse, Func<AcceptBroadcastReturnValue, Task> preSend, CancellationToken cancellationToken)
     {
         ReplyFrame responseFrame;
         PayReqRet decodedReplyInvoice;
@@ -570,15 +570,18 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         {
             alreadyBroadcastedSemaphore.Release();
         }
-
-        await this.OnResponseFrameAsync(null, peerPublicKey, responseFrame, newResponse: true, cancellationToken);
-
-        return new AcceptBroadcastReturnValue()
+        var ret = new AcceptBroadcastReturnValue()
         {
             ReplierCertificateId = replierCertificateId,
             DecodedReplyInvoice = decodedReplyInvoice,
             ReplyInvoiceHash = replyPaymentHash,
         };
+
+        await preSend(ret);
+
+        await this.OnResponseFrameAsync(null, peerPublicKey, responseFrame, newResponse: true, cancellationToken);
+
+        return ret;
     }
 
     public async Task OnResponseFrameAsync(string messageId, string peerPublicKey, ReplyFrame responseFrame, bool newResponse, CancellationToken cancellationToken)
@@ -924,7 +927,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     }
 
-    public async Task<BroadcastTopicResponse> BroadcastTopicAsync<T>(T topic, string[] properties)
+    public async Task<BroadcastTopicResponse> BroadcastTopicAsync<T>(T topic, string[] properties, Func<BroadcastTopicResponse,Task> preSend)
     {
         var settler = SettlerSelector.GetSettlerClient(mySettlerUri);
         var token = await MakeSettlerAuthTokenAsync(mySettlerUri);
@@ -932,6 +935,8 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         var response = SettlerAPIResult.Get<string>(await settler.GenerateRequestPayloadAsync(token, string.Join(",",properties), new FileParameter(new MemoryStream(topicByte)), CancellationTokenSource.Token));
         var base64Response = Convert.FromBase64String(response);
         var broadcastTopicResponse = Crypto.DeserializeObject<BroadcastTopicResponse>(base64Response);
+
+        await preSend(broadcastTopicResponse);
 
         await BroadcastAsync(broadcastTopicResponse!.SignedRequestPayload);
 
