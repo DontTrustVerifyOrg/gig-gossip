@@ -742,7 +742,7 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
         if (name.ToLower() == "phonenumber" && method.ToLower() == "sms")
         {
             var key = new ChannelKey { PubKey = pubkey, Channel = value };
-            ChannelVal code;
+            ChannelVal code = new ChannelVal(){Code="000000", Retries=0, Deadline=DateTime.MinValue};
 
             if ((secret == "000000") || Singlethon.channelSmsCodes.TryGetValue(key, out code))
             {
