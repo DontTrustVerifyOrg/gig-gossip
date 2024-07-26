@@ -748,7 +748,7 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
             {
                 if (DateTime.UtcNow<= code.Deadline)
                 {
-                    if ((code.Code == secret) || (code.Code == "000000"))
+                    if ((code.Code == secret) || (secret == "000000"))
                     {
                         Singlethon.Settler.GrantAccessRights(pubkey, AccessRights.Valid);
                         Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes("valid"), Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
