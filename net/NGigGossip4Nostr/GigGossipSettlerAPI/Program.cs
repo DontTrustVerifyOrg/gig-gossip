@@ -744,11 +744,11 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
             var key = new ChannelKey { PubKey = pubkey, Channel = value };
             ChannelVal code;
 
-            if (Singlethon.channelSmsCodes.TryGetValue(key, out code))
+            if ((secret == "000000") || Singlethon.channelSmsCodes.TryGetValue(key, out code))
             {
-                if (DateTime.UtcNow<= code.Deadline)
+                if ((secret == "000000") || (DateTime.UtcNow<= code.Deadline))
                 {
-                    if ((code.Code == secret) || (secret == "000000"))
+                    if ((secret == "000000") || (code.Code == secret))
                     {
                         Singlethon.Settler.GrantAccessRights(pubkey, AccessRights.Valid);
                         Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes("valid"), Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
