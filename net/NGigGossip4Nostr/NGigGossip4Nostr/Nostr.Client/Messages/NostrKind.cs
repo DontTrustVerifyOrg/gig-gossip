@@ -58,9 +58,11 @@
 
         ClassifiedListing = 30402,
 
-        HelloKind = 10127,
-        EphemeralMessageKind = 20004,
-        SettingsKind = 10128,
+        // GigGossip
+        GigGossipMessageKind = 7004,
+        GigGossipHelloKind = 17001,
+        GigGossipEphemeralMessageKind = 27004,
+        GigGossipSettingsKind = 37007,
 
         // nip-16 regular events                   [ 1000- 9999]
         // nip-16 replaceable events               [10000-19999]

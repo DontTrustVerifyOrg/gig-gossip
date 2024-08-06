@@ -8,7 +8,6 @@ using NBitcoin.JsonConverters;
 using System.IO;
 using System.IO.Compression;
 using System.Text.Json;
-using Kermalis.EndianBinaryIO;
 
 namespace CryptoToolkit;
 
@@ -403,13 +402,13 @@ public static class Crypto
     /// </summary>
     public static byte[] SerializeObject(object obj)
     {
-        using MemoryStream memoryStream = new();
-        var writer = new EndianBinaryWriter(memoryStream, endianness: Endianness.LittleEndian);
-        writer.WriteBytes(JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType()));
-
-        //using (GZipStream compressedStream = new GZipStream(writer.Stream, CompressionMode.Compress, true))
-
-        return memoryStream.ToArray();
+        using var retStream = new MemoryStream();
+        using var gZipStream = new GZipStream(retStream, CompressionMode.Compress);
+        using var utf8stream= new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType()));
+        utf8stream.CopyTo(gZipStream);
+        utf8stream.Close();
+        gZipStream.Close();
+        return retStream.ToArray();
     }
 
     /// <summary>
@@ -417,12 +416,8 @@ public static class Crypto
     /// </summary>
     public static object? DeserializeObject(byte[] data, Type returnType)
     {
-        using MemoryStream compressedStream = new(data);
-        var reader = new EndianBinaryReader(compressedStream, endianness: Endianness.LittleEndian);
-
-        //using (GZipStream decompressedStream = new GZipStream(reader.Stream, CompressionMode.Decompress, true))
-
-        return JsonSerializer.Deserialize(compressedStream, returnType);
+        using var gzipStream=new GZipStream(new MemoryStream(data), CompressionMode.Decompress);
+        return JsonSerializer.Deserialize(gzipStream, returnType);
     }
 
     /// <summary>
@@ -430,12 +425,8 @@ public static class Crypto
     /// </summary>
     public static T? DeserializeObject<T>(byte[] data)
     {
-        using MemoryStream compressedStream = new(data);
-        var reader = new EndianBinaryReader(compressedStream, endianness: Endianness.LittleEndian);
-
-        //using (GZipStream decompressedStream = new GZipStream(reader.Stream, CompressionMode.Decompress, true))
-
-        return JsonSerializer.Deserialize<T>(compressedStream);
+        using var gzipStream=new GZipStream(new MemoryStream(data), CompressionMode.Decompress);
+        return JsonSerializer.Deserialize<T>(gzipStream);
     }
 #endif
 

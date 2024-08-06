@@ -282,16 +282,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public async Task PublishContactListAsync()
-    {
-        Dictionary<string, NostrContact> cl;
-        lock (_contactList)
-        {
-            cl = new Dictionary<string, NostrContact>(_contactList);
-        }
-        await this.PublishContactListAsync(cl);
-    }
-
     public List<string> LoadContactList()
     {
         lock (_contactList)
@@ -308,25 +298,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         lock (_contactList)
         {
             return _contactList.Keys.ToList();
-        }
-    }
-
-    public override void OnContactList(string eventId, bool isNew, Dictionary<string, NostrContact> contactList)
-    {
-        lock (_contactList)
-        {
-            List<NostrContact> toadd = new List<NostrContact>();
-            foreach (var c in contactList.Values)
-            {
-                if (!_contactList.ContainsKey(c.ContactPublicKey))
-                {
-                    toadd.Add(c);
-                    _contactList[c.ContactPublicKey] = c;
-                    this.gigGossipNodeEvents.OnNewContact(this, c.ContactPublicKey);
-                }
-            }
-            if (toadd.Count > 0)
-                this.nodeContext.Value.AddObjectRange(toadd);
         }
     }
 
