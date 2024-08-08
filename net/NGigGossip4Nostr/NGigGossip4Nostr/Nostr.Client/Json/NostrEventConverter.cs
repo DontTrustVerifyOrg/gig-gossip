@@ -43,8 +43,9 @@ namespace Nostr.Client.Json
                     NostrKind.Metadata => typeof(NostrMetadataEvent),
                     NostrKind.Contacts => typeof(NostrContactEvent),
                     NostrKind.EncryptedDm => typeof(NostrEncryptedEvent),
-                    NostrKind.EphemeralMessageKind => typeof(NostrEncryptedEvent),
-                    NostrKind.SettingsKind => typeof(NostrEncryptedEvent),
+                    NostrKind.GigGossipMessageKind => typeof(NostrEncryptedEvent),
+                    NostrKind.GigGossipEphemeralMessageKind => typeof(NostrEncryptedEvent),
+                    NostrKind.GigGossipSettingsKind => typeof(NostrEncryptedEvent),
                     NostrKind.Zap => typeof(NostrZapReceiptEvent),
                     _ => typeof(NostrEvent)
                 };

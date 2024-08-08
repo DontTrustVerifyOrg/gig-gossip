@@ -99,7 +99,7 @@ public abstract class NostrNode
             {
                 var newEvent = new NostrEvent()
                 {
-                    Kind = NostrKind.HelloKind,
+                    Kind = NostrKind.GigGossipHelloKind,
                     CreatedAt = DateTime.UtcNow,
                     Content = "",
                     Tags = { },
@@ -164,37 +164,6 @@ public abstract class NostrNode
             throw new Exception();
     }
 
-    protected async Task PublishContactListAsync(Dictionary<string, NostrContact> contactList)
-    {
-        Guid? g__ = null; string? m__ = null; if (FlowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = FlowLogger.MetNam(); }
-        try
-        {
-            await FlowLogger.TraceInAsync(this, g__, m__, contactList);
-            {
-                NostrEventTags tags;
-                lock (contactList)
-                {
-                    tags = new NostrEventTags((from c in contactList.Values select new NostrEventTag("p", c.ContactPublicKey, c.Relay, c.Petname)).ToArray());
-                }
-                var newEvent = new NostrEvent()
-                {
-                    Kind = NostrKind.Contacts,
-                    CreatedAt = DateTime.UtcNow,
-                    Content = "",
-                    Tags = tags,
-                };
-                SendEvent(newEvent.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
-            }
-            await FlowLogger.TraceVoidAsync(this, g__, m__);
-        }
-        catch (Exception ex)
-        {
-            await FlowLogger.TraceExcAsync(this, g__, m__, ex);
-            throw;
-        }
-    }
-
-
     protected async Task SaveSettings(string settings)
     {
         Guid? g__ = null; string? m__ = null; if (FlowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = FlowLogger.MetNam(); }
@@ -204,13 +173,13 @@ public abstract class NostrNode
             {
                 var newEvent = new NostrEvent()
                 {
-                    Kind = NostrKind.SettingsKind,
+                    Kind = NostrKind.GigGossipSettingsKind,
                     CreatedAt = DateTime.UtcNow,
                     Content = settings,
                     Tags = new NostrEventTags(new NostrEventTag("p", this.PublicKey)),
                 };
-                var encrypted = NostrEncryptedEvent.Encrypt(newEvent, NostrPrivateKey.FromEc(this.privateKey), NostrKind.SettingsKind);
-                SendEvent(newEvent.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
+                var encrypted = NostrEncryptedEvent.Encrypt(newEvent, NostrPrivateKey.FromEc(this.privateKey), NostrKind.GigGossipSettingsKind);
+                SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
             }
             await FlowLogger.TraceVoidAsync(this, g__, m__);
         }
@@ -246,7 +215,7 @@ public abstract class NostrNode
                     if (expiration != null)
                         tags.Add(new NostrEventTag("expiration", ((DateTimeOffset)expiration.Value).ToUnixTimeSeconds().ToString()));
 
-                    var kind = ephemeral ? NostrKind.EphemeralMessageKind : NostrKind.EncryptedDm;
+                    var kind = ephemeral ? NostrKind.GigGossipEphemeralMessageKind : NostrKind.GigGossipMessageKind;
                     var newEvent = new NostrEvent()
                     {
                         Kind = kind,
@@ -272,7 +241,6 @@ public abstract class NostrNode
     }
 
     public abstract Task OnMessageAsync(string eventId, bool isNew, string senderPublicKey, object frame);
-    public virtual void OnContactList(string eventId, bool isNew, Dictionary<string, NostrContact> contactList) { }
     public virtual void OnHello(string eventId, bool isNew, string senderPublicKeye) { }
     public virtual void OnSettings(string eventId, bool isNew, string settings) { }
     public virtual void OnEose() { }
@@ -332,30 +300,25 @@ public abstract class NostrNode
 
     private void Subscribe(INostrClient client)
     {
-        client.Send(new NostrRequest5(SubscriptionId,
+        client.Send(new NostrRequest4(SubscriptionId,
             new NostrFilter
             {
-                Kinds = new[] { NostrKind.SettingsKind },
+                Kinds = new[] { NostrKind.GigGossipSettingsKind },
                 Authors = new[] { publicKey.AsHex() },
                 P = new[] { publicKey.AsHex() },
             },
             new NostrFilter
             {
-                Kinds = new[] { NostrKind.HelloKind },
+                Kinds = new[] { NostrKind.GigGossipHelloKind },
             },
             new NostrFilter
             {
-                Kinds = new[] { NostrKind.Contacts },
-                Authors = new[] { publicKey.AsHex() },
-            },
-            new NostrFilter
-            {
-                Kinds = new[] { NostrKind.EncryptedDm },
+                Kinds = new[] { NostrKind.GigGossipMessageKind },
                 P = new[] { publicKey.AsHex() }
             },
             new NostrFilter
             {
-                Kinds = new[] { NostrKind.EphemeralMessageKind },
+                Kinds = new[] { NostrKind.GigGossipEphemeralMessageKind },
                 P = new[] { publicKey.AsHex() }
             }));
     }
@@ -463,12 +426,10 @@ public abstract class NostrNode
                 if (e.Subscription == SubscriptionId)
                 {
                     var nostrEvent = e.Event;
-                    if ((nostrEvent.Kind == NostrKind.SettingsKind) && nostrEvent is NostrEncryptedEvent encryptedSettingsNostrEvent)
+                    if ((nostrEvent.Kind == NostrKind.GigGossipSettingsKind) && nostrEvent is NostrEncryptedEvent encryptedSettingsNostrEvent)
                         await ProcessSettingsAsync(encryptedSettingsNostrEvent);
-                    else if (nostrEvent.Kind == NostrKind.HelloKind)
+                    else if (nostrEvent.Kind == NostrKind.GigGossipHelloKind)
                         await ProcessHelloAsync(nostrEvent);
-                    else if (nostrEvent.Kind == NostrKind.Contacts)
-                        await ProcessContactListAsync(nostrEvent);
                     else if (nostrEvent is NostrEncryptedEvent encryptedNostrEvent)
                         await ProcessNewMessageAsync(encryptedNostrEvent);
                 }
@@ -545,50 +506,6 @@ public abstract class NostrNode
                 {
                     await FlowLogger.TraceExceptionAsync(ex);
                     AbortMessage(eventId);
-                }
-            }
-            await FlowLogger.TraceVoidAsync(this, g__, m__);
-        }
-        catch (Exception ex)
-        {
-            await FlowLogger.TraceExcAsync(this, g__, m__, ex);
-            throw;
-        }
-    }
-
-    private async Task ProcessContactListAsync(NostrEvent nostrEvent)
-    {
-        if (!consumeCL)
-            return;
-
-        Guid? g__ = null; string? m__ = null; if (FlowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = FlowLogger.MetNam(); }
-        try
-        {
-            await FlowLogger.TraceInAsync(this, g__, m__, nostrEvent);
-            {
-                if (!OpenMessage(nostrEvent.Id))
-                    return;
-                try
-                {
-                    var newCL = new Dictionary<string, NostrContact>();
-                    foreach (var tag in nostrEvent.Tags)
-                    {
-                        if (tag.TagIdentifier == "p")
-                            newCL[tag.AdditionalData.First()] = new NostrContact()
-                            {
-                                PublicKey = this.PublicKey,
-                                ContactPublicKey = tag.AdditionalData.First(),
-                                Relay = tag.AdditionalData.Skip(1).First(),
-                                Petname = tag.AdditionalData.Skip(2).First()
-                            };
-                    }
-                    OnContactList(nostrEvent.Id, eoseReceived, newCL);
-                    CommitMessage(nostrEvent.Id);
-                }
-                catch (Exception ex)
-                {
-                    await FlowLogger.TraceExceptionAsync(ex);
-                    AbortMessage(nostrEvent.Id);
                 }
             }
             await FlowLogger.TraceVoidAsync(this, g__, m__);
