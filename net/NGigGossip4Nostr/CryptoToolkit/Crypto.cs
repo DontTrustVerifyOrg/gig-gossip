@@ -83,7 +83,7 @@ public static class Crypto
         tt.PublicKey = ecpriv.CreateXOnlyPubKey().AsHex();
         tt.DateTime = dateTime;
         tt.Guid = guid;
-        tt.Signature = SignObject(tt,ecpriv);
+        tt.Signature = SignObject(tt, ecpriv);
         return Convert.ToBase64String(SerializeObject(tt));
     }
 
@@ -131,7 +131,7 @@ public static class Crypto
 
     public static string GenerateMnemonic()
     {
-        return string.Join(" ",new Mnemonic(Wordlist.English, WordCount.Twelve).Words);
+        return string.Join(" ", new Mnemonic(Wordlist.English, WordCount.Twelve).Words);
     }
 
     public static ECPrivKey DeriveECPrivKeyFromMnemonic(string mnemonic)
@@ -397,18 +397,27 @@ public static class Crypto
     }
 #else
 
+    static byte[] SERIALIZATION_FORMAT_PFX = [0xf7, 0x23, 0x22, 0xf5, 0xd9, 0xd1, 0x0d, 0x52];
+
     /// <summary>
     /// Serializes an object into a byte array using GZipped Json serialization
     /// </summary>
-    public static byte[] SerializeObject(object obj)
+    public static byte[] SerializeObject(object obj, bool useGzip = false)
     {
-        using var retStream = new MemoryStream();
-        using var gZipStream = new GZipStream(retStream, CompressionMode.Compress);
-        using var utf8stream= new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType()));
-        utf8stream.CopyTo(gZipStream);
-        utf8stream.Close();
-        gZipStream.Close();
-        return retStream.ToArray();
+        if (useGzip)
+        {
+            using var retStream = new MemoryStream();
+            using var gZipStream = new GZipStream(retStream, CompressionMode.Compress);
+            using var utf8stream = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType()));
+            utf8stream.CopyTo(gZipStream);
+            utf8stream.Close();
+            gZipStream.Close();
+            return [.. SERIALIZATION_FORMAT_PFX, .. retStream.ToArray()];
+        }
+        else
+        {
+            return JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType());
+        }
     }
 
     /// <summary>
@@ -416,8 +425,17 @@ public static class Crypto
     /// </summary>
     public static object? DeserializeObject(byte[] data, Type returnType)
     {
-        using var gzipStream=new GZipStream(new MemoryStream(data), CompressionMode.Decompress);
-        return JsonSerializer.Deserialize(gzipStream, returnType);
+        var memstr = new MemoryStream(data);
+        byte[] prefix = new byte[SERIALIZATION_FORMAT_PFX.Length];
+        if (memstr.Read(prefix, 0, prefix.Length) != prefix.Length || !prefix.SequenceEqual(SERIALIZATION_FORMAT_PFX))
+        {
+            return JsonSerializer.Deserialize(new MemoryStream(data), returnType);
+        }
+        else
+        {
+            using var gzipStream = new GZipStream(memstr, CompressionMode.Decompress);
+            return JsonSerializer.Deserialize(gzipStream, returnType);
+        }
     }
 
     /// <summary>
@@ -425,8 +443,17 @@ public static class Crypto
     /// </summary>
     public static T? DeserializeObject<T>(byte[] data)
     {
-        using var gzipStream=new GZipStream(new MemoryStream(data), CompressionMode.Decompress);
-        return JsonSerializer.Deserialize<T>(gzipStream);
+        var memstr = new MemoryStream(data);
+        byte[] prefix = new byte[SERIALIZATION_FORMAT_PFX.Length];
+        if (memstr.Read(prefix, 0, prefix.Length) != prefix.Length || !prefix.SequenceEqual(SERIALIZATION_FORMAT_PFX))
+        {
+            return JsonSerializer.Deserialize<T>(new MemoryStream(data));
+        }
+        else
+        {
+            using var gzipStream = new GZipStream(memstr, CompressionMode.Decompress);
+            return JsonSerializer.Deserialize<T>(gzipStream);
+        }
     }
 #endif
 
