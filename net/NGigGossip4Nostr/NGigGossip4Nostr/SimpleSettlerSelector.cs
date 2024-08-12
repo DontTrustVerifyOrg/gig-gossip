@@ -53,7 +53,7 @@ public class SimpleSettlerSelector : ISettlerSelector
 
     public async Task<bool> IsRevokedAsync(Uri serviceUri, Guid id, CancellationToken cancellationToken)
     {
-        return await revokedCertificates.GetOrAddAsync(id, async (id) => SettlerAPIResult.Get<bool>(await GetSettlerClient(serviceUri).IsCertificateRevokedAsync(id.ToString(), cancellationToken)));
+        return await revokedCertificates.GetOrAddAsync(id, async (id) => SettlerAPIResult.Get<bool>(await GetSettlerClient(serviceUri).IsCertificateRevokedAsync(id, cancellationToken)));
     }
 
     public void RemoveSettlerClient(Uri ServiceUri)
@@ -89,7 +89,7 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
         }
     }
 
-    public async Task<BooleanResult> IsCertificateRevokedAsync(string certid, CancellationToken cancellationToken)
+    public async Task<BooleanResult> IsCertificateRevokedAsync(System.Guid certid, CancellationToken cancellationToken)
     {
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
         try
@@ -208,7 +208,7 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.Result> GiveUserFileAsync(string authToken, string pubkey, string name, long validHours, FileParameter value, FileParameter secret, CancellationToken cancellationToken)
+    public async Task<GigGossipSettlerAPIClient.Result> GiveUserFileAsync(string authToken, string pubkey, string name, long? validHours, FileParameter value, FileParameter secret, CancellationToken cancellationToken)
     {
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
         try
@@ -345,7 +345,7 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.StringResult> GenerateReplyPaymentPreimageAsync(string authToken, string gigId, string repliperPubKey, CancellationToken cancellationToken)
+    public async Task<GigGossipSettlerAPIClient.StringResult> GenerateReplyPaymentPreimageAsync(string authToken, System.Guid gigId, string repliperPubKey, CancellationToken cancellationToken)
     {
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
         try
@@ -413,7 +413,7 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.StringResult> GetGigStatusAsync(string authToken, string signedRequestPayloadId, string repliperCertificateId, CancellationToken cancellationToken)
+    public async Task<GigGossipSettlerAPIClient.StringResult> GetGigStatusAsync(string authToken, System.Guid signedRequestPayloadId, System.Guid repliperCertificateId, CancellationToken cancellationToken)
     {
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
         try
@@ -464,7 +464,7 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.StringResult> EncryptObjectForCertificateIdAsync(string certificateId, FileParameter objectSerialized, CancellationToken cancellationToken)
+    public async Task<GigGossipSettlerAPIClient.StringResult> EncryptObjectForCertificateIdAsync(System.Guid? certificateId, FileParameter objectSerialized, CancellationToken cancellationToken)
     {
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
         try
@@ -481,7 +481,7 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.Result> ManageDisputeAsync(string authToken, string gigId, string repliperCertificateId, bool open, CancellationToken cancellationToken)
+    public async Task<GigGossipSettlerAPIClient.Result> ManageDisputeAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, bool open, CancellationToken cancellationToken)
     {
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
         try
@@ -498,7 +498,7 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.Result> CancelGigAsync(string authToken, string gigId, string repliperCertificateId, CancellationToken cancellationToken)
+    public async Task<GigGossipSettlerAPIClient.Result> CancelGigAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, CancellationToken cancellationToken)
     {
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
         try
@@ -514,6 +514,24 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
             throw;
         }
     }
+
+    public async Task<GigGossipSettlerAPIClient.Result> DeleteMyPersonalUserDataAsync(string authToken, CancellationToken cancellationToken)
+    {
+        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        try
+        {
+            await TraceInAsync(g__, m__, authToken);
+            return await TraceOutAsync(g__, m__,
+                await api.DeleteMyPersonalUserDataAsync(authToken, cancellationToken)
+            );
+        }
+        catch (Exception ex)
+        {
+            await TraceExcAsync(g__, m__, ex);
+            throw;
+        }
+    }
+
 
     public IGigStatusClient CreateGigStatusClient()
     {

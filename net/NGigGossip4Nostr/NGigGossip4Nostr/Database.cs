@@ -277,7 +277,7 @@ public class GigGossipNodeContext : DbContext
         this.ChangeTracker.Clear();
     }
 
-    public void DeleteObjectRange<T>(IEnumerable<T> range)
+    public void RemoveObjectRange<T>(IEnumerable<T> range)
     {
         if (range.Count() == 0)
             return;

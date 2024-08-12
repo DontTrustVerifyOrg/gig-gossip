@@ -397,27 +397,21 @@ public static class Crypto
     }
 #else
 
-    static byte[] SERIALIZATION_FORMAT_PFX = [0xf7, 0x23, 0x22, 0xf5, 0xd9, 0xd1, 0x0d, 0x52];
+    const byte SERIALIZATION_VERSION = 0x2;
 
     /// <summary>
     /// Serializes an object into a byte array using GZipped Json serialization
     /// </summary>
-    public static byte[] SerializeObject(object obj, bool useGzip = false)
+    public static byte[] SerializeObject(object obj)
     {
-        if (useGzip)
-        {
-            using var retStream = new MemoryStream();
-            using var gZipStream = new GZipStream(retStream, CompressionMode.Compress);
-            using var utf8stream = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType()));
-            utf8stream.CopyTo(gZipStream);
-            utf8stream.Close();
-            gZipStream.Close();
-            return [.. SERIALIZATION_FORMAT_PFX, .. retStream.ToArray()];
-        }
-        else
-        {
-            return JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType());
-        }
+        using var memStream = new MemoryStream();
+        memStream.WriteByte(SERIALIZATION_VERSION);
+        using var gZipStream = new GZipStream(memStream, CompressionMode.Compress);
+        using var utf8stream = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType()));
+        utf8stream.CopyTo(gZipStream);
+        utf8stream.Close();
+        gZipStream.Close();
+        return memStream.ToArray();
     }
 
     /// <summary>
@@ -425,16 +419,23 @@ public static class Crypto
     /// </summary>
     public static object? DeserializeObject(byte[] data, Type returnType)
     {
-        var memstr = new MemoryStream(data);
-        byte[] prefix = new byte[SERIALIZATION_FORMAT_PFX.Length];
-        if (memstr.Read(prefix, 0, prefix.Length) != prefix.Length || !prefix.SequenceEqual(SERIALIZATION_FORMAT_PFX))
+        try
         {
-            return JsonSerializer.Deserialize(new MemoryStream(data), returnType);
+            using var memStream = new MemoryStream(data);
+            if (memStream.ReadByte() == SERIALIZATION_VERSION)
+            {
+                using var gzipStream = new GZipStream(memStream, CompressionMode.Decompress);
+                return JsonSerializer.Deserialize(gzipStream, returnType);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
-        else
+        catch (Exception)
         {
-            using var gzipStream = new GZipStream(memstr, CompressionMode.Decompress);
-            return JsonSerializer.Deserialize(gzipStream, returnType);
+            using var memStream = new MemoryStream(data);
+            return JsonSerializer.Deserialize(memStream, returnType);
         }
     }
 
@@ -443,21 +444,28 @@ public static class Crypto
     /// </summary>
     public static T? DeserializeObject<T>(byte[] data)
     {
-        var memstr = new MemoryStream(data);
-        byte[] prefix = new byte[SERIALIZATION_FORMAT_PFX.Length];
-        if (memstr.Read(prefix, 0, prefix.Length) != prefix.Length || !prefix.SequenceEqual(SERIALIZATION_FORMAT_PFX))
+        try
         {
-            return JsonSerializer.Deserialize<T>(new MemoryStream(data));
+            using var memStream = new MemoryStream(data);
+            if (memStream.ReadByte() == SERIALIZATION_VERSION)
+            {
+                using var gzipStream = new GZipStream(memStream, CompressionMode.Decompress);
+                return JsonSerializer.Deserialize<T>(gzipStream);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
-        else
+        catch(Exception)
         {
-            using var gzipStream = new GZipStream(memstr, CompressionMode.Decompress);
-            return JsonSerializer.Deserialize<T>(gzipStream);
+            using var memStream = new MemoryStream(data);
+            return JsonSerializer.Deserialize<T>(memStream);
         }
     }
 #endif
 
-    public static bool TryParseBitcoinAddress(string text, out BitcoinAddress? address)
+    public static bool TryParseBitcoinAddress(string text, Network network, out BitcoinAddress? address)
     {
         address = null;
 
@@ -470,7 +478,7 @@ public static class Crypto
         try
         {
             //TODO Pawel Inject Network please
-            address = BitcoinAddress.Create(text, Network.RegTest);
+            address = BitcoinAddress.Create(text, network);
             return true;
         }
         catch (FormatException)

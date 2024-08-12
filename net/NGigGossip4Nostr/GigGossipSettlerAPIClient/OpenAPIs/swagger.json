@@ -41,9 +41,9 @@
             "in": "query",
             "description": "Serial number of the certificate.",
             "required": true,
-            "style": "form",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -75,7 +75,6 @@
             "in": "query",
             "description": "public key identifies the API user",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -109,7 +108,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -119,7 +117,6 @@
             "in": "query",
             "description": "Public key of the subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -129,7 +126,39 @@
             "in": "query",
             "description": "Access rights to be granted.",
             "required": true,
-            "style": "form",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/deletemypersonaluserdata": {
+      "get": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "summary": "Deletes My Personal Information.",
+        "description": "Deletes My Personal Information.",
+        "operationId": "DeleteMyPersonalUserData",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -163,7 +192,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -173,7 +201,6 @@
             "in": "query",
             "description": "Public key of the subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -183,7 +210,6 @@
             "in": "query",
             "description": "Access rights to be revoked.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -217,7 +243,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -227,7 +252,6 @@
             "in": "query",
             "description": "Public key of the subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -261,7 +285,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -271,7 +294,6 @@
             "in": "query",
             "description": "Query",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -281,7 +303,6 @@
             "in": "query",
             "description": "Country",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -315,7 +336,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -325,7 +345,6 @@
             "in": "query",
             "description": "Latitude of the first point",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "number",
               "format": "double"
@@ -336,7 +355,6 @@
             "in": "query",
             "description": "Longitude of the first point",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "number",
               "format": "double"
@@ -347,7 +365,6 @@
             "in": "query",
             "description": "Latitude of the second point",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "number",
               "format": "double"
@@ -358,7 +375,6 @@
             "in": "query",
             "description": "Longitude of the second point",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "number",
               "format": "double"
@@ -393,7 +409,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -403,7 +418,6 @@
             "in": "query",
             "description": "Address",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -413,7 +427,6 @@
             "in": "query",
             "description": "Country",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -447,7 +460,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -457,7 +469,6 @@
             "in": "query",
             "description": "Lat",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "number",
               "format": "double"
@@ -468,7 +479,6 @@
             "in": "query",
             "description": "Lon",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "number",
               "format": "double"
@@ -503,7 +513,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -513,7 +522,6 @@
             "in": "query",
             "description": "Required length of the access code",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -524,7 +532,6 @@
             "in": "query",
             "description": "Is Single Use",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "boolean"
             }
@@ -534,7 +541,6 @@
             "in": "query",
             "description": "Valid till",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -545,7 +551,6 @@
             "in": "query",
             "description": "Memo",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -579,7 +584,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -589,7 +593,6 @@
             "in": "query",
             "description": "Access code identifier",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -623,7 +626,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -633,7 +635,6 @@
             "in": "query",
             "description": "Access code identifier",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -667,7 +668,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -677,7 +677,6 @@
             "in": "query",
             "description": "Access code identifier",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -711,7 +710,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -721,7 +719,6 @@
             "in": "query",
             "description": "Public key of the subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -731,7 +728,6 @@
             "in": "query",
             "description": "Name of the property.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -741,7 +737,6 @@
             "in": "query",
             "description": "Public value of the property.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -751,7 +746,6 @@
             "in": "query",
             "description": "Secret value of the property.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -761,7 +755,6 @@
             "in": "query",
             "description": "How long the property is valid in hours",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -796,7 +789,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -806,7 +798,6 @@
             "in": "query",
             "description": "Name of the property.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -840,7 +831,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -850,7 +840,6 @@
             "in": "query",
             "description": "Name of the property.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -870,61 +859,41 @@
         }
       }
     },
-    "/giveuserfile/{authToken}/{pubkey}/{name}/{validHours}": {
+    "/giveuserfile": {
       "post": {
         "tags": [
           "GigGossipSettlerAPI"
         ],
+        "summary": "Grants a file property to the subject.",
+        "description": "Grants a file property to the subject (e.g. driving licence). Only authorised users can grant the property.",
         "operationId": "GiveUserFile",
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "path",
-            "required": true,
-            "style": "simple",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "path",
-            "required": true,
-            "style": "simple",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "style": "simple",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "validHours",
-            "in": "path",
-            "required": true,
-            "style": "simple",
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
                 "required": [
+                  "authToken",
+                  "name",
+                  "pubkey",
                   "secret",
+                  "validHours",
                   "value"
                 ],
                 "type": "object",
                 "properties": {
+                  "authToken": {
+                    "type": "string"
+                  },
+                  "pubkey": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "validHours": {
+                    "type": "integer",
+                    "format": "int64"
+                  },
                   "value": {
                     "type": "string",
                     "format": "binary"
@@ -936,6 +905,18 @@
                 }
               },
               "encoding": {
+                "authToken": {
+                  "style": "form"
+                },
+                "pubkey": {
+                  "style": "form"
+                },
+                "name": {
+                  "style": "form"
+                },
+                "validHours": {
+                  "style": "form"
+                },
                 "value": {
                   "style": "form"
                 },
@@ -948,7 +929,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -973,7 +954,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -983,7 +963,6 @@
             "in": "query",
             "description": "Public key of the subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -993,7 +972,6 @@
             "in": "query",
             "description": "Name of the property.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1027,7 +1005,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1037,7 +1014,6 @@
             "in": "query",
             "description": "Public key of the subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1047,7 +1023,6 @@
             "in": "query",
             "description": "Name of the property.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1057,7 +1032,6 @@
             "in": "query",
             "description": "Public value of the property.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1091,7 +1065,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1101,7 +1074,6 @@
             "in": "query",
             "description": "Public key of the subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1111,7 +1083,6 @@
             "in": "query",
             "description": "Channel name (phone,email,...)",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1121,7 +1092,6 @@
             "in": "query",
             "description": "Method (sms,call,message)",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1131,7 +1101,6 @@
             "in": "query",
             "description": "Value of Channel for the method (phone number, email address).",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1165,7 +1134,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1175,7 +1143,6 @@
             "in": "query",
             "description": "Public key of the subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1185,7 +1152,6 @@
             "in": "query",
             "description": "Channel name (phone,email,...)",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1195,7 +1161,6 @@
             "in": "query",
             "description": "Method (sms,call,message)",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1205,7 +1170,6 @@
             "in": "query",
             "description": "Value of Channel for the method (phone number, email address).",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1215,7 +1179,6 @@
             "in": "query",
             "description": "Secret received from the channel.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1249,7 +1212,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1259,7 +1221,6 @@
             "in": "query",
             "description": "Public key of the subject.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1269,7 +1230,6 @@
             "in": "query",
             "description": "Channel name (phone,email,...)",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1278,7 +1238,6 @@
             "name": "value",
             "in": "query",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1312,7 +1271,6 @@
             "in": "query",
             "description": "Authorisation token for the communication.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1322,9 +1280,9 @@
             "in": "query",
             "description": "gig-job identifier",
             "required": true,
-            "style": "form",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -1332,7 +1290,6 @@
             "in": "query",
             "description": "Public key of the replier.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1366,7 +1323,6 @@
             "in": "query",
             "description": "Authorisation token for the communication.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1376,7 +1332,6 @@
             "in": "query",
             "description": "Payment hash of related HODL invoice.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1410,7 +1365,6 @@
             "in": "query",
             "description": "Authorisation token for the communication.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1420,7 +1374,6 @@
             "in": "query",
             "description": "Payment hash of related HODL invoice.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1430,7 +1383,6 @@
             "in": "query",
             "description": "Payment hash of related HODL invoice.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1443,6 +1395,59 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BooleanResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/revealsymmetrickey": {
+      "get": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "summary": "Reveals Symmetric Key",
+        "description": "Reveals symmetric key for the communication",
+        "operationId": "RevealSymmetricKey",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorisation token for the communication.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "gigId",
+            "in": "query",
+            "description": "Gig ID.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "replierId",
+            "in": "query",
+            "description": "Replied Id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StringResult"
                 }
               }
             }
@@ -1464,7 +1469,6 @@
             "in": "query",
             "description": "Authorisation token for the communication.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1474,7 +1478,6 @@
             "in": "query",
             "description": "Payment hash of related HODL invoice.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1508,7 +1511,6 @@
             "in": "query",
             "description": "Authorisation token for the communication.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1518,9 +1520,9 @@
             "in": "query",
             "description": "Request Payload Id.",
             "required": true,
-            "style": "form",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -1528,9 +1530,9 @@
             "in": "query",
             "description": "Replier.",
             "required": true,
-            "style": "form",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -1548,41 +1550,31 @@
         }
       }
     },
-    "/generaterequestpayload/{authToken}/{properties}": {
+    "/generaterequestpayload": {
       "post": {
         "tags": [
           "GigGossipSettlerAPI"
         ],
+        "summary": "Genertes RequestPayload for the specific topic.",
+        "description": "Genertes RequestPayload for the specific topic.",
         "operationId": "GenerateRequestPayload",
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "path",
-            "required": true,
-            "style": "simple",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "properties",
-            "in": "path",
-            "required": true,
-            "style": "simple",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
                 "required": [
+                  "authToken",
+                  "properties",
                   "serialisedTopic"
                 ],
                 "type": "object",
                 "properties": {
+                  "authToken": {
+                    "type": "string"
+                  },
+                  "properties": {
+                    "type": "string"
+                  },
                   "serialisedTopic": {
                     "type": "string",
                     "format": "binary"
@@ -1590,6 +1582,12 @@
                 }
               },
               "encoding": {
+                "authToken": {
+                  "style": "form"
+                },
+                "properties": {
+                  "style": "form"
+                },
                 "serialisedTopic": {
                   "style": "form"
                 }
@@ -1599,7 +1597,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1611,51 +1609,36 @@
         }
       }
     },
-    "/generatesettlementtrust/{authToken}/{properties}/{replyinvoice}": {
+    "/generatesettlementtrust": {
       "post": {
         "tags": [
           "GigGossipSettlerAPI"
         ],
+        "summary": "Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.",
+        "description": "Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.",
         "operationId": "GenerateSettlementTrust",
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "path",
-            "required": true,
-            "style": "simple",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "properties",
-            "in": "path",
-            "required": true,
-            "style": "simple",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "replyinvoice",
-            "in": "path",
-            "required": true,
-            "style": "simple",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
                 "required": [
+                  "authToken",
                   "message",
+                  "properties",
+                  "replyinvoice",
                   "signedRequestPayloadSerialized"
                 ],
                 "type": "object",
                 "properties": {
+                  "authToken": {
+                    "type": "string"
+                  },
+                  "properties": {
+                    "type": "string"
+                  },
+                  "replyinvoice": {
+                    "type": "string"
+                  },
                   "message": {
                     "type": "string",
                     "format": "binary"
@@ -1667,6 +1650,15 @@
                 }
               },
               "encoding": {
+                "authToken": {
+                  "style": "form"
+                },
+                "properties": {
+                  "style": "form"
+                },
+                "replyinvoice": {
+                  "style": "form"
+                },
                 "message": {
                   "style": "form"
                 },
@@ -1679,7 +1671,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1691,32 +1683,28 @@
         }
       }
     },
-    "/encryptobjectforcertificateid/{certificateId}": {
+    "/encryptobjectforcertificateid": {
       "post": {
         "tags": [
           "GigGossipSettlerAPI"
         ],
+        "summary": "Encrypts the object using public key related to the specific certioficate id.",
+        "description": "Encrypts the object using public key related to the specific certioficate id.",
         "operationId": "EncryptObjectForCertificateId",
-        "parameters": [
-          {
-            "name": "certificateId",
-            "in": "path",
-            "required": true,
-            "style": "simple",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
                 "required": [
+                  "certificateId",
                   "objectSerialized"
                 ],
                 "type": "object",
                 "properties": {
+                  "certificateId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
                   "objectSerialized": {
                     "type": "string",
                     "format": "binary"
@@ -1724,6 +1712,9 @@
                 }
               },
               "encoding": {
+                "certificateId": {
+                  "style": "form"
+                },
                 "objectSerialized": {
                   "style": "form"
                 }
@@ -1733,7 +1724,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1759,7 +1750,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1769,9 +1759,9 @@
             "in": "query",
             "description": "Gig-job identifier.",
             "required": true,
-            "style": "form",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -1779,9 +1769,9 @@
             "in": "query",
             "description": "CertificateId of the replier.",
             "required": true,
-            "style": "form",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -1789,7 +1779,6 @@
             "in": "query",
             "description": "True to open/False to close dispute.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "boolean"
             }
@@ -1823,7 +1812,6 @@
             "in": "query",
             "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1833,9 +1821,9 @@
             "in": "query",
             "description": "Gig-job identifier.",
             "required": true,
-            "style": "form",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -1843,9 +1831,9 @@
             "in": "query",
             "description": "CertificateId of the replier.",
             "required": true,
-            "style": "form",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],

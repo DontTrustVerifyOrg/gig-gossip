@@ -453,4 +453,22 @@ public class SettlerContext : DbContext
         this.ChangeTracker.Clear();
     }
 
+    public void RemoveObject<T>(T obj)
+    {
+        this.Type2DbSet(obj!).Remove(obj);
+        this.SaveChanges();
+
+        this.ChangeTracker.Clear();
+    }
+
+    public void RemoveObjectRange<T>(IEnumerable<T> range)
+    {
+        if (range.Count() == 0)
+            return;
+        this.Type2DbSet(range.First()!).RemoveRange(range);
+        this.SaveChanges();
+        this.ChangeTracker.Clear();
+    }
+
+
 }
