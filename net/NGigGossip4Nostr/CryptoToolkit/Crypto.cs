@@ -8,7 +8,6 @@ using NBitcoin.JsonConverters;
 using System.IO;
 using System.IO.Compression;
 using System.Text.Json;
-using Kermalis.EndianBinaryIO;
 
 namespace CryptoToolkit;
 
@@ -84,7 +83,7 @@ public static class Crypto
         tt.PublicKey = ecpriv.CreateXOnlyPubKey().AsHex();
         tt.DateTime = dateTime;
         tt.Guid = guid;
-        tt.Signature = SignObject(tt,ecpriv);
+        tt.Signature = SignObject(tt, ecpriv);
         return Convert.ToBase64String(SerializeObject(tt));
     }
 
@@ -132,7 +131,7 @@ public static class Crypto
 
     public static string GenerateMnemonic()
     {
-        return string.Join(" ",new Mnemonic(Wordlist.English, WordCount.Twelve).Words);
+        return string.Join(" ", new Mnemonic(Wordlist.English, WordCount.Twelve).Words);
     }
 
     public static ECPrivKey DeriveECPrivKeyFromMnemonic(string mnemonic)
@@ -398,18 +397,21 @@ public static class Crypto
     }
 #else
 
+    const byte SERIALIZATION_VERSION = 0x2;
+
     /// <summary>
     /// Serializes an object into a byte array using GZipped Json serialization
     /// </summary>
     public static byte[] SerializeObject(object obj)
     {
-        using MemoryStream memoryStream = new();
-        var writer = new EndianBinaryWriter(memoryStream, endianness: Endianness.LittleEndian);
-        writer.WriteBytes(JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType()));
-
-        //using (GZipStream compressedStream = new GZipStream(writer.Stream, CompressionMode.Compress, true))
-
-        return memoryStream.ToArray();
+        using var memStream = new MemoryStream();
+        memStream.WriteByte(SERIALIZATION_VERSION);
+        using var gZipStream = new GZipStream(memStream, CompressionMode.Compress);
+        using var utf8stream = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType()));
+        utf8stream.CopyTo(gZipStream);
+        utf8stream.Close();
+        gZipStream.Close();
+        return memStream.ToArray();
     }
 
     /// <summary>
@@ -417,12 +419,24 @@ public static class Crypto
     /// </summary>
     public static object? DeserializeObject(byte[] data, Type returnType)
     {
-        using MemoryStream compressedStream = new(data);
-        var reader = new EndianBinaryReader(compressedStream, endianness: Endianness.LittleEndian);
-
-        //using (GZipStream decompressedStream = new GZipStream(reader.Stream, CompressionMode.Decompress, true))
-
-        return JsonSerializer.Deserialize(compressedStream, returnType);
+        try
+        {
+            using var memStream = new MemoryStream(data);
+            if (memStream.ReadByte() == SERIALIZATION_VERSION)
+            {
+                using var gzipStream = new GZipStream(memStream, CompressionMode.Decompress);
+                return JsonSerializer.Deserialize(gzipStream, returnType);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+        catch (Exception)
+        {
+            using var memStream = new MemoryStream(data);
+            return JsonSerializer.Deserialize(memStream, returnType);
+        }
     }
 
     /// <summary>
@@ -430,16 +444,28 @@ public static class Crypto
     /// </summary>
     public static T? DeserializeObject<T>(byte[] data)
     {
-        using MemoryStream compressedStream = new(data);
-        var reader = new EndianBinaryReader(compressedStream, endianness: Endianness.LittleEndian);
-
-        //using (GZipStream decompressedStream = new GZipStream(reader.Stream, CompressionMode.Decompress, true))
-
-        return JsonSerializer.Deserialize<T>(compressedStream);
+        try
+        {
+            using var memStream = new MemoryStream(data);
+            if (memStream.ReadByte() == SERIALIZATION_VERSION)
+            {
+                using var gzipStream = new GZipStream(memStream, CompressionMode.Decompress);
+                return JsonSerializer.Deserialize<T>(gzipStream);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+        catch(Exception)
+        {
+            using var memStream = new MemoryStream(data);
+            return JsonSerializer.Deserialize<T>(memStream);
+        }
     }
 #endif
 
-    public static bool TryParseBitcoinAddress(string text, out BitcoinAddress? address)
+    public static bool TryParseBitcoinAddress(string text, Network network, out BitcoinAddress? address)
     {
         address = null;
 
@@ -452,7 +478,7 @@ public static class Crypto
         try
         {
             //TODO Pawel Inject Network please
-            address = BitcoinAddress.Create(text, Network.RegTest);
+            address = BitcoinAddress.Create(text, network);
             return true;
         }
         catch (FormatException)

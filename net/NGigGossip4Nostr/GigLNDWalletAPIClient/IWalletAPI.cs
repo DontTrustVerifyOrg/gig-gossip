@@ -18,7 +18,7 @@ public interface IWalletAPI
     Task<Int64Result> GetBitcoinWalletBallanceAsync(string authToken, int minConf, System.Threading.CancellationToken cancellationToken);
     Task<LndWalletBallanceRetResult> GetLndWalletBallanceAsync(string authToken, System.Threading.CancellationToken cancellationToken);
     Task<GuidResult> OpenReserveAsync(string authToken, long satoshis, System.Threading.CancellationToken cancellationToken);
-    Task<Result> CloseReserveAsync(string authToken, string reserveId, System.Threading.CancellationToken cancellationToken);
+    Task<Result> CloseReserveAsync(string authToken, System.Guid reserveId, System.Threading.CancellationToken cancellationToken);
     Task<FeeEstimateRetResult> EstimateFeeAsync(string authToken, string address, long satoshis, System.Threading.CancellationToken cancellationToken);
     Task<Int64Result> GetBalanceAsync(string authToken, System.Threading.CancellationToken cancellationToken);
     Task<AccountBallanceDetailsResult> GetBalanceDetailsAsync(string authToken, System.Threading.CancellationToken cancellationToken);
@@ -97,7 +97,7 @@ public class WalletAPIRetryWrapper : IWalletAPI
         return await RetryPolicy.WithRetryPolicy(() => api.CancelInvoiceAsync(authToken, paymenthash, cancellationToken));
     }
 
-    public async Task<Result> CloseReserveAsync(string authToken, string reserveId, CancellationToken cancellationToken)
+    public async Task<Result> CloseReserveAsync(string authToken, System.Guid reserveId, CancellationToken cancellationToken)
     {
         return await RetryPolicy.WithRetryPolicy(() => api.CloseReserveAsync(authToken, reserveId, cancellationToken));
     }

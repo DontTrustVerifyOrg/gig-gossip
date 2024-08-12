@@ -296,7 +296,7 @@ public class GigGossipSettlerCLI
                 }
                 else if(cmd == CommandEnum.IsCertificateRevoked)
                 {
-                    var certificateId = Prompt.Input<string>("Enter certificate ID");
+                    var certificateId = Prompt.Input<Guid>("Enter certificate ID");
                     var isRevoked = SettlerAPIResult.Get<bool>(await settlerClient.IsCertificateRevokedAsync(certificateId, CancellationToken.None));
                     AnsiConsole.WriteLine(isRevoked? "Revoked" : "Valid");
                 }
@@ -455,7 +455,7 @@ public class GigGossipSettlerCLI
                 }
                 else if(cmd == CommandEnum.GenerateReplyPaymentPreimage)
                 {
-                    var gigId = Prompt.Input<string>("Enter GigId:");
+                    var gigId = Prompt.Input<Guid>("Enter GigId:");
                     var replierpubkey = Prompt.Input<string>("Enter replier Public Key:");
                     var preimage = SettlerAPIResult.Get<string>(await settlerClient.GenerateReplyPaymentPreimageAsync(await MakeToken(), gigId, replierpubkey, CancellationToken.None));
                     AnsiConsole.WriteLine(preimage);
@@ -484,30 +484,30 @@ public class GigGossipSettlerCLI
                 }
                 else if(cmd == CommandEnum.GetGigStatus)
                 {
-                    var signedRequestPayloadId = Prompt.Input<string>("Enter signed Request Payload Id:");
-                    var replierCertificateId = Prompt.Input<string>("Enter replier Certificate Id:");
+                    var signedRequestPayloadId = Prompt.Input<Guid>("Enter signed Request Payload Id:");
+                    var replierCertificateId = Prompt.Input<Guid>("Enter replier Certificate Id:");
                     var gigStatus = SettlerAPIResult.Get<string>(await settlerClient.GetGigStatusAsync(await MakeToken(), signedRequestPayloadId, replierCertificateId, CancellationToken.None));
                     AnsiConsole.WriteLine($"Gig Status: {gigStatus}");
                 }
                 else if(cmd == CommandEnum.EncryptObjectForCertificateId)
                 {
-                    var certificateId = Prompt.Input<string>("Enter Certificate Id:");
+                    var certificateId = Prompt.Input<Guid>("Enter Certificate Id:");
                     var obj = Prompt.Input<string>("Enter path to object:");
                     var objStream = new FileStream(obj, FileMode.Open, FileAccess.Read);
                     var encrypted = SettlerAPIResult.Get<string>(await settlerClient.EncryptObjectForCertificateIdAsync(certificateId, new FileParameter(objStream), CancellationToken.None));
                 }
                 else if(cmd == CommandEnum.ManageDispute)
                 {
-                    var gigId = Prompt.Input<string>("Enter GigId:");
-                    var replierCertificateId = Prompt.Input<string>("Enter replier Certificate Id:");
+                    var gigId = Prompt.Input<Guid>("Enter GigId:");
+                    var replierCertificateId = Prompt.Input<Guid>("Enter replier Certificate Id:");
                     var dispSel = Prompt.Select("What to do", new[] { "Open Dispute", "Close Dispute" })=="Open Dispute";
                     SettlerAPIResult.Check(await settlerClient.ManageDisputeAsync(await MakeToken(), gigId, replierCertificateId, dispSel, CancellationToken.None));
                     AnsiConsole.WriteLine("dispute " + (dispSel?"opened":"closed"));
                 }
                 else if(cmd == CommandEnum.CancelGig)
                 {
-                    var gigId = Prompt.Input<string>("Enter GigId:");
-                    var replierCertificateId = Prompt.Input<string>("Enter replier Certificate Id:");
+                    var gigId = Prompt.Input<Guid>("Enter GigId:");
+                    var replierCertificateId = Prompt.Input<Guid>("Enter replier Certificate Id:");
                     SettlerAPIResult.Check(await settlerClient.CancelGigAsync(await MakeToken(), gigId,replierCertificateId, CancellationToken.None));
                     AnsiConsole.WriteLine("Gig cancelled");
                 }

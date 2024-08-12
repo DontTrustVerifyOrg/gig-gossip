@@ -19,7 +19,6 @@
             "in": "query",
             "description": "public key identifies the API user",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -32,6 +31,150 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/grantaccessrights": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Grants access rights to the subject.",
+        "description": "Grants access rights to the subject. Only authorised users can grant the rights.",
+        "operationId": "GrantAccessRights",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pubkey",
+            "in": "query",
+            "description": "Public key of the subject.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accessRights",
+            "in": "query",
+            "description": "Access rights to be granted.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/revokeaccessrights": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Revokes access rights from the subject.",
+        "description": "Revokes access rights from the subject. Only authorised users can revoke the rights.",
+        "operationId": "RevokeAccessRights",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pubkey",
+            "in": "query",
+            "description": "Public key of the subject.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accessRights",
+            "in": "query",
+            "description": "Access rights to be revoked.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/getaccessrights": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Gets access rights to the subject.",
+        "description": "Gets access rights to the subject. Only authorised users can grant the rights.",
+        "operationId": "GetAccessRights",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pubkey",
+            "in": "query",
+            "description": "Public key of the subject.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StringResult"
                 }
               }
             }
@@ -53,7 +196,6 @@
             "in": "query",
             "description": "bitcoin address",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -63,7 +205,6 @@
             "in": "query",
             "description": "number of satoshis",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -72,7 +213,6 @@
             "name": "satoshis",
             "in": "query",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -107,7 +247,6 @@
             "in": "query",
             "description": "bitcoin address",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -117,7 +256,6 @@
             "in": "query",
             "description": "number of satoshis",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -126,7 +264,6 @@
             "name": "satoshis",
             "in": "query",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -161,7 +298,6 @@
             "in": "query",
             "description": "number of blocks to mine",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -170,7 +306,6 @@
             "name": "blocknum",
             "in": "query",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -205,7 +340,6 @@
             "in": "query",
             "description": "authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -239,7 +373,6 @@
             "in": "query",
             "description": "authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -249,7 +382,6 @@
             "in": "query",
             "description": "minimal number of confirmation",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -284,7 +416,6 @@
             "in": "query",
             "description": "authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -318,7 +449,6 @@
             "in": "query",
             "description": "number of satoshis",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -327,7 +457,6 @@
             "name": "satoshis",
             "in": "query",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -362,7 +491,6 @@
             "in": "query",
             "description": "reserve id",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -371,9 +499,9 @@
             "name": "reserveId",
             "in": "query",
             "required": true,
-            "style": "form",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -405,7 +533,6 @@
             "in": "query",
             "description": "bitcoin address",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -415,7 +542,6 @@
             "in": "query",
             "description": "number of satoshis",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -424,7 +550,6 @@
             "name": "satoshis",
             "in": "query",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -459,7 +584,6 @@
             "in": "query",
             "description": "authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -493,7 +617,6 @@
             "in": "query",
             "description": "authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -527,7 +650,6 @@
             "in": "query",
             "description": "authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -561,7 +683,6 @@
             "in": "query",
             "description": "authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -571,7 +692,6 @@
             "in": "query",
             "description": "amount in satoshis",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -582,7 +702,6 @@
             "in": "query",
             "description": "bitcoin address",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -592,7 +711,6 @@
             "in": "query",
             "description": "transaction fee",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -627,7 +745,6 @@
             "in": "query",
             "description": "Authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -637,7 +754,6 @@
             "in": "query",
             "description": "The value of this invoice in satoshis.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -648,7 +764,6 @@
             "in": "query",
             "description": "An optional memo to attach along with the invoice. Used for record keeping purposes for the invoice's creator, and will also be set in the description field of the encoded payment request if the description_hash field is not being used.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -658,7 +773,6 @@
             "in": "query",
             "description": "Payment request expiry time in seconds.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -693,7 +807,6 @@
             "in": "query",
             "description": "Authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -703,7 +816,6 @@
             "in": "query",
             "description": "The value of this invoice in satoshis.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -714,7 +826,6 @@
             "in": "query",
             "description": "The hash of the preimage.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -724,7 +835,6 @@
             "in": "query",
             "description": "An optional memo to attach along with the invoice. Used for record keeping purposes for the invoice's creator, and will also be set in the description field of the encoded payment request if the description_hash field is not being used.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -734,7 +844,6 @@
             "in": "query",
             "description": "Payment request expiry time in seconds.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -769,7 +878,6 @@
             "in": "query",
             "description": "Authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -779,7 +887,6 @@
             "in": "query",
             "description": "The payment request string to be decoded.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -813,7 +920,6 @@
             "in": "query",
             "description": "Authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -823,7 +929,6 @@
             "in": "query",
             "description": "A bare-bones invoice for a payment within the Lightning Network. With the details of the invoice, the sender has all the data necessary to send a payment to the recipient.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -833,7 +938,6 @@
             "in": "query",
             "description": "An upper limit on the amount of time we should spend when attempting to fulfill the payment. This is expressed in seconds.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -843,7 +947,6 @@
             "name": "feelimit",
             "in": "query",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -878,7 +981,6 @@
             "in": "query",
             "description": "Authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -888,7 +990,6 @@
             "in": "query",
             "description": "A bare-bones invoice for a payment within the Lightning Network. With the details of the invoice, the sender has all the data necessary to send a payment to the recipient.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -922,7 +1023,6 @@
             "in": "query",
             "description": "Authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -932,7 +1032,6 @@
             "in": "query",
             "description": "Externally discovered pre-image that should be used to settle the hold invoice.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -966,7 +1065,6 @@
             "in": "query",
             "description": "Authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -976,7 +1074,6 @@
             "in": "query",
             "description": "Hash corresponding to the invoice to cancel.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1010,7 +1107,6 @@
             "in": "query",
             "description": "Authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1020,7 +1116,6 @@
             "in": "query",
             "description": "Hash corresponding to the invoice.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1054,7 +1149,6 @@
             "in": "query",
             "description": "Authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1088,7 +1182,6 @@
             "in": "query",
             "description": "Authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1122,7 +1215,6 @@
             "in": "query",
             "description": "Authorisation token for the communication",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1132,7 +1224,6 @@
             "in": "query",
             "description": "Hash corresponding to the payment.",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -1330,6 +1421,20 @@
         "additionalProperties": false
       },
       "InvoiceRet": {
+        "required": [
+          "amtPaidSat",
+          "creationDate",
+          "description",
+          "descriptionHash",
+          "expiry",
+          "paymentAddr",
+          "paymentHash",
+          "paymentRequest",
+          "preimage",
+          "settleDate",
+          "state",
+          "valueSat"
+        ],
         "type": "object",
         "properties": {
           "description": {
@@ -1433,7 +1538,8 @@
           9,
           10,
           11,
-          12
+          12,
+          13
         ],
         "type": "integer",
         "format": "int32"
@@ -1481,6 +1587,15 @@
         "additionalProperties": false
       },
       "PayReqRet": {
+        "required": [
+          "description",
+          "descriptionHash",
+          "expiry",
+          "paymentAddr",
+          "paymentHash",
+          "timestamp",
+          "valueSat"
+        ],
         "type": "object",
         "properties": {
           "valueSat": {
@@ -1531,6 +1646,14 @@
         "additionalProperties": false
       },
       "PaymentRet": {
+        "required": [
+          "creationTimeNs",
+          "feeSat",
+          "paymentHash",
+          "paymentRequest",
+          "status",
+          "valueSat"
+        ],
         "type": "object",
         "properties": {
           "paymentHash": {

@@ -212,6 +212,30 @@ app.MapGet("/grantaccessrights", (string authToken, string pubkey, string access
 })
 .DisableAntiforgery();
 
+app.MapGet("/deletemypersonaluserdata", (string authToken) =>
+{
+    try
+    {
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        Singlethon.Settler.DeletePersonalUserData(pubkey);
+        return new Result();
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result(ex);
+    }
+})
+.WithName("DeleteMyPersonalUserData")
+.WithSummary("Deletes My Personal Information.")
+.WithDescription("Deletes My Personal Information.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
+    return g;
+})
+.DisableAntiforgery();
+
 app.MapGet("/revokeaccessrights", (string authToken, string pubkey, string accessRights) =>
 {
     try
@@ -618,7 +642,7 @@ app.MapGet("/getmypropertysecret", (string authToken, string name) =>
 })
 .DisableAntiforgery();
 
-app.MapPost("/giveuserfile/{authToken}/{pubkey}/{name}/{validHours}", async (HttpRequest request, string authToken, string pubkey, string name, long validHours, [FromForm] IFormFile value, [FromForm] IFormFile secret)
+app.MapPost("/giveuserfile", async ([FromForm] string authToken, [FromForm] string pubkey, [FromForm] string name, [FromForm] long validHours, IFormFile value, IFormFile secret)
     =>
 {
     try
@@ -981,7 +1005,7 @@ app.MapGet("/getgigstatus", (string authToken, Guid signedRequestPayloadId,Guid 
 })
 .DisableAntiforgery();
 
-app.MapPost("/generaterequestpayload/{authToken}/{properties}", async (string authToken, string properties, [FromForm] IFormFile serialisedTopic) =>
+app.MapPost("/generaterequestpayload", async ([FromForm] string authToken, [FromForm] string properties, IFormFile serialisedTopic) =>
 {
     try
     {
@@ -1001,7 +1025,7 @@ app.MapPost("/generaterequestpayload/{authToken}/{properties}", async (string au
 .DisableAntiforgery();
 
 
-app.MapPost("/generatesettlementtrust/{authToken}/{properties}/{replyinvoice}", async (string authToken, string properties, string replyinvoice, [FromForm] IFormFile message, [FromForm] IFormFile signedRequestPayloadSerialized) =>
+app.MapPost("/generatesettlementtrust", async ([FromForm] string authToken, [FromForm] string properties, [FromForm] string replyinvoice, IFormFile message, IFormFile signedRequestPayloadSerialized) =>
 {
     try
     {
@@ -1021,7 +1045,7 @@ app.MapPost("/generatesettlementtrust/{authToken}/{properties}/{replyinvoice}", 
 .WithDescription("Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.")
 .DisableAntiforgery();
 
-app.MapPost("/encryptobjectforcertificateid/{certificateId}", async (Guid certificateId, [FromForm] IFormFile objectSerialized) =>
+app.MapPost("/encryptobjectforcertificateid", async ([FromForm] Guid certificateId, IFormFile objectSerialized) =>
 {
     try
     {

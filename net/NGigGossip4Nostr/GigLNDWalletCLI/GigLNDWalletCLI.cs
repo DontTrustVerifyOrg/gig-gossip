@@ -329,7 +329,7 @@ public class GigLNDWalletCLI
                 }
                 else if (cmd == CommandEnum.CloseReserve)
                 {
-                    var reserveId = Prompt.Input<string>("ReserveId", FromClipboard(ClipType.ReserveId));
+                    var reserveId = Prompt.Input<Guid>("ReserveId", FromClipboard(ClipType.ReserveId));
                     WalletAPIResult.Check(await walletClient.CloseReserveAsync(await MakeToken(), reserveId, CancellationToken.None));
                 }
                 else if (cmd == CommandEnum.AddInvoice)

@@ -102,7 +102,7 @@ public class WalletAPILoggingWrapper : LogWrapper<IWalletAPI>, IWalletAPI
         }
     }
 
-    public async Task<Result> CloseReserveAsync(string authToken, string reserveId, CancellationToken cancellationToken)
+    public async Task<Result> CloseReserveAsync(string authToken, System.Guid reserveId, CancellationToken cancellationToken)
     {
         Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
         try

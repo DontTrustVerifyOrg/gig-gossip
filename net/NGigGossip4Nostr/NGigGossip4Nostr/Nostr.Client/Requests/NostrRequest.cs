@@ -24,16 +24,15 @@ namespace Nostr.Client.Requests
     }
 
     [JsonConverter(typeof(ArrayConverter))]
-    public class NostrRequest5
+    public class NostrRequest4
     {
-        public NostrRequest5(string subscription, NostrFilter nostrFilter1, NostrFilter nostrFilter2, NostrFilter nostrFilter3, NostrFilter nostrFilter4, NostrFilter nostrFilter5)
+        public NostrRequest4(string subscription, NostrFilter nostrFilter1, NostrFilter nostrFilter2, NostrFilter nostrFilter3, NostrFilter nostrFilter4)
         {
             Subscription = subscription;
             NostrFilter1 = nostrFilter1;
             NostrFilter2 = nostrFilter2;
             NostrFilter3 = nostrFilter3;
             NostrFilter4 = nostrFilter4;
-            NostrFilter5 = nostrFilter5;
         }
 
         [ArrayProperty(0)]
@@ -50,7 +49,5 @@ namespace Nostr.Client.Requests
         public NostrFilter NostrFilter3 { get; init; }
         [ArrayProperty(5)]
         public NostrFilter NostrFilter4 { get; init; }
-        [ArrayProperty(6)]
-        public NostrFilter NostrFilter5 { get; init; }
     }
 }

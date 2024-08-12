@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>GigGossip.WalletApi.Client</PackageId>
-    <Version>1.2.12</Version>
+    <Version>1.2.13</Version>
     <Authors>TheHyperlabs</Authors>
     <Company>TheHyperlabs</Company>
     <TargetFramework>net8.0</TargetFramework>
@@ -15,7 +15,7 @@
     <NoWarn>1701;1702;1998;8600;8601;8602;8603;8604;8618;8625</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="NSwag.ApiDescription.Client" Version="14.0.8">
+    <PackageReference Include="NSwag.ApiDescription.Client" Version="14.1.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>

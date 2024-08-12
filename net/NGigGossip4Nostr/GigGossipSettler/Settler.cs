@@ -464,7 +464,7 @@ public class Settler : CertificationAuthority
         });
 
         var encryptedReplyPayload = Convert.FromBase64String(SettlerAPIResult.Get<string>(await settlerSelector.GetSettlerClient(signedRequestPayload.ServiceUri)
-            .EncryptObjectForCertificateIdAsync(signedRequestPayload.Id.ToString(),
+            .EncryptObjectForCertificateIdAsync(signedRequestPayload.Id,
                                                 new FileParameter(new MemoryStream(Crypto.SerializeObject(replyPayload))), CancellationTokenSource.Token)));
 
 
@@ -625,5 +625,20 @@ public class Settler : CertificationAuthority
         await scheduler.DeleteJob(new JobKey(gig.SignedRequestPayloadId.ToString()));
     }
 
+    public void DeletePersonalUserData(string pubkey)
+    {
+        var props = (from u in settlerContext.Value.UserProperties where u.PublicKey == pubkey select u).ToList();
+        var tracs = (from u in settlerContext.Value.UserTraceProperties where u.PublicKey == pubkey select u).ToList();
+        var certs = (from u in settlerContext.Value.UserCertificates where u.PublicKey == pubkey select u).ToList();
+        var certids = (from c in certs select c.CertificateId).ToHashSet();
+        if (certids.Count > 0)
+        {
+            var certprops = (from u in settlerContext.Value.CertificateProperties where certids.Contains(u.CertificateId) select u).ToList();
+            settlerContext.Value.RemoveObjectRange(certprops);
+        }
+        settlerContext.Value.RemoveObjectRange(certs);
+        settlerContext.Value.RemoveObjectRange(tracs);
+        settlerContext.Value.RemoveObjectRange(props);
+    }
 }
 
