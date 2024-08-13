@@ -21,7 +21,6 @@ using System.Reactive.Linq;
 using Nostr.Client.Responses;
 using System.IO;
 using Nostr.Client.Requests;
-using static Microsoft.IO.RecyclableMemoryStreamManager;
 
 namespace NGigGossip4Nostr;
 

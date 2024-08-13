@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>GigGossip.SettlerApi.Client</PackageId>
-    <Version>1.2.15</Version>
+    <Version>1.2.16</Version>
     <Authors>TheHyperlabs</Authors>
     <Company>TheHyperlabs</Company>
     <TargetFramework>net8.0</TargetFramework>

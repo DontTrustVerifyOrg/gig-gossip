@@ -403,12 +403,12 @@ public static class Crypto
     public const byte SERIALIZATION_VERSION_JSON_GZIP = 0x2;
     public const byte SERIALIZATION_VERSION_JSON_ZLIB = 0x3;
     public const byte SERIALIZATION_VERSION_JSON_SNAPPY = 0x4;
-    public static byte SERIALIZATION_PROTOCOL_VERSION = SERIALIZATION_VERSION_JSON_SNAPPY;
+    public const byte SERIALIZATION_PROTOCOL_VERSION = SERIALIZATION_VERSION_JSON_SNAPPY;
 
     /// <summary>
     /// Serializes an object into a byte array using GZipped Json serialization
     /// </summary>
-    public static byte[] SerializeObject(object obj)
+    public static byte[] SerializeObjectXXX(object obj)
     {
         using var utf8stream = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType()));
         using var memStream = new MemoryStream();
@@ -434,10 +434,19 @@ public static class Crypto
         return memStream.ToArray();
     }
 
+    public static byte[] SerializeObject(object obj)
+    {
+        byte[] utf8bytes = JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType());
+        byte[] buffer = new byte[Snappy.GetMaxCompressedLength(utf8bytes.Length) + 1];
+        buffer[0] = SERIALIZATION_PROTOCOL_VERSION;
+        int compressedLength = Snappy.Compress(utf8bytes, buffer.AsSpan(1));
+        return buffer.AsSpan(0, compressedLength + 1).ToArray();
+    }
+
     /// <summary>
     /// Deserializes a byte array into an object of returnType using GZipped Json serialization
     /// </summary>
-    public static object? DeserializeObject(byte[] data, Type returnType)
+    public static object? DeserializeObjectXXX(byte[] data, Type returnType)
     {
         try
         {
@@ -458,6 +467,29 @@ public static class Crypto
                 throw new NotImplementedException();
             var obj = JsonSerializer.Deserialize(compStream, returnType);
             compStream.Close();
+            return obj;
+        }
+        catch (Exception)
+        {
+            using var memStream = new MemoryStream(data);
+            return JsonSerializer.Deserialize(memStream, returnType);
+        }
+    }
+
+    public static object? DeserializeObject(byte[] data, Type returnType)
+    {
+        try
+        {
+
+            if (data.Length==0 || data[0] != SERIALIZATION_VERSION_JSON_SNAPPY)
+                throw new NotImplementedException();
+
+            var compressed = data.AsSpan(1);
+            byte[] outputBuffer = new byte[Snappy.GetUncompressedLength(compressed)];
+            int decompressedLength = Snappy.Decompress(compressed, outputBuffer);
+
+            using var memStream = new MemoryStream(outputBuffer.AsSpan(0,decompressedLength).ToArray());
+            var obj = JsonSerializer.Deserialize(memStream, returnType);
             return obj;
         }
         catch (Exception)
