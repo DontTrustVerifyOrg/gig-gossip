@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>GigGossip.Network</PackageId>
-    <Version>1.2.13</Version>
+    <Version>1.2.14</Version>
     <Authors>TheHyperlabs</Authors>
     <Company>TheHyperlabs</Company>
 

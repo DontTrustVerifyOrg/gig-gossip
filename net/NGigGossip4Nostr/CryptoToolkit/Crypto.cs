@@ -397,11 +397,11 @@ public static class Crypto
     }
 #else
 
-    const byte SERIALIZATION_VERSION_NO_COMPRESSION = 0x0;
-    const byte SERIALIZATION_VERSION_DEFLATE = 0x1;
-    const byte SERIALIZATION_VERSION_GZIP = 0x2;
-    const byte SERIALIZATION_VERSION_ZLIB = 0x2;
-    const byte SERIALIZATION_VERSION = SERIALIZATION_VERSION_NO_COMPRESSION;
+    public const byte SERIALIZATION_VERSION_JSON_NO_COMPRESSION = 0x0;
+    public const byte SERIALIZATION_VERSION_JSON_DEFLATE = 0x1;
+    public const byte SERIALIZATION_VERSION_JSON_GZIP = 0x2;
+    public const byte SERIALIZATION_VERSION_JSON_ZLIB = 0x3;
+    public static byte SERIALIZATION_PROTOCOL_VERSION = SERIALIZATION_VERSION_JSON_NO_COMPRESSION;
 
     /// <summary>
     /// Serializes an object into a byte array using GZipped Json serialization
@@ -409,18 +409,17 @@ public static class Crypto
     public static byte[] SerializeObject(object obj)
     {
         using var utf8stream = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType()));
-
         using var memStream = new MemoryStream();
-        memStream.WriteByte(SERIALIZATION_VERSION);
+        memStream.WriteByte(SERIALIZATION_PROTOCOL_VERSION);
         Stream compStream;
 
-        if (SERIALIZATION_VERSION == SERIALIZATION_VERSION_NO_COMPRESSION)
+        if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_NO_COMPRESSION)
             compStream = memStream;
-        else if (SERIALIZATION_VERSION == SERIALIZATION_VERSION_DEFLATE)
+        else if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_DEFLATE)
             compStream = new DeflateStream(memStream, CompressionMode.Compress);
-        else if (SERIALIZATION_VERSION == SERIALIZATION_VERSION_GZIP)
+        else if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_GZIP)
             compStream = new GZipStream(memStream, CompressionMode.Compress);
-        else if (SERIALIZATION_VERSION == SERIALIZATION_VERSION_ZLIB)
+        else if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_ZLIB)
             compStream = new ZLibStream(memStream, CompressionMode.Compress);
         else
             throw new NotImplementedException();
@@ -440,18 +439,18 @@ public static class Crypto
         {
             using var memStream = new MemoryStream(data);
             var serVer = memStream.ReadByte();
-            Stream compStream;
-            if (serVer == SERIALIZATION_VERSION_NO_COMPRESSION)
+            Stream compStream = null; 
+            if (serVer == SERIALIZATION_VERSION_JSON_NO_COMPRESSION)
                 compStream = memStream;
-            else if (serVer == SERIALIZATION_VERSION_DEFLATE)
+            else if (serVer == SERIALIZATION_VERSION_JSON_DEFLATE)
                 compStream = new DeflateStream(memStream, CompressionMode.Decompress);
-            else if (serVer == SERIALIZATION_VERSION_GZIP)
+            else if (serVer == SERIALIZATION_VERSION_JSON_GZIP)
                 compStream = new GZipStream(memStream, CompressionMode.Decompress);
-            else if (serVer == SERIALIZATION_VERSION_ZLIB)
+            else if (serVer == SERIALIZATION_VERSION_JSON_ZLIB)
                 compStream = new ZLibStream(memStream, CompressionMode.Decompress);
             else
                 throw new NotImplementedException();
-            var obj= JsonSerializer.Deserialize(compStream, returnType);
+            var obj = JsonSerializer.Deserialize(compStream, returnType);
             compStream.Close();
             return obj;
         }
