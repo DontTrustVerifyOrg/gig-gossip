@@ -8,6 +8,7 @@ using NBitcoin.JsonConverters;
 using System.IO;
 using System.IO.Compression;
 using System.Text.Json;
+using Snappier;
 
 namespace CryptoToolkit;
 
@@ -401,7 +402,8 @@ public static class Crypto
     public const byte SERIALIZATION_VERSION_JSON_DEFLATE = 0x1;
     public const byte SERIALIZATION_VERSION_JSON_GZIP = 0x2;
     public const byte SERIALIZATION_VERSION_JSON_ZLIB = 0x3;
-    public static byte SERIALIZATION_PROTOCOL_VERSION = SERIALIZATION_VERSION_JSON_DEFLATE;
+    public const byte SERIALIZATION_VERSION_JSON_SNAPPY = 0x4;
+    public static byte SERIALIZATION_PROTOCOL_VERSION = SERIALIZATION_VERSION_JSON_SNAPPY;
 
     /// <summary>
     /// Serializes an object into a byte array using GZipped Json serialization
@@ -416,11 +418,13 @@ public static class Crypto
         if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_NO_COMPRESSION)
             compStream = memStream;
         else if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_DEFLATE)
-            compStream = new DeflateStream(memStream, CompressionMode.Compress);
+            compStream = new DeflateStream(memStream, CompressionMode.Compress, true);
         else if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_GZIP)
-            compStream = new GZipStream(memStream, CompressionMode.Compress);
+            compStream = new GZipStream(memStream, CompressionMode.Compress, true);
         else if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_ZLIB)
-            compStream = new ZLibStream(memStream, CompressionMode.Compress);
+            compStream = new ZLibStream(memStream, CompressionMode.Compress, true);
+        else if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_SNAPPY)
+            compStream = new SnappyStream(memStream, CompressionMode.Compress, true);
         else
             throw new NotImplementedException();
 
@@ -448,6 +452,8 @@ public static class Crypto
                 compStream = new GZipStream(memStream, CompressionMode.Decompress);
             else if (serVer == SERIALIZATION_VERSION_JSON_ZLIB)
                 compStream = new ZLibStream(memStream, CompressionMode.Decompress);
+            else if (serVer == SERIALIZATION_VERSION_JSON_SNAPPY)
+                compStream = new SnappyStream(memStream, CompressionMode.Decompress);
             else
                 throw new NotImplementedException();
             var obj = JsonSerializer.Deserialize(compStream, returnType);
