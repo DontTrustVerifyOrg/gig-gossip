@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>GigGossip.DebugLogApi.Client</PackageId>
-    <Version>1.2.14</Version>
+    <Version>1.2.15</Version>
     <Authors>TheHyperlabs</Authors>
     <Company>TheHyperlabs</Company>
     <TargetFramework>net8.0</TargetFramework>
