@@ -5,8 +5,6 @@ using NBitcoin;
 using NBitcoin.Secp256k1;
 using NGigGossip4Nostr;
 
-Crypto.SERIALIZATION_PROTOCOL_VERSION = Crypto.SERIALIZATION_VERSION_JSON_DEFLATE;
-
 var mnemonic = Crypto.GenerateMnemonic();
 Console.WriteLine(mnemonic);
 var privkey = Crypto.DeriveECPrivKeyFromMnemonic(mnemonic);
