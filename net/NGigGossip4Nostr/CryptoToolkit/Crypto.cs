@@ -397,20 +397,36 @@ public static class Crypto
     }
 #else
 
-    const byte SERIALIZATION_VERSION = 0x2;
+    public const byte SERIALIZATION_VERSION_JSON_NO_COMPRESSION = 0x0;
+    public const byte SERIALIZATION_VERSION_JSON_DEFLATE = 0x1;
+    public const byte SERIALIZATION_VERSION_JSON_GZIP = 0x2;
+    public const byte SERIALIZATION_VERSION_JSON_ZLIB = 0x3;
+    public static byte SERIALIZATION_PROTOCOL_VERSION = SERIALIZATION_VERSION_JSON_NO_COMPRESSION;
 
     /// <summary>
     /// Serializes an object into a byte array using GZipped Json serialization
     /// </summary>
     public static byte[] SerializeObject(object obj)
     {
-        using var memStream = new MemoryStream();
-        memStream.WriteByte(SERIALIZATION_VERSION);
-        using var gZipStream = new GZipStream(memStream, CompressionMode.Compress);
         using var utf8stream = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType()));
-        utf8stream.CopyTo(gZipStream);
+        using var memStream = new MemoryStream();
+        memStream.WriteByte(SERIALIZATION_PROTOCOL_VERSION);
+        Stream compStream;
+
+        if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_NO_COMPRESSION)
+            compStream = memStream;
+        else if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_DEFLATE)
+            compStream = new DeflateStream(memStream, CompressionMode.Compress);
+        else if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_GZIP)
+            compStream = new GZipStream(memStream, CompressionMode.Compress);
+        else if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_ZLIB)
+            compStream = new ZLibStream(memStream, CompressionMode.Compress);
+        else
+            throw new NotImplementedException();
+
+        utf8stream.CopyTo(compStream);
         utf8stream.Close();
-        gZipStream.Close();
+        compStream.Close();
         return memStream.ToArray();
     }
 
@@ -422,15 +438,21 @@ public static class Crypto
         try
         {
             using var memStream = new MemoryStream(data);
-            if (memStream.ReadByte() == SERIALIZATION_VERSION)
-            {
-                using var gzipStream = new GZipStream(memStream, CompressionMode.Decompress);
-                return JsonSerializer.Deserialize(gzipStream, returnType);
-            }
+            var serVer = memStream.ReadByte();
+            Stream compStream = null; 
+            if (serVer == SERIALIZATION_VERSION_JSON_NO_COMPRESSION)
+                compStream = memStream;
+            else if (serVer == SERIALIZATION_VERSION_JSON_DEFLATE)
+                compStream = new DeflateStream(memStream, CompressionMode.Decompress);
+            else if (serVer == SERIALIZATION_VERSION_JSON_GZIP)
+                compStream = new GZipStream(memStream, CompressionMode.Decompress);
+            else if (serVer == SERIALIZATION_VERSION_JSON_ZLIB)
+                compStream = new ZLibStream(memStream, CompressionMode.Decompress);
             else
-            {
                 throw new NotImplementedException();
-            }
+            var obj = JsonSerializer.Deserialize(compStream, returnType);
+            compStream.Close();
+            return obj;
         }
         catch (Exception)
         {
@@ -444,24 +466,7 @@ public static class Crypto
     /// </summary>
     public static T? DeserializeObject<T>(byte[] data)
     {
-        try
-        {
-            using var memStream = new MemoryStream(data);
-            if (memStream.ReadByte() == SERIALIZATION_VERSION)
-            {
-                using var gzipStream = new GZipStream(memStream, CompressionMode.Decompress);
-                return JsonSerializer.Deserialize<T>(gzipStream);
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
-        }
-        catch(Exception)
-        {
-            using var memStream = new MemoryStream(data);
-            return JsonSerializer.Deserialize<T>(memStream);
-        }
+        return (T)DeserializeObject(data, typeof(T));
     }
 #endif
 
@@ -477,7 +482,6 @@ public static class Crypto
         text = text.Trim();
         try
         {
-            //TODO Pawel Inject Network please
             address = BitcoinAddress.Create(text, network);
             return true;
         }
