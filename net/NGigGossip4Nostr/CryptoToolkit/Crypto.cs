@@ -401,7 +401,7 @@ public static class Crypto
     public const byte SERIALIZATION_VERSION_JSON_DEFLATE = 0x1;
     public const byte SERIALIZATION_VERSION_JSON_GZIP = 0x2;
     public const byte SERIALIZATION_VERSION_JSON_ZLIB = 0x3;
-    public static byte SERIALIZATION_PROTOCOL_VERSION = SERIALIZATION_VERSION_JSON_NO_COMPRESSION;
+    public static byte SERIALIZATION_PROTOCOL_VERSION = SERIALIZATION_VERSION_JSON_DEFLATE;
 
     /// <summary>
     /// Serializes an object into a byte array using GZipped Json serialization
