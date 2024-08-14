@@ -61,7 +61,7 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
     {
-        var connectionReply = Crypto.DeserializeObject<ConnectionReply>(Crypto.SymmetricDecrypt<byte[]>(
+        var connectionReply = Crypto.BinaryDeserializeObject<ConnectionReply>(Crypto.SymmetricDecrypt<byte[]>(
             key.AsBytes(),
             replyPayload.Value.EncryptedReplyMessage));
         _gigGossipNodeEventSource.FireOnResponseReady(new ResponseReadyEventArgs()

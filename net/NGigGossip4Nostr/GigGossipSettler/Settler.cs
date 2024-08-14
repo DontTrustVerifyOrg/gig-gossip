@@ -465,7 +465,7 @@ public class Settler : CertificationAuthority
 
         var encryptedReplyPayload = Convert.FromBase64String(SettlerAPIResult.Get<string>(await settlerSelector.GetSettlerClient(signedRequestPayload.ServiceUri)
             .EncryptObjectForCertificateIdAsync(signedRequestPayload.Id,
-                                                new FileParameter(new MemoryStream(Crypto.SerializeObject(replyPayload))), CancellationTokenSource.Token)));
+                                                new FileParameter(new MemoryStream(Crypto.BinarySerializeObject(replyPayload))), CancellationTokenSource.Token)));
 
 
         byte[] hashOfEncryptedReplyPayload = Crypto.ComputeSha256(new List<byte[]> { encryptedReplyPayload });
@@ -501,7 +501,7 @@ public class Settler : CertificationAuthority
 
     public byte[] EncryptObjectForPubkey(string pubkey, byte[] bytes)
     {
-        return Crypto.EncryptObject(Crypto.DeserializeObject<Certificate<ReplyPayloadValue>>(bytes), pubkey.AsECXOnlyPubKey(), this._CaPrivateKey);
+        return Crypto.EncryptObject(Crypto.BinaryDeserializeObject<Certificate<ReplyPayloadValue>>(bytes), pubkey.AsECXOnlyPubKey(), this._CaPrivateKey);
     }
 
     public BroadcastTopicResponse GenerateRequestPayload(string senderspubkey, string[] sendersproperties, byte[] topic)

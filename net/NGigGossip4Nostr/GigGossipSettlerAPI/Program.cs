@@ -1011,7 +1011,7 @@ app.MapPost("/generaterequestpayload", async ([FromForm] string authToken, [From
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
         var st = Singlethon.Settler.GenerateRequestPayload(pubkey, properties.Split(","), await serialisedTopic.ToBytes());
-        return new Result<string>(Convert.ToBase64String(Crypto.SerializeObject(st)));
+        return new Result<string>(Convert.ToBase64String(Crypto.BinarySerializeObject(st)));
     }
     catch (Exception ex)
     {
@@ -1030,9 +1030,9 @@ app.MapPost("/generatesettlementtrust", async ([FromForm] string authToken, [Fro
     try
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
-        var signedRequestPayload = Crypto.DeserializeObject<Certificate<RequestPayloadValue>>(await signedRequestPayloadSerialized.ToBytes());
+        var signedRequestPayload = Crypto.BinaryDeserializeObject<Certificate<RequestPayloadValue>>(await signedRequestPayloadSerialized.ToBytes());
         var st = await Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, properties.Split(","), await message.ToBytes(), replyinvoice, signedRequestPayload);
-        return new Result<string>(Convert.ToBase64String(Crypto.SerializeObject(st)));
+        return new Result<string>(Convert.ToBase64String(Crypto.BinarySerializeObject(st)));
     }
     catch (Exception ex)
     {

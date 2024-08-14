@@ -30,7 +30,7 @@ public partial class RideShareCLIApp
 
     private async void GigGossipNodeEventSource_OnAcceptBroadcast(object? sender, AcceptBroadcastEventArgs e)
     {
-        var taxiTopic = Crypto.DeserializeObject<RideTopic>(e.BroadcastFrame.SignedRequestPayload.Value.Topic);
+        var taxiTopic = Crypto.BinaryDeserializeObject<RideTopic>(e.BroadcastFrame.SignedRequestPayload.Value.Topic);
         if (taxiTopic == null)
             return;
 
@@ -78,7 +78,7 @@ public partial class RideShareCLIApp
 
         foreach (var e in evs)
         {
-            var taxiTopic = Crypto.DeserializeObject<RideTopic>(
+            var taxiTopic = Crypto.BinaryDeserializeObject<RideTopic>(
                 e.BroadcastFrame.SignedRequestPayload.Value.Topic);
 
             var reply = new ConnectionReply()
@@ -94,7 +94,7 @@ public partial class RideShareCLIApp
                         new AcceptBroadcastResponse()
                         {
                             Properties = settings.NodeSettings.GetDriverProperties(),
-                            Message = Crypto.SerializeObject(reply),
+                            Message = Crypto.BinarySerializeObject(reply),
                             Fee = fee,
                             SettlerServiceUri = settings.NodeSettings.SettlerOpenApi,
                         },

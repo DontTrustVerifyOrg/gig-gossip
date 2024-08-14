@@ -1,34 +1,40 @@
 ﻿using System;
 using NBitcoin.Secp256k1;
 using CryptoToolkit;
+using ProtoBuf;
+
 namespace NGigGossip4Nostr;
 
 /// <summary>
 /// Represents a reply frame that contains encrypted payload, settlement promise, onion route and network invoice.
 /// </summary>
-[Serializable]
+[ProtoContract]
 public class ReplyFrame
 {
     /// <summary>
     /// Gets or sets the encrypted reply payload.
     /// </summary>
+    [ProtoMember(1)]
     public required byte[] EncryptedReplyPayload { get; set; }
 
     /// <summary>
     /// Gets or sets the signed settlement promise.
     /// </summary>
     /// <see cref="SettlementPromise"/>
+    [ProtoMember(2)]
     public required SettlementPromise SignedSettlementPromise { get; set; }
 
     /// <summary>
     /// Gets or sets the forward onion route.
     /// </summary>
     /// <see cref="OnionRoute"/>
+    [ProtoMember(3)]
     public required OnionRoute ForwardOnion { get; set; }
 
     /// <summary>
     /// Gets or sets the network invoice.
     /// </summary>
+    [ProtoMember(4)]
     public required string NetworkInvoice { get; set; }
 
     /// <summary>

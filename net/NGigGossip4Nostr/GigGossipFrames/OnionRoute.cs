@@ -1,22 +1,25 @@
 ﻿using NBitcoin.Secp256k1;
 using CryptoToolkit;
+using ProtoBuf;
 
 namespace NGigGossip4Nostr;
 
 /// <summary>
 /// Represents a layer in the Onion routing protocol, which contains a public key and encrypted data core.
 /// </summary>
-[Serializable]
+[ProtoContract]
 public class OnionLayer
 {
     /// <summary>
     /// Gets or sets the public key associated with this layer of the onion route.
     /// </summary>
+    [ProtoMember(1)]
     public required string PublicKey { get; set; }
 
     /// <summary>
     /// Gets or sets the encrypted core of the onion layer.
     /// </summary>
+    [ProtoMember(2)]
     public required byte[] Core { get; set; }
 }
 
@@ -24,12 +27,13 @@ public class OnionLayer
 /// An onion route is used in the onion routing protocol to establish an anonymous communication channel. 
 /// Each "onion" in the route is peeled back one at a time by each gig gossip node in the network. 
 /// </summary>
-[Serializable]
+[ProtoContract]
 public class OnionRoute
 {
     /// <summary>
     /// An array of bytes representing the "Onion", the data passed through the route.
     /// </summary>
+    [ProtoMember(1)]
     public byte[] Onion { get; set; } = new byte[0];
 
     /// <summary>

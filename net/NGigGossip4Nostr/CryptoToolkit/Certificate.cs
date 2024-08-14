@@ -1,4 +1,5 @@
 ﻿using NBitcoin.Secp256k1;
+using ProtoBuf;
 
 namespace CryptoToolkit;
 
@@ -22,77 +23,109 @@ public interface ICertificationAuthorityAccessor
     public Task<bool> IsRevokedAsync(Uri serviceUri, Guid id, CancellationToken cancellationToken);
 }
 
-[Serializable]
+[ProtoContract]
 public class PropertyValue
 {
+    [ProtoMember(1)]
     public required string Name { get; set; }
+    [ProtoMember(2)]
     public required byte[] Value { get; set; }
 }
 
 /// <summary>
 /// A Digital Certificate issued by Certification Authority for the Subject
 /// </summary>
-[Serializable]
-public class Certificate<T> : SignableObject
-{  
-   /// <summary>
-   /// The Uri of the Certification Authority service
-   /// </summary>
-   public required Uri ServiceUri { get; set; }
+[ProtoContract]
+public class Certificate<T>
+{
+    [ProtoMember(1)]
+    public byte[]? Signature { get; set; }
+
+    /// <summary>
+    /// The Uri of the Certification Authority service
+    /// </summary>
+    [ProtoMember(2)]
+    public required Uri ServiceUri { get; set; }
 
     /// <summary>
     /// Kind of the certificate
     /// </summary>
+    [ProtoMember(3)]
     public required string Kind { get; set; }
 
-   /// <summary>
-   /// Serial number of the certificate
-   /// </summary>
-   public required Guid Id { get; set; }
+    /// <summary>
+    /// Serial number of the certificate
+    /// </summary>
+    [ProtoMember(4)]
+    public required Guid Id { get; set; }
 
-   /// <summary>
-   /// Collection of certified properties of the Subject
-   /// </summary>
-   public required PropertyValue[] Properties { get; set; }
+    /// <summary>
+    /// Collection of certified properties of the Subject
+    /// </summary>
+    [ProtoMember(5)]
+    public required PropertyValue[] Properties { get; set; }
 
-   /// <summary>
-   /// Date and Time when the Certificate will no longer be valid
-   /// </summary>
-   public required DateTime NotValidAfter { get; set; }
+    /// <summary>
+    /// Date and Time when the Certificate will no longer be valid
+    /// </summary>
+    [ProtoMember(6)]
+    public required DateTime NotValidAfter { get; set; }
 
-   /// <summary>
-   /// Date and Time before which the Certificate is not yet valid
-   /// </summary>
-   public required DateTime NotValidBefore { get; set; }
+    /// <summary>
+    /// Date and Time before which the Certificate is not yet valid
+    /// </summary>
+    [ProtoMember(7)]
+    public required DateTime NotValidBefore { get; set; }
 
-   /// <summary>
-   /// The value managed by the certificate
-   /// </summary>
-   public required T Value { get; set; }
+    /// <summary>
+    /// The value managed by the certificate
+    /// </summary>
+    [ProtoMember(8)]
+    public required T Value { get; set; }
 
-   /// <summary>
-   /// Verifies the certificate with the Certification Authority public key.
-   /// </summary>
-   /// <param name="caAccessor">An instance of an object that implements ICertificationAuthorityAccessor</param>
-   /// <returns>Returns true if the certificate is valid, false otherwise.</returns>
-   public async Task<bool> VerifyAsync(ICertificationAuthorityAccessor caAccessor, CancellationToken cancellationToken)
-   {
-       if (NotValidAfter >= DateTime.UtcNow && NotValidBefore <= DateTime.UtcNow)
-       {
-           if (Verify(await caAccessor.GetPubKeyAsync(this.ServiceUri, cancellationToken)))
-               return true;
-       }
-       return false;
-   }
+    /// <summary>
+    /// Verifies the certificate with the Certification Authority public key.
+    /// </summary>
+    /// <param name="caAccessor">An instance of an object that implements ICertificationAuthorityAccessor</param>
+    /// <returns>Returns true if the certificate is valid, false otherwise.</returns>
+    public async Task<bool> VerifyAsync(ICertificationAuthorityAccessor caAccessor, CancellationToken cancellationToken)
+    {
+        if (NotValidAfter >= DateTime.UtcNow && NotValidBefore <= DateTime.UtcNow)
+        {
+            var caPubKey = await caAccessor.GetPubKeyAsync(this.ServiceUri, cancellationToken);
+            var sign = Signature;
+            try
+            {
+                Signature = null;
+                if (Crypto.VerifyObject(this, sign, caPubKey))
+                    return true;
+            }
+            finally
+            {
+                Signature = sign;
+            }
+        }
+        return false;
+    }
 
-   /// <summary>
-   /// Signs the certificate using the supplied private key of Certification Authority. For intertnal use only.
-   /// </summary>
-   /// <param name="privateKey">Private key of Certification Authority.</param>
-   internal new void Sign(ECPrivKey privateKey)
-   {
-       base.Sign(privateKey);
-   }
+    /// <summary>
+    /// Signs the certificate using the supplied private key of Certification Authority. For intertnal use only.
+    /// </summary>
+    /// <param name="privateKey">Private key of Certification Authority.</param>
+    internal void Sign(ECPrivKey privateKey)
+    {
+        var sign = Signature;
+        try
+        {
+            this.Signature = null;
+            this.Signature = Crypto.SignObject(this, privateKey);
+        }
+        catch
+        {
+            this.Signature = sign;
+            throw;
+        }
+    }
 }
 
 /// <summary>

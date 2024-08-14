@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>GigGossip.RideShare</PackageId>
-    <Version>1.2.16</Version>
+    <Version>1.2.17</Version>
     <Authors>TheHyperlabs</Authors>
     <Company>TheHyperlabs</Company>
 
@@ -15,4 +15,7 @@
     <WarningLevel>4</WarningLevel>
     <NoWarn>1701;1702;1998;8600;8601;8602;8603;8604;8618;8625</NoWarn>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="protobuf-net" Version="3.2.30" />
+  </ItemGroup>
 </Project>
