@@ -183,7 +183,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
     public async void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
-        var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(
+        var taxiTopic = Crypto.BinaryDeserializeObject<TaxiTopic>(
             broadcastFrame.SignedRequestPayload.Value.Topic);
 
         if (taxiTopic != null)

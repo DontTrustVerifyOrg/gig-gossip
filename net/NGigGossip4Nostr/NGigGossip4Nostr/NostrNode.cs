@@ -196,7 +196,7 @@ public abstract class NostrNode
         {
             await FlowLogger.TraceInAsync(this, g__, m__, targetPublicKey, frame, ephemeral, expiration);
             {
-                var message = Convert.ToBase64String(Crypto.SerializeObject(frame));
+                var message = Convert.ToBase64String(Crypto.BinarySerializeObject(frame));
                 var evid = Guid.NewGuid().ToString();
 
                 int numOfParts = 1 + message.Length / ChunkSize;
@@ -463,7 +463,7 @@ public abstract class NostrNode
                     var t = GetFrameType(tagDic["t"][0]);
                     if (t == null)
                         return;
-                    var frame = Crypto.DeserializeObject(Convert.FromBase64String(msg), t);
+                    var frame = Crypto.BinaryDeserializeObject(Convert.FromBase64String(msg), t);
                     await this.DoOnMessageAsync(idx, eoseReceived, nostrEvent.Pubkey, frame);
                 }
                 else
@@ -478,7 +478,7 @@ public abstract class NostrNode
                             var t = GetFrameType(tagDic["t"][0]);
                             if (t == null)
                                 return;
-                            var frame = Crypto.DeserializeObject(Convert.FromBase64String(txt), t);
+                            var frame = Crypto.BinaryDeserializeObject(Convert.FromBase64String(txt), t);
                             await this.DoOnMessageAsync(idx, eoseReceived, nostrEvent.Pubkey, frame);
                         }
                     }

@@ -245,7 +245,7 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
 
     public async void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
-        var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(broadcastFrame.SignedRequestPayload.Value.Topic);
+        var taxiTopic = Crypto.BinaryDeserializeObject<TaxiTopic>(broadcastFrame.SignedRequestPayload.Value.Topic);
         if (taxiTopic != null)
         {
             if (taxiTopic.FromGeohash.Length >= 7 &&
@@ -335,7 +335,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
 
     public async void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
-        var taxiTopic = Crypto.DeserializeObject<TaxiTopic>(
+        var taxiTopic = Crypto.BinaryDeserializeObject<TaxiTopic>(
             broadcastFrame.SignedRequestPayload.Value.Topic);
 
         if (taxiTopic != null)
@@ -444,14 +444,14 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                     var resps = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Id);
                     if (resps.Count == old_cnt)
                     {
-                        resps.Sort((a, b) => (int)(Crypto.DeserializeObject<PayReqRet>(a.DecodedNetworkInvoice).ValueSat - Crypto.DeserializeObject<PayReqRet>(b.DecodedNetworkInvoice).ValueSat));
+                        resps.Sort((a, b) => (int)(Crypto.JsonSnappyDeserializeObject<PayReqRet>(a.DecodedNetworkInvoice).ValueSat - Crypto.BinaryDeserializeObject<PayReqRet>(b.DecodedNetworkInvoice).ValueSat));
                         var win = resps[0];
                         var paymentResult = await me.AcceptResponseAsync(
-                            Crypto.DeserializeObject<Certificate<ReplyPayloadValue>>(win.TheReplyPayload),
+                            Crypto.BinaryDeserializeObject<Certificate<ReplyPayloadValue>>(win.TheReplyPayload),
                             win.ReplyInvoice,
-                            Crypto.DeserializeObject<PayReqRet>(win.DecodedReplyInvoice),
+                            Crypto.JsonSnappyDeserializeObject<PayReqRet>(win.DecodedReplyInvoice),
                             win.NetworkInvoice,
-                            Crypto.DeserializeObject<PayReqRet>(win.DecodedNetworkInvoice),
+                            Crypto.JsonSnappyDeserializeObject<PayReqRet>(win.DecodedNetworkInvoice),
                             FeeLimit,
                             CancellationToken.None);
                         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)

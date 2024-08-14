@@ -9,6 +9,8 @@ using System.IO;
 using System.IO.Compression;
 using System.Text.Json;
 using Snappier;
+using ProtoBuf;
+using System.Runtime.ConstrainedExecution;
 
 namespace CryptoToolkit;
 
@@ -66,12 +68,16 @@ public static class Crypto
     /// <summary>
     /// A struct to represent a timed GUID token with its signature. Used in API calls.
     /// </summary>
-    [Serializable]
+    [ProtoContract]
     public struct TimedGuidToken
     {
+        [ProtoMember(1)]
         public string PublicKey { get; set; }
+        [ProtoMember(2)]
         public DateTime DateTime { get; set; }
+        [ProtoMember(3)]
         public Guid Guid { get; set; }
+        [ProtoMember(4)]
         public byte[]? Signature { get; set; }
     }
 
@@ -85,7 +91,7 @@ public static class Crypto
         tt.DateTime = dateTime;
         tt.Guid = guid;
         tt.Signature = SignObject(tt, ecpriv);
-        return Convert.ToBase64String(SerializeObject(tt));
+        return Convert.ToBase64String(BinarySerializeObject(tt));
     }
 
     /// <summary>
@@ -94,7 +100,7 @@ public static class Crypto
     public static TimedGuidToken? VerifySignedTimedToken(string TimedTokenBase64, double seconds)
     {
         var serialized = Convert.FromBase64String(TimedTokenBase64);
-        TimedGuidToken timedToken = DeserializeObject<TimedGuidToken>(serialized);
+        TimedGuidToken timedToken = BinaryDeserializeObject<TimedGuidToken>(serialized);
         var ecpub = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(timedToken.PublicKey));
         if ((DateTime.UtcNow - timedToken.DateTime).TotalSeconds > seconds)
             return null;
@@ -220,7 +226,7 @@ public static class Crypto
     /// </summary>
     public static byte[] SignObject(object obj, ECPrivKey myPrivKey)
     {
-        byte[] serializedObj = SerializeObject(obj);
+        byte[] serializedObj = BinarySerializeObject(obj);
 
         Span<byte> buf = stackalloc byte[64];
         using var sha256 = System.Security.Cryptography.SHA256.Create();
@@ -239,7 +245,7 @@ public static class Crypto
         if (!SecpSchnorrSignature.TryCreate(signature, out sign))
             return false;
 
-        byte[] serializedObj = SerializeObject(obj);
+        byte[] serializedObj = BinarySerializeObject(obj);
 
         Span<byte> buf = stackalloc byte[64];
         using var sha256 = System.Security.Cryptography.SHA256.Create();
@@ -312,7 +318,7 @@ public static class Crypto
     /// </summary>
     public static byte[] SymmetricEncrypt(byte[] key, object obj)
     {
-        byte[] serializedObj = SerializeObject(obj);
+        byte[] serializedObj = BinarySerializeObject(obj);
 
         using (Aes aes = Aes.Create())
         {
@@ -361,152 +367,78 @@ public static class Crypto
                     }
 
                     byte[] decryptedObj = decryptedMs.ToArray();
-                    return DeserializeObject<T>(decryptedObj);
+                    return BinaryDeserializeObject<T>(decryptedObj);
                 }
             }
         }
     }
 
-#if BINARYSERIALIZE
-#pragma warning disable SYSLIB0011
-
-    /// <summary>
-    /// Serializes an object into a byte array using BinaryFormatter
-    /// </summary>
-    public static byte[] SerializeObject(object obj)
-    {
-
-        using (MemoryStream ms = new MemoryStream())
-        {
-            BinaryFormatter formatter = new BinaryFormatter();
-            formatter.Serialize(ms, obj);
-            return ms.ToArray();
-        }
-    }
-
-    /// <summary>
-    /// Deserializes a byte array into an object of type T using BinaryFormatter
-    /// </summary>
-    public static T DeserializeObject<T>(byte[] data)
-    {
-        using (MemoryStream ms = new MemoryStream(data))
-        {
-            BinaryFormatter formatter = new BinaryFormatter();
-            object obj = formatter.Deserialize(ms);
-            return (T)obj;
-        }
-    }
-#else
 
     public const byte SERIALIZATION_VERSION_JSON_NO_COMPRESSION = 0x0;
-    public const byte SERIALIZATION_VERSION_JSON_DEFLATE = 0x1;
-    public const byte SERIALIZATION_VERSION_JSON_GZIP = 0x2;
-    public const byte SERIALIZATION_VERSION_JSON_ZLIB = 0x3;
-    public const byte SERIALIZATION_VERSION_JSON_SNAPPY = 0x4;
-    public const byte SERIALIZATION_PROTOCOL_VERSION = SERIALIZATION_VERSION_JSON_SNAPPY;
+    public const byte SERIALIZATION_VERSION_JSON_SNAPPY = 0x1;
+    public const byte SERIALIZATION_VERSION_BINARY = 0x2;
 
-    /// <summary>
-    /// Serializes an object into a byte array using GZipped Json serialization
-    /// </summary>
-    public static byte[] SerializeObjectXXX(object obj)
-    {
-        using var utf8stream = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType()));
-        using var memStream = new MemoryStream();
-        memStream.WriteByte(SERIALIZATION_PROTOCOL_VERSION);
-        Stream compStream;
 
-        if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_NO_COMPRESSION)
-            compStream = memStream;
-        else if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_DEFLATE)
-            compStream = new DeflateStream(memStream, CompressionMode.Compress, true);
-        else if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_GZIP)
-            compStream = new GZipStream(memStream, CompressionMode.Compress, true);
-        else if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_ZLIB)
-            compStream = new ZLibStream(memStream, CompressionMode.Compress, true);
-        else if (SERIALIZATION_PROTOCOL_VERSION == SERIALIZATION_VERSION_JSON_SNAPPY)
-            compStream = new SnappyStream(memStream, CompressionMode.Compress, true);
-        else
-            throw new NotImplementedException();
-
-        utf8stream.CopyTo(compStream);
-        utf8stream.Close();
-        compStream.Close();
-        return memStream.ToArray();
-    }
-
-    public static byte[] SerializeObject(object obj)
+    public static byte[] JsonSnappySerializeObject(object obj)
     {
         byte[] utf8bytes = JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType());
         byte[] buffer = new byte[Snappy.GetMaxCompressedLength(utf8bytes.Length) + 1];
-        buffer[0] = SERIALIZATION_PROTOCOL_VERSION;
+        buffer[0] = SERIALIZATION_VERSION_BINARY;
         int compressedLength = Snappy.Compress(utf8bytes, buffer.AsSpan(1));
         return buffer.AsSpan(0, compressedLength + 1).ToArray();
     }
 
-    /// <summary>
-    /// Deserializes a byte array into an object of returnType using GZipped Json serialization
-    /// </summary>
-    public static object? DeserializeObjectXXX(byte[] data, Type returnType)
+    public static byte[] BinarySerializeObject<T>(T obj)
     {
-        try
-        {
-            using var memStream = new MemoryStream(data);
-            var serVer = memStream.ReadByte();
-            Stream compStream = null; 
-            if (serVer == SERIALIZATION_VERSION_JSON_NO_COMPRESSION)
-                compStream = memStream;
-            else if (serVer == SERIALIZATION_VERSION_JSON_DEFLATE)
-                compStream = new DeflateStream(memStream, CompressionMode.Decompress);
-            else if (serVer == SERIALIZATION_VERSION_JSON_GZIP)
-                compStream = new GZipStream(memStream, CompressionMode.Decompress);
-            else if (serVer == SERIALIZATION_VERSION_JSON_ZLIB)
-                compStream = new ZLibStream(memStream, CompressionMode.Decompress);
-            else if (serVer == SERIALIZATION_VERSION_JSON_SNAPPY)
-                compStream = new SnappyStream(memStream, CompressionMode.Decompress);
-            else
-                throw new NotImplementedException();
-            var obj = JsonSerializer.Deserialize(compStream, returnType);
-            compStream.Close();
-            return obj;
-        }
-        catch (Exception)
-        {
-            using var memStream = new MemoryStream(data);
-            return JsonSerializer.Deserialize(memStream, returnType);
-        }
+        using var memStream = new MemoryStream();
+        memStream.WriteByte(SERIALIZATION_VERSION_BINARY);
+        ProtoBuf.Serializer.Serialize(memStream, obj);
+        return memStream.ToArray();
     }
 
-    public static object? DeserializeObject(byte[] data, Type returnType)
+    public static object? JsonSnappyDeserializeObject(byte[] data, Type returnType)
     {
-        try
-        {
+        if (data.Length == 0)
+            return null;
+        if (data[0] != SERIALIZATION_VERSION_JSON_SNAPPY)
+            return null;
 
-            if (data.Length==0 || data[0] != SERIALIZATION_VERSION_JSON_SNAPPY)
-                throw new NotImplementedException();
+        var compressed = data.AsSpan(1);
+        byte[] outputBuffer = new byte[Snappy.GetUncompressedLength(compressed)];
+        int decompressedLength = Snappy.Decompress(compressed, outputBuffer);
 
-            var compressed = data.AsSpan(1);
-            byte[] outputBuffer = new byte[Snappy.GetUncompressedLength(compressed)];
-            int decompressedLength = Snappy.Decompress(compressed, outputBuffer);
+        using var memStream = new MemoryStream(outputBuffer.AsSpan(0, decompressedLength).ToArray());
+        var obj = JsonSerializer.Deserialize(memStream, returnType);
+        return obj;
+    }
 
-            using var memStream = new MemoryStream(outputBuffer.AsSpan(0,decompressedLength).ToArray());
-            var obj = JsonSerializer.Deserialize(memStream, returnType);
-            return obj;
-        }
-        catch (Exception)
-        {
-            using var memStream = new MemoryStream(data);
-            return JsonSerializer.Deserialize(memStream, returnType);
-        }
+    public static object? BinaryDeserializeObject(byte[] data, Type returnType)
+    {
+        if (data.Length == 0)
+            return null;
+
+        using var memStream = new MemoryStream(data);
+        var ver = memStream.ReadByte();
+
+        if ( ver != SERIALIZATION_VERSION_BINARY)
+            return null;
+
+        return ProtoBuf.Serializer.Deserialize(returnType, memStream);
     }
 
     /// <summary>
     /// Deserializes a byte array into an object of type T using GZipped Json serialization
     /// </summary>
-    public static T? DeserializeObject<T>(byte[] data)
+    public static T? BinaryDeserializeObject<T>(byte[] data)
     {
-        return (T)DeserializeObject(data, typeof(T));
+        return (T)BinaryDeserializeObject(data, typeof(T));
     }
-#endif
+
+    public static T? JsonSnappyDeserializeObject<T>(byte[] data)
+    {
+        return (T)JsonSnappyDeserializeObject(data, typeof(T));
+    }
+
 
     public static bool TryParseBitcoinAddress(string text, Network network, out BitcoinAddress? address)
     {

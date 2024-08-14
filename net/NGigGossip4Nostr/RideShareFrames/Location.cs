@@ -1,10 +1,15 @@
-﻿namespace RideShareFrames;
+﻿using ProtoBuf;
 
+namespace RideShareFrames;
+
+[ProtoContract]
 public class GeoLocation
 {
+    [ProtoMember(1)]
     public double Latitude { get; set; }
-
+    [ProtoMember(2)]
     public double Longitude { get; set; }
+
     public GeoLocation()
     {
     }

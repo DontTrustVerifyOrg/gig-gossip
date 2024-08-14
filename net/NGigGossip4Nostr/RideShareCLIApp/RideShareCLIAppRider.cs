@@ -87,7 +87,7 @@ public partial class RideShareCLIApp
                 var fee = e.DecodedReplyInvoice.ValueSat;
                 var netfee = e.DecodedNetworkInvoice.ValueSat;
 
-                var taxiTopic = Crypto.DeserializeObject<RideTopic>(e.ReplyPayloadCert.Value.SignedRequestPayload.Value.Topic);
+                var taxiTopic = Crypto.BinaryDeserializeObject<RideTopic>(e.ReplyPayloadCert.Value.SignedRequestPayload.Value.Topic);
                 var from = taxiTopic.FromGeohash;
                 var tim = "(" + taxiTopic.PickupAfter.ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore - taxiTopic.PickupAfter).TotalMinutes).ToString() + ")";
                 var to = taxiTopic.ToGeohash;

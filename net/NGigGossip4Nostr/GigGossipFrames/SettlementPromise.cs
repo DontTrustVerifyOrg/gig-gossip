@@ -1,38 +1,47 @@
 ﻿using System;
 using CryptoToolkit;
 using NBitcoin.Secp256k1;
+using ProtoBuf;
 
 namespace NGigGossip4Nostr;
 
 /// <summary>
 /// Represents a settlement promise.
 /// </summary>
-[Serializable]
-public class SettlementPromise : SignableObject
+[ProtoContract]
+public class SettlementPromise
 {
+    [ProtoMember(1)]
+    public byte[]? Signature { get; set; }
+
     /// <summary>
     /// Gets or sets the service URI of the Settler.
     /// </summary>
+    [ProtoMember(2)]
     public required Uri ServiceUri { get; set; }
 
     /// <summary>
     /// Gets or sets the service URI of the Requester Settler.
     /// </summary>
+    [ProtoMember(3)]
     public required Uri RequestersServiceUri { get; set; }
 
     /// <summary>
     /// Gets or sets the network payment hash.
     /// </summary>
+    [ProtoMember(4)]
     public required byte[] NetworkPaymentHash { get; set; }
 
     /// <summary>
     /// Gets or sets the hash of encrypted reply payload.
     /// </summary>
+    [ProtoMember(5)]
     public required byte[] HashOfEncryptedReplyPayload { get; set; }
 
     /// <summary>
     /// Gets or sets the reply payment amount.
     /// </summary>
+    [ProtoMember(6)]
     public required long ReplyPaymentAmount { get; set; }
 
     /// <summary>
@@ -43,26 +52,43 @@ public class SettlementPromise : SignableObject
     /// <returns><c>true</c> if the verification was successful; otherwise, <c>false</c>.</returns>
     public async Task<bool> VerifyAsync(byte[] encryptedSignedReplyPayload, ICertificationAuthorityAccessor caAccessor,CancellationToken cancellationToken)
     {
-        if (!base.Verify(await caAccessor.GetPubKeyAsync(ServiceUri, cancellationToken)))
-            return false;
-
-        if (!Crypto.ComputeSha256(encryptedSignedReplyPayload).SequenceEqual(this.HashOfEncryptedReplyPayload))
-            return false;
-
-        return true;
+        var caPubKey = await caAccessor.GetPubKeyAsync(this.ServiceUri, cancellationToken);
+        var sign = Signature;
+        try
+        {
+            Signature = null;
+            if (Crypto.VerifyObject(this, sign, caPubKey))
+                if (Crypto.ComputeSha256(encryptedSignedReplyPayload).SequenceEqual(this.HashOfEncryptedReplyPayload))
+                    return true;
+        }
+        finally
+        {
+            Signature = sign;
+        }
+        return false;
     }
 
     /// <summary>
     /// Signs the settlement promise using a given private key.
     /// Overrides the base method from the <see cref="SignableObject"/> class.
     /// </summary>
-    /// <param name="settlerPrivateKey">
+    /// <param name="privateKey">
     /// The private key to use for signing.
     /// </param>
     /// <see cref="SignableObject.Sign(ECPrivKey)"/>
-    public new void Sign(ECPrivKey settlerPrivateKey)
+    public void Sign(ECPrivKey privateKey)
     {
-        base.Sign(settlerPrivateKey);
+        var sign = Signature;
+        try
+        {
+            this.Signature = null;
+            this.Signature = Crypto.SignObject(this, privateKey);
+        }
+        catch
+        {
+            this.Signature = sign;
+            throw;
+        }
     }
 
     /// <summary>
