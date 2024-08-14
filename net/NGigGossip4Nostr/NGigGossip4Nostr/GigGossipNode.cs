@@ -27,9 +27,10 @@ using Microsoft.AspNetCore.SignalR.Client;
 using NetworkClientToolkit;
 using GoogleApi;
 using ProtoBuf;
+using System.Text.Json;
 
 [ProtoContract]
-public class InvoiceData
+public class InvoiceData : IProtoFrame
 {
     [ProtoMember(1)]
     public required bool IsNetworkInvoice { get; set; }
@@ -42,7 +43,7 @@ public class InvoiceData
 }
 
 [ProtoContract]
-public class PaymentData
+public class PaymentData : IProtoFrame
 {
     [ProtoMember(1)]
     public required string Invoice { get; set; }
@@ -512,8 +513,8 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                     NetworkInvoice = networkInvoice,
                     SignedSettlementPromise = Crypto.BinarySerializeObject(signedSettlementPromise),
                     ReplyInvoice = replyInvoice,
-                    DecodedNetworkInvoice = Crypto.JsonSnappySerializeObject(decodedNetworkInvoice),
-                    DecodedReplyInvoice = Crypto.JsonSnappySerializeObject(decodedReplyInvoice),
+                    DecodedNetworkInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedNetworkInvoice),
+                    DecodedReplyInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedReplyInvoice),
                     ReplyInvoiceHash = replyPaymentHash,
                     Cancelled = false,
                     ReplierCertificateId = settlementTrust.ReplierCertificateId,
@@ -533,7 +534,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             else
             {
                 replyPaymentHash = alreadyBroadcasted.ReplyInvoiceHash;
-                decodedReplyInvoice = Crypto.JsonSnappyDeserializeObject<PayReqRet>(alreadyBroadcasted.DecodedReplyInvoice);
+                decodedReplyInvoice = JsonSerializer.Deserialize<PayReqRet>(new MemoryStream(alreadyBroadcasted.DecodedReplyInvoice));
                 replierCertificateId = alreadyBroadcasted.ReplierCertificateId;
                 responseFrame = new ReplyFrame()
                 {
@@ -604,9 +605,9 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                         SignedRequestPayloadId = replyPayload.Value.SignedRequestPayload.Id,
                         ReplierCertificateId = replyPayload.Id,
                         ReplyInvoice = replyPayload.Value.ReplyInvoice,
-                        DecodedReplyInvoice = Crypto.JsonSnappySerializeObject(decodedReplyInvoice),
+                        DecodedReplyInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedReplyInvoice),
                         NetworkInvoice = responseFrame.NetworkInvoice,
-                        DecodedNetworkInvoice = Crypto.JsonSnappySerializeObject(decodedNetworkInvoice),
+                        DecodedNetworkInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedNetworkInvoice),
                         TheReplyPayload = Crypto.BinarySerializeObject(replyPayload)
                     });
 
@@ -909,7 +910,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     }
 
-    public async Task<BroadcastTopicResponse> BroadcastTopicAsync<T>(T topic, string[] properties, Func<BroadcastTopicResponse,Task> preSend)
+    public async Task<BroadcastTopicResponse> BroadcastTopicAsync<T>(T topic, string[] properties, Func<BroadcastTopicResponse,Task> preSend) where T:IProtoFrame
     {
         var settler = SettlerSelector.GetSettlerClient(mySettlerUri);
         var token = await MakeSettlerAuthTokenAsync(mySettlerUri);

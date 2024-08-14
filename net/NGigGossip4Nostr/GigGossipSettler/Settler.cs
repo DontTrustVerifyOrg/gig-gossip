@@ -429,7 +429,7 @@ public class Settler : CertificationAuthority
             throw new UnknownPreimageException();
 
         byte[] key = Crypto.GenerateSymmetricKey();
-        byte[] encryptedReplyMessage = Crypto.SymmetricEncrypt(key, message);
+        byte[] encryptedReplyMessage = Crypto.SymmetricBytesEncrypt(key, message);
 
         var replyPayload = this.IssueCertificate<ReplyPayloadValue>(
             "Reply",
@@ -501,7 +501,7 @@ public class Settler : CertificationAuthority
 
     public byte[] EncryptObjectForPubkey(string pubkey, byte[] bytes)
     {
-        return Crypto.EncryptObject(Crypto.BinaryDeserializeObject<Certificate<ReplyPayloadValue>>(bytes), pubkey.AsECXOnlyPubKey(), this._CaPrivateKey);
+        return Crypto.EncryptObject(Crypto.BinaryDeserializeObject<Certificate<ReplyPayloadValue>>(bytes)!, pubkey.AsECXOnlyPubKey(), this._CaPrivateKey);
     }
 
     public BroadcastTopicResponse GenerateRequestPayload(string senderspubkey, string[] sendersproperties, byte[] topic)

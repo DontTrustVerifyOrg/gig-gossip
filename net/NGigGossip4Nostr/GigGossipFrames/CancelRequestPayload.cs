@@ -9,7 +9,7 @@ namespace NGigGossip4Nostr;
 /// Represents the payload of a request message.
 /// </summary>
 [ProtoContract]
-public class CancelRequestPayloadValue
+public class CancelRequestPayloadValue : IProtoFrame
 {
     /// <summary>
     /// Gets or sets creation timestamp of the payload.

@@ -9,7 +9,7 @@ namespace NGigGossip4Nostr;
 /// Represents the payload of a request message.
 /// </summary>
 [ProtoContract]
-public class RequestPayloadValue
+public class RequestPayloadValue : IProtoFrame
 {
     /// <summary>
     /// Gets or sets the topic of the payload.

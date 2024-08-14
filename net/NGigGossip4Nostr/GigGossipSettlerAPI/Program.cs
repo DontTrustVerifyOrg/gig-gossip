@@ -435,7 +435,6 @@ app.MapGet("/locationgeocode", async (string authToken, double lat, double lon) 
     }
     catch (Exception ex)
     {
-        return new Result<string>("201 Rep. John Lewis Way S, Nashville, TN 37203, USA");
         TraceEx.TraceException(ex);
         return new Result<string>(ex);
     }

@@ -9,7 +9,7 @@ namespace NGigGossip4Nostr;
 /// Represents a settlement promise.
 /// </summary>
 [ProtoContract]
-public class SettlementPromise
+public class SettlementPromise : IProtoFrame
 {
     [ProtoMember(1)]
     public byte[]? Signature { get; set; }

@@ -1,10 +1,11 @@
 ﻿using System.Text.Json.Serialization;
 using ProtoBuf;
+using CryptoToolkit;
 
 namespace RideShareFrames;
 
 [ProtoContract]
-public class RideTopic
+public class RideTopic : IProtoFrame
 {
     [ProtoMember(1)]
     public required string FromGeohash { get; set; }
@@ -19,7 +20,7 @@ public class RideTopic
 }
 
 [ProtoContract]
-public class ConnectionReply
+public class ConnectionReply : IProtoFrame
 {
     [ProtoMember(1)]
     public required string PublicKey { get; set; }
@@ -47,7 +48,7 @@ public enum RideState
 }
 
 [ProtoContract]
-public class LocationFrame
+public class LocationFrame : IProtoFrame
 {
     [ProtoMember(1)]
     public required Guid SignedRequestPayloadId { get; set; }

@@ -1,9 +1,10 @@
 ﻿using ProtoBuf;
+using CryptoToolkit;
 
 namespace RideShareFrames;
 
 [ProtoContract]
-public class GeoLocation
+public class GeoLocation : IProtoFrame
 {
     [ProtoMember(1)]
     public double Latitude { get; set; }

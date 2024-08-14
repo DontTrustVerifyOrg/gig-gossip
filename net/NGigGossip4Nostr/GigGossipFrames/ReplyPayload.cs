@@ -9,7 +9,7 @@ namespace NGigGossip4Nostr;
 /// Represents the payload of a reply message.
 /// </summary>
 [ProtoContract]
-public class ReplyPayloadValue
+public class ReplyPayloadValue : IProtoFrame
 {
     /// <summary>
     /// Gets or sets the signed request payload.

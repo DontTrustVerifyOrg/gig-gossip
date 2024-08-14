@@ -8,7 +8,7 @@ namespace NGigGossip4Nostr;
 /// Represents a request for a broadcast.
 /// </summary>
 [ProtoContract]
-public class CancelBroadcastFrame
+public class CancelBroadcastFrame : IProtoFrame
 {
     /// <summary>
     /// Gets or sets the signed payload for the request. This contains the necessary data for processing the request.

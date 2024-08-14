@@ -297,7 +297,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     }
     public async void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
     {
-        var message = Encoding.Default.GetString(Crypto.SymmetricDecrypt<byte[]>(
+        var message = Encoding.Default.GetString(Crypto.SymmetricBytesDecrypt(
             key.AsBytes(),
             replyPayload.Value.EncryptedReplyMessage));
         Trace.TraceInformation(message);

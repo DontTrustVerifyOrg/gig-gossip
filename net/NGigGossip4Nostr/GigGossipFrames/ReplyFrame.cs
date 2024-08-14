@@ -9,7 +9,7 @@ namespace NGigGossip4Nostr;
 /// Represents a reply frame that contains encrypted payload, settlement promise, onion route and network invoice.
 /// </summary>
 [ProtoContract]
-public class ReplyFrame
+public class ReplyFrame : IProtoFrame
 {
     /// <summary>
     /// Gets or sets the encrypted reply payload.

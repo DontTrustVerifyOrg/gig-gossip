@@ -8,7 +8,7 @@ namespace NGigGossip4Nostr;
 /// Represents a layer in the Onion routing protocol, which contains a public key and encrypted data core.
 /// </summary>
 [ProtoContract]
-public class OnionLayer
+public class OnionLayer : IProtoFrame
 {
     /// <summary>
     /// Gets or sets the public key associated with this layer of the onion route.
@@ -28,7 +28,7 @@ public class OnionLayer
 /// Each "onion" in the route is peeled back one at a time by each gig gossip node in the network. 
 /// </summary>
 [ProtoContract]
-public class OnionRoute
+public class OnionRoute : IProtoFrame
 {
     /// <summary>
     /// An array of bytes representing the "Onion", the data passed through the route.
