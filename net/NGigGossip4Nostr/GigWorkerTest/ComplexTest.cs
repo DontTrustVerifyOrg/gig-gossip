@@ -444,7 +444,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                     var resps = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Id);
                     if (resps.Count == old_cnt)
                     {
-                        resps.Sort((a, b) => (int)(Crypto.JsonSnappyDeserializeObject<PayReqRet>(a.DecodedNetworkInvoice).ValueSat - Crypto.BinaryDeserializeObject<PayReqRet>(b.DecodedNetworkInvoice).ValueSat));
+                        resps.Sort((a, b) => (int)(Crypto.JsonSnappyDeserializeObject<PayReqRet>(a.DecodedNetworkInvoice).ValueSat - Crypto.JsonSnappyDeserializeObject<PayReqRet>(b.DecodedNetworkInvoice).ValueSat));
                         var win = resps[0];
                         var paymentResult = await me.AcceptResponseAsync(
                             Crypto.BinaryDeserializeObject<Certificate<ReplyPayloadValue>>(win.TheReplyPayload),
