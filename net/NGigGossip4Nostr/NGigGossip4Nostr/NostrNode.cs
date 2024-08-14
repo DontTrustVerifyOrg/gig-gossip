@@ -189,7 +189,7 @@ public abstract class NostrNode
         }
     }
 
-    public async Task<string> SendMessageAsync(string targetPublicKey, object frame, bool ephemeral, DateTime? expiration = null)
+    public async Task<string> SendMessageAsync<T>(string targetPublicKey, T frame, bool ephemeral, DateTime? expiration = null) where T:IProtoFrame
     {
         Guid? g__ = null; string? m__ = null; if (FlowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = FlowLogger.MetNam(); }
         try

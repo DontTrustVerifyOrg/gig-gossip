@@ -8,7 +8,7 @@ namespace NGigGossip4Nostr;
 /// Represents a broadcast frame in proof of work (POW) which contains the broadcast payload and the work proof.
 /// </summary>
 [ProtoContract]
-public class BroadcastFrame
+public class BroadcastFrame : IProtoFrame
 {
     /// <summary>
     /// Gets or sets the signed payload for the request. This contains the necessary data for processing the request.

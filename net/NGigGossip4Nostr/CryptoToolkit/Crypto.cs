@@ -14,6 +14,10 @@ using System.Runtime.ConstrainedExecution;
 
 namespace CryptoToolkit;
 
+public interface IProtoFrame
+{
+}
+
 /// <summary>
 /// This static class contains extension methods for working with hexadecimal values.
 /// </summary>
@@ -69,7 +73,7 @@ public static class Crypto
     /// A struct to represent a timed GUID token with its signature. Used in API calls.
     /// </summary>
     [ProtoContract]
-    public struct TimedGuidToken
+    public struct TimedGuidToken : IProtoFrame
     {
         [ProtoMember(1)]
         public string PublicKey { get; set; }
@@ -174,7 +178,7 @@ public static class Crypto
     /// <summary>
     /// Encrypts an object using an ECDSA XOnly public key and a possible ECDSA private key by first computing shared key, and later performing AES Symmetric encryption using shared key.
     /// </summary>
-    public static byte[] EncryptObject(object obj, ECXOnlyPubKey theirXPublicKey, ECPrivKey? myPrivKey)
+    public static byte[] EncryptObject<T>(T obj, ECXOnlyPubKey theirXPublicKey, ECPrivKey? myPrivKey) where T: IProtoFrame
     {
         byte[]? attachpubKey = null;
         if (myPrivKey == null)
@@ -188,7 +192,7 @@ public static class Crypto
 
         byte[] encryptionKey = sharedKey.ToBytes().AsSpan(1).ToArray();
 
-        byte[] ret = SymmetricEncrypt(encryptionKey, obj);
+        byte[] ret = SymmetricObjectEncrypt(encryptionKey, obj);
 
         if (attachpubKey != null)
             ret = attachpubKey.Concat(ret).ToArray();
@@ -198,7 +202,7 @@ public static class Crypto
     /// <summary>
     /// Decrypts an object using an ECDSA XOnly public key and a possible ECDSA private key by first computing shared key, and later performing AES Symmetric decryption using shared key.
     /// </summary>
-    public static T DecryptObject<T>(byte[] encryptedData, ECPrivKey myPrivKey, ECXOnlyPubKey? theirXPublicKey)
+    public static T DecryptObject<T>(byte[] encryptedData, ECPrivKey myPrivKey, ECXOnlyPubKey? theirXPublicKey) where T:IProtoFrame
     {
         byte[] encryptedX = encryptedData;
         if (theirXPublicKey == null)
@@ -218,15 +222,15 @@ public static class Crypto
 
         byte[] decryptionKey = sharedKey.ToBytes().AsSpan(1).ToArray();
 
-        return SymmetricDecrypt<T>(decryptionKey, encryptedX);
+        return SymmetricObjectDecrypt<T>(decryptionKey, encryptedX);
     }
 
     /// <summary>
     /// Generates Schnorr signature of the SHA256 of serialized object.
     /// </summary>
-    public static byte[] SignObject(object obj, ECPrivKey myPrivKey)
+    public static byte[] SignObject<T>(T obj, ECPrivKey myPrivKey) where T : IProtoFrame
     {
-        byte[] serializedObj = BinarySerializeObject(obj);
+        byte[] serializedObj = BinarySerializeObject<T>(obj);
 
         Span<byte> buf = stackalloc byte[64];
         using var sha256 = System.Security.Cryptography.SHA256.Create();
@@ -239,7 +243,7 @@ public static class Crypto
     /// <summary>
     /// Verifies Schnorr signature of the SHA256 of serialized object. Returns true if the signature is valid.
     /// </summary>
-    public static bool VerifyObject(object obj, byte[] signature, ECXOnlyPubKey theirKey)
+    public static bool VerifyObject<T>(T obj, byte[] signature, ECXOnlyPubKey theirKey) where T : IProtoFrame
     {
         SecpSchnorrSignature sign;
         if (!SecpSchnorrSignature.TryCreate(signature, out sign))
@@ -316,10 +320,13 @@ public static class Crypto
     /// <summary>
     /// Performs AES symmetric encryption on an object using a symmetric key.
     /// </summary>
-    public static byte[] SymmetricEncrypt(byte[] key, object obj)
+    public static byte[] SymmetricObjectEncrypt<T>(byte[] key, T obj) where T : IProtoFrame
     {
-        byte[] serializedObj = BinarySerializeObject(obj);
+        return SymmetricBytesEncrypt(key, BinarySerializeObject(obj));
+    }
 
+    public static byte[] SymmetricBytesEncrypt(byte[] key, byte[] serializedObj)
+    {
         using (Aes aes = Aes.Create())
         {
             aes.Key = key;
@@ -344,7 +351,12 @@ public static class Crypto
     /// <summary>
     /// Performs AES symmetric decryption on an encrypted object using a symmetric key.
     /// </summary>
-    public static T SymmetricDecrypt<T>(byte[] key, byte[] encryptedObj)
+    public static T SymmetricObjectDecrypt<T>(byte[] key, byte[] encryptedObj) where T: IProtoFrame
+    {
+        return BinaryDeserializeObject<T>(SymmetricBytesDecrypt(key, encryptedObj));
+    }
+
+    public static byte[] SymmetricBytesDecrypt(byte[] key, byte[] encryptedObj)
     {
         using (Aes aes = Aes.Create())
         {
@@ -365,51 +377,20 @@ public static class Crypto
                         cs.Write(encryptedData, 0, encryptedData.Length);
                         cs.FlushFinalBlock();
                     }
-
-                    byte[] decryptedObj = decryptedMs.ToArray();
-                    return BinaryDeserializeObject<T>(decryptedObj);
+                    return decryptedMs.ToArray();
                 }
             }
         }
     }
 
-
-    public const byte SERIALIZATION_VERSION_JSON_NO_COMPRESSION = 0x0;
-    public const byte SERIALIZATION_VERSION_JSON_SNAPPY = 0x1;
     public const byte SERIALIZATION_VERSION_BINARY = 0x2;
 
-
-    public static byte[] JsonSnappySerializeObject(object obj)
-    {
-        byte[] utf8bytes = JsonSerializer.SerializeToUtf8Bytes(obj, obj.GetType());
-        byte[] buffer = new byte[Snappy.GetMaxCompressedLength(utf8bytes.Length) + 1];
-        buffer[0] = SERIALIZATION_VERSION_BINARY;
-        int compressedLength = Snappy.Compress(utf8bytes, buffer.AsSpan(1));
-        return buffer.AsSpan(0, compressedLength + 1).ToArray();
-    }
-
-    public static byte[] BinarySerializeObject<T>(T obj)
+    public static byte[] BinarySerializeObject<T>(T obj) where T : IProtoFrame
     {
         using var memStream = new MemoryStream();
         memStream.WriteByte(SERIALIZATION_VERSION_BINARY);
         ProtoBuf.Serializer.Serialize(memStream, obj);
         return memStream.ToArray();
-    }
-
-    public static object? JsonSnappyDeserializeObject(byte[] data, Type returnType)
-    {
-        if (data.Length == 0)
-            return null;
-        if (data[0] != SERIALIZATION_VERSION_JSON_SNAPPY)
-            return null;
-
-        var compressed = data.AsSpan(1);
-        byte[] outputBuffer = new byte[Snappy.GetUncompressedLength(compressed)];
-        int decompressedLength = Snappy.Decompress(compressed, outputBuffer);
-
-        using var memStream = new MemoryStream(outputBuffer.AsSpan(0, decompressedLength).ToArray());
-        var obj = JsonSerializer.Deserialize(memStream, returnType);
-        return obj;
     }
 
     public static object? BinaryDeserializeObject(byte[] data, Type returnType)
@@ -429,16 +410,10 @@ public static class Crypto
     /// <summary>
     /// Deserializes a byte array into an object of type T using GZipped Json serialization
     /// </summary>
-    public static T? BinaryDeserializeObject<T>(byte[] data)
+    public static T? BinaryDeserializeObject<T>(byte[] data) where T : IProtoFrame
     {
         return (T)BinaryDeserializeObject(data, typeof(T));
     }
-
-    public static T? JsonSnappyDeserializeObject<T>(byte[] data)
-    {
-        return (T)JsonSnappyDeserializeObject(data, typeof(T));
-    }
-
 
     public static bool TryParseBitcoinAddress(string text, Network network, out BitcoinAddress? address)
     {

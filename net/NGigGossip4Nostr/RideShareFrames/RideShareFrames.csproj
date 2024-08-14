@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>GigGossip.RideShare</PackageId>
-    <Version>1.2.18</Version>
+    <Version>1.2.19</Version>
     <Authors>TheHyperlabs</Authors>
     <Company>TheHyperlabs</Company>
 
@@ -17,5 +17,8 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="protobuf-net" Version="3.2.30" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
   </ItemGroup>
 </Project>

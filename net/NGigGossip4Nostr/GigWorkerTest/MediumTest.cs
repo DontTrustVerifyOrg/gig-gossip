@@ -15,6 +15,7 @@ using GigGossipSettlerAPIClient;
 using System.Net.Http;
 using Microsoft.AspNetCore.SignalR.Client;
 using NetworkClientToolkit;
+using System.Text.Json;
 
 namespace GigWorkerMediumTest;
 
@@ -443,14 +444,14 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                     var resps = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Id);
                     if (resps.Count == old_cnt)
                     {
-                        resps.Sort((a, b) => (int)(Crypto.JsonSnappyDeserializeObject<PayReqRet>(a.DecodedNetworkInvoice).ValueSat - Crypto.JsonSnappyDeserializeObject<PayReqRet>(b.DecodedNetworkInvoice).ValueSat));
+                        resps.Sort((a, b) => (int)(JsonSerializer.Deserialize<PayReqRet>(new MemoryStream(a.DecodedNetworkInvoice)).ValueSat - JsonSerializer.Deserialize<PayReqRet>(new MemoryStream(b.DecodedNetworkInvoice)).ValueSat));
                         var win = resps[0];
                         var paymentResult = await me.AcceptResponseAsync(
                             Crypto.BinaryDeserializeObject<Certificate<ReplyPayloadValue>>(win.TheReplyPayload),
                             win.ReplyInvoice,
-                            Crypto.JsonSnappyDeserializeObject<PayReqRet>(win.DecodedReplyInvoice),
+                            JsonSerializer.Deserialize<PayReqRet>(new MemoryStream(win.DecodedReplyInvoice)),
                             win.NetworkInvoice,
-                            Crypto.JsonSnappyDeserializeObject<PayReqRet>(win.DecodedNetworkInvoice),
+                            JsonSerializer.Deserialize<PayReqRet>(new MemoryStream(win.DecodedNetworkInvoice)),
                             FeeLimit,
                             CancellationToken.None);
                         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
@@ -471,7 +472,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 
     public async void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
     {
-        var message = Encoding.Default.GetString(Crypto.SymmetricDecrypt<byte[]>(
+        var message = Encoding.Default.GetString(Crypto.SymmetricBytesDecrypt(
             key.AsBytes(),
             replyPayload.Value.EncryptedReplyMessage));
         Trace.TraceInformation(message);

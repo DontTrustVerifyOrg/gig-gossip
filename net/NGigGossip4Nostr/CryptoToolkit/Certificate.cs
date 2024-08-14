@@ -36,7 +36,7 @@ public class PropertyValue
 /// A Digital Certificate issued by Certification Authority for the Subject
 /// </summary>
 [ProtoContract]
-public class Certificate<T>
+public class Certificate<T> : IProtoFrame
 {
     [ProtoMember(1)]
     public byte[]? Signature { get; set; }
@@ -97,7 +97,7 @@ public class Certificate<T>
             try
             {
                 Signature = null;
-                if (Crypto.VerifyObject(this, sign, caPubKey))
+                if (Crypto.VerifyObject<Certificate<T>>(this, sign, caPubKey))
                     return true;
             }
             finally

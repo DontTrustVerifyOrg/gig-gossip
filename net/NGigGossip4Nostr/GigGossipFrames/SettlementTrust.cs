@@ -1,4 +1,5 @@
 ﻿using System;
+using CryptoToolkit;
 using ProtoBuf;
 
 namespace NGigGossip4Nostr;
@@ -7,7 +8,7 @@ namespace NGigGossip4Nostr;
 /// Represents a settlement trust.
 /// </summary>
 [ProtoContract]
-public class SettlementTrust
+public class SettlementTrust : IProtoFrame
 {
     /// <summary>
     /// Gets or sets the settlement promise.
