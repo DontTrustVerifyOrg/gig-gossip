@@ -533,7 +533,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             else
             {
                 replyPaymentHash = alreadyBroadcasted.ReplyInvoiceHash;
-                decodedReplyInvoice = Crypto.BinaryDeserializeObject<PayReqRet>(alreadyBroadcasted.DecodedReplyInvoice);
+                decodedReplyInvoice = Crypto.JsonSnappyDeserializeObject<PayReqRet>(alreadyBroadcasted.DecodedReplyInvoice);
                 replierCertificateId = alreadyBroadcasted.ReplierCertificateId;
                 responseFrame = new ReplyFrame()
                 {
@@ -578,7 +578,11 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                     await FlowLogger.TraceErrorAsync("reply payload mismatch");
                     return;
                 }
-                await _settlerMonitor.MonitorGigStatusAsync(responseFrame.SignedSettlementPromise.ServiceUri, replyPayload.Value.SignedRequestPayload.Id, replyPayload.Id, Crypto.BinarySerializeObject(replyPayload));
+                await _settlerMonitor.MonitorGigStatusAsync(
+                    responseFrame.SignedSettlementPromise.ServiceUri,
+                    replyPayload.Value.SignedRequestPayload.Id,
+                    replyPayload.Id,
+                    Crypto.BinarySerializeObject(replyPayload));
 
                 var decodedReplyInvoice = WalletAPIResult.Get<PayReqRet>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), replyPayload.Value.ReplyInvoice, cancellationToken));
 
