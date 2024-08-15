@@ -82,9 +82,10 @@ app.MapGet("/gettoken", (string apikey) =>
 {
     g.Parameters[0].Description = "public key identifies the API user";
     return g;
-});
+})
+.DisableAntiforgery();
 
-app.MapPost("/logevent/{apikey}/{pubkey}/{eventType}", async (HttpRequest request, string apikey, string pubkey, string eventType, [FromForm] IFormFile message, [FromForm] IFormFile exception)
+app.MapPost("/logevent", async ([FromForm] string apikey, [FromForm] string pubkey, [FromForm] string eventType, IFormFile message, IFormFile exception)
     =>
 {
     try
@@ -100,7 +101,8 @@ app.MapPost("/logevent/{apikey}/{pubkey}/{eventType}", async (HttpRequest reques
 })
 .WithName("LogEvent")
 .WithSummary("Logs an event")
-.WithDescription("Logs an event");
+.WithDescription("Logs an event")
+.DisableAntiforgery();
 
 app.Run(loggerSettings.ListenHost.AbsoluteUri);
 

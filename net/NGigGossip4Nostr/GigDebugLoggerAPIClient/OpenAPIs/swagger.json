@@ -19,7 +19,6 @@
             "in": "query",
             "description": "public key identifies the API user",
             "required": true,
-            "style": "form",
             "schema": {
               "type": "string"
             }
@@ -39,51 +38,36 @@
         }
       }
     },
-    "/logevent/{apikey}/{pubkey}/{eventType}": {
+    "/logevent": {
       "post": {
         "tags": [
           "GigDebugLoggerAPI"
         ],
+        "summary": "Logs an event",
+        "description": "Logs an event",
         "operationId": "LogEvent",
-        "parameters": [
-          {
-            "name": "apikey",
-            "in": "path",
-            "required": true,
-            "style": "simple",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "path",
-            "required": true,
-            "style": "simple",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "eventType",
-            "in": "path",
-            "required": true,
-            "style": "simple",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
                 "required": [
+                  "apikey",
+                  "eventType",
                   "exception",
-                  "message"
+                  "message",
+                  "pubkey"
                 ],
                 "type": "object",
                 "properties": {
+                  "apikey": {
+                    "type": "string"
+                  },
+                  "pubkey": {
+                    "type": "string"
+                  },
+                  "eventType": {
+                    "type": "string"
+                  },
                   "message": {
                     "type": "string",
                     "format": "binary"
@@ -95,6 +79,15 @@
                 }
               },
               "encoding": {
+                "apikey": {
+                  "style": "form"
+                },
+                "pubkey": {
+                  "style": "form"
+                },
+                "eventType": {
+                  "style": "form"
+                },
                 "message": {
                   "style": "form"
                 },
@@ -107,7 +100,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
