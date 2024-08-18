@@ -22,7 +22,11 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
   <ItemGroup>
+    <None Remove="OpenAPIs\" />
     <None Remove="OpenAPIs\swagger.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="OpenAPIs\" />
   </ItemGroup>
   <ItemGroup>
     <OpenApiReference Include="OpenAPIs\swagger.json" Namespace="GigDebugLoggerAPIClient">

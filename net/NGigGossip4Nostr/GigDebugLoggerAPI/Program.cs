@@ -85,12 +85,12 @@ app.MapGet("/gettoken", (string apikey) =>
 })
 .DisableAntiforgery();
 
-app.MapPost("/logevent", async ([FromForm] string apikey, [FromForm] string pubkey, [FromForm] string eventType, IFormFile message, IFormFile exception)
+app.MapPost("/logevent", async ([FromForm] string apikey, [FromForm] string pubkey, [FromForm] string eventType, IFormFile message)
     =>
 {
     try
     {
-        Singlethon.SystemLogEvent(pubkey, Enum.Parse<System.Diagnostics.TraceEventType>(eventType), Encoding.UTF8.GetString(await message.ToBytes()), Encoding.UTF8.GetString(await exception.ToBytes()));
+        Singlethon.SystemLogEvent(pubkey, Enum.Parse<System.Diagnostics.TraceEventType>(eventType), Encoding.UTF8.GetString(await message.ToBytes()));
         return new Result();
     }
     catch (Exception ex)
@@ -105,17 +105,6 @@ app.MapPost("/logevent", async ([FromForm] string apikey, [FromForm] string pubk
 .DisableAntiforgery();
 
 app.Run(loggerSettings.ListenHost.AbsoluteUri);
-
-[Serializable]
-public class SystemLogEntry
-{
-    public required Guid EntryId { get; set; }
-    public required string PublicKey { get; set; }
-    public required long Timestamp { get; set; }
-    public required TraceEventType EventType { get; set; }
-    public required string Message { get; set; }
-    public required string Exception { get; set; }
-}
 
 
 [Serializable]

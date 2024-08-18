@@ -1,4 +1,7 @@
-﻿namespace GigDebugLoggerAPIClient;
+﻿using System;
+using Newtonsoft.Json;
+
+namespace GigDebugLoggerAPIClient;
 
 
 public interface ILogEntryClosure : IDisposable
@@ -119,22 +122,22 @@ public class LogEntryClosure<T> : ILogEntryClosure
 
     public void NewMessage(string a, string b, string message)
     {
-        wrapper.TraceNewMessage(a, b, message);
+        wrapper.TraceNewMessage(guid, a, b, message);
     }
 
     public void NewReply(string a, string b, string message)
     {
-        wrapper.TraceNewReply(a, b, message);
+        wrapper.TraceNewReply(guid, a, b, message);
     }
 
     public void NewConnected(string a, string b, string message)
     {
-        wrapper.TraceNewConnected(a, b, message);
+        wrapper.TraceNewConnected(guid, a, b, message);
     }
 
     public void NewNote(string a, string message)
     {
-        wrapper.TraceNewNote(a,  message);
+        wrapper.TraceNewNote(guid, a,  message);
     }
 
 
@@ -165,25 +168,175 @@ public class LogWrapper<T>
     public void TraceIn(Guid guid, string memberName, string sourceFilePath, int sourceLineNumber)
     {
         if (flowLogger.Enabled)
-            flowLogger.TraceInformation(Newtonsoft.Json.JsonConvert.SerializeObject(new
-            {
-                kind = "call",
-                id = guid,
-                file = Path.GetFileName(sourceFilePath),
-                method = memberName,
-                line = sourceLineNumber,
-                type = typeFullName
-            }));
+            flowLogger.WriteToLog(
+                System.Diagnostics.TraceEventType.Information,
+                JsonSerialize(new
+                {
+                    kind = "call",
+                    id = guid,
+                    file = Path.GetFileName(sourceFilePath),
+                    method = memberName,
+                    line = sourceLineNumber,
+                    type = typeFullName
+                }));
     }
 
+
+
+    public void TraceArgs(Guid guid, params dynamic[] objects)
+    {
+        if (flowLogger.Enabled)
+            flowLogger.WriteToLog(
+                System.Diagnostics.TraceEventType.Information,
+                JsonSerialize(new
+                {
+                    kind = "args",
+                    id = guid,
+                    args = (from o in objects select SerializableToJson(o)).ToArray(),
+                }));
+    }
+
+
+
+    public R TraceRet<R>(Guid guid, R r)
+    {
+        if (flowLogger.Enabled)
+            flowLogger.WriteToLog(
+                System.Diagnostics.TraceEventType.Information,
+                JsonSerialize(new
+                {
+                    kind = "retval",
+                    id = guid,
+                    value = SerializableToJson(r)
+                }));
+        return r;
+    }
+
+    public void TraceOut(Guid guid)
+    {
+        if (flowLogger.Enabled)
+            flowLogger.WriteToLog(
+                System.Diagnostics.TraceEventType.Information,
+                JsonSerialize(new
+                {
+                    kind = "return",
+                    id = guid,
+                }));
+    }
+
+    public R TraceIter<R>(Guid guid, R r)
+    {
+        if (flowLogger.Enabled)
+            flowLogger.WriteToLog(
+                System.Diagnostics.TraceEventType.Information,
+                JsonSerialize(new
+                {
+                    kind = "iteration",
+                    id = guid,
+                    value = SerializableToJson(r)
+                }));
+        return r;
+    }
+
+
+    public void TraceExc(Guid guid, Exception ex)
+    {
+        if (flowLogger.Enabled)
+            flowLogger.WriteToLog(
+                System.Diagnostics.TraceEventType.Critical,
+                JsonSerialize(new
+                {
+                    kind = "exception",
+                    id = guid,
+                    exception = SerializableException(ex),
+                }));
+    }
+
+    public void TraceInfo(Guid guid, string msg)
+    {
+        if (flowLogger.Enabled)
+            flowLogger.WriteToLog(
+                System.Diagnostics.TraceEventType.Information,
+                JsonSerialize(new
+                {
+                    kind = "info",
+                    id = guid,
+                    message = msg,
+                }));
+    }
+
+    public void TraceWarning(Guid guid, string msg)
+    {
+        if (flowLogger.Enabled)
+            flowLogger.WriteToLog(
+                System.Diagnostics.TraceEventType.Warning,
+                JsonSerialize(new
+                {
+                    kind = "warning",
+                    id = guid,
+                    message = msg,
+                }));
+    }
+
+    public void TraceNewMessage(Guid guid, string a, string b, string message)
+    {
+        if (flowLogger.Enabled)
+            flowLogger.WriteToLog(
+                System.Diagnostics.TraceEventType.Transfer,
+                JsonSerialize(new
+                {
+                    kind = "message",
+                    id = guid,
+                    message = "\t" + a + "->>" + b + ": " + message,
+                }));
+    }
+
+    public void TraceNewReply(Guid guid, string a, string b, string message)
+    {
+        if (flowLogger.Enabled)
+            flowLogger.WriteToLog(
+                System.Diagnostics.TraceEventType.Transfer,
+                JsonSerialize(new
+                {
+                    kind = "reply",
+                    id = guid,
+                    message = "\t" + a + "-->>" + b + ": " + message,
+                }));
+    }
+
+    public void TraceNewConnected(Guid guid, string a, string b, string message)
+    {
+        if (flowLogger.Enabled)
+            flowLogger.WriteToLog(
+                System.Diagnostics.TraceEventType.Transfer,
+                JsonSerialize(new
+                {
+                    kind = "connected",
+                    id = guid,
+                    message = "\t" + a + "--)" + b + ": " + message,
+                }));
+    }
+
+    public void TraceNewNote(Guid guid, string a, string message)
+    {
+        if (flowLogger.Enabled)
+            flowLogger.WriteToLog(
+                System.Diagnostics.TraceEventType.Transfer,
+                JsonSerialize(new
+                {
+                    kind = "note",
+                    id = guid,
+                    message = "\t Note over " + a + ": " + message,
+                }));
+    }
 
     public static object SerializableToJson(object obj)
     {
         try
         {
-            if(obj == null)
+            if (obj == null)
                 return "(null)";
-            else if(obj is byte[])
+            else if (obj is byte[])
                 return Convert.ToBase64String((byte[])obj);
             else
                 Newtonsoft.Json.JsonConvert.SerializeObject(obj);
@@ -193,53 +346,6 @@ public class LogWrapper<T>
         {
             return obj.ToString();
         }
-    }
-
-    public void TraceArgs(Guid guid, params dynamic[] objects)
-    {
-        if (flowLogger.Enabled)
-            flowLogger.TraceInformation(Newtonsoft.Json.JsonConvert.SerializeObject(new
-            {
-                kind = "args",
-                id = guid,
-                args = (from o in objects select SerializableToJson(o)).ToArray(),
-            }));
-    }
-
-
-
-    public R TraceRet<R>(Guid guid, R r)
-    {
-        if (flowLogger.Enabled)
-            flowLogger.TraceInformation(Newtonsoft.Json.JsonConvert.SerializeObject(new
-            {
-                kind = "retval",
-                id = guid,
-                value = SerializableToJson(r)
-            }));
-        return r;
-    }
-
-    public void TraceOut(Guid guid)
-    {
-        if (flowLogger.Enabled)
-            flowLogger.TraceInformation(Newtonsoft.Json.JsonConvert.SerializeObject(new
-            {
-                kind = "return",
-                id = guid,
-            }));
-    }
-
-    public R TraceIter<R>(Guid guid, R r)
-    {
-        if (flowLogger.Enabled)
-            flowLogger.TraceInformation(Newtonsoft.Json.JsonConvert.SerializeObject(new
-            {
-                kind = "iteration",
-                id = guid,
-                value = SerializableToJson(r)
-            }));
-        return r;
     }
 
     public object SerializableException(Exception ex)
@@ -253,62 +359,14 @@ public class LogWrapper<T>
         };
     }
 
-    public void TraceExc(Guid guid, Exception ex)
-    {
-        if (flowLogger.Enabled)
-            flowLogger.TraceException(ex, Newtonsoft.Json.JsonConvert.SerializeObject(new
-            {
-                kind = "exception",
-                id = guid,
-                exception = SerializableException(ex),
-            }));
-    }
 
-    public void TraceInfo(Guid guid, string msg)
+    public static string JsonSerialize(object o)
     {
-        if (flowLogger.Enabled)
-            flowLogger.TraceInformation(Newtonsoft.Json.JsonConvert.SerializeObject(new
-            {
-                kind = "info",
-                id = guid,
-                message = msg,
-            }));
+        return Newtonsoft.Json.JsonConvert.SerializeObject(o, new JsonSerializerSettings
+        {
+            DefaultValueHandling = DefaultValueHandling.Ignore,
+            NullValueHandling = NullValueHandling.Ignore,
+        });
     }
-
-    public void TraceWarning(Guid guid, string msg)
-    {
-        if (flowLogger.Enabled)
-            flowLogger.TraceInformation(Newtonsoft.Json.JsonConvert.SerializeObject(new
-            {
-                kind = "warning",
-                id = guid,
-                message = msg,
-            }));
-    }
-
-    public void TraceNewMessage(string a, string b, string message)
-    {
-        if (flowLogger.Enabled)
-            flowLogger.NewMessage(a, b, message);
-    }
-
-    public void TraceNewReply(string a, string b, string message)
-    {
-        if (flowLogger.Enabled)
-            flowLogger.NewReply(a, b, message);
-    }
-
-    public void TraceNewConnected(string a, string b, string message)
-    {
-        if (flowLogger.Enabled)
-            flowLogger.NewConnected(a, b, message);
-    }
-
-    public void TraceNewNote(string a, string message)
-    {
-        if (flowLogger.Enabled)
-            flowLogger.NewNote(a, message);
-    }
-
 }
 

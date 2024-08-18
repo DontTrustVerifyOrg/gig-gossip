@@ -126,43 +126,52 @@ public partial class RideShareCLIApp
 
     private async void GigGossipNodeEventSource_OnInvoiceAccepted(object? sender, InvoiceAcceptedEventArgs e)
     {
-        if (inDriverMode)
+        using var TL = TRACE.Log();
+        try
         {
-            if (!e.InvoiceData.IsNetworkInvoice)
+            if (inDriverMode)
             {
-                var thisBroadcast = e.GigGossipNode.GetAcceptedBroadcastsByReplyInvoiceHash(e.InvoiceData.PaymentHash);
-
-                if (thisBroadcast == null)
-                    return;
-
-                ActiveSignedRequestPayloadId = thisBroadcast.SignedRequestPayloadId;
-
-                var broadcasts = e.GigGossipNode.GetAcceptedNotCancelledBroadcasts().ToList();
-                if (broadcasts.Count > 0)
+                if (!e.InvoiceData.IsNetworkInvoice)
                 {
-                    var settlerClient = e.GigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi);
-                    var token = await e.GigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi);
-                    foreach (var broadcast in broadcasts)
+                    var thisBroadcast = e.GigGossipNode.GetAcceptedBroadcastsByReplyInvoiceHash(e.InvoiceData.PaymentHash);
+
+                    if (thisBroadcast == null)
+                        return;
+
+                    ActiveSignedRequestPayloadId = thisBroadcast.SignedRequestPayloadId;
+
+                    var broadcasts = e.GigGossipNode.GetAcceptedNotCancelledBroadcasts().ToList();
+                    if (broadcasts.Count > 0)
                     {
-                        if (broadcast.ReplyInvoiceHash != e.InvoiceData.PaymentHash)
+                        var settlerClient = e.GigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi);
+                        var token = await e.GigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi);
+                        foreach (var broadcast in broadcasts)
                         {
-                            try
+                            if (broadcast.ReplyInvoiceHash != e.InvoiceData.PaymentHash)
                             {
-                                SettlerAPIResult.Check(await settlerClient.CancelGigAsync(token, broadcast.SignedRequestPayloadId, broadcast.ReplierCertificateId, CancellationTokenSource.Token));
-                                WalletAPIResult.Check(await e.GigGossipNode.GetWalletClient().CancelInvoiceAsync(await e.GigGossipNode.MakeWalletAuthToken(), broadcast.ReplyInvoiceHash, CancellationTokenSource.Token));
+                                try
+                                {
+                                    SettlerAPIResult.Check(await settlerClient.CancelGigAsync(token, broadcast.SignedRequestPayloadId, broadcast.ReplierCertificateId, CancellationTokenSource.Token));
+                                    WalletAPIResult.Check(await e.GigGossipNode.GetWalletClient().CancelInvoiceAsync(await e.GigGossipNode.MakeWalletAuthToken(), broadcast.ReplyInvoiceHash, CancellationTokenSource.Token));
+                                }
+                                catch (Exception ex)
+                                {
+                                    TL.Exception(ex);
+                                    //if already cancelled or settled
+                                }
                             }
-                            catch (Exception ex)
-                            {
-                                e.GigGossipNode.FlowLogger.TraceException(ex);
-                                //if already cancelled or settled
-                            }
+                            e.GigGossipNode.MarkBroadcastAsCancelled(broadcast);
                         }
-                        e.GigGossipNode.MarkBroadcastAsCancelled(broadcast);
                     }
+                    await directCom.StartAsync(e.GigGossipNode.NostrRelays);
+                    directTimer.Start();
                 }
-                await directCom.StartAsync(e.GigGossipNode.NostrRelays);
-                directTimer.Start();
             }
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
         }
     }
 

@@ -17,28 +17,14 @@ public static class Singlethon
 
     public static string LogFolder;
 
-    public static void SystemLogEvent(string pubkey, System.Diagnostics.TraceEventType eventType, string message, string exception)
+    public static void SystemLogEvent(string pubkey, System.Diagnostics.TraceEventType eventType, string message)
     {
         var fs = WriteStreams.GetOrAdd(pubkey, (pubkey) => File.Open(FileName(LogFolder, pubkey), FileMode.Append, FileAccess.Write));
         lock (fs)
         {
-            var str = Newtonsoft.Json.JsonConvert.SerializeObject(new SystemLogEntry
-            {
-                EntryId = Guid.NewGuid(),
-                PublicKey = pubkey,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                EventType = eventType,
-                Message = message,
-                Exception = exception,
-            });
             var wr = new StreamWriter(fs);
-            wr.WriteLine(str);
+            wr.WriteLine($"{{\"timestamp\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()},\"eventtype\":{(int)eventType}\"body\":{message.Replace("\n", "\\n")}}}");
             wr.Flush();
-            fs.WriteByte(0);
-            fs.WriteByte(0);
-            fs.WriteByte(0);
-            fs.WriteByte(0);
-            fs.Flush();
         }
     }
 }
