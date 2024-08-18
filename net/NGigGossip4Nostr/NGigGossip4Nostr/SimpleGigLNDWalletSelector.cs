@@ -23,622 +23,526 @@ public class SimpleGigLNDWalletSelector : IGigLNDWalletSelector
     ConcurrentDictionary<Uri, IWalletAPI> swaggerClients = new();
 
     Func<HttpClient> _httpClientFactory;
-    IFlowLogger flowLogger;
     IRetryPolicy retryPolicy;
 
-    public SimpleGigLNDWalletSelector(Func<HttpClient> httpClientFactory, IFlowLogger flowLogger, IRetryPolicy retryPolicy)
+    public SimpleGigLNDWalletSelector(Func<HttpClient> httpClientFactory,IRetryPolicy retryPolicy)
     {
         _httpClientFactory = httpClientFactory;
-        this.flowLogger = flowLogger;
         this.retryPolicy = retryPolicy;
     }
 
     public IWalletAPI GetWalletClient(Uri serviceUri)
     {
-        return new WalletAPILoggingWrapper(flowLogger, swaggerClients.GetOrAdd(serviceUri,
+        return new WalletAPILoggingWrapper(swaggerClients.GetOrAdd(serviceUri,
             (serviceUri) => new WalletAPIRetryWrapper(serviceUri.AbsoluteUri, _httpClientFactory(), retryPolicy)));
     }
 
 }
 
 
-public class WalletAPILoggingWrapper : LogWrapper<IWalletAPI>, IWalletAPI
+public class WalletAPILoggingWrapper : IWalletAPI
 {
-    public WalletAPILoggingWrapper(IFlowLogger flowLogger, IWalletAPI api) : base(flowLogger, api)
+    IWalletAPI API;
+    GigDebugLoggerAPIClient.LogWrapper<IWalletAPI> TRACE = GigDebugLoggerAPIClient.FlowLoggerFactory.Trace<IWalletAPI>();
+
+    public WalletAPILoggingWrapper(IWalletAPI api)
     {
+        API = api;
     }
 
-    public string BaseUrl => api.BaseUrl;
-    public IRetryPolicy RetryPolicy => api.RetryPolicy;
+    public string BaseUrl => API.BaseUrl;
+    public IRetryPolicy RetryPolicy => API.RetryPolicy;
 
     public async Task<InvoiceRetResult> AddHodlInvoiceAsync(string authToken, long satoshis, string hash, string memo, long expiry, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, satoshis, hash, memo, expiry);
         try
         {
-            await TraceInAsync(g__, m__, authToken, satoshis, hash, memo, expiry);
-            return await TraceOutAsync(g__, m__,
-                await api.AddHodlInvoiceAsync(authToken, satoshis, hash, memo, expiry, cancellationToken)
-            );
+            return TL.Ret(await API.AddHodlInvoiceAsync(authToken, satoshis, hash, memo, expiry, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<InvoiceRetResult> AddInvoiceAsync(string authToken, long satoshis, string memo, long expiry, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, satoshis, memo, expiry);
         try
         {
-            await TraceInAsync(g__, m__, authToken, satoshis, memo, expiry);
-            return await TraceOutAsync(g__, m__,
-                await api.AddInvoiceAsync(authToken, satoshis, memo, expiry, cancellationToken)
-            );
+            return TL.Ret(await API.AddInvoiceAsync(authToken, satoshis, memo, expiry, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<Result> CancelInvoiceAsync(string authToken, string paymenthash, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, paymenthash);
         try
         {
-            await TraceInAsync(g__, m__, authToken, paymenthash);
-            return await TraceOutAsync(g__, m__,
-                await api.CancelInvoiceAsync(authToken, paymenthash, cancellationToken)
-            );
+            return TL.Ret(await API.CancelInvoiceAsync(authToken, paymenthash, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<Result> CloseReserveAsync(string authToken, System.Guid reserveId, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, reserveId);
         try
         {
-            await TraceInAsync(g__, m__, authToken, reserveId);
-            return await TraceOutAsync(g__, m__,
-                await api.CloseReserveAsync(authToken, reserveId, cancellationToken)
-            );
+            return TL.Ret(await API.CloseReserveAsync(authToken, reserveId, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<PayReqRetResult> DecodeInvoiceAsync(string authToken, string paymentRequest, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, paymentRequest);
         try
         {
-            await TraceInAsync(g__, m__, authToken, paymentRequest);
-            return await TraceOutAsync(g__, m__,
-                await api.DecodeInvoiceAsync(authToken, paymentRequest, cancellationToken)
-            );
+            return TL.Ret(await API.DecodeInvoiceAsync(authToken, paymentRequest, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<FeeEstimateRetResult> EstimateFeeAsync(string authToken, string address, long satoshis, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, address, satoshis);
         try
         {
-            await TraceInAsync(g__, m__, authToken, address, satoshis);
-            return await TraceOutAsync(g__, m__,
-                await api.EstimateFeeAsync(authToken, address, satoshis, cancellationToken)
-            );
+            return TL.Ret(await API.EstimateFeeAsync(authToken, address, satoshis, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<Result> GenerateBlocksAsync(string authToken, int blocknum, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, blocknum);
         try
         {
-            await TraceInAsync(g__, m__, authToken, blocknum);
-            return await TraceOutAsync(g__, m__,
-                await api.GenerateBlocksAsync(authToken, blocknum, cancellationToken)
-            );
+            return TL.Ret(await API.GenerateBlocksAsync(authToken, blocknum, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<Int64Result> GetBalanceAsync(string authToken, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken);
         try
         {
-            await TraceInAsync(g__, m__, authToken);
-            return await TraceOutAsync(g__, m__,
-                await api.GetBalanceAsync(authToken, cancellationToken)
-            );
+            return TL.Ret(await API.GetBalanceAsync(authToken, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<AccountBallanceDetailsResult> GetBalanceDetailsAsync(string authToken, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken);
         try
         {
-            await TraceInAsync(g__, m__, authToken);
-            return await TraceOutAsync(g__, m__,
-                await api.GetBalanceDetailsAsync(authToken, cancellationToken)
-            );
+            return TL.Ret(await API.GetBalanceDetailsAsync(authToken, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<Int64Result> GetBitcoinWalletBallanceAsync(string authToken, int minConf, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, minConf);
         try
         {
-            await TraceInAsync(g__, m__, authToken, minConf);
-            return await TraceOutAsync(g__, m__,
-                await api.GetBitcoinWalletBallanceAsync(authToken, minConf, cancellationToken)
-            );
+            return TL.Ret(await API.GetBitcoinWalletBallanceAsync(authToken, minConf, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<StringResult> GetInvoiceStateAsync(string authToken, string paymenthash, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, paymenthash);
         try
         {
-            await TraceInAsync(g__, m__, authToken, paymenthash);
-            return await TraceOutAsync(g__, m__,
-                await api.GetInvoiceStateAsync(authToken, paymenthash, cancellationToken)
-            );
+            return TL.Ret(await API.GetInvoiceStateAsync(authToken, paymenthash, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<LndWalletBallanceRetResult> GetLndWalletBallanceAsync(string authToken, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken);
         try
         {
-            await TraceInAsync(g__, m__, authToken);
-            return await TraceOutAsync(g__, m__,
-                await api.GetLndWalletBallanceAsync(authToken, cancellationToken)
-            );
+            return TL.Ret(await API.GetLndWalletBallanceAsync(authToken, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<StringResult> GetPaymentStatusAsync(string authToken, string paymenthash, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, paymenthash);
         try
         {
-            await TraceInAsync(g__, m__, authToken, paymenthash);
-            return await TraceOutAsync(g__, m__,
-                await api.GetPaymentStatusAsync(authToken, paymenthash, cancellationToken)
-            );
+            return TL.Ret(await API.GetPaymentStatusAsync(authToken, paymenthash, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GuidResult> GetTokenAsync(string pubkey, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(pubkey);
         try
         {
-            await TraceInAsync(g__, m__, pubkey);
-            return await TraceOutAsync(g__, m__,
-                await api.GetTokenAsync(pubkey, cancellationToken)
-            );
+            return TL.Ret(await API.GetTokenAsync(pubkey, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<StringResult> NewAddressAsync(string authToken, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken);
         try
         {
-            await TraceInAsync(g__, m__, authToken);
-            return await TraceOutAsync(g__, m__,
-                await api.NewAddressAsync(authToken, cancellationToken)
-            );
+            return TL.Ret(await API.NewAddressAsync(authToken, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<StringResult> NewBitcoinAddressAsync(string authToken, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken);
         try
         {
-            await TraceInAsync(g__, m__, authToken);
-            return await TraceOutAsync(g__, m__,
-                await api.NewBitcoinAddressAsync(authToken, cancellationToken)
-            );
+            return TL.Ret(await API.NewBitcoinAddressAsync(authToken, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GuidResult> OpenReserveAsync(string authToken, long satoshis, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, satoshis);
         try
         {
-            await TraceInAsync(g__, m__, authToken, satoshis);
-            return await TraceOutAsync(g__, m__,
-                await api.OpenReserveAsync(authToken, satoshis, cancellationToken)
-            );
+            return TL.Ret(await API.OpenReserveAsync(authToken, satoshis, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
-            throw;
-        }
-    }
-
-    public async Task<GuidResult> RegisterPayoutAsync(string authToken, long satoshis, string btcAddress, long txfee, CancellationToken cancellationToken)
-    {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
-        try
-        {
-            await TraceInAsync(g__, m__, authToken, satoshis, btcAddress, txfee);
-            return await TraceOutAsync(g__, m__,
-                await api.RegisterPayoutAsync(authToken, satoshis, btcAddress, txfee, cancellationToken)
-            );
-        }
-        catch (Exception ex)
-        {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<Result> SendPaymentAsync(string authToken, string paymentrequest, int timeout, long feelimit, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, paymentrequest, timeout, feelimit);
         try
         {
-            await TraceInAsync(g__, m__, authToken, paymentrequest, timeout);
-            return await TraceOutAsync(g__, m__,
-                await api.SendPaymentAsync(authToken, paymentrequest, timeout, feelimit, cancellationToken)
-            );
+            return TL.Ret(await API.SendPaymentAsync(authToken, paymentrequest, timeout, feelimit, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<Result> SendToAddressAsync(string authToken, string bitcoinAddr, long satoshis, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, bitcoinAddr, satoshis);
         try
         {
-            await TraceInAsync(g__, m__, authToken, bitcoinAddr, satoshis);
-            return await TraceOutAsync(g__, m__,
-                await api.SendToAddressAsync(authToken, bitcoinAddr, satoshis, cancellationToken)
-            );
+            return TL.Ret(await API.SendToAddressAsync(authToken, bitcoinAddr, satoshis, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
-
     public async Task<RouteFeeResponseResult> EstimateRouteFeeAsync(string authToken, string paymentrequest, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, paymentrequest);
         try
         {
-            await TraceInAsync(g__, m__, authToken, paymentrequest);
-            return await TraceOutAsync(g__, m__,
-                await api.EstimateRouteFeeAsync(authToken, paymentrequest, cancellationToken)
-            );
+            return TL.Ret(await API.EstimateRouteFeeAsync(authToken, paymentrequest, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<InvoiceRetArrayResult> ListInvoicesAsync(string authToken, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken);
         try
         {
-            await TraceInAsync(g__, m__, authToken);
-            return await TraceOutAsync(g__, m__,
-                await api.ListInvoicesAsync(authToken, cancellationToken)
-            );
+            return TL.Ret(await API.ListInvoicesAsync(authToken, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<PaymentRetArrayResult> ListPaymentsAsync(string authToken, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken);
         try
         {
-            await TraceInAsync(g__, m__, authToken);
-            return await TraceOutAsync(g__, m__,
-                await api.ListPaymentsAsync(authToken, cancellationToken)
-            );
+            return TL.Ret(await API.ListPaymentsAsync(authToken, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<Result> SettleInvoiceAsync(string authToken, string preimage, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, preimage);
         try
         {
-            await TraceInAsync(g__, m__, authToken, preimage);
-            return await TraceOutAsync(g__, m__,
-                await api.SettleInvoiceAsync(authToken, preimage, cancellationToken)
-            );
+            return TL.Ret(await API.SettleInvoiceAsync(authToken, preimage, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task<GuidResult> RegisterPayoutAsync(string authToken, long satoshis, string btcAddress, long txfee, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(authToken, satoshis, btcAddress, txfee);
+        try
+        {
+            return TL.Ret(await API.RegisterPayoutAsync(authToken, satoshis, btcAddress, txfee, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<Result> TopUpAndMine6BlocksAsync(string authToken, string bitcoinAddr, long satoshis, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, bitcoinAddr, satoshis);
         try
         {
-            await TraceInAsync(g__, m__, authToken, bitcoinAddr, satoshis);
-            return await TraceOutAsync(g__, m__,
-                await api.TopUpAndMine6BlocksAsync(authToken, bitcoinAddr, satoshis, cancellationToken)
-            );
+            return TL.Ret(await API.TopUpAndMine6BlocksAsync(authToken, bitcoinAddr, satoshis, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public IInvoiceStateUpdatesClient CreateInvoiceStateUpdatesClient()
     {
-        return new InvoiceStateUpdatesClientWrapper(flowLogger, api.CreateInvoiceStateUpdatesClient());
+        return new InvoiceStateUpdatesClientWrapper(API.CreateInvoiceStateUpdatesClient());
     }
 
     public IPaymentStatusUpdatesClient CreatePaymentStatusUpdatesClient()
     {
-        return new PaymentStatusUpdatesClientWrapper(flowLogger,api.CreatePaymentStatusUpdatesClient());
+        return new PaymentStatusUpdatesClientWrapper(API.CreatePaymentStatusUpdatesClient());
     }
 
 }
 
-internal class InvoiceStateUpdatesClientWrapper : LogWrapper<IInvoiceStateUpdatesClient>, IInvoiceStateUpdatesClient
+internal class InvoiceStateUpdatesClientWrapper : IInvoiceStateUpdatesClient
 {
-    public InvoiceStateUpdatesClientWrapper(IFlowLogger flowLogger, IInvoiceStateUpdatesClient api) : base(flowLogger, api)
+
+    IInvoiceStateUpdatesClient API;
+    GigDebugLoggerAPIClient.LogWrapper<IInvoiceStateUpdatesClient> TRACE = GigDebugLoggerAPIClient.FlowLoggerFactory.Trace<IInvoiceStateUpdatesClient>();
+
+    public InvoiceStateUpdatesClientWrapper(IInvoiceStateUpdatesClient api) 
     {
+        API = api;
     }
 
-    public Uri Uri => api.Uri;
+    public Uri Uri => API.Uri;
 
     public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken);
         try
         {
-            await TraceInAsync(g__, m__, authToken);
-            await api.ConnectAsync(authToken, cancellationToken);
-            await TraceVoidAsync(g__, m__);
+            await API.ConnectAsync(authToken, cancellationToken);
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken,paymentHash);
         try
         {
-            await TraceInAsync(g__, m__, authToken, paymentHash);
-            await api.MonitorAsync(authToken, paymentHash, cancellationToken);
-            await TraceVoidAsync(g__, m__);
+            await API.MonitorAsync(authToken, paymentHash, cancellationToken);
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
+
     }
 
     public async Task StopMonitoringAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, paymentHash);
         try
         {
-            await TraceInAsync(g__, m__, authToken, paymentHash);
-            await api.StopMonitoringAsync(authToken, paymentHash, cancellationToken);
-            await TraceVoidAsync(g__, m__);
+           await API.StopMonitoringAsync(authToken, paymentHash, cancellationToken);
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (flowLogger.Enabled)
+        using var TL = TRACE.Log().Args(authToken);
+        await foreach (var row in API.StreamAsync(authToken, cancellationToken))
         {
-            Guid? g__ = Guid.NewGuid(); string? m__ = MetNam();
-            await TraceInAsync(g__, m__, authToken);
-            await foreach (var row in api.StreamAsync(authToken, cancellationToken))
-            {
-                await TraceIterAsync(g__, m__, row);
-                yield return row;
-            }
-            await TraceVoidAsync(g__, m__);
-        }
-        else
-        {
-            await foreach (var row in api.StreamAsync(authToken, cancellationToken))
-                yield return row;
+            TL.Iteration(row);
+            yield return row;
         }
     }
 }
 
-internal class PaymentStatusUpdatesClientWrapper : LogWrapper<IPaymentStatusUpdatesClient>, IPaymentStatusUpdatesClient
+internal class PaymentStatusUpdatesClientWrapper : IPaymentStatusUpdatesClient
 {
-    public PaymentStatusUpdatesClientWrapper(IFlowLogger flowLogger, IPaymentStatusUpdatesClient api) : base(flowLogger, api)
-    {
-    }
+    IPaymentStatusUpdatesClient API;
+    GigDebugLoggerAPIClient.LogWrapper<IPaymentStatusUpdatesClient> TRACE = GigDebugLoggerAPIClient.FlowLoggerFactory.Trace<IPaymentStatusUpdatesClient>();
 
-    public Uri Uri => api.Uri;
+    public PaymentStatusUpdatesClientWrapper( IPaymentStatusUpdatesClient api) 
+    {
+        API = api;
+   }
+
+    public Uri Uri => API.Uri;
 
     public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken);
         try
         {
-            await TraceInAsync(g__, m__, authToken);
-            await api.ConnectAsync(authToken, cancellationToken);
-            await TraceVoidAsync(g__, m__);
+            await API.ConnectAsync(authToken, cancellationToken);
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken,paymentHash);
         try
         {
-            await TraceInAsync(g__, m__, authToken, paymentHash);
-            await api.MonitorAsync(authToken, paymentHash, cancellationToken);
-            await TraceVoidAsync(g__, m__);
+            await API.MonitorAsync(authToken, paymentHash, cancellationToken);
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task StopMonitoringAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, paymentHash);
         try
         {
-            await TraceInAsync(g__, m__, authToken, paymentHash);
-            await api.StopMonitoringAsync(authToken, paymentHash, cancellationToken);
-            await TraceVoidAsync(g__, m__);
+            await API.StopMonitoringAsync(authToken, paymentHash, cancellationToken);
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (flowLogger.Enabled)
+        using var TL = TRACE.Log().Args(authToken);
+        await foreach (var row in API.StreamAsync(authToken, cancellationToken))
         {
-            Guid? g__ = Guid.NewGuid(); string? m__ = MetNam();
-            await TraceInAsync(g__, m__, authToken);
-            await foreach (var row in api.StreamAsync(authToken, cancellationToken))
-            {
-                await TraceIterAsync(g__, m__, row);
-                yield return row;
-            }
-            await TraceVoidAsync(g__, m__);
+            TL.Iteration(row);
+            yield return row;
         }
-        else
-        {
-            await foreach (var row in api.StreamAsync(authToken, cancellationToken))
-                yield return row;
-        }
-    }
+   }
 }

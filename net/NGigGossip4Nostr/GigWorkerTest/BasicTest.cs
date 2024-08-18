@@ -14,6 +14,7 @@ using GigLNDWalletAPIClient;
 using GigGossipSettlerAPIClient;
 using Microsoft.AspNetCore.SignalR.Client;
 using NetworkClientToolkit;
+using GigDebugLoggerAPIClient;
 
 namespace GigWorkerBasicTest;
 
@@ -26,6 +27,8 @@ public static class MainThreadControl
 public class BasicTest
 {
 
+
+    LogWrapper<BasicTest> TRACE = FlowLoggerFactory.Trace<BasicTest>();
 
     NodeSettings gigWorkerSettings, customerSettings;
     SettlerAdminSettings settlerAdminSettings;
@@ -44,135 +47,143 @@ public class BasicTest
 
     public async Task RunAsync()
     {
-        var bitcoinClient = bitcoinSettings.NewRPCClient();
-
-        // load bitcoin node wallet
-        RPCClient? bitcoinWalletClient;
+        using var TL = TRACE.Log();
         try
         {
-            bitcoinWalletClient = bitcoinClient.LoadWallet(bitcoinSettings.WalletName); ;
-        }
-        catch (RPCException exception ) when (exception.RPCCode== RPCErrorCode.RPC_WALLET_ALREADY_LOADED)
-        {
-            bitcoinWalletClient = bitcoinClient.SetWalletContext(bitcoinSettings.WalletName);
-        }
+            var bitcoinClient = bitcoinSettings.NewRPCClient();
 
-        bitcoinWalletClient.Generate(10); // generate some blocks
+            // load bitcoin node wallet
+            RPCClient? bitcoinWalletClient;
+            try
+            {
+                bitcoinWalletClient = bitcoinClient.LoadWallet(bitcoinSettings.WalletName); ;
+            }
+            catch (RPCException exception ) when (exception.RPCCode== RPCErrorCode.RPC_WALLET_ALREADY_LOADED)
+            {
+                bitcoinWalletClient = bitcoinClient.SetWalletContext(bitcoinSettings.WalletName);
+            }
+
+            bitcoinWalletClient.Generate(10); // generate some blocks
 
 
-        var settlerPrivKey = settlerAdminSettings.PrivateKey.AsECPrivKey();
-        var settlerPubKey = settlerPrivKey.CreateXOnlyPubKey();
-        var settlerClient = new SettlerAPIRetryWrapper(settlerAdminSettings.SettlerOpenApi.AbsoluteUri, new HttpClient(), new DefaultRetryPolicy());
-        var gtok = SettlerAPIResult.Get<Guid>(await settlerClient.GetTokenAsync(settlerPubKey.AsHex(), CancellationToken.None));
-        var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.UtcNow, gtok);
-        var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
+            var settlerPrivKey = settlerAdminSettings.PrivateKey.AsECPrivKey();
+            var settlerPubKey = settlerPrivKey.CreateXOnlyPubKey();
+            var settlerClient = new SettlerAPIRetryWrapper(settlerAdminSettings.SettlerOpenApi.AbsoluteUri, new HttpClient(), new DefaultRetryPolicy());
+            var gtok = SettlerAPIResult.Get<Guid>(await settlerClient.GetTokenAsync(settlerPubKey.AsHex(), CancellationToken.None));
+            var token = Crypto.MakeSignedTimedToken(settlerPrivKey, DateTime.UtcNow, gtok);
+            var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
-        var gigWorker = new GigGossipNode(
-            gigWorkerSettings.ConnectionString,
-            gigWorkerSettings.PrivateKey.AsECPrivKey(),
-            gigWorkerSettings.ChunkSize,
-            new DefaultRetryPolicy(),
-            () => new HttpClient(),
-            true,
-            gigWorkerSettings.LoggerOpenApi
-            );
+            var gigWorker = new GigGossipNode(
+                gigWorkerSettings.ConnectionString,
+                gigWorkerSettings.PrivateKey.AsECPrivKey(),
+                gigWorkerSettings.ChunkSize,
+                new DefaultRetryPolicy(),
+                () => new HttpClient(),
+                true,
+                gigWorkerSettings.LoggerOpenApi
+                );
 
-        SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
-                token, gigWorker.PublicKey,
-                "drive", val,val,
+            SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
+                    token, gigWorker.PublicKey,
+                    "drive", val,val,
+                    24, CancellationToken.None
+                ));
+
+            var customer = new GigGossipNode(
+                customerSettings.ConnectionString,
+                customerSettings.PrivateKey.AsECPrivKey(),
+                customerSettings.ChunkSize,
+                new DefaultRetryPolicy(),
+                () => new HttpClient(),
+                true,
+                customerSettings.LoggerOpenApi
+                );
+
+            SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
+                token, customer.PublicKey,
+                "ride", val, val,
                 24, CancellationToken.None
-             ));
+            ));
 
-        var customer = new GigGossipNode(
-            customerSettings.ConnectionString,
-            customerSettings.PrivateKey.AsECPrivKey(),
-            customerSettings.ChunkSize,
-            new DefaultRetryPolicy(),
-            () => new HttpClient(),
-            true,
-            customerSettings.LoggerOpenApi
-            );
+            await gigWorker.StartAsync(
+                gigWorkerSettings.Fanout,
+                gigWorkerSettings.PriceAmountForRouting,
+                TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
+                TimeSpan.FromSeconds(gigWorkerSettings.InvoicePaymentTimeoutSec),
+                gigWorkerSettings.GetNostrRelays(),
+                new GigWorkerGossipNodeEvents { SettlerUri = gigWorkerSettings.SettlerOpenApi, FeeLimit = gigWorkerSettings.FeeLimit },
+                gigWorkerSettings.GigWalletOpenApi,
+                gigWorkerSettings.SettlerOpenApi);
 
-        SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(
-            token, customer.PublicKey,
-            "ride", val, val,
-            24, CancellationToken.None
-         ));
+            await customer.StartAsync(
+                customerSettings.Fanout,
+                customerSettings.PriceAmountForRouting,
+                TimeSpan.FromMilliseconds(customerSettings.TimestampToleranceMs),
+                TimeSpan.FromSeconds(customerSettings.InvoicePaymentTimeoutSec),
+                customerSettings.GetNostrRelays(),
+                new CustomerGossipNodeEvents { FeeLimit = customerSettings.FeeLimit},
+                customerSettings.GigWalletOpenApi,
+                customerSettings.SettlerOpenApi);
 
-        await gigWorker.StartAsync(
-            gigWorkerSettings.Fanout,
-            gigWorkerSettings.PriceAmountForRouting,
-            TimeSpan.FromMilliseconds(gigWorkerSettings.TimestampToleranceMs),
-            TimeSpan.FromSeconds(gigWorkerSettings.InvoicePaymentTimeoutSec),
-            gigWorkerSettings.GetNostrRelays(),
-            new GigWorkerGossipNodeEvents { SettlerUri = gigWorkerSettings.SettlerOpenApi, FeeLimit = gigWorkerSettings.FeeLimit },
-            gigWorkerSettings.GigWalletOpenApi,
-            gigWorkerSettings.SettlerOpenApi);
+            var ballanceOfCustomer = WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken(), CancellationToken.None));
 
-        await customer.StartAsync(
-            customerSettings.Fanout,
-            customerSettings.PriceAmountForRouting,
-            TimeSpan.FromMilliseconds(customerSettings.TimestampToleranceMs),
-            TimeSpan.FromSeconds(customerSettings.InvoicePaymentTimeoutSec),
-            customerSettings.GetNostrRelays(),
-            new CustomerGossipNodeEvents { FeeLimit = customerSettings.FeeLimit},
-            customerSettings.GigWalletOpenApi,
-            customerSettings.SettlerOpenApi);
-
-        var ballanceOfCustomer = WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken(), CancellationToken.None));
-
-        while (ballanceOfCustomer == 0)
-        {
-            var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await customer.GetWalletClient().NewAddressAsync(await customer.MakeWalletAuthToken(), CancellationToken.None));
-            Console.WriteLine(newBitcoinAddressOfCustomer);
-
-            bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, bitcoinSettings.GetNetwork()), new NBitcoin.Money(10000000ul));
-
-            bitcoinClient.Generate(10); // generate some blocks
-
-            do
+            while (ballanceOfCustomer == 0)
             {
-                if (WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken(), CancellationToken.None)) > 0)
-                    break;
-                Thread.Sleep(1000);
-            } while (true);
+                var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await customer.GetWalletClient().NewAddressAsync(await customer.MakeWalletAuthToken(), CancellationToken.None));
+                Console.WriteLine(newBitcoinAddressOfCustomer);
 
-            ballanceOfCustomer = WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken(), CancellationToken.None));
-        }
+                bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, bitcoinSettings.GetNetwork()), new NBitcoin.Money(10000000ul));
+
+                bitcoinClient.Generate(10); // generate some blocks
+
+                do
+                {
+                    if (WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken(), CancellationToken.None)) > 0)
+                        break;
+                    Thread.Sleep(1000);
+                } while (true);
+
+                ballanceOfCustomer = WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken(), CancellationToken.None));
+            }
 
 
 
-        gigWorker.ClearContacts();
-        customer.ClearContacts();
+            gigWorker.ClearContacts();
+            customer.ClearContacts();
 
-        gigWorker.AddContact(customer.PublicKey,"Customer" );
-        customer.AddContact(gigWorker.PublicKey, "GigWorker");
+            gigWorker.AddContact(customer.PublicKey,"Customer" );
+            customer.AddContact(gigWorker.PublicKey, "GigWorker");
 
-        {
-            var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);
-            var toGh = GeoHash.Encode(latitude: 42.5, longitude: -5.6, numberOfChars: 7);
-
-            await customer.BroadcastTopicAsync(new TaxiTopic()
             {
-                FromGeohash = fromGh,
-                ToGeohash = toGh,
-                PickupAfter = DateTime.UtcNow,
-                DropoffBefore = DateTime.UtcNow.AddMinutes(20)
-            },
-            new string[] { "ride" },
-            async (_) => { });
+                var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);
+                var toGh = GeoHash.Encode(latitude: 42.5, longitude: -5.6, numberOfChars: 7);
 
+                await customer.BroadcastTopicAsync(new TaxiTopic()
+                {
+                    FromGeohash = fromGh,
+                    ToGeohash = toGh,
+                    PickupAfter = DateTime.UtcNow,
+                    DropoffBefore = DateTime.UtcNow.AddMinutes(20)
+                },
+                new string[] { "ride" },
+                async (_) => { });
+
+            }
+
+            while (MainThreadControl.IsRunning)
+            {
+                lock (MainThreadControl.Ctrl)
+                    Monitor.Wait(MainThreadControl.Ctrl);
+            }
+
+            await gigWorker.StopAsync();
+            await customer.StopAsync();
         }
-
-        while (MainThreadControl.IsRunning)
+        catch (Exception ex)
         {
-            lock (MainThreadControl.Ctrl)
-                Monitor.Wait(MainThreadControl.Ctrl);
+            TL.Exception(ex);
+            throw;
         }
-
-        await gigWorker.StopAsync();
-        await customer.StopAsync();
-
     }
 }
 
@@ -181,95 +192,230 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
     public required Uri SettlerUri;
     public required long FeeLimit;
 
+    LogWrapper<GigWorkerGossipNodeEvents> TRACE = FlowLoggerFactory.Trace<GigWorkerGossipNodeEvents>();
+
     public async void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
-        var taxiTopic = Crypto.BinaryDeserializeObject<TaxiTopic>(
-            broadcastFrame.SignedRequestPayload.Value.Topic);
-
-        if (taxiTopic != null)
+        using var TL = TRACE.Log().Args(me, peerPublicKey, broadcastFrame);
+        try
         {
-            await me.AcceptBroadcastAsync(peerPublicKey, broadcastFrame,
-                new AcceptBroadcastResponse()
-                {
-                    Properties = new string[] {"drive" },
-                    Message = Encoding.Default.GetBytes(me.PublicKey),
-                    Fee = 4321,
-                    SettlerServiceUri = SettlerUri
-                }, async (_) => { },
-                CancellationToken.None);
-            await me.FlowLogger.NewNoteAsync(me.PublicKey, "AcceptBraodcast");
+            var taxiTopic = Crypto.BinaryDeserializeObject<TaxiTopic>(
+                broadcastFrame.SignedRequestPayload.Value.Topic);
+
+            if (taxiTopic != null)
+            {
+                await me.AcceptBroadcastAsync(peerPublicKey, broadcastFrame,
+                    new AcceptBroadcastResponse()
+                    {
+                        Properties = new string[] {"drive" },
+                        Message = Encoding.Default.GetBytes(me.PublicKey),
+                        Fee = 4321,
+                        SettlerServiceUri = SettlerUri
+                    }, async (_) => { },
+                    CancellationToken.None);
+                TL.NewNote(me.PublicKey, "AcceptBraodcast");
+            }
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public async void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
-        var paymentResult=await me.PayNetworkInvoiceAsync(iac, FeeLimit, CancellationToken.None);
-        if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
-            Console.WriteLine(paymentResult);
+        using var TL = TRACE.Log().Args(me, iac);
+        try
+        {
+            var paymentResult=await me.PayNetworkInvoiceAsync(iac, FeeLimit, CancellationToken.None);
+            if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
+                Console.WriteLine(paymentResult);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
     {
-        me.FlowLogger.NewNoteAsync(me.PublicKey, "InvoiceSettled");
-        lock (MainThreadControl.Ctrl)
+        using var TL = TRACE.Log().Args(me, serviceUri, paymentHash, preimage);
+        try
         {
-            MainThreadControl.IsRunning = false;
-            Monitor.PulseAll(MainThreadControl.Ctrl);
+            TL.NewNote(me.PublicKey, "InvoiceSettled");
+            lock (MainThreadControl.Ctrl)
+            {
+                MainThreadControl.IsRunning = false;
+                Monitor.PulseAll(MainThreadControl.Ctrl);
+            }
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice)
     {
-
+        using var TL = TRACE.Log().Args(me, replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
     public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
     {
-
+        using var TL = TRACE.Log().Args(me, replyPayload, key);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
     public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
     {
-
+        using var TL = TRACE.Log().Args(me, replyPayload);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
     {
+        using var TL = TRACE.Log().Args(me, status, paydata);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnCancelBroadcast(GigGossipNode me, string peerPublicKey, CancelBroadcastFrame broadcastFrame)
     {
+        using var TL = TRACE.Log().Args(me, peerPublicKey, broadcastFrame);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnNetworkInvoiceCancelled(GigGossipNode me, InvoiceData iac)
     {
+        using var TL = TRACE.Log().Args(me, iac);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
+        using var TL = TRACE.Log().Args(me, iac);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnInvoiceCancelled(GigGossipNode me, InvoiceData iac)
     {
+        using var TL = TRACE.Log().Args(me, iac);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnNewContact(GigGossipNode me, string pubkey)
     {
+        using var TL = TRACE.Log().Args(me, pubkey);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnSettings(GigGossipNode me, string settings)
     {
+        using var TL = TRACE.Log().Args(me, settings);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnEoseArrived(GigGossipNode me)
     {
+        using var TL = TRACE.Log().Args(me);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnServerConnectionState(GigGossipNode me, ServerConnectionSource source, ServerConnectionState state, Uri uri)
     {
+        using var TL = TRACE.Log().Args(me, source, state, uri);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 }
 
 public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 {
+    LogWrapper<CustomerGossipNodeEvents> TRACE = FlowLoggerFactory.Trace<CustomerGossipNodeEvents>();
     public required long FeeLimit;
 
     public CustomerGossipNodeEvents()
@@ -278,70 +424,206 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 
     public void OnAcceptBroadcast(GigGossipNode me, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
+        using var TL = TRACE.Log().Args(me, peerPublicKey, broadcastFrame);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
+        using var TL = TRACE.Log().Args(me, iac);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
     {
+        using var TL = TRACE.Log().Args(me, serviceUri, paymentHash, preimage);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public async void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice)
     {
-        await me.FlowLogger.NewNoteAsync(me.PublicKey, "AcceptResponse");
-        var paymentResult = await me.AcceptResponseAsync(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice, FeeLimit, CancellationToken.None);
-        if(paymentResult!= GigLNDWalletAPIErrorCode.Ok)
-            Console.WriteLine(paymentResult);
+        using var TL = TRACE.Log().Args(me, replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
+        try
+        {
+            TL.NewNote(me.PublicKey, "AcceptResponse");
+            var paymentResult = await me.AcceptResponseAsync(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice, FeeLimit, CancellationToken.None);
+            if(paymentResult!= GigLNDWalletAPIErrorCode.Ok)
+                Console.WriteLine(paymentResult);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
     public async void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
     {
-        var message = Encoding.Default.GetString(Crypto.SymmetricBytesDecrypt(
+        using var TL = TRACE.Log().Args(me, replyPayload, key);
+        try
+        {
+            var message = Encoding.Default.GetString(Crypto.SymmetricBytesDecrypt(
             key.AsBytes(),
             replyPayload.Value.EncryptedReplyMessage));
-        Trace.TraceInformation(message);
-        await me.FlowLogger.NewNoteAsync(me.PublicKey, "OnResponseReady");
-        await me.FlowLogger.NewConnectedAsync(message, me.PublicKey, "connected");
+            TL.Info(message);
+            TL.NewNote(me.PublicKey, "OnResponseReady");
+            TL.NewConnected(message, me.PublicKey, "connected");
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
     public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
     {
+        using var TL = TRACE.Log().Args(me, replyPayload);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
     {
+        using var TL = TRACE.Log().Args(me, status, paydata);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnCancelBroadcast(GigGossipNode me, string peerPublicKey, CancelBroadcastFrame broadcastFrame)
     {
+        using var TL = TRACE.Log().Args(me, peerPublicKey, broadcastFrame);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnNetworkInvoiceCancelled(GigGossipNode me, InvoiceData iac)
     {
+        using var TL = TRACE.Log().Args(me, iac);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
+        using var TL = TRACE.Log().Args(me, iac);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnInvoiceCancelled(GigGossipNode me, InvoiceData iac)
     {
+        using var TL = TRACE.Log().Args(me, iac);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnNewContact(GigGossipNode me, string pubkey)
     {
+        using var TL = TRACE.Log().Args(me, pubkey);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnSettings(GigGossipNode me, string settings)
     {
+        using var TL = TRACE.Log().Args(me, settings);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+
     }
 
     public void OnEoseArrived(GigGossipNode me)
     {
+        using var TL = TRACE.Log().Args(me);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnServerConnectionState(GigGossipNode me, ServerConnectionSource source, ServerConnectionState state, Uri uri)
     {
+        using var TL = TRACE.Log().Args(me, source, state, uri);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 }
 

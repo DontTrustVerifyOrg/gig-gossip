@@ -6,7 +6,6 @@ using GigLNDWalletAPIClient;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using NBitcoin;
 using Newtonsoft.Json.Linq;
 using System.Xml.Linq;
@@ -31,13 +30,11 @@ public class SimpleSettlerSelector : ISettlerSelector
 
     Func<HttpClient> _httpClientFactory;
 
-    IFlowLogger flowLogger;
     IRetryPolicy retryPolicy;
 
-    public SimpleSettlerSelector(Func<HttpClient> httpClientFactory, IFlowLogger flowLogger, IRetryPolicy retryPolicy)
+    public SimpleSettlerSelector(Func<HttpClient> httpClientFactory, IRetryPolicy retryPolicy)
     {
         _httpClientFactory = httpClientFactory;
-        this.flowLogger = flowLogger;
         this.retryPolicy = retryPolicy;
     }
 
@@ -48,7 +45,7 @@ public class SimpleSettlerSelector : ISettlerSelector
 
     public ISettlerAPI GetSettlerClient(Uri serviceUri)
     {
-        return new SettlerAPIWrapper(flowLogger, swaggerClients.GetOrAdd(serviceUri, (serviceUri) => new SettlerAPIRetryWrapper(serviceUri.AbsoluteUri, _httpClientFactory(), retryPolicy)));
+        return new SettlerAPIWrapper(swaggerClients.GetOrAdd(serviceUri, (serviceUri) => new SettlerAPIRetryWrapper(serviceUri.AbsoluteUri, _httpClientFactory(), retryPolicy)));
     }
 
     public async Task<bool> IsRevokedAsync(Uri serviceUri, Guid id, CancellationToken cancellationToken)
@@ -63,181 +60,127 @@ public class SimpleSettlerSelector : ISettlerSelector
 }
 
 
-public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
+public class SettlerAPIWrapper : ISettlerAPI
 {
-    public SettlerAPIWrapper(IFlowLogger flowLogger, ISettlerAPI api) : base(flowLogger, api)
+    ISettlerAPI API;
+    GigDebugLoggerAPIClient.LogWrapper<ISettlerAPI> TRACE = GigDebugLoggerAPIClient.FlowLoggerFactory.Trace<ISettlerAPI>();
+
+    public SettlerAPIWrapper(ISettlerAPI api)
     {
+        API = api;
     }
 
-    public string BaseUrl => api.BaseUrl;
-    public IRetryPolicy RetryPolicy => api.RetryPolicy;
-
+    public string BaseUrl => API.BaseUrl;
+    public IRetryPolicy RetryPolicy => API.RetryPolicy;
+ 
     public async Task<GigGossipSettlerAPIClient.StringResult> GetCaPublicKeyAsync(CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log();
         try
         {
-            await TraceInAsync(g__, m__);
-            return await TraceOutAsync(g__, m__,
-                await api.GetCaPublicKeyAsync(cancellationToken)
-            );
+            return TL.Ret(await API.GetCaPublicKeyAsync(cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<BooleanResult> IsCertificateRevokedAsync(System.Guid certid, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(certid);
         try
         {
-            await TraceInAsync(g__, m__, certid);
-            return await TraceOutAsync(g__, m__,
-                await api.IsCertificateRevokedAsync(certid, cancellationToken)
-            );
+            return TL.Ret(await API.IsCertificateRevokedAsync(certid, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GigGossipSettlerAPIClient.GuidResult> GetTokenAsync(string pubkey, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(pubkey);
         try
         {
-            await TraceInAsync(g__, m__, pubkey);
-            return await TraceOutAsync(g__, m__,
-                await api.GetTokenAsync(pubkey, cancellationToken)
-            );
+            return TL.Ret(await API.GetTokenAsync(pubkey, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<StringArrayResult> AddressAutocompleteAsync(string authToken, string query, string country, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, query, country);
         try
         {
-            await TraceInAsync(g__, m__, authToken, query, country);
-            return await TraceOutAsync(g__, m__,
-                await api.AddressAutocompleteAsync(authToken, query, country, cancellationToken)
-            );
+            return TL.Ret(await API.AddressAutocompleteAsync(authToken, query, country, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GeolocationRetResult> AddressGeocodeAsync(string authToken, string address, string country, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, address, country);
         try
         {
-            await TraceInAsync(g__, m__, authToken, address, country);
-            return await TraceOutAsync(g__, m__,
-                await api.AddressGeocodeAsync(authToken, address, country, cancellationToken)
-            );
+            return TL.Ret(await API.AddressGeocodeAsync(authToken, address, country, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GigGossipSettlerAPIClient.StringResult> LocationGeocodeAsync(string authToken, double lat, double lon, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, lat, lon);
         try
         {
-            await TraceInAsync(g__, m__, authToken, lat, lon);
-            return await TraceOutAsync(g__, m__,
-                await api.LocationGeocodeAsync(authToken, lat, lon, cancellationToken)
-            );
+            return TL.Ret(await API.LocationGeocodeAsync(authToken, lat, lon, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<RouteRetResult> GetRouteAsync(string authToken, double fromLat, double fromLon, double toLat, double toLon, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, fromLat, fromLon, toLat, toLon);
         try
         {
-            await TraceInAsync(g__, m__, authToken, fromLat, fromLon, toLat, toLon);
-            return await TraceOutAsync(g__, m__,
-                await api.GetRouteAsync(authToken, fromLat, fromLon, toLat, toLon, cancellationToken)
-            );
+            return TL.Ret(await API.GetRouteAsync(authToken, fromLat, fromLon, toLat, toLon, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GigGossipSettlerAPIClient.Result> GiveUserPropertyAsync(string authToken, string pubkey, string name, string value, string secret, long validHours, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, pubkey, name, value, secret, validHours);
         try
         {
-            await TraceInAsync(g__, m__, authToken, pubkey, name, value, secret, validHours);
-            return await TraceOutAsync(g__, m__,
-                await api.GiveUserPropertyAsync(authToken, pubkey, name, value, secret, validHours, cancellationToken)
-            );
+            return TL.Ret(await API.GiveUserPropertyAsync(authToken, pubkey, name, value, secret, validHours, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
-            throw;
-        }
-    }
-
-    public async Task<GigGossipSettlerAPIClient.Result> GiveUserFileAsync(string authToken, string pubkey, string name, long? validHours, FileParameter value, FileParameter secret, CancellationToken cancellationToken)
-    {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
-        try
-        {
-            await TraceInAsync(g__, m__, authToken, pubkey, name, validHours, value.ToBytes(), secret.ToBytes());
-            return await TraceOutAsync(g__, m__,
-                await api.GiveUserFileAsync(authToken, pubkey, name, validHours, value, secret, cancellationToken)
-            );
-        }
-        catch (Exception ex)
-        {
-            await TraceExcAsync(g__, m__, ex);
-            throw;
-        }
-    }
-
-    public async Task<GigGossipSettlerAPIClient.Result> SaveUserTracePropertyAsync(string authToken, string pubkey, string name, string value, CancellationToken cancellationToken)
-    {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
-        try
-        {
-            await TraceInAsync(g__, m__, authToken, pubkey, name, value);
-            return await TraceOutAsync(g__, m__,
-                await api.SaveUserTracePropertyAsync(authToken, pubkey, name, value, cancellationToken)
-            );
-        }
-        catch (Exception ex)
-        {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
@@ -245,289 +188,365 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GetMyPropertyValueAsync(string authToken, string name, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, name);
         try
         {
-            await TraceInAsync(g__, m__, authToken, name);
-            return await TraceOutAsync(g__, m__,
-                await api.GetMyPropertyValueAsync(authToken, name, cancellationToken)
-            );
+            return TL.Ret(await API.GetMyPropertyValueAsync(authToken, name, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GetMyPropertySecretAsync(string authToken, string name, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, name);
         try
         {
-            await TraceInAsync(g__, m__, authToken, name);
-            return await TraceOutAsync(g__, m__,
-                await api.GetMyPropertySecretAsync(authToken, name, cancellationToken)
-            );
+            return TL.Ret(await API.GetMyPropertySecretAsync(authToken, name, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GigGossipSettlerAPIClient.Result> VerifyChannelAsync(string authToken, string pubkey, string name, string method, string value, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, pubkey, name, method, value);
         try
         {
-            await TraceInAsync(g__, m__, authToken, pubkey, name, method, value);
-            return await TraceOutAsync(g__, m__,
-                await api.VerifyChannelAsync(authToken, pubkey, name, method, value, cancellationToken)
-            );
+            return TL.Ret(await API.VerifyChannelAsync(authToken, pubkey, name, method, value, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<Int32Result> SubmitChannelSecretAsync(string authToken, string pubkey, string name, string method, string value, string secret, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, pubkey, name, method, value, secret);
         try
         {
-            await TraceInAsync(g__, m__, authToken, pubkey, name, method, value, secret);
-            return await TraceOutAsync(g__, m__,
-                await api.SubmitChannelSecretAsync(authToken, pubkey, name, method, value, secret, cancellationToken)
-            );
+            return TL.Ret(await API.SubmitChannelSecretAsync(authToken, pubkey, name, method, value, secret, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<BooleanResult> IsChannelVerifiedAsync(string authToken, string pubkey, string name, string value, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, pubkey, name, value);
         try
         {
-            await TraceInAsync(g__, m__, authToken, pubkey, name, value);
-            return await TraceOutAsync(g__, m__,
-                await api.IsChannelVerifiedAsync(authToken, pubkey, name, value, cancellationToken)
-            );
+            return TL.Ret(await API.IsChannelVerifiedAsync(authToken, pubkey, name, value, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GigGossipSettlerAPIClient.Result> RevokeUserPropertyAsync(string authToken, string pubkey, string name, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, pubkey, name);
         try
         {
-            await TraceInAsync(g__, m__, authToken, pubkey, name);
-            return await TraceOutAsync(g__, m__,
-                await api.RevokeUserPropertyAsync(authToken, pubkey, name, cancellationToken)
-            );
+            return TL.Ret(await API.RevokeUserPropertyAsync(authToken, pubkey, name, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GenerateReplyPaymentPreimageAsync(string authToken, System.Guid gigId, string repliperPubKey, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, gigId, repliperPubKey);
         try
         {
-            await TraceInAsync(g__, m__, authToken, gigId, repliperPubKey);
-            return await TraceOutAsync(g__, m__,
-                await api.GenerateReplyPaymentPreimageAsync(authToken, gigId, repliperPubKey, cancellationToken)
-            );
+            return TL.Ret(await API.GenerateReplyPaymentPreimageAsync(authToken, gigId, repliperPubKey, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GenerateRelatedPreimageAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, paymentHash);
         try
         {
-            await TraceInAsync(g__, m__, authToken, paymentHash);
-            return await TraceOutAsync(g__, m__,
-                await api.GenerateRelatedPreimageAsync(authToken, paymentHash, cancellationToken)
-            );
+            return TL.Ret(await API.GenerateRelatedPreimageAsync(authToken, paymentHash, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<BooleanResult> ValidateRelatedPaymentHashesAsync(string authToken, string paymentHash1, string paymentHash2, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, paymentHash1, paymentHash2);
         try
         {
-            await TraceInAsync(g__, m__, authToken, paymentHash1, paymentHash2);
-            return await TraceOutAsync(g__, m__,
-                await api.ValidateRelatedPaymentHashesAsync(authToken, paymentHash1, paymentHash2, cancellationToken)
-            );
+            return TL.Ret(await API.ValidateRelatedPaymentHashesAsync(authToken, paymentHash1, paymentHash2, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GigGossipSettlerAPIClient.StringResult> RevealPreimageAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, paymentHash);
         try
         {
-            await TraceInAsync(g__, m__, authToken, paymentHash);
-            return await TraceOutAsync(g__, m__,
-                await api.RevealPreimageAsync(authToken, paymentHash, cancellationToken)
-            );
+            return TL.Ret(await API.RevealPreimageAsync(authToken, paymentHash, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task<GigGossipSettlerAPIClient.Result> GiveUserFileAsync(string authToken, string pubkey, string name, long? validHours, GigGossipSettlerAPIClient.FileParameter value, GigGossipSettlerAPIClient.FileParameter secret, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(authToken, pubkey, name, validHours);
+        try
+        {
+            return TL.Ret(await API.GiveUserFileAsync(authToken, pubkey, name, validHours, value, secret, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task<GigGossipSettlerAPIClient.Result> SaveUserTracePropertyAsync(string authToken, string pubkey, string name, string value, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(authToken, pubkey, name, value);
+        try
+        {
+            return TL.Ret(await API.SaveUserTracePropertyAsync(authToken, pubkey, name, value, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GetGigStatusAsync(string authToken, System.Guid signedRequestPayloadId, System.Guid repliperCertificateId, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, signedRequestPayloadId, repliperCertificateId);
         try
         {
-            await TraceInAsync(g__, m__, authToken, signedRequestPayloadId, repliperCertificateId);
-            return await TraceOutAsync(g__, m__,
-                await api.GetGigStatusAsync(authToken, signedRequestPayloadId, repliperCertificateId, cancellationToken)
-            );
+            return TL.Ret(await API.GetGigStatusAsync(authToken, signedRequestPayloadId, repliperCertificateId, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.StringResult> GenerateRequestPayloadAsync(string authToken, string properties, FileParameter serialisedTopic, CancellationToken cancellationToken)
+    public async Task<GigGossipSettlerAPIClient.StringResult> GenerateRequestPayloadAsync(string authToken, string properties, GigGossipSettlerAPIClient.FileParameter serialisedTopic, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, properties, serialisedTopic.ToBytes());
         try
         {
-            await TraceInAsync(g__, m__, authToken, properties, serialisedTopic.ToBytes());
-            return await TraceOutAsync(g__, m__,
-                await api.GenerateRequestPayloadAsync(authToken, properties, serialisedTopic, cancellationToken)
-            );
+            return TL.Ret(await API.GenerateRequestPayloadAsync(authToken, properties, serialisedTopic, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.StringResult> GenerateSettlementTrustAsync(string authToken, string properties, string replyinvoice, FileParameter message, FileParameter signedRequestPayloadSerialized, CancellationToken cancellationToken)
+    public async Task<GigGossipSettlerAPIClient.StringResult> GenerateSettlementTrustAsync(string authToken, string properties, string replyinvoice, GigGossipSettlerAPIClient.FileParameter message, GigGossipSettlerAPIClient.FileParameter signedRequestPayloadSerialized, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, properties, replyinvoice, message.ToBytes(), signedRequestPayloadSerialized.ToBytes());
         try
         {
-            await TraceInAsync(g__, m__, authToken, properties, replyinvoice, message.ToBytes(), signedRequestPayloadSerialized.ToBytes());
-            return await TraceOutAsync(g__, m__,
-                await api.GenerateSettlementTrustAsync(authToken, properties, replyinvoice, message, signedRequestPayloadSerialized, cancellationToken)
-            );
+            return TL.Ret(await API.GenerateSettlementTrustAsync(authToken, properties, replyinvoice, message, signedRequestPayloadSerialized, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.StringResult> EncryptObjectForCertificateIdAsync(System.Guid? certificateId, FileParameter objectSerialized, CancellationToken cancellationToken)
+    public async Task<GigGossipSettlerAPIClient.StringResult> EncryptObjectForCertificateIdAsync(System.Guid? certificateId, GigGossipSettlerAPIClient.FileParameter objectSerialized, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(certificateId, objectSerialized.ToBytes());
         try
         {
-            await TraceInAsync(g__, m__, certificateId, objectSerialized.ToBytes());
-            return await TraceOutAsync(g__, m__,
-                await api.EncryptObjectForCertificateIdAsync(certificateId, objectSerialized, cancellationToken)
-            );
+            return TL.Ret(await API.EncryptObjectForCertificateIdAsync(certificateId, objectSerialized, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GigGossipSettlerAPIClient.Result> ManageDisputeAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, bool open, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, gigId, repliperCertificateId, open);
         try
         {
-            await TraceInAsync(g__, m__, authToken, gigId, repliperCertificateId, open);
-            return await TraceOutAsync(g__, m__,
-                await api.ManageDisputeAsync(authToken, gigId, repliperCertificateId, open, cancellationToken)
-            );
+            return TL.Ret(await API.ManageDisputeAsync(authToken, gigId, repliperCertificateId, open, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GigGossipSettlerAPIClient.Result> CancelGigAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, gigId, repliperCertificateId);
         try
         {
-            await TraceInAsync(g__, m__, authToken, gigId, repliperCertificateId);
-            return await TraceOutAsync(g__, m__,
-                await api.CancelGigAsync(authToken, gigId, repliperCertificateId, cancellationToken)
-            );
+            return TL.Ret(await API.CancelGigAsync(authToken, gigId, repliperCertificateId, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<GigGossipSettlerAPIClient.Result> DeleteMyPersonalUserDataAsync(string authToken, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken);
         try
         {
-            await TraceInAsync(g__, m__, authToken);
-            return await TraceOutAsync(g__, m__,
-                await api.DeleteMyPersonalUserDataAsync(authToken, cancellationToken)
-            );
+            return TL.Ret(await API.DeleteMyPersonalUserDataAsync(authToken, cancellationToken));
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task<GigGossipSettlerAPIClient.StringResult> IssueNewAccessCodeAsync(string authToken, int length, bool singleUse, long validTill, string memo, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(authToken, singleUse, validTill, memo);
+        try
+        {
+            return TL.Ret(await API.IssueNewAccessCodeAsync(authToken, length, singleUse, validTill, memo, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task<GigGossipSettlerAPIClient.Result> RevokeAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(authToken, accessCodeId);
+        try
+        {
+            return TL.Ret(await API.RevokeAccessCodeAsync(authToken, accessCodeId, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task<GigGossipSettlerAPIClient.Result> GrantAccessRightsAsync(string authToken, string pubkey, string accessRights, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(authToken, pubkey, accessRights);
+        try
+        {
+            return TL.Ret(await API.GrantAccessRightsAsync(authToken, pubkey, accessRights, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task<GigGossipSettlerAPIClient.Result> RevokeAccessRightsAsync(string authToken, string pubkey, string accessRights, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(authToken, pubkey, accessRights);
+        try
+        {
+            return TL.Ret(await API.RevokeAccessRightsAsync(authToken, pubkey, accessRights, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task<BooleanResult> ValidateAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(authToken, accessCodeId);
+        try
+        {
+            return TL.Ret(await API.ValidateAccessCodeAsync(authToken, accessCodeId,cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+
+    public async Task<GigGossipSettlerAPIClient.StringResult> GetMemoFromAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(authToken, accessCodeId);
+        try
+        {
+            return TL.Ret(await API.GetMemoFromAccessCodeAsync(authToken, accessCodeId, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task<GigGossipSettlerAPIClient.StringResult> GetAccessRightsAsync(string authToken, string pubkey, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(authToken, pubkey);
+        try
+        {
+            return TL.Ret(await API.GetAccessRightsAsync(authToken, pubkey, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
             throw;
         }
     }
@@ -535,284 +554,141 @@ public class SettlerAPIWrapper : LogWrapper<ISettlerAPI>, ISettlerAPI
 
     public IGigStatusClient CreateGigStatusClient()
     {
-        return new GigStatusClientWrapper(this.flowLogger, api.CreateGigStatusClient());
+        return new GigStatusClientWrapper(API.CreateGigStatusClient());
     }
 
     public IPreimageRevealClient CreatePreimageRevealClient()
     {
-        return new PreimageRevealClientWrapper(this.flowLogger, api.CreatePreimageRevealClient());
-    }
-
-    public async Task<GigGossipSettlerAPIClient.StringResult> IssueNewAccessCodeAsync(string authToken, int length, bool singleUse, long validTill, string memo, CancellationToken cancellationToken)
-    {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
-        try
-        {
-            await TraceInAsync(g__, m__, authToken, singleUse, validTill, memo);
-            return await TraceOutAsync(g__, m__,
-                await api.IssueNewAccessCodeAsync(authToken, length, singleUse, validTill, memo, cancellationToken)
-            );
-        }
-        catch (Exception ex)
-        {
-            await TraceExcAsync(g__, m__, ex);
-            throw;
-        }
-    }
-
-    public async Task<BooleanResult> ValidateAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
-    {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
-        try
-        {
-            await TraceInAsync(g__, m__, authToken, accessCodeId);
-            return await TraceOutAsync(g__, m__,
-                await api.ValidateAccessCodeAsync(authToken, accessCodeId, cancellationToken)
-            );
-        }
-        catch (Exception ex)
-        {
-            await TraceExcAsync(g__, m__, ex);
-            throw;
-        }
-    }
-
-    public async Task<GigGossipSettlerAPIClient.Result> RevokeAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
-    {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
-        try
-        {
-            await TraceInAsync(g__, m__, authToken, accessCodeId);
-            return await TraceOutAsync(g__, m__,
-                await api.RevokeAccessCodeAsync(authToken, accessCodeId, cancellationToken)
-            );
-        }
-        catch (Exception ex)
-        {
-            await TraceExcAsync(g__, m__, ex);
-            throw;
-        }
-    }
-
-    public async Task<GigGossipSettlerAPIClient.Result> GrantAccessRightsAsync(string authToken, string pubkey, string accessRights, CancellationToken cancellationToken)
-    {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
-        try
-        {
-            await TraceInAsync(g__, m__, authToken, pubkey, accessRights);
-            return await TraceOutAsync(g__, m__,
-                await api.GrantAccessRightsAsync(authToken, pubkey, accessRights, cancellationToken)
-            );
-        }
-        catch (Exception ex)
-        {
-            await TraceExcAsync(g__, m__, ex);
-            throw;
-        }
-    }
-
-    public async Task<GigGossipSettlerAPIClient.Result> RevokeAccessRightsAsync(string authToken, string pubkey, string accessRights, CancellationToken cancellationToken)
-    {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
-        try
-        {
-            await TraceInAsync(g__, m__, authToken, pubkey, accessRights);
-            return await TraceOutAsync(g__, m__,
-                await api.RevokeAccessRightsAsync(authToken, pubkey, accessRights, cancellationToken)
-            );
-        }
-        catch (Exception ex)
-        {
-            await TraceExcAsync(g__, m__, ex);
-            throw;
-        }
-    }
-
-    public async Task<GigGossipSettlerAPIClient.StringResult> GetMemoFromAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
-    {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
-        try
-        {
-            await TraceInAsync(g__, m__, authToken, accessCodeId);
-            return await TraceOutAsync(g__, m__,
-                await api.GetMemoFromAccessCodeAsync(authToken, accessCodeId, cancellationToken)
-            );
-        }
-        catch (Exception ex)
-        {
-            await TraceExcAsync(g__, m__, ex);
-            throw;
-        }
-    }
-    public async Task<GigGossipSettlerAPIClient.StringResult> GetAccessRightsAsync(string authToken, string pubkey, CancellationToken cancellationToken)
-    {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
-        try
-        {
-            await TraceInAsync(g__, m__, authToken, pubkey);
-            return await TraceOutAsync(g__, m__,
-                await api.GetAccessRightsAsync(authToken, pubkey, cancellationToken)
-            );
-        }
-        catch (Exception ex)
-        {
-            await TraceExcAsync(g__, m__, ex);
-            throw;
-        }
+        return new PreimageRevealClientWrapper(API.CreatePreimageRevealClient());
     }
 
 }
 
-internal class GigStatusClientWrapper : LogWrapper<IGigStatusClient>, IGigStatusClient
+internal class GigStatusClientWrapper :  IGigStatusClient
 {
-    public GigStatusClientWrapper(IFlowLogger flowLogger, IGigStatusClient api) : base(flowLogger,api)
+    IGigStatusClient API;
+    GigDebugLoggerAPIClient.LogWrapper<IGigStatusClient> TRACE = GigDebugLoggerAPIClient.FlowLoggerFactory.Trace<IGigStatusClient>();
+
+    public GigStatusClientWrapper(IGigStatusClient api) 
     {
+        API = api;
     }
 
-    public Uri Uri => api.Uri;
+    public Uri Uri => API.Uri;
 
     public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken);
         try
         {
-            await TraceInAsync(g__, m__, authToken);
-            await api.ConnectAsync(authToken, cancellationToken);
-            await TraceVoidAsync(g__, m__);
+            await API.ConnectAsync(authToken, cancellationToken);
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task DisposeAsync()
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log();
         try
         {
-            await TraceInAsync(g__, m__);
-            await api.DisposeAsync();
-            await TraceVoidAsync(g__, m__);
+            await API.DisposeAsync();
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task MonitorAsync(string authToken, Guid gigId, Guid replierCertificateId, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken,gigId, replierCertificateId);
         try
         {
-            await TraceInAsync(g__, m__, authToken, gigId, replierCertificateId);
-            await api.MonitorAsync(authToken, gigId, replierCertificateId, cancellationToken);
-            await TraceVoidAsync(g__, m__);
+            await API.MonitorAsync(authToken, gigId, replierCertificateId, cancellationToken);
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (flowLogger.Enabled)
+        using var TL = TRACE.Log().Args(authToken);
+        await foreach (var row in API.StreamAsync(authToken, cancellationToken))
         {
-            Guid? g__ = Guid.NewGuid(); string? m__ = MetNam();
-            await TraceInAsync(g__, m__, authToken);
-            await foreach (var row in api.StreamAsync(authToken, cancellationToken))
-            {
-                await TraceIterAsync(g__, m__, row);
-                yield return row;
-            }
-            await TraceVoidAsync(g__, m__);
-        }
-        else
-        {
-            await foreach (var row in api.StreamAsync(authToken, cancellationToken))
-                yield return row;
+            TL.Iteration(row);
+            yield return row;
         }
     }
 }
 
-internal class PreimageRevealClientWrapper : LogWrapper<IPreimageRevealClient>, IPreimageRevealClient
+internal class PreimageRevealClientWrapper : IPreimageRevealClient
 {
-    public PreimageRevealClientWrapper(IFlowLogger flowLogger, IPreimageRevealClient api) : base(flowLogger, api)
+    IPreimageRevealClient API;
+    GigDebugLoggerAPIClient.LogWrapper<IPreimageRevealClient> TRACE = GigDebugLoggerAPIClient.FlowLoggerFactory.Trace<IPreimageRevealClient>();
+    public PreimageRevealClientWrapper(IPreimageRevealClient api) 
     {
+        API = api;
     }
 
-    public Uri Uri => api.Uri;
+    public Uri Uri => API.Uri;
 
     public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken);
         try
         {
-            await TraceInAsync(g__, m__, authToken);
-            await api.ConnectAsync(authToken, cancellationToken);
-            await TraceVoidAsync(g__, m__);
+            await API.ConnectAsync(authToken, cancellationToken);
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task DisposeAsync()
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log();
         try
         {
-            await TraceInAsync(g__, m__);
-            await api.DisposeAsync();
-            await TraceVoidAsync(g__, m__);
+            await API.DisposeAsync();
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
     {
-        Guid? g__ = null; string? m__ = null; if (flowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = MetNam(); }
+        using var TL = TRACE.Log().Args(authToken, paymentHash);
         try
         {
-            await TraceInAsync(g__, m__, authToken, paymentHash);
-            await api.MonitorAsync(authToken, paymentHash, cancellationToken);
-            await TraceVoidAsync(g__, m__);
+            await API.MonitorAsync(authToken, paymentHash, cancellationToken);
         }
         catch (Exception ex)
         {
-            await TraceExcAsync(g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (flowLogger.Enabled)
+        using var TL = TRACE.Log().Args(authToken);
+        await foreach (var row in API.StreamAsync(authToken, cancellationToken))
         {
-            Guid? g__ = Guid.NewGuid(); string? m__ = MetNam();
-            await TraceInAsync(g__, m__, authToken);
-            await foreach (var row in api.StreamAsync(authToken, cancellationToken))
-            {
-                await TraceIterAsync(g__, m__, row);
-                yield return row;
-            }
-            await TraceVoidAsync(g__, m__);
-        }
-        else
-        {
-            await foreach (var row in api.StreamAsync(authToken, cancellationToken))
-                yield return row;
+            TL.Iteration(row);
+            yield return row;
         }
     }
 }
