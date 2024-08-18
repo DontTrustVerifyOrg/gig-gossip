@@ -12,7 +12,6 @@ public class DirectMessageEventArgs : EventArgs
     public required string EventId;
     public required string SenderPublicKey;
     public required object Frame { get; set; }
-    public required bool IsNew { get; set; }
 }
 
 public class DirectCom : NostrNode
@@ -24,9 +23,9 @@ public class DirectCom : NostrNode
         this.gigGossipNode = gigGossipNode;
     }
 
-    public async Task StartAsync(string[] nostrRelays)
+    public new async Task StartAsync(string[] nostrRelays)
     {
-        await base.StartAsync(nostrRelays, gigGossipNode.FlowLogger);
+        await base.StartAsync(nostrRelays);
     }
 
     private void DirectCom_OnServerConnectionState(object? sender, ServerConnectionStateEventArgs e)
@@ -43,7 +42,6 @@ public class DirectCom : NostrNode
             EventId = eventId,
             SenderPublicKey = senderPublicKey,
             Frame = frame,
-            IsNew = isNew,
         });
     }
 
@@ -57,9 +55,9 @@ public class DirectCom : NostrNode
         return gigGossipNode.CommitMessage(id);
     }
 
-    public override void AbortMessage(string id)
+    public override bool AbortMessage(string id)
     {
-        gigGossipNode.AbortMessage(id);
+        return gigGossipNode.AbortMessage(id);
     }
 
 }

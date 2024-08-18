@@ -70,6 +70,7 @@ public sealed class DefaultRetryPolicy : IRetryPolicy
 
 public partial class RideShareCLIApp
 {
+    GigDebugLoggerAPIClient.LogWrapper<RideShareCLIApp> TRACE = GigDebugLoggerAPIClient.FlowLoggerFactory.Trace<RideShareCLIApp>();
     Settings settings;
     GigGossipNode gigGossipNode;
     IGigGossipNodeEventSource gigGossipNodeEventSource = new GigGossipNodeEventSource();
@@ -215,258 +216,268 @@ public partial class RideShareCLIApp
 
     public async Task RunAsync()
     {
-        ECPrivKey privateKey;
-        if (string.IsNullOrWhiteSpace(privkeypassed))
+        using var TL = TRACE.Log();
+        try
         {
-            privateKey = await GetPrivateKeyAsync();
-            if (privateKey == null)
+        
+            ECPrivKey privateKey;
+            if (string.IsNullOrWhiteSpace(privkeypassed))
             {
-                var mnemonic = Crypto.GenerateMnemonic().Split(" ");
-                AnsiConsole.WriteLine($"Initializing private key for {settings.Id}");
-                AnsiConsole.WriteLine(string.Join(" ", mnemonic));
-                privateKey = Crypto.DeriveECPrivKeyFromMnemonic(string.Join(" ", mnemonic));
-            }
-        }
-        else
-        {
-            privateKey = await GetPrivateKeyAsync();
-            if (privateKey != null && privkeypassed != privateKey.AsHex())
-            {
-                if (Prompt.Confirm("Private key already set to different value. Overwrite?"))
-                    privateKey = privkeypassed.AsECPrivKey();
+                privateKey = await GetPrivateKeyAsync();
+                if (privateKey == null)
+                {
+                    var mnemonic = Crypto.GenerateMnemonic().Split(" ");
+                    AnsiConsole.WriteLine($"Initializing private key for {settings.Id}");
+                    AnsiConsole.WriteLine(string.Join(" ", mnemonic));
+                    privateKey = Crypto.DeriveECPrivKeyFromMnemonic(string.Join(" ", mnemonic));
+                }
             }
             else
-                privateKey = privkeypassed.AsECPrivKey();
-        }
-        AnsiConsole.WriteLine($"Loading private key for {settings.Id}");
-        await SetPrivateKeyAsync(privateKey);
-
-        gigGossipNode = new GigGossipNode(
-            settings.NodeSettings.ConnectionString.Replace("$ID", settings.Id),
-            privateKey,
-            settings.NodeSettings.ChunkSize,
-            new DefaultRetryPolicy(),
-            () => new HttpClient(),
-            false,
-            settings.NodeSettings.LoggerOpenApi
-            );
-
-        AnsiConsole.WriteLine("privkey:" + privateKey.AsHex());
-        AnsiConsole.WriteLine("pubkey :" + gigGossipNode.PublicKey);
-
-        directCom = new DirectCom(gigGossipNode);
-        directCom.RegisterFrameType<LocationFrame>();
-        directCom.OnDirectMessage += DirectCom_OnDirectMessage;
-        directTimer = new System.Timers.Timer(1000);
-        directTimer.Elapsed += DirectTimer_Elapsed;
-
-        var phoneNumber = await GetPhoneNumberAsync();
-        if (phoneNumber == null)
-        {
-            phoneNumber = Prompt.Input<string>("Phone number");
-            if (!await IsPhoneNumberValidated(phoneNumber))
             {
-
-                await ValidatePhoneNumber(phoneNumber);
-                while (true)
+                privateKey = await GetPrivateKeyAsync();
+                if (privateKey != null && privkeypassed != privateKey.AsHex())
                 {
-                    var secret = Prompt.Input<string>("Enter code");
-                    var retries = await SubmitPhoneNumberSecret(phoneNumber, secret);
-                    if (retries == -1)
-                        break;
-                    else if (retries == 0)
-                        throw new Exception("Invalid code");
-                    else
-                        AnsiConsole.WriteLine($"Wrong code retries left {retries}");
+                    if (Prompt.Confirm("Private key already set to different value. Overwrite?"))
+                        privateKey = privkeypassed.AsECPrivKey();
                 }
+                else
+                    privateKey = privkeypassed.AsECPrivKey();
             }
-            await SetPhoneNumberAsync(phoneNumber);
-        }
-        await StartAsync();
+            AnsiConsole.WriteLine($"Loading private key for {settings.Id}");
+            await SetPrivateKeyAsync(privateKey);
 
-        while (true)
-        {
-            await WriteBalance();
-            var cmd = Prompt.Select<CommandEnum>("Select command");
-            if (cmd == CommandEnum.Exit)
+            gigGossipNode = new GigGossipNode(
+                settings.NodeSettings.ConnectionString.Replace("$ID", settings.Id),
+                privateKey,
+                settings.NodeSettings.ChunkSize,
+                new DefaultRetryPolicy(),
+                () => new HttpClient(),
+                false,
+                settings.NodeSettings.LoggerOpenApi
+                );
+
+            AnsiConsole.WriteLine("privkey:" + privateKey.AsHex());
+            AnsiConsole.WriteLine("pubkey :" + gigGossipNode.PublicKey);
+
+            directCom = new DirectCom(gigGossipNode);
+            directCom.RegisterFrameType<LocationFrame>();
+            directCom.OnDirectMessage += DirectCom_OnDirectMessage;
+            directTimer = new System.Timers.Timer(1000);
+            directTimer.Elapsed += DirectTimer_Elapsed;
+
+            var phoneNumber = await GetPhoneNumberAsync();
+            if (phoneNumber == null)
             {
+                phoneNumber = Prompt.Input<string>("Phone number");
+                if (!await IsPhoneNumberValidated(phoneNumber))
+                {
+
+                    await ValidatePhoneNumber(phoneNumber);
+                    while (true)
+                    {
+                        var secret = Prompt.Input<string>("Enter code");
+                        var retries = await SubmitPhoneNumberSecret(phoneNumber, secret);
+                        if (retries == -1)
+                            break;
+                        else if (retries == 0)
+                            throw new Exception("Invalid code");
+                        else
+                            AnsiConsole.WriteLine($"Wrong code retries left {retries}");
+                    }
+                }
+                await SetPhoneNumberAsync(phoneNumber);
+            }
+            await StartAsync();
+
+            while (true)
+            {
+                await WriteBalance();
+                var cmd = Prompt.Select<CommandEnum>("Select command");
                 if (cmd == CommandEnum.Exit)
-                    break;
-            }
-            else if (cmd == CommandEnum.TopUp)
-            {
-                var topUpAmount = Prompt.Input<int>("How much top up");
-                if (topUpAmount > 0)
                 {
-                    var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().NewAddressAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token));
-                    WalletAPIResult.Check(await gigGossipNode.GetWalletClient().TopUpAndMine6BlocksAsync(await gigGossipNode.MakeWalletAuthToken(), newBitcoinAddressOfCustomer, topUpAmount, CancellationTokenSource.Token));
+                    if (cmd == CommandEnum.Exit)
+                        break;
                 }
-            }
-            else if (cmd == CommandEnum.NewAddress)
-            {
-                var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().NewAddressAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationToken.None));
-                AnsiConsole.WriteLine(newBitcoinAddressOfCustomer);
-            }
-            else if (cmd == CommandEnum.SetupMyInfo)
-            {
-                var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.SettlerAdminSettings.SettlerOpenApi);
-                var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.SettlerAdminSettings.SettlerOpenApi);
-                string name = Prompt.Input<string>("Your Name");
-                SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
-                    (await GetPublicKeyAsync()).AsHex(), "Name",
-                    Convert.ToBase64String(Encoding.Default.GetBytes(name)),
-                    Convert.ToBase64String(new byte[] { }), 24 * 365 * 10,
-                    CancellationTokenSource.Token));
+                else if (cmd == CommandEnum.TopUp)
+                {
+                    var topUpAmount = Prompt.Input<int>("How much top up");
+                    if (topUpAmount > 0)
+                    {
+                        var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().NewAddressAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token));
+                        WalletAPIResult.Check(await gigGossipNode.GetWalletClient().TopUpAndMine6BlocksAsync(await gigGossipNode.MakeWalletAuthToken(), newBitcoinAddressOfCustomer, topUpAmount, CancellationTokenSource.Token));
+                    }
+                }
+                else if (cmd == CommandEnum.NewAddress)
+                {
+                    var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().NewAddressAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationToken.None));
+                    AnsiConsole.WriteLine(newBitcoinAddressOfCustomer);
+                }
+                else if (cmd == CommandEnum.SetupMyInfo)
+                {
+                    var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.SettlerAdminSettings.SettlerOpenApi);
+                    var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.SettlerAdminSettings.SettlerOpenApi);
+                    string name = Prompt.Input<string>("Your Name");
+                    SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
+                        (await GetPublicKeyAsync()).AsHex(), "Name",
+                        Convert.ToBase64String(Encoding.Default.GetBytes(name)),
+                        Convert.ToBase64String(new byte[] { }), 24 * 365 * 10,
+                        CancellationTokenSource.Token));
 
-                byte[] photo = new byte[] { };
+                    byte[] photo = new byte[] { };
 
-                SettlerAPIResult.Check(await settlerClient.GiveUserFileAsync(authToken,
-                    (await GetPublicKeyAsync()).AsHex(), "Photo", 24 * 365 * 10,
-                    new FileParameter(new MemoryStream(photo)),
-                    new FileParameter(new MemoryStream()),
-                    CancellationTokenSource.Token
-                   ));
+                    SettlerAPIResult.Check(await settlerClient.GiveUserFileAsync(authToken,
+                        (await GetPublicKeyAsync()).AsHex(), "Photo", 24 * 365 * 10,
+                        new FileParameter(new MemoryStream(photo)),
+                        new FileParameter(new MemoryStream()),
+                        CancellationTokenSource.Token
+                    ));
 
-                string car = Prompt.Input<string>("Your Car");
-                SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
-                    (await GetPublicKeyAsync()).AsHex(), "Car",
-                    Convert.ToBase64String(Encoding.Default.GetBytes(car)),
-                    Convert.ToBase64String(new byte[] { }), 24 * 365 * 10,
-                    CancellationTokenSource.Token));
+                    string car = Prompt.Input<string>("Your Car");
+                    SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
+                        (await GetPublicKeyAsync()).AsHex(), "Car",
+                        Convert.ToBase64String(Encoding.Default.GetBytes(car)),
+                        Convert.ToBase64String(new byte[] { }), 24 * 365 * 10,
+                        CancellationTokenSource.Token));
 
-                var randloc = MockData.RandomLocation();
-                string trace = GeoHash.Encode(randloc.Latitude, randloc.Longitude, 7);
-                SettlerAPIResult.Check(await settlerClient.SaveUserTracePropertyAsync(authToken,
-                    (await GetPublicKeyAsync()).AsHex(), "Geohash",
-                    Convert.ToBase64String(Encoding.Default.GetBytes(trace)),
-                    CancellationTokenSource.Token));
-            }
-            else if (cmd == CommandEnum.DriverMode)
-            {
-                inDriverMode = true;
-                AnsiConsole.MarkupLine("Listening for ride requests.");
-                AnsiConsole.MarkupLine("Press [orange1]ENTER[/] to make selection,");
-                AnsiConsole.MarkupLine("[yellow]RIGHT[/] to increase fee.");
-                AnsiConsole.MarkupLine("[yellow]LEFT[/] to decrease fee.");
-                AnsiConsole.MarkupLine("[blue]ESC[/] to leave the driver mode.");
+                    var randloc = MockData.RandomLocation();
+                    string trace = GeoHash.Encode(randloc.Latitude, randloc.Longitude, 7);
+                    SettlerAPIResult.Check(await settlerClient.SaveUserTracePropertyAsync(authToken,
+                        (await GetPublicKeyAsync()).AsHex(), "Geohash",
+                        Convert.ToBase64String(Encoding.Default.GetBytes(trace)),
+                        CancellationTokenSource.Token));
+                }
+                else if (cmd == CommandEnum.DriverMode)
+                {
+                    inDriverMode = true;
+                    AnsiConsole.MarkupLine("Listening for ride requests.");
+                    AnsiConsole.MarkupLine("Press [orange1]ENTER[/] to make selection,");
+                    AnsiConsole.MarkupLine("[yellow]RIGHT[/] to increase fee.");
+                    AnsiConsole.MarkupLine("[yellow]LEFT[/] to decrease fee.");
+                    AnsiConsole.MarkupLine("[blue]ESC[/] to leave the driver mode.");
 
 
-                receivedBroadcastsForPayloadId = new();
-                receivedBroadcastsFees = new();
-                receivedBroadcastsTable = new DataTable(new string[] { "Sent", "JobId", "NoBrd", "From", "Time", "To", "MyFee" });
-                receivedBroadcastsTable.OnKeyPressed += async (o, e) =>
+                    receivedBroadcastsForPayloadId = new();
+                    receivedBroadcastsFees = new();
+                    receivedBroadcastsTable = new DataTable(new string[] { "Sent", "JobId", "NoBrd", "From", "Time", "To", "MyFee" });
+                    receivedBroadcastsTable.OnKeyPressed += async (o, e) =>
+                        {
+                            var me = (DataTable)o;
+                            if (e.Key == ConsoleKey.Enter)
+                            {
+                                if (me.GetCell(me.SelectedRowIdx, 0) != "sent")
+                                {
+                                    var keys = new List<string>(MockData.FakeAddresses.Keys);
+                                    var myAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+                                    var myStartLocation = new GeoLocation(MockData.FakeAddresses[myAddress].Latitude, MockData.FakeAddresses[myAddress].Longitude);
+
+                                    await AcceptRideAsync(me.SelectedRowIdx, myStartLocation,"Hello from Driver!");
+                                    me.UpdateCell(me.SelectedRowIdx, 0, "sent");
+                                }
+                                else
+                                {
+                                    await CancelRideAsync(me.SelectedRowIdx);
+                                    me.UpdateCell(me.SelectedRowIdx, 0, "");
+                                }
+                            }
+                            if (e.Key == ConsoleKey.LeftArrow)
+                            {
+                                if (me.GetCell(me.SelectedRowIdx, 0) != "sent")
+                                {
+                                    var id = Guid.Parse(me.GetCell(me.SelectedRowIdx, 1));
+                                    receivedBroadcastsFees[id] -= 1;
+                                    me.UpdateCell(me.SelectedRowIdx, 6, receivedBroadcastsFees[id].ToString());
+                                }
+                            }
+                            if (e.Key == ConsoleKey.RightArrow)
+                            {
+                                if (me.GetCell(me.SelectedRowIdx, 0) != "sent")
+                                {
+                                    var id = Guid.Parse(me.GetCell(me.SelectedRowIdx, 1));
+                                    receivedBroadcastsFees[id] -= 1;
+                                    me.UpdateCell(me.SelectedRowIdx, 6, receivedBroadcastsFees[id].ToString());
+                                }
+                            }
+                            if (e.Key == ConsoleKey.Escape)
+                            {
+                                me.Exit();
+                            }
+                        };
+
+                    receivedBroadcastsTable.Start();
+                }
+                else if (cmd == CommandEnum.RequestRide)
+                {
+                    if (ActiveSignedRequestPayloadId != Guid.Empty)
+                    {
+                        AnsiConsole.MarkupLine("[red]Ride in progress[/]");
+                    }
+
+                    string fromAddress, toAddress;
+                    GeoLocation fromLocation, toLocation;
+
+                    if (Prompt.Confirm("Use random", false))
+                    {
+
+                        var keys = new List<string>(MockData.FakeAddresses.Keys);
+
+                        while(true)
+                        {
+                            fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+                            toAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+                            if(fromAddress != toAddress)
+                                break;
+                        }
+                        
+                        fromLocation = new GeoLocation(MockData.FakeAddresses[fromAddress].Latitude, MockData.FakeAddresses[fromAddress].Longitude);
+                        toLocation = new GeoLocation(MockData.FakeAddresses[toAddress].Latitude, MockData.FakeAddresses[toAddress].Longitude);
+                    }
+                    else
+                    {
+                        fromAddress = await GetAddressAsync("From");
+                        toAddress = await GetAddressAsync("To");
+
+                        fromLocation = await GetAddressGeocodeAsync(fromAddress);
+                        toLocation = await GetAddressGeocodeAsync(toAddress);
+                    }
+
+                    int waitingTimeForPickupMinutes = 12;
+
+                    receivedResponseIdxesForPaymentHashes = new();
+                    receivedResponsesForPaymentHashes = new();
+                    receivedResponsesTable = new DataTable(new string[] { "PaymentHash", "DriverId", "NoResp", "From", "Time", "To", "DriverFee", "NetworkFee" });
+                    receivedResponsesTable.OnKeyPressed += async (o, e) =>
                     {
                         var me = (DataTable)o;
                         if (e.Key == ConsoleKey.Enter)
                         {
-                            if (me.GetCell(me.SelectedRowIdx, 0) != "sent")
-                            {
-                                var keys = new List<string>(MockData.FakeAddresses.Keys);
-                                var myAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
-                                var myStartLocation = new GeoLocation(MockData.FakeAddresses[myAddress].Latitude, MockData.FakeAddresses[myAddress].Longitude);
-
-                                await AcceptRideAsync(me.SelectedRowIdx, myStartLocation,"Hello from Driver!");
-                                me.UpdateCell(me.SelectedRowIdx, 0, "sent");
-                            }
-                            else
-                            {
-                                await CancelRideAsync(me.SelectedRowIdx);
-                                me.UpdateCell(me.SelectedRowIdx, 0, "");
-                            }
-                        }
-                        if (e.Key == ConsoleKey.LeftArrow)
-                        {
-                            if (me.GetCell(me.SelectedRowIdx, 0) != "sent")
-                            {
-                                var id = Guid.Parse(me.GetCell(me.SelectedRowIdx, 1));
-                                receivedBroadcastsFees[id] -= 1;
-                                me.UpdateCell(me.SelectedRowIdx, 6, receivedBroadcastsFees[id].ToString());
-                            }
-                        }
-                        if (e.Key == ConsoleKey.RightArrow)
-                        {
-                            if (me.GetCell(me.SelectedRowIdx, 0) != "sent")
-                            {
-                                var id = Guid.Parse(me.GetCell(me.SelectedRowIdx, 1));
-                                receivedBroadcastsFees[id] -= 1;
-                                me.UpdateCell(me.SelectedRowIdx, 6, receivedBroadcastsFees[id].ToString());
-                            }
+                            await AcceptDriverAsync(me.SelectedRowIdx);
+                            me.Exit();
                         }
                         if (e.Key == ConsoleKey.Escape)
                         {
+                            await CancelBroadcast();
                             me.Exit();
                         }
                     };
-
-                receivedBroadcastsTable.Start();
-            }
-            else if (cmd == CommandEnum.RequestRide)
-            {
-                if (ActiveSignedRequestPayloadId != Guid.Empty)
-                {
-                    AnsiConsole.MarkupLine("[red]Ride in progress[/]");
+                    requestedRide = await RequestRide(fromAddress, fromLocation, toAddress, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes);
+                    receivedResponsesTable.Start();
                 }
-
-                string fromAddress, toAddress;
-                GeoLocation fromLocation, toLocation;
-
-                if (Prompt.Confirm("Use random", false))
+                else if (cmd == CommandEnum.Reset)
                 {
-
-                    var keys = new List<string>(MockData.FakeAddresses.Keys);
-
-                    while(true)
-                    {
-                        fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
-                        toAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
-                        if(fromAddress != toAddress)
-                            break;
-                    }
-                    
-                    fromLocation = new GeoLocation(MockData.FakeAddresses[fromAddress].Latitude, MockData.FakeAddresses[fromAddress].Longitude);
-                    toLocation = new GeoLocation(MockData.FakeAddresses[toAddress].Latitude, MockData.FakeAddresses[toAddress].Longitude);
+                    await this.StopAsync();
+                    await this.StartAsync();
                 }
-                else
+                else if (cmd == CommandEnum.DebLog)
                 {
-                    fromAddress = await GetAddressAsync("From");
-                    toAddress = await GetAddressAsync("To");
-
-                    fromLocation = await GetAddressGeocodeAsync(fromAddress);
-                    toLocation = await GetAddressGeocodeAsync(toAddress);
+                    GigDebugLoggerAPIClient.FlowLoggerFactory.Enabled = !GigDebugLoggerAPIClient.FlowLoggerFactory.Enabled;
+                    AnsiConsole.WriteLine("DebugLog is " + (GigDebugLoggerAPIClient.FlowLoggerFactory.Enabled ? "ON" : "OFF"));
                 }
-
-                int waitingTimeForPickupMinutes = 12;
-
-                receivedResponseIdxesForPaymentHashes = new();
-                receivedResponsesForPaymentHashes = new();
-                receivedResponsesTable = new DataTable(new string[] { "PaymentHash", "DriverId", "NoResp", "From", "Time", "To", "DriverFee", "NetworkFee" });
-                receivedResponsesTable.OnKeyPressed += async (o, e) =>
-                {
-                    var me = (DataTable)o;
-                    if (e.Key == ConsoleKey.Enter)
-                    {
-                        await AcceptDriverAsync(me.SelectedRowIdx);
-                        me.Exit();
-                    }
-                    if (e.Key == ConsoleKey.Escape)
-                    {
-                        await CancelBroadcast();
-                        me.Exit();
-                    }
-                };
-                requestedRide = await RequestRide(fromAddress, fromLocation, toAddress, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes);
-                receivedResponsesTable.Start();
             }
-            else if (cmd == CommandEnum.Reset)
-            {
-                await this.StopAsync();
-                await this.StartAsync();
-            }
-            else if (cmd == CommandEnum.DebLog)
-            {
-                gigGossipNode.FlowLogger.Enabled = !gigGossipNode.FlowLogger.Enabled;
-                AnsiConsole.WriteLine("DebugLog is " + (gigGossipNode.FlowLogger.Enabled ? "ON" : "OFF"));
-            }
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
         }
     }
 

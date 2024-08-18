@@ -125,11 +125,11 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     private Uri defaultWalletUri;
     private Uri mySettlerUri;
     private Func<HttpClient> httpClientFactory;
-    private FlowLogger flowLogger;
 
     internal ThreadLocal<GigGossipNodeContext> nodeContext;
 
     ConcurrentDictionary<string, bool> messageLocks;
+    public GigDebugLoggerAPIClient.LogWrapper<GigGossipNode> TRACE = GigDebugLoggerAPIClient.FlowLoggerFactory.Trace<GigGossipNode>();
 
     public GigGossipNode(string connectionString, ECPrivKey privKey, int chunkSize, IRetryPolicy retryPolicy, Func<HttpClient> httpClientFactory, bool traceEnabled, Uri myLoggerUri) : base(privKey, chunkSize,true, retryPolicy)
     {
@@ -144,9 +144,8 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
         this.httpClientFactory = httpClientFactory;
 
-        flowLogger = new FlowLogger(traceEnabled, this.PublicKey, myLoggerUri, httpClientFactory);
-        WalletSelector = new SimpleGigLNDWalletSelector(httpClientFactory, flowLogger, RetryPolicy);
-        SettlerSelector = new SimpleSettlerSelector(httpClientFactory, flowLogger, RetryPolicy);
+        WalletSelector = new SimpleGigLNDWalletSelector(httpClientFactory, RetryPolicy);
+        SettlerSelector = new SimpleSettlerSelector(httpClientFactory, RetryPolicy);
         _settlerToken = new();
 
     }
@@ -168,28 +167,28 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     public async Task StartAsync(int fanout, long priceAmountForRouting, TimeSpan timestampTolerance, TimeSpan invoicePaymentTimeout,
         string[] nostrRelays, IGigGossipNodeEvents gigGossipNodeEvents, Uri defaultWalletUri,  Uri mySettlerUri)
     {
-
-        this.messageLocks = new();
-        this._contactList = new();
-        this._walletToken = new();
-        this._settlerToken = new();
-
-        this.settlerGigStatusClients = new();
-        this.settlerPreimageRevelClients = new();
-
-        this.fanout = fanout;
-        this.priceAmountForRouting = priceAmountForRouting;
-        this.timestampTolerance = timestampTolerance;
-        this.InvoicePaymentTimeout = invoicePaymentTimeout;
-
-        this.defaultWalletUri = defaultWalletUri;
-        this.mySettlerUri = mySettlerUri;
-
-        this.gigGossipNodeEvents = gigGossipNodeEvents;
-
+        using var TL = TRACE.Log().Args(fanout, priceAmountForRouting, timestampTolerance, invoicePaymentTimeout, nostrRelays, gigGossipNodeEvents, defaultWalletUri,  mySettlerUri);
         try
         {
-            await base.StartAsync(nostrRelays, flowLogger);
+            this.messageLocks = new();
+            this._contactList = new();
+            this._walletToken = new();
+            this._settlerToken = new();
+
+            this.settlerGigStatusClients = new();
+            this.settlerPreimageRevelClients = new();
+
+            this.fanout = fanout;
+            this.priceAmountForRouting = priceAmountForRouting;
+            this.timestampTolerance = timestampTolerance;
+            this.InvoicePaymentTimeout = invoicePaymentTimeout;
+
+            this.defaultWalletUri = defaultWalletUri;
+            this.mySettlerUri = mySettlerUri;
+
+            this.gigGossipNodeEvents = gigGossipNodeEvents;
+
+            await base.StartAsync(nostrRelays);
 
             _invoiceStateUpdatesMonitor = new InvoiceStateUpdatesMonitor(this);
             _paymentStatusUpdatesMonitor = new PaymentStatusUpdatesMonitor(this);
@@ -208,7 +207,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
         catch(Exception ex)
         {
-            await FlowLogger.TraceExceptionAsync(ex);
+            TL.Exception(ex);
             throw;
         }
     }
@@ -220,13 +219,22 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     public override async Task StopAsync()
     {
-        await base.StopAsync();
-        if (this._invoiceStateUpdatesMonitor != null)
-            this._invoiceStateUpdatesMonitor.Stop();
-        if (this._paymentStatusUpdatesMonitor != null)
-            this._paymentStatusUpdatesMonitor.Stop();
-        if(this._settlerMonitor!=null)
-            this._settlerMonitor.Stop();
+        using var TL = TRACE.Log();
+        try
+        {
+            await base.StopAsync();
+            if (this._invoiceStateUpdatesMonitor != null)
+                this._invoiceStateUpdatesMonitor.Stop();
+            if (this._paymentStatusUpdatesMonitor != null)
+                this._paymentStatusUpdatesMonitor.Stop();
+            if(this._settlerMonitor!=null)
+                this._settlerMonitor.Stop();
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public IWalletAPI GetWalletClient()
@@ -236,135 +244,257 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     public void ClearContacts()
     {
-        lock (_contactList)
+        using var TL = TRACE.Log();
+        try
         {
-            this.nodeContext.Value.RemoveObjectRange(
-            from c in this.nodeContext.Value.NostrContacts where c.PublicKey == this.PublicKey select c);
-            _contactList.Clear();
+            lock (_contactList)
+            {
+                this.nodeContext.Value.RemoveObjectRange(
+                from c in this.nodeContext.Value.NostrContacts where c.PublicKey == this.PublicKey select c);
+                _contactList.Clear();
+            }
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public override void OnHello(string eventId, bool isNew, string senderPublicKey)
     {
-        if (senderPublicKey != this.PublicKey)
-            AddContact(senderPublicKey, "");
+        using var TL = TRACE.Log().Args(eventId, isNew, senderPublicKey);
+        try
+        {
+            if (senderPublicKey != this.PublicKey)
+                AddContact(senderPublicKey, "");
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public override void OnSettings(string eventId, bool isNew, string settings)
     {
-        Settings = settings;
-        if (isNew)
-            this.gigGossipNodeEvents.OnSettings(this, settings);
+        using var TL = TRACE.Log().Args(eventId, isNew, settings);  
+        try
+        {
+            Settings = settings;
+            if (isNew)
+                this.gigGossipNodeEvents.OnSettings(this, settings);
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public override void OnEose()
     {
-        this.gigGossipNodeEvents.OnEoseArrived(this);
+        using var TL = TRACE.Log();
+        try
+        {
+            this.gigGossipNodeEvents.OnEoseArrived(this);
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void FireOnServerConnectionState(ServerConnectionSource source, ServerConnectionState state, Uri uri)
     {
-        this.gigGossipNodeEvents.OnServerConnectionState(this, source, state, uri);
+        using var TL = TRACE.Log().Args(source, state, uri);
+        try
+        {
+            this.gigGossipNodeEvents.OnServerConnectionState(this, source, state, uri);
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void AddContact(string contactPublicKey, string petname, string relay = "")
     {
-        if (contactPublicKey == this.PublicKey)
-            throw new GigGossipException(GigGossipNodeErrorCode.SelfConnection);
-        var c = new NostrContact()
+        using var TL = TRACE.Log().Args(contactPublicKey, petname, relay);
+        try
         {
-            PublicKey = this.PublicKey,
-            ContactPublicKey = contactPublicKey,
-            Petname = petname,
-            Relay = relay,
-        };
-
-        lock (_contactList)
-        {
-            if (!_contactList.ContainsKey(c.ContactPublicKey))
+            if (contactPublicKey == this.PublicKey)
+                throw new GigGossipException(GigGossipNodeErrorCode.SelfConnection);
+            var c = new NostrContact()
             {
-                _contactList[c.ContactPublicKey] = c;
-                this.nodeContext.Value.AddObject(c);
-                this.gigGossipNodeEvents.OnNewContact(this, c.ContactPublicKey);
+                PublicKey = this.PublicKey,
+                ContactPublicKey = contactPublicKey,
+                Petname = petname,
+                Relay = relay,
+            };
+
+            lock (_contactList)
+            {
+                if (!_contactList.ContainsKey(c.ContactPublicKey))
+                {
+                    _contactList[c.ContactPublicKey] = c;
+                    this.nodeContext.Value.AddObject(c);
+                    this.gigGossipNodeEvents.OnNewContact(this, c.ContactPublicKey);
+                }
             }
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public List<string> LoadContactList()
     {
-        lock (_contactList)
+        using var TL = TRACE.Log();
+        try
         {
-            var mycontacts = (from c in this.nodeContext.Value.NostrContacts where c.PublicKey == this.PublicKey select c);
-            foreach (var c in mycontacts)
-                _contactList[c.ContactPublicKey] = c;
-            return _contactList.Keys.ToList();
+            lock (_contactList)
+            {
+                var mycontacts = (from c in this.nodeContext.Value.NostrContacts where c.PublicKey == this.PublicKey select c);
+                foreach (var c in mycontacts)
+                    _contactList[c.ContactPublicKey] = c;
+                return _contactList.Keys.ToList();
+            }
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public List<string> GetContactList()
     {
-        lock (_contactList)
+        using var TL = TRACE.Log();
+        try
         {
-            return _contactList.Keys.ToList();
+            lock (_contactList)
+            {
+                return _contactList.Keys.ToList();
+            }
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public async Task<IGigStatusClient> GetGigStatusClientAsync(Uri serviceUri)
     {
-        return await settlerGigStatusClients.GetOrAddAsync(
-            serviceUri,
-            async (serviceUri) =>
-            {
-                var newClient = SettlerSelector.GetSettlerClient(serviceUri).CreateGigStatusClient();
-                await newClient.ConnectAsync(await MakeSettlerAuthTokenAsync(serviceUri), CancellationToken.None);
-                return newClient;
-            });
+        using var TL = TRACE.Log().Args(serviceUri);
+        try
+        {
+            return TL.Ret(
+                await settlerGigStatusClients.GetOrAddAsync(
+                serviceUri,
+                async (serviceUri) =>
+                {
+                    var newClient = SettlerSelector.GetSettlerClient(serviceUri).CreateGigStatusClient();
+                    await newClient.ConnectAsync(await MakeSettlerAuthTokenAsync(serviceUri), CancellationToken.None);
+                    return newClient;
+                })
+            );
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public async void DisposeGigStatusClient(Uri serviceUri)
     {
-        IGigStatusClient client;
-        if (settlerGigStatusClients.TryRemove(serviceUri, out client))
-            await client.DisposeAsync();
+        using var TL = TRACE.Log().Args(serviceUri);
+        try
+        {
+            IGigStatusClient client;
+            if (settlerGigStatusClients.TryRemove(serviceUri, out client))
+                await client.DisposeAsync();
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public async Task<IPreimageRevealClient> GetPreimageRevealClientAsync(Uri serviceUri)
     {
-        return await settlerPreimageRevelClients.GetOrAddAsync(
-            serviceUri,
-            async (serviceUri) =>
-            {
-                var newClient = SettlerSelector.GetSettlerClient(serviceUri).CreatePreimageRevealClient();
-                await newClient.ConnectAsync(await MakeSettlerAuthTokenAsync(serviceUri), CancellationToken.None);
-                return newClient;
-            });
+        using var TL = TRACE.Log().Args(serviceUri);
+        try
+        {
+            return TL.Ret(
+                await settlerPreimageRevelClients.GetOrAddAsync(
+                serviceUri,
+                async (serviceUri) =>
+                {
+                    var newClient = SettlerSelector.GetSettlerClient(serviceUri).CreatePreimageRevealClient();
+                    await newClient.ConnectAsync(await MakeSettlerAuthTokenAsync(serviceUri), CancellationToken.None);
+                    return newClient;
+                })
+            );
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public async void DisposePreimageRevealClient(Uri serviceUri)
     {
-        IPreimageRevealClient client;
-        if (settlerPreimageRevelClients.TryRemove(serviceUri, out client))
-            await client.DisposeAsync();
+        using var TL = TRACE.Log().Args(serviceUri);
+        try
+        {
+            IPreimageRevealClient client;
+            if (settlerPreimageRevelClients.TryRemove(serviceUri, out client))
+                await client.DisposeAsync();
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public List<string> GetBroadcastContactList(Guid signedrequestpayloadId, string? originatorPublicKey)
     {
+        using var TL = TRACE.Log().Args(signedrequestpayloadId, originatorPublicKey);
+        try
+        {
+            var rnd = new Random();
+            var contacts = new HashSet<string>(GetContactList());
+            var alreadyBroadcasted = (from inc in this.nodeContext.Value.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey).ToList();
+            contacts.ExceptWith(alreadyBroadcasted);
+            if (originatorPublicKey != null)
+                contacts.ExceptWith(new string[] { originatorPublicKey });
+            if (contacts.Count == 0)
+                return new List<string>();
 
-        var rnd = new Random();
-        var contacts = new HashSet<string>(GetContactList());
-        var alreadyBroadcasted = (from inc in this.nodeContext.Value.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey).ToList();
-        contacts.ExceptWith(alreadyBroadcasted);
-        if (originatorPublicKey != null)
-            contacts.ExceptWith(new string[] { originatorPublicKey });
-        if (contacts.Count == 0)
-            return new List<string>();
+            var retcontacts = (from r in contacts.AsEnumerable().OrderBy(x => rnd.Next()).Take(this.fanout) select new BroadcastHistoryRow() { ContactPublicKey = r, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
+            this.nodeContext.Value.TryAddObjectRange(retcontacts);
+            if (originatorPublicKey != null)
+                this.nodeContext.Value.TryAddObject(new BroadcastHistoryRow() { ContactPublicKey = originatorPublicKey, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
 
-        var retcontacts = (from r in contacts.AsEnumerable().OrderBy(x => rnd.Next()).Take(this.fanout) select new BroadcastHistoryRow() { ContactPublicKey = r, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
-        this.nodeContext.Value.TryAddObjectRange(retcontacts);
-        if (originatorPublicKey != null)
-            this.nodeContext.Value.TryAddObject(new BroadcastHistoryRow() { ContactPublicKey = originatorPublicKey, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
-
-        return (from r in retcontacts select r.ContactPublicKey).ToList();
+            return TL.Ret( 
+                (from r in retcontacts select r.ContactPublicKey).ToList()
+            );
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
 
@@ -372,71 +502,118 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                         string? originatorPublicKey = null,
                         OnionRoute? backwardOnion = null)
     {
-
-        var tobroadcast = GetBroadcastContactList(requestPayload.Id, originatorPublicKey);
-        if (tobroadcast.Count == 0)
+        using var TL = TRACE.Log().Args(requestPayload, originatorPublicKey, backwardOnion);
+        try
         {
-            await FlowLogger.TraceInformationAsync("already broadcasted");
-            return;
-        }
 
-        foreach (var peerPublicKey in tobroadcast)
-        {
-            BroadcastFrame broadcastFrame = new BroadcastFrame()
+            var tobroadcast = GetBroadcastContactList(requestPayload.Id, originatorPublicKey);
+            if (tobroadcast.Count == 0)
             {
-                SignedRequestPayload = requestPayload,
-                BackwardOnion = (backwardOnion ?? new OnionRoute()).Grow(
-                    this.PublicKey,
-                    peerPublicKey.AsECXOnlyPubKey())
-            };
-            await SendMessageAsync(peerPublicKey, broadcastFrame, true);
-            await FlowLogger.NewMessageAsync(this.PublicKey, peerPublicKey, "broadcast");
+                TL.Info("already broadcasted");
+                return;
+            }
+
+            foreach (var peerPublicKey in tobroadcast)
+            {
+                BroadcastFrame broadcastFrame = new BroadcastFrame()
+                {
+                    SignedRequestPayload = requestPayload,
+                    BackwardOnion = (backwardOnion ?? new OnionRoute()).Grow(
+                        this.PublicKey,
+                        peerPublicKey.AsECXOnlyPubKey())
+                };
+                await SendMessageAsync(peerPublicKey, broadcastFrame, true);
+                TL.NewMessage(this.PublicKey, peerPublicKey, "broadcast");
+            }
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public List<string> GetBroadcastCancelContactList(Guid signedrequestpayloadId)
     {
-        var alreadyBroadcastCanceled = (from inc in this.nodeContext.Value.BroadcastCancelHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey).ToList();
-        var alreadyBroadcasted = new HashSet<string>((from inc in this.nodeContext.Value.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey));
-        alreadyBroadcasted.ExceptWith(alreadyBroadcastCanceled);
-        this.nodeContext.Value.AddObjectRange((from r in alreadyBroadcasted select new BroadcastCancelHistoryRow() { ContactPublicKey = r, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey }));
-        return alreadyBroadcasted.ToList();
+        using var TL = TRACE.Log().Args(signedrequestpayloadId);
+        try
+        {
+            var alreadyBroadcastCanceled = (from inc in this.nodeContext.Value.BroadcastCancelHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey).ToList();
+            var alreadyBroadcasted = new HashSet<string>((from inc in this.nodeContext.Value.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey));
+            alreadyBroadcasted.ExceptWith(alreadyBroadcastCanceled);
+            this.nodeContext.Value.AddObjectRange((from r in alreadyBroadcasted select new BroadcastCancelHistoryRow() { ContactPublicKey = r, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey }));
+            return TL.Ret(
+                alreadyBroadcasted.ToList()
+            );
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public async Task CancelBroadcastAsync(Certificate<CancelRequestPayloadValue> cancelRequestPayload)
     {
-        var tobroadcast = GetBroadcastCancelContactList(cancelRequestPayload.Id);
-        foreach (var peerPublicKey in tobroadcast)
+        using var TL = TRACE.Log().Args(cancelRequestPayload);
+        try
         {
-            CancelBroadcastFrame cancelBroadcastFrame = new CancelBroadcastFrame()
+            var tobroadcast = GetBroadcastCancelContactList(cancelRequestPayload.Id);
+            foreach (var peerPublicKey in tobroadcast)
             {
-                SignedCancelRequestPayload = cancelRequestPayload
-            };
-            await this.SendMessageAsync(peerPublicKey, cancelBroadcastFrame, false, DateTime.UtcNow.AddMinutes(2));
+                CancelBroadcastFrame cancelBroadcastFrame = new CancelBroadcastFrame()
+                {
+                    SignedCancelRequestPayload = cancelRequestPayload
+                };
+                await this.SendMessageAsync(peerPublicKey, cancelBroadcastFrame, false, DateTime.UtcNow.AddMinutes(2));
+            }
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public async Task OnCancelBroadcastFrameAsync(string messageId, string peerPublicKey, CancelBroadcastFrame cancelBroadcastFrame)
     {
-        if (!await cancelBroadcastFrame.SignedCancelRequestPayload.VerifyAsync(SettlerSelector, CancellationTokenSource.Token))
-            return;
+        using var TL = TRACE.Log().Args(messageId, peerPublicKey, cancelBroadcastFrame);
+        try
+        {
+            if (!await cancelBroadcastFrame.SignedCancelRequestPayload.VerifyAsync(SettlerSelector, CancellationTokenSource.Token))
+                return;
 
-        gigGossipNodeEvents.OnCancelBroadcast(this, peerPublicKey, cancelBroadcastFrame);
-        await CancelBroadcastAsync(cancelBroadcastFrame.SignedCancelRequestPayload);
+            gigGossipNodeEvents.OnCancelBroadcast(this, peerPublicKey, cancelBroadcastFrame);
+            await CancelBroadcastAsync(cancelBroadcastFrame.SignedCancelRequestPayload);
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public async Task OnBroadcastFrameAsync(string messageId, string peerPublicKey, BroadcastFrame broadcastFrame)
     {
-        if (broadcastFrame.SignedRequestPayload.Value.Timestamp > DateTime.UtcNow)
-            return;
+        using var TL = TRACE.Log().Args(messageId, peerPublicKey, broadcastFrame);  
+        try
+        {
+            if (broadcastFrame.SignedRequestPayload.Value.Timestamp > DateTime.UtcNow)
+                return;
 
-        if (broadcastFrame.SignedRequestPayload.Value.Timestamp + this.timestampTolerance < DateTime.UtcNow)
-            return;
+            if (broadcastFrame.SignedRequestPayload.Value.Timestamp + this.timestampTolerance < DateTime.UtcNow)
+                return;
 
-        if (!await broadcastFrame.SignedRequestPayload.VerifyAsync(SettlerSelector, CancellationTokenSource.Token))
-            return;
+            if (!await broadcastFrame.SignedRequestPayload.VerifyAsync(SettlerSelector, CancellationTokenSource.Token))
+                return;
 
-        gigGossipNodeEvents.OnAcceptBroadcast(this, peerPublicKey, broadcastFrame);
+            gigGossipNodeEvents.OnAcceptBroadcast(this, peerPublicKey, broadcastFrame);
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public async Task BroadcastToPeersAsync(string peerPublicKey, BroadcastFrame broadcastFrame)
@@ -450,354 +627,465 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     public async Task<AcceptBroadcastReturnValue> AcceptBroadcastAsync(string peerPublicKey, BroadcastFrame broadcastFrame, AcceptBroadcastResponse acceptBroadcastResponse, Func<AcceptBroadcastReturnValue, Task> preSend, CancellationToken cancellationToken)
     {
-        ReplyFrame responseFrame;
-        PayReqRet decodedReplyInvoice;
-        Guid replierCertificateId;
-        string replyPaymentHash;
-
-        await alreadyBroadcastedSemaphore.WaitAsync();
+        using var TL = TRACE.Log().Args(peerPublicKey, broadcastFrame, acceptBroadcastResponse, preSend);
         try
         {
-            var alreadyBroadcasted = (from abx in this.nodeContext.Value.AcceptedBroadcasts
-                                      where abx.PublicKey == this.PublicKey
-                                      && abx.SignedRequestPayloadId == broadcastFrame.SignedRequestPayload.Id
-                                      && abx.SettlerServiceUri == acceptBroadcastResponse.SettlerServiceUri
-                                      select abx).FirstOrDefault();
 
-            if (alreadyBroadcasted == null)
+            ReplyFrame responseFrame;
+            PayReqRet decodedReplyInvoice;
+            Guid replierCertificateId;
+            string replyPaymentHash;
+
+            await alreadyBroadcastedSemaphore.WaitAsync();
+            try
             {
-                await FlowLogger.NewMessageAsync(this.PublicKey, Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), "getSecret");
-                var settlerClient = this.SettlerSelector.GetSettlerClient(acceptBroadcastResponse.SettlerServiceUri);
-                var authToken = await MakeSettlerAuthTokenAsync(acceptBroadcastResponse.SettlerServiceUri);
-                replyPaymentHash = SettlerAPIResult.Get<string>(await settlerClient.GenerateReplyPaymentPreimageAsync(authToken, broadcastFrame.SignedRequestPayload.Id, this.PublicKey, CancellationTokenSource.Token));
-                var replyInvoice = WalletAPIResult.Get<InvoiceRet>(await GetWalletClient().AddHodlInvoiceAsync(await MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)InvoicePaymentTimeout.TotalSeconds, cancellationToken)).PaymentRequest;
-                await FlowLogger.NewMessageAsync(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), replyPaymentHash, "hash");
-                await FlowLogger.NewMessageAsync(this.PublicKey, replyPaymentHash, "create");
-                decodedReplyInvoice = WalletAPIResult.Get<PayReqRet>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), replyInvoice, cancellationToken));
-                await this._invoiceStateUpdatesMonitor.MonitorInvoiceAsync(
-                    replyPaymentHash,
-                    Crypto.BinarySerializeObject(new InvoiceData()
+                var alreadyBroadcasted = (from abx in this.nodeContext.Value.AcceptedBroadcasts
+                                        where abx.PublicKey == this.PublicKey
+                                        && abx.SignedRequestPayloadId == broadcastFrame.SignedRequestPayload.Id
+                                        && abx.SettlerServiceUri == acceptBroadcastResponse.SettlerServiceUri
+                                        select abx).FirstOrDefault();
+
+                if (alreadyBroadcasted == null)
+                {
+                    TL.NewMessage(this.PublicKey, Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), "getSecret");
+                    var settlerClient = this.SettlerSelector.GetSettlerClient(acceptBroadcastResponse.SettlerServiceUri);
+                    var authToken = await MakeSettlerAuthTokenAsync(acceptBroadcastResponse.SettlerServiceUri);
+                    replyPaymentHash = SettlerAPIResult.Get<string>(await settlerClient.GenerateReplyPaymentPreimageAsync(authToken, broadcastFrame.SignedRequestPayload.Id, this.PublicKey, CancellationTokenSource.Token));
+                    var replyInvoice = WalletAPIResult.Get<InvoiceRet>(await GetWalletClient().AddHodlInvoiceAsync(await MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)InvoicePaymentTimeout.TotalSeconds, cancellationToken)).PaymentRequest;
+                    TL.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), replyPaymentHash, "hash");
+                    TL.NewMessage(this.PublicKey, replyPaymentHash, "create");
+                    decodedReplyInvoice = WalletAPIResult.Get<PayReqRet>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), replyInvoice, cancellationToken));
+                    await this._invoiceStateUpdatesMonitor.MonitorInvoiceAsync(
+                        replyPaymentHash,
+                        Crypto.BinarySerializeObject(new InvoiceData()
+                        {
+                            IsNetworkInvoice = false,
+                            Invoice = replyInvoice,
+                            PaymentHash = decodedReplyInvoice.PaymentHash,
+                            TotalSeconds = (int)InvoicePaymentTimeout.TotalSeconds
+                        }));
+
+                    await this._settlerMonitor.MonitorPreimageAsync(
+                        acceptBroadcastResponse.SettlerServiceUri,
+                        replyPaymentHash);
+                    var signedRequestPayloadSerialized = Crypto.BinarySerializeObject(broadcastFrame.SignedRequestPayload);
+                    var settr = SettlerAPIResult.Get<string>(await settlerClient.GenerateSettlementTrustAsync(authToken,
+                        string.Join(",",acceptBroadcastResponse.Properties),
+                        replyInvoice,
+                        new FileParameter(new MemoryStream(acceptBroadcastResponse.Message)),
+                        new FileParameter(new MemoryStream(signedRequestPayloadSerialized)),
+                        CancellationTokenSource.Token
+                        ));
+                    var settlementTrust = Crypto.BinaryDeserializeObject<SettlementTrust>(Convert.FromBase64String(settr));
+                    var signedSettlementPromise = settlementTrust.SettlementPromise;
+                    var networkInvoice = settlementTrust.NetworkInvoice;
+                    var decodedNetworkInvoice = WalletAPIResult.Get<PayReqRet>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), networkInvoice, cancellationToken));
+                    TL.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), decodedNetworkInvoice.PaymentHash, "create");
+                    var encryptedReplyPayload = settlementTrust.EncryptedReplyPayload;
+
+                    replierCertificateId = settlementTrust.ReplierCertificateId;
+
+                    this.nodeContext.Value.AddObject(new AcceptedBroadcastRow()
                     {
-                        IsNetworkInvoice = false,
-                        Invoice = replyInvoice,
-                        PaymentHash = decodedReplyInvoice.PaymentHash,
-                        TotalSeconds = (int)InvoicePaymentTimeout.TotalSeconds
-                    }));
+                        PublicKey = this.PublicKey,
+                        SignedRequestPayloadId = broadcastFrame.SignedRequestPayload.Id,
+                        SettlerServiceUri = acceptBroadcastResponse.SettlerServiceUri,
+                        EncryptedReplyPayload = encryptedReplyPayload,
+                        NetworkInvoice = networkInvoice,
+                        SignedSettlementPromise = Crypto.BinarySerializeObject(signedSettlementPromise),
+                        ReplyInvoice = replyInvoice,
+                        DecodedNetworkInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedNetworkInvoice),
+                        DecodedReplyInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedReplyInvoice),
+                        ReplyInvoiceHash = replyPaymentHash,
+                        Cancelled = false,
+                        ReplierCertificateId = settlementTrust.ReplierCertificateId,
+                    });
 
-                await this._settlerMonitor.MonitorPreimageAsync(
-                    acceptBroadcastResponse.SettlerServiceUri,
-                    replyPaymentHash);
-                var signedRequestPayloadSerialized = Crypto.BinarySerializeObject(broadcastFrame.SignedRequestPayload);
-                var settr = SettlerAPIResult.Get<string>(await settlerClient.GenerateSettlementTrustAsync(authToken,
-                    string.Join(",",acceptBroadcastResponse.Properties),
-                    replyInvoice,
-                    new FileParameter(new MemoryStream(acceptBroadcastResponse.Message)),
-                    new FileParameter(new MemoryStream(signedRequestPayloadSerialized)),
-                    CancellationTokenSource.Token
-                    ));
-                var settlementTrust = Crypto.BinaryDeserializeObject<SettlementTrust>(Convert.FromBase64String(settr));
-                var signedSettlementPromise = settlementTrust.SettlementPromise;
-                var networkInvoice = settlementTrust.NetworkInvoice;
-                var decodedNetworkInvoice = WalletAPIResult.Get<PayReqRet>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), networkInvoice, cancellationToken));
-                await FlowLogger.NewMessageAsync(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), decodedNetworkInvoice.PaymentHash, "create");
-                var encryptedReplyPayload = settlementTrust.EncryptedReplyPayload;
+                    TL.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), broadcastFrame.SignedRequestPayload.Id.ToString() + "_" + this.PublicKey, "create");
+                    TL.NewMessage(this.PublicKey, broadcastFrame.SignedRequestPayload.Id.ToString() + "_" + this.PublicKey, "encrypts");
 
-                replierCertificateId = settlementTrust.ReplierCertificateId;
-
-                this.nodeContext.Value.AddObject(new AcceptedBroadcastRow()
+                    responseFrame = new ReplyFrame()
+                    {
+                        EncryptedReplyPayload = encryptedReplyPayload,
+                        SignedSettlementPromise = signedSettlementPromise,
+                        ForwardOnion = broadcastFrame.BackwardOnion,
+                        NetworkInvoice = networkInvoice
+                    };
+                }
+                else
                 {
-                    PublicKey = this.PublicKey,
-                    SignedRequestPayloadId = broadcastFrame.SignedRequestPayload.Id,
-                    SettlerServiceUri = acceptBroadcastResponse.SettlerServiceUri,
-                    EncryptedReplyPayload = encryptedReplyPayload,
-                    NetworkInvoice = networkInvoice,
-                    SignedSettlementPromise = Crypto.BinarySerializeObject(signedSettlementPromise),
-                    ReplyInvoice = replyInvoice,
-                    DecodedNetworkInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedNetworkInvoice),
-                    DecodedReplyInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedReplyInvoice),
-                    ReplyInvoiceHash = replyPaymentHash,
-                    Cancelled = false,
-                    ReplierCertificateId = settlementTrust.ReplierCertificateId,
-                });
-
-                await FlowLogger.NewMessageAsync(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), broadcastFrame.SignedRequestPayload.Id.ToString() + "_" + this.PublicKey, "create");
-                await FlowLogger.NewMessageAsync(this.PublicKey, broadcastFrame.SignedRequestPayload.Id.ToString() + "_" + this.PublicKey, "encrypts");
-
-                responseFrame = new ReplyFrame()
-                {
-                    EncryptedReplyPayload = encryptedReplyPayload,
-                    SignedSettlementPromise = signedSettlementPromise,
-                    ForwardOnion = broadcastFrame.BackwardOnion,
-                    NetworkInvoice = networkInvoice
-                };
+                    replyPaymentHash = alreadyBroadcasted.ReplyInvoiceHash;
+                    decodedReplyInvoice = JsonSerializer.Deserialize<PayReqRet>(new MemoryStream(alreadyBroadcasted.DecodedReplyInvoice));
+                    replierCertificateId = alreadyBroadcasted.ReplierCertificateId;
+                    responseFrame = new ReplyFrame()
+                    {
+                        EncryptedReplyPayload = alreadyBroadcasted.EncryptedReplyPayload,
+                        SignedSettlementPromise = Crypto.BinaryDeserializeObject<SettlementPromise>(alreadyBroadcasted.SignedSettlementPromise),
+                        ForwardOnion = broadcastFrame.BackwardOnion,
+                        NetworkInvoice = alreadyBroadcasted.NetworkInvoice
+                    };
+                }
             }
-            else
+            finally
             {
-                replyPaymentHash = alreadyBroadcasted.ReplyInvoiceHash;
-                decodedReplyInvoice = JsonSerializer.Deserialize<PayReqRet>(new MemoryStream(alreadyBroadcasted.DecodedReplyInvoice));
-                replierCertificateId = alreadyBroadcasted.ReplierCertificateId;
-                responseFrame = new ReplyFrame()
-                {
-                    EncryptedReplyPayload = alreadyBroadcasted.EncryptedReplyPayload,
-                    SignedSettlementPromise = Crypto.BinaryDeserializeObject<SettlementPromise>(alreadyBroadcasted.SignedSettlementPromise),
-                    ForwardOnion = broadcastFrame.BackwardOnion,
-                    NetworkInvoice = alreadyBroadcasted.NetworkInvoice
-                };
+                alreadyBroadcastedSemaphore.Release();
             }
+            var ret = new AcceptBroadcastReturnValue()
+            {
+                ReplierCertificateId = replierCertificateId,
+                DecodedReplyInvoice = decodedReplyInvoice,
+                ReplyInvoiceHash = replyPaymentHash,
+            };
+
+            await preSend(ret);
+
+            await OnResponseFrameAsync(null, peerPublicKey, responseFrame, newResponse: true, cancellationToken);
+
+            return TL.Ret(ret);
         }
-        finally
+        catch(Exception ex)
         {
-            alreadyBroadcastedSemaphore.Release();
+            TL.Exception(ex);
+            throw;
         }
-        var ret = new AcceptBroadcastReturnValue()
-        {
-            ReplierCertificateId = replierCertificateId,
-            DecodedReplyInvoice = decodedReplyInvoice,
-            ReplyInvoiceHash = replyPaymentHash,
-        };
-
-        await preSend(ret);
-
-        await this.OnResponseFrameAsync(null, peerPublicKey, responseFrame, newResponse: true, cancellationToken);
-
-        return ret;
-    }
+   }
 
     public async Task OnResponseFrameAsync(string messageId, string peerPublicKey, ReplyFrame responseFrame, bool newResponse, CancellationToken cancellationToken)
     {
-        await alreadyBroadcastedSemaphore.WaitAsync();
+        using var TL = TRACE.Log().Args(messageId, peerPublicKey, responseFrame, newResponse);
         try
         {
-            var decodedNetworkInvoice = WalletAPIResult.Get<PayReqRet>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), responseFrame.NetworkInvoice, cancellationToken));
-            if (responseFrame.ForwardOnion.IsEmpty())
+            await alreadyBroadcastedSemaphore.WaitAsync();
+            try
             {
-                await FlowLogger.NewMessageAsync(peerPublicKey, this.PublicKey, "reply");
-                var settlerPubKey = await SettlerSelector.GetPubKeyAsync(responseFrame.SignedSettlementPromise.RequestersServiceUri, CancellationTokenSource.Token);
-                var replyPayload = await responseFrame.DecryptAndVerifyAsync(privateKey, settlerPubKey, this.SettlerSelector, CancellationTokenSource.Token);
-                if (replyPayload == null)
+                var decodedNetworkInvoice = WalletAPIResult.Get<PayReqRet>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), responseFrame.NetworkInvoice, cancellationToken));
+                if (responseFrame.ForwardOnion.IsEmpty())
                 {
-                    await FlowLogger.TraceErrorAsync("reply payload mismatch");
-                    return;
-                }
-                await _settlerMonitor.MonitorGigStatusAsync(
-                    responseFrame.SignedSettlementPromise.ServiceUri,
-                    replyPayload.Value.SignedRequestPayload.Id,
-                    replyPayload.Id,
-                    Crypto.BinarySerializeObject(replyPayload));
-
-                var decodedReplyInvoice = WalletAPIResult.Get<PayReqRet>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), replyPayload.Value.ReplyInvoice, cancellationToken));
-
-                await this._invoiceStateUpdatesMonitor.MonitorInvoiceAsync(
-                    decodedReplyInvoice.PaymentHash,
-                    Crypto.BinarySerializeObject(new InvoiceData()
+                    TL.NewMessage(peerPublicKey, this.PublicKey, "reply");
+                    var settlerPubKey = await SettlerSelector.GetPubKeyAsync(responseFrame.SignedSettlementPromise.RequestersServiceUri, CancellationTokenSource.Token);
+                    var replyPayload = await responseFrame.DecryptAndVerifyAsync(privateKey, settlerPubKey, this.SettlerSelector, CancellationTokenSource.Token);
+                    if (replyPayload == null)
                     {
-                        IsNetworkInvoice = false,
-                        Invoice = replyPayload.Value.ReplyInvoice,
-                        PaymentHash = decodedReplyInvoice.PaymentHash,
-                        TotalSeconds = (int)InvoicePaymentTimeout.TotalSeconds
-                    }));
+                        TL.Warning("reply payload mismatch");
+                        return;
+                    }
+                    await _settlerMonitor.MonitorGigStatusAsync(
+                        responseFrame.SignedSettlementPromise.ServiceUri,
+                        replyPayload.Value.SignedRequestPayload.Id,
+                        replyPayload.Id,
+                        Crypto.BinarySerializeObject(replyPayload));
 
-                this.nodeContext.Value.AddObject(
-                    new ReplyPayloadRow()
-                    {
-                        ReplyId = Guid.NewGuid(),
-                        PublicKey = this.PublicKey,
-                        SignedRequestPayloadId = replyPayload.Value.SignedRequestPayload.Id,
-                        ReplierCertificateId = replyPayload.Id,
-                        ReplyInvoice = replyPayload.Value.ReplyInvoice,
-                        DecodedReplyInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedReplyInvoice),
-                        NetworkInvoice = responseFrame.NetworkInvoice,
-                        DecodedNetworkInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedNetworkInvoice),
-                        TheReplyPayload = Crypto.BinarySerializeObject(replyPayload)
-                    });
+                    var decodedReplyInvoice = WalletAPIResult.Get<PayReqRet>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), replyPayload.Value.ReplyInvoice, cancellationToken));
 
-                gigGossipNodeEvents.OnNewResponse(this, replyPayload, replyPayload.Value.ReplyInvoice, decodedReplyInvoice, responseFrame.NetworkInvoice, decodedNetworkInvoice);
-            }
-            else
-            {
-                var topLayerPublicKey = responseFrame.ForwardOnion.Peel(privateKey);
-                if (!await responseFrame.SignedSettlementPromise.VerifyAsync(responseFrame.EncryptedReplyPayload, this.SettlerSelector, CancellationTokenSource.Token))
-                {
-                    return;
+                    await this._invoiceStateUpdatesMonitor.MonitorInvoiceAsync(
+                        decodedReplyInvoice.PaymentHash,
+                        Crypto.BinarySerializeObject(new InvoiceData()
+                        {
+                            IsNetworkInvoice = false,
+                            Invoice = replyPayload.Value.ReplyInvoice,
+                            PaymentHash = decodedReplyInvoice.PaymentHash,
+                            TotalSeconds = (int)InvoicePaymentTimeout.TotalSeconds
+                        }));
+
+                    this.nodeContext.Value.AddObject(
+                        new ReplyPayloadRow()
+                        {
+                            ReplyId = Guid.NewGuid(),
+                            PublicKey = this.PublicKey,
+                            SignedRequestPayloadId = replyPayload.Value.SignedRequestPayload.Id,
+                            ReplierCertificateId = replyPayload.Id,
+                            ReplyInvoice = replyPayload.Value.ReplyInvoice,
+                            DecodedReplyInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedReplyInvoice),
+                            NetworkInvoice = responseFrame.NetworkInvoice,
+                            DecodedNetworkInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedNetworkInvoice),
+                            TheReplyPayload = Crypto.BinarySerializeObject(replyPayload)
+                        });
+
+                    gigGossipNodeEvents.OnNewResponse(this, replyPayload, replyPayload.Value.ReplyInvoice, decodedReplyInvoice, responseFrame.NetworkInvoice, decodedNetworkInvoice);
                 }
-
-                if (!newResponse)
+                else
                 {
-                    await FlowLogger.NewReplyAsync(peerPublicKey, this.PublicKey, "reply");
-                    var settlerClient = this.SettlerSelector.GetSettlerClient(responseFrame.SignedSettlementPromise.ServiceUri);
-                    var settok = await MakeSettlerAuthTokenAsync(responseFrame.SignedSettlementPromise.ServiceUri);
-
-                    if (!SettlerAPIResult.Get<bool>(await settlerClient.ValidateRelatedPaymentHashesAsync(settok,
-                        responseFrame.SignedSettlementPromise.NetworkPaymentHash.AsHex(),
-                        decodedNetworkInvoice.PaymentHash,
-                        CancellationTokenSource.Token)))
+                    var topLayerPublicKey = responseFrame.ForwardOnion.Peel(privateKey);
+                    if (!await responseFrame.SignedSettlementPromise.VerifyAsync(responseFrame.EncryptedReplyPayload, this.SettlerSelector, CancellationTokenSource.Token))
                     {
                         return;
                     }
 
-                    var relatedNetworkPaymentHash = SettlerAPIResult.Get<string>(await settlerClient.GenerateRelatedPreimageAsync(
-                        settok,
-                        decodedNetworkInvoice.PaymentHash,
-                        CancellationTokenSource.Token));
+                    if (!newResponse)
+                    {
+                        TL.NewReply(peerPublicKey, this.PublicKey, "reply");
+                        var settlerClient = this.SettlerSelector.GetSettlerClient(responseFrame.SignedSettlementPromise.ServiceUri);
+                        var settok = await MakeSettlerAuthTokenAsync(responseFrame.SignedSettlementPromise.ServiceUri);
 
-                    var networkInvoice = WalletAPIResult.Get<InvoiceRet>(await GetWalletClient().AddHodlInvoiceAsync(
-                        await this.MakeWalletAuthToken(),
-                        decodedNetworkInvoice.ValueSat + this.priceAmountForRouting,
-                        relatedNetworkPaymentHash, "", (long)InvoicePaymentTimeout.TotalSeconds, cancellationToken));
-                    await FlowLogger.NewMessageAsync(this.PublicKey, relatedNetworkPaymentHash, "create");
-                    await this._invoiceStateUpdatesMonitor.MonitorInvoiceAsync(
-                        relatedNetworkPaymentHash,
-                        Crypto.BinarySerializeObject(new InvoiceData()
+                        if (!SettlerAPIResult.Get<bool>(await settlerClient.ValidateRelatedPaymentHashesAsync(settok,
+                            responseFrame.SignedSettlementPromise.NetworkPaymentHash.AsHex(),
+                            decodedNetworkInvoice.PaymentHash,
+                            CancellationTokenSource.Token)))
                         {
-                            IsNetworkInvoice = true,
-                            Invoice = responseFrame.NetworkInvoice,
-                            PaymentHash = decodedNetworkInvoice.PaymentHash,
-                            TotalSeconds = (int)InvoicePaymentTimeout.TotalSeconds
-                        }));
-                    await this._settlerMonitor.MonitorPreimageAsync(
-                        responseFrame.SignedSettlementPromise.ServiceUri,
-                        relatedNetworkPaymentHash);
-                    responseFrame = responseFrame.DeepCopy();
-                    responseFrame.NetworkInvoice = networkInvoice.PaymentRequest;
+                            return;
+                        }
+
+                        var relatedNetworkPaymentHash = SettlerAPIResult.Get<string>(await settlerClient.GenerateRelatedPreimageAsync(
+                            settok,
+                            decodedNetworkInvoice.PaymentHash,
+                            CancellationTokenSource.Token));
+
+                        var networkInvoice = WalletAPIResult.Get<InvoiceRet>(await GetWalletClient().AddHodlInvoiceAsync(
+                            await this.MakeWalletAuthToken(),
+                            decodedNetworkInvoice.ValueSat + this.priceAmountForRouting,
+                            relatedNetworkPaymentHash, "", (long)InvoicePaymentTimeout.TotalSeconds, cancellationToken));
+                        TL.NewMessage(this.PublicKey, relatedNetworkPaymentHash, "create");
+                        await this._invoiceStateUpdatesMonitor.MonitorInvoiceAsync(
+                            relatedNetworkPaymentHash,
+                            Crypto.BinarySerializeObject(new InvoiceData()
+                            {
+                                IsNetworkInvoice = true,
+                                Invoice = responseFrame.NetworkInvoice,
+                                PaymentHash = decodedNetworkInvoice.PaymentHash,
+                                TotalSeconds = (int)InvoicePaymentTimeout.TotalSeconds
+                            }));
+                        await this._settlerMonitor.MonitorPreimageAsync(
+                            responseFrame.SignedSettlementPromise.ServiceUri,
+                            relatedNetworkPaymentHash);
+                        responseFrame = responseFrame.DeepCopy();
+                        responseFrame.NetworkInvoice = networkInvoice.PaymentRequest;
+                    }
+                    await SendMessageAsync(topLayerPublicKey, responseFrame, false, DateTime.UtcNow + InvoicePaymentTimeout);
                 }
-                await SendMessageAsync(topLayerPublicKey, responseFrame, false, DateTime.UtcNow + InvoicePaymentTimeout);
+            }
+            finally
+            {
+                alreadyBroadcastedSemaphore.Release();
             }
         }
-        finally
+        catch(Exception ex)
         {
-            alreadyBroadcastedSemaphore.Release();
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public List<ReplyPayloadRow> GetReplyPayloads()
     {
-        alreadyBroadcastedSemaphore.Wait();
+        using var TL = TRACE.Log();
         try
         {
-            return (from rp in this.nodeContext.Value.ReplyPayloads where rp.PublicKey == this.PublicKey select rp).ToList();
+            alreadyBroadcastedSemaphore.Wait();
+            try
+            {
+                return TL.Ret(
+                    (from rp in this.nodeContext.Value.ReplyPayloads where rp.PublicKey == this.PublicKey select rp).ToList()
+                );
+            }
+            finally
+            {
+                alreadyBroadcastedSemaphore.Release();
+            }
         }
-        finally
+        catch(Exception ex)
         {
-            alreadyBroadcastedSemaphore.Release();
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public List<ReplyPayloadRow> GetReplyPayloads(Guid signedrequestpayloadId)
     {
-        alreadyBroadcastedSemaphore.Wait();
+        using var TL = TRACE.Log().Args(signedrequestpayloadId);
         try
         {
-            return (from rp in this.nodeContext.Value.ReplyPayloads where rp.PublicKey == this.PublicKey && rp.SignedRequestPayloadId == signedrequestpayloadId select rp).ToList();
+            alreadyBroadcastedSemaphore.Wait();
+            try
+            {
+                return TL.Ret(
+                     (from rp in this.nodeContext.Value.ReplyPayloads where rp.PublicKey == this.PublicKey && rp.SignedRequestPayloadId == signedrequestpayloadId select rp).ToList()
+                );
+            }
+            finally
+            {
+                alreadyBroadcastedSemaphore.Release();
+            }
         }
-        finally
+        catch(Exception ex)
         {
-            alreadyBroadcastedSemaphore.Release();
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public List<AcceptedBroadcastRow> GetAcceptedNotCancelledBroadcasts()
     {
-        alreadyBroadcastedSemaphore.Wait();
+        using var TL = TRACE.Log();
         try
         {
-            return (from rp in this.nodeContext.Value.AcceptedBroadcasts where rp.PublicKey == this.PublicKey && !rp.Cancelled select rp).ToList();
+            alreadyBroadcastedSemaphore.Wait();
+            try
+            {
+                return TL.Ret(
+                    (from rp in this.nodeContext.Value.AcceptedBroadcasts where rp.PublicKey == this.PublicKey && !rp.Cancelled select rp).ToList()
+                );
+            }
+            finally
+            {
+                alreadyBroadcastedSemaphore.Release();
+            }
         }
-        finally
+        catch(Exception ex)
         {
-            alreadyBroadcastedSemaphore.Release();
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public void MarkBroadcastAsCancelled(AcceptedBroadcastRow brd)
     {
-        alreadyBroadcastedSemaphore.Wait();
+        using var TL = TRACE.Log().Args(brd);
         try
         {
-            brd.Cancelled = true;
-            this.nodeContext.Value.SaveObject(brd);
+            alreadyBroadcastedSemaphore.Wait();
+            try
+            {
+                brd.Cancelled = true;
+                this.nodeContext.Value.SaveObject(brd);
+            }
+            finally
+            {
+                alreadyBroadcastedSemaphore.Release();
+            }
         }
-        finally
+        catch(Exception ex)
         {
-            alreadyBroadcastedSemaphore.Release();
+            TL.Exception(ex);
+            throw;
         }
     }
 
 
     public AcceptedBroadcastRow GetAcceptedBroadcastsByReqestPayloadId(Guid signedrequestpayloadId)
     {
-        alreadyBroadcastedSemaphore.Wait();
+        using var TL = TRACE.Log().Args(signedrequestpayloadId);
         try
         {
-            return (from rp in this.nodeContext.Value.AcceptedBroadcasts where rp.PublicKey == this.PublicKey && rp.SignedRequestPayloadId == signedrequestpayloadId select rp).FirstOrDefault();
+            alreadyBroadcastedSemaphore.Wait();
+            try
+            {
+                return TL.Ret(
+                     (from rp in this.nodeContext.Value.AcceptedBroadcasts where rp.PublicKey == this.PublicKey && rp.SignedRequestPayloadId == signedrequestpayloadId select rp).FirstOrDefault()
+                );
+            }
+            finally
+            {
+                alreadyBroadcastedSemaphore.Release();
+            }
         }
-        finally
+        catch(Exception ex)
         {
-            alreadyBroadcastedSemaphore.Release();
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public AcceptedBroadcastRow GetAcceptedBroadcastsByReplyInvoiceHash(string replyInvoiceHash)
     {
-        alreadyBroadcastedSemaphore.Wait();
+        using var TL = TRACE.Log().Args(replyInvoiceHash);
         try
         {
-            return (from rp in this.nodeContext.Value.AcceptedBroadcasts where rp.PublicKey == this.PublicKey && rp.ReplyInvoiceHash == replyInvoiceHash select rp).FirstOrDefault();
+            alreadyBroadcastedSemaphore.Wait();
+            try
+            {
+                return TL.Ret(
+                    (from rp in this.nodeContext.Value.AcceptedBroadcasts where rp.PublicKey == this.PublicKey && rp.ReplyInvoiceHash == replyInvoiceHash select rp).FirstOrDefault()
+                );
+            }
+            finally
+            {
+                alreadyBroadcastedSemaphore.Release();
+            }
         }
-        finally
+        catch(Exception ex)
         {
-            alreadyBroadcastedSemaphore.Release();
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public void OnInvoiceStateChange(string state, byte[] data)
     {
-        var iac = Crypto.BinaryDeserializeObject<InvoiceData>(data);
-        FlowLogger.NewNoteAsync(iac.PaymentHash, state);
-        if (iac.IsNetworkInvoice)
+        using var TL = TRACE.Log().Args(state, data);
+        try
         {
-            if (state == "Accepted")
-                this.gigGossipNodeEvents.OnNetworkInvoiceAccepted(this, iac);
-            else if (state == "Cancelled")
-                this.gigGossipNodeEvents.OnNetworkInvoiceCancelled(this, iac);
+            var iac = Crypto.BinaryDeserializeObject<InvoiceData>(data);
+            TL.NewNote(iac.PaymentHash, state);
+            if (iac.IsNetworkInvoice)
+            {
+                if (state == "Accepted")
+                    this.gigGossipNodeEvents.OnNetworkInvoiceAccepted(this, iac);
+                else if (state == "Cancelled")
+                    this.gigGossipNodeEvents.OnNetworkInvoiceCancelled(this, iac);
+            }
+            else
+            {
+                if (state == "Accepted")
+                    this.gigGossipNodeEvents.OnInvoiceAccepted(this, iac);
+                else if (state == "Cancelled")
+                    this.gigGossipNodeEvents.OnInvoiceCancelled(this, iac);
+            }
         }
-        else
+        catch(Exception ex)
         {
-            if (state == "Accepted")
-                this.gigGossipNodeEvents.OnInvoiceAccepted(this, iac);
-            else if (state == "Cancelled")
-                this.gigGossipNodeEvents.OnInvoiceCancelled(this, iac);
+            TL.Exception(ex);
+            throw;
         }
     }
 
     public async Task<GigLNDWalletAPIErrorCode> PayNetworkInvoiceAsync(InvoiceData iac, long feelimit, CancellationToken cancellationToken)
     {
-        if (_paymentStatusUpdatesMonitor.IsPaymentMonitored(iac.PaymentHash))
-            return GigLNDWalletAPIErrorCode.AlreadyPayed;
-        await _paymentStatusUpdatesMonitor.MonitorPaymentAsync(iac.PaymentHash, Crypto.BinarySerializeObject(
-            new PaymentData()
-            {
-                Invoice = iac.Invoice,
-                PaymentHash = iac.PaymentHash
-            }));
-        var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(
-            await MakeWalletAuthToken(), iac.Invoice, iac.TotalSeconds, feelimit, cancellationToken
-            ));
-        if (paymentStatus != GigLNDWalletAPIErrorCode.Ok)
+        using var TL = TRACE.Log().Args(iac, feelimit);
+        try
         {
-            await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(iac.PaymentHash);
+            if (_paymentStatusUpdatesMonitor.IsPaymentMonitored(iac.PaymentHash))
+                return GigLNDWalletAPIErrorCode.AlreadyPayed;
+            await _paymentStatusUpdatesMonitor.MonitorPaymentAsync(iac.PaymentHash, Crypto.BinarySerializeObject(
+                new PaymentData()
+                {
+                    Invoice = iac.Invoice,
+                    PaymentHash = iac.PaymentHash
+                }));
+            var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(
+                await MakeWalletAuthToken(), iac.Invoice, iac.TotalSeconds, feelimit, cancellationToken
+                ));
+            if (paymentStatus != GigLNDWalletAPIErrorCode.Ok)
+            {
+                await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(iac.PaymentHash);
+            }
+            return TL.Ret(paymentStatus);
         }
-        return paymentStatus;
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public async void OnPaymentStatusChange(string status, byte[] data)
     {
-        var pay = Crypto.BinaryDeserializeObject<PaymentData>(data);
-        this.gigGossipNodeEvents.OnPaymentStatusChange(this, status, pay);
-        await FlowLogger.NewMessageAsync(this.PublicKey, pay.PaymentHash, "pay_" + status);
+        using var TL = TRACE.Log().Args(status, data);
+        try
+        {
+            var pay = Crypto.BinaryDeserializeObject<PaymentData>(data);
+            this.gigGossipNodeEvents.OnPaymentStatusChange(this, status, pay);
+            TL.NewMessage(this.PublicKey, pay.PaymentHash, "pay_" + status);
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public async Task<bool> OnPreimageRevealedAsync(Uri serviceUri, string phash, string preimage,CancellationToken cancellationToken)
     {
+        using var TL = TRACE.Log().Args(serviceUri, phash, preimage);
         try
         {
             WalletAPIResult.Check(await GetWalletClient().SettleInvoiceAsync(
@@ -805,125 +1093,207 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 preimage,
                 cancellationToken
                 ));
-            await FlowLogger.NewMessageAsync(Encoding.Default.GetBytes(serviceUri.AbsoluteUri).AsHex(), phash, "revealed");
-            await FlowLogger.NewMessageAsync(this.PublicKey, phash, "settled");
+            TL.NewMessage(Encoding.Default.GetBytes(serviceUri.AbsoluteUri).AsHex(), phash, "revealed");
+            TL.NewMessage(this.PublicKey, phash, "settled");
             gigGossipNodeEvents.OnInvoiceSettled(this, serviceUri, phash, preimage);
-            return true; 
+            return TL.Ret(true); 
         }
         catch (Exception ex)
         {
-            await FlowLogger.TraceExceptionAsync(ex);
-            return false;
+            TL.Exception(ex);
+            return TL.Ret(false);
         }
     }
 
     public void OnSymmetricKeyRevealed(byte[] data, string key)
     {
-        var replyPayload = Crypto.BinaryDeserializeObject<Certificate<ReplyPayloadValue>>(data);
-        gigGossipNodeEvents.OnResponseReady(this, replyPayload, key);
+        using var TL = TRACE.Log().Args(data, key);
+        try
+        {
+            var replyPayload = Crypto.BinaryDeserializeObject<Certificate<ReplyPayloadValue>>(data);
+            gigGossipNodeEvents.OnResponseReady(this, replyPayload, key);
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public void OnGigCancelled(byte[] data)
     {
-        var replyPayload = Crypto.BinaryDeserializeObject<Certificate<ReplyPayloadValue>>(data);
-        gigGossipNodeEvents.OnResponseCancelled(this, replyPayload);
+        using var TL = TRACE.Log().Args(data);
+        try
+        {
+            var replyPayload = Crypto.BinaryDeserializeObject<Certificate<ReplyPayloadValue>>(data);
+            gigGossipNodeEvents.OnResponseCancelled(this, replyPayload);
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public async Task<GigLNDWalletAPIErrorCode> AcceptResponseAsync(Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice, long feelimit, CancellationToken cancellationToken)
     {
-        var ballance = WalletAPIResult.Get<long>(await GetWalletClient().GetBalanceAsync(await MakeWalletAuthToken(), cancellationToken));
-        if (ballance < decodedReplyInvoice.ValueSat + decodedNetworkInvoice.ValueSat + 2 * feelimit)
-            return GigLNDWalletAPIErrorCode.NotEnoughFunds;
-
-        if (!_paymentStatusUpdatesMonitor.IsPaymentMonitored(decodedNetworkInvoice.PaymentHash))
+        using var TL = TRACE.Log().Args(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice, feelimit);
+        try
         {
-            await _paymentStatusUpdatesMonitor.MonitorPaymentAsync(decodedNetworkInvoice.PaymentHash, Crypto.BinarySerializeObject(
-            new PaymentData()
-            {
-                Invoice = networkInvoice,
-                PaymentHash = decodedNetworkInvoice.PaymentHash
-            }));
-            var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), networkInvoice, (int)this.InvoicePaymentTimeout.TotalSeconds, feelimit,cancellationToken));
-            if(paymentStatus!= GigLNDWalletAPIErrorCode.Ok)
-            {
-                await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(decodedNetworkInvoice.PaymentHash);
-                return paymentStatus;
-            }
-        }
+            var ballance = WalletAPIResult.Get<long>(await GetWalletClient().GetBalanceAsync(await MakeWalletAuthToken(), cancellationToken));
+            if (ballance < decodedReplyInvoice.ValueSat + decodedNetworkInvoice.ValueSat + 2 * feelimit)
+                return TL.Ret(GigLNDWalletAPIErrorCode.NotEnoughFunds);
 
-        if (!_paymentStatusUpdatesMonitor.IsPaymentMonitored(decodedReplyInvoice.PaymentHash))
-        {
-            await _paymentStatusUpdatesMonitor.MonitorPaymentAsync(decodedReplyInvoice.PaymentHash, Crypto.BinarySerializeObject(
-            new PaymentData()
+            if (!_paymentStatusUpdatesMonitor.IsPaymentMonitored(decodedNetworkInvoice.PaymentHash))
             {
-                Invoice = replyInvoice,
-                PaymentHash = decodedReplyInvoice.PaymentHash
-            }));
-            var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), replyInvoice, (int)this.InvoicePaymentTimeout.TotalSeconds, feelimit,cancellationToken));
-            if (paymentStatus != GigLNDWalletAPIErrorCode.Ok)
-            {
-                await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(decodedNetworkInvoice.PaymentHash);
-                return paymentStatus;
+                await _paymentStatusUpdatesMonitor.MonitorPaymentAsync(decodedNetworkInvoice.PaymentHash, Crypto.BinarySerializeObject(
+                new PaymentData()
+                {
+                    Invoice = networkInvoice,
+                    PaymentHash = decodedNetworkInvoice.PaymentHash
+                }));
+                var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), networkInvoice, (int)this.InvoicePaymentTimeout.TotalSeconds, feelimit,cancellationToken));
+                if(paymentStatus!= GigLNDWalletAPIErrorCode.Ok)
+                {
+                    await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(decodedNetworkInvoice.PaymentHash);
+                    return TL.Ret(paymentStatus);
+                }
             }
+
+            if (!_paymentStatusUpdatesMonitor.IsPaymentMonitored(decodedReplyInvoice.PaymentHash))
+            {
+                await _paymentStatusUpdatesMonitor.MonitorPaymentAsync(decodedReplyInvoice.PaymentHash, Crypto.BinarySerializeObject(
+                new PaymentData()
+                {
+                    Invoice = replyInvoice,
+                    PaymentHash = decodedReplyInvoice.PaymentHash
+                }));
+                var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), replyInvoice, (int)this.InvoicePaymentTimeout.TotalSeconds, feelimit,cancellationToken));
+                if (paymentStatus != GigLNDWalletAPIErrorCode.Ok)
+                {
+                    await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(decodedNetworkInvoice.PaymentHash);
+                    return TL.Ret(paymentStatus);
+                }
+            }
+            return TL.Ret(GigLNDWalletAPIErrorCode.Ok);
         }
-        return GigLNDWalletAPIErrorCode.Ok;
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     private void LoadMessageLocks()
     {
-        messageLocks = new ConcurrentDictionary<string, bool>(from m in this.nodeContext.Value.MessagesDone where m.PublicKey == this.PublicKey select KeyValuePair.Create(m.MessageId, true));
+        using var TL = TRACE.Log();
+        try
+        {
+            messageLocks = new ConcurrentDictionary<string, bool>(from m in this.nodeContext.Value.MessagesDone where m.PublicKey == this.PublicKey select KeyValuePair.Create(m.MessageId, true));
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public override bool OpenMessage(string id)
     {
-        return messageLocks.TryAdd(id, true);
+        using var TL = TRACE.Log().Args(id);
+        try
+        {
+            return TL.Ret(messageLocks.TryAdd(id, true));
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public override bool CommitMessage(string id)
     {
-        return this.nodeContext.Value.TryAddObject(new MessageDoneRow() { MessageId = id, PublicKey = this.PublicKey });
+        using var TL = TRACE.Log().Args(id);
+        try
+        {
+            return TL.Ret(
+                this.nodeContext.Value.TryAddObject(new MessageDoneRow() { MessageId = id, PublicKey = this.PublicKey })
+            );
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
-    public override void AbortMessage(string id)
+    public override bool AbortMessage(string id)
     {
-        messageLocks.TryRemove(id, out _);
+        using var TL = TRACE.Log().Args(id);
+        try
+        {
+            return TL.Ret(messageLocks.TryRemove(id, out _));
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public override async Task OnMessageAsync(string messageId, bool isNew, string senderPublicKey, object frame)
     {
-        if (frame is BroadcastFrame)
+        using var TL = TRACE.Log().Args(messageId, isNew, senderPublicKey, frame);
+        try
         {
-            await OnBroadcastFrameAsync(messageId, senderPublicKey, (BroadcastFrame)frame);
+            if (frame is BroadcastFrame)
+            {
+                await OnBroadcastFrameAsync(messageId, senderPublicKey, (BroadcastFrame)frame);
+            }
+            else if (frame is CancelBroadcastFrame)
+            {
+                await OnCancelBroadcastFrameAsync(messageId, senderPublicKey, (CancelBroadcastFrame)frame);
+            }
+            else if (frame is ReplyFrame)
+            {
+                await OnResponseFrameAsync(messageId, senderPublicKey, (ReplyFrame)frame, false, CancellationTokenSource.Token);
+            }
+            else
+            {
+                throw new GigGossipException(GigGossipNodeErrorCode.FrameTypeNotRegistered);
+            }
         }
-        else if (frame is CancelBroadcastFrame)
+        catch(Exception ex)
         {
-            await OnCancelBroadcastFrameAsync(messageId, senderPublicKey, (CancelBroadcastFrame)frame);
+            TL.Exception(ex);
+            throw;
         }
-        else if (frame is ReplyFrame)
-        {
-            await OnResponseFrameAsync(messageId, senderPublicKey, (ReplyFrame)frame, false, CancellationTokenSource.Token);
-        }
-        else
-        {
-            throw new GigGossipException(GigGossipNodeErrorCode.FrameTypeNotRegistered);
-        }
-
     }
 
     public async Task<BroadcastTopicResponse> BroadcastTopicAsync<T>(T topic, string[] properties, Func<BroadcastTopicResponse,Task> preSend) where T:IProtoFrame
     {
-        var settler = SettlerSelector.GetSettlerClient(mySettlerUri);
-        var token = await MakeSettlerAuthTokenAsync(mySettlerUri);
-        var topicByte = Crypto.BinarySerializeObject(topic!);
-        var response = SettlerAPIResult.Get<string>(await settler.GenerateRequestPayloadAsync(token, string.Join(",",properties), new FileParameter(new MemoryStream(topicByte)), CancellationTokenSource.Token));
-        var base64Response = Convert.FromBase64String(response);
-        var broadcastTopicResponse = Crypto.BinaryDeserializeObject<BroadcastTopicResponse>(base64Response);
+        using var TL = TRACE.Log().Args(topic, properties, preSend);
+        try
+        {
+            var settler = SettlerSelector.GetSettlerClient(mySettlerUri);
+            var token = await MakeSettlerAuthTokenAsync(mySettlerUri);
+            var topicByte = Crypto.BinarySerializeObject(topic!);
+            var response = SettlerAPIResult.Get<string>(await settler.GenerateRequestPayloadAsync(token, string.Join(",",properties), new FileParameter(new MemoryStream(topicByte)), CancellationTokenSource.Token));
+            var base64Response = Convert.FromBase64String(response);
+            var broadcastTopicResponse = Crypto.BinaryDeserializeObject<BroadcastTopicResponse>(base64Response);
 
-        await preSend(broadcastTopicResponse);
+            await preSend(broadcastTopicResponse);
 
-        await BroadcastAsync(broadcastTopicResponse!.SignedRequestPayload);
+            await BroadcastAsync(broadcastTopicResponse!.SignedRequestPayload);
 
-        return broadcastTopicResponse;
+            return TL.Ret(broadcastTopicResponse);
+        }
+        catch(Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
 

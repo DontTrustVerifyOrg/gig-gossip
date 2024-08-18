@@ -153,7 +153,7 @@ public partial class RideShareCLIApp
                             }
                             catch (Exception ex)
                             {
-                                await e.GigGossipNode.FlowLogger.TraceExceptionAsync(ex);
+                                e.GigGossipNode.FlowLogger.TraceException(ex);
                                 //if already cancelled or settled
                             }
                         }

@@ -21,6 +21,7 @@ using System.Reactive.Linq;
 using Nostr.Client.Responses;
 using System.IO;
 using Nostr.Client.Requests;
+using GigDebugLoggerAPIClient;
 
 namespace NGigGossip4Nostr;
 
@@ -41,9 +42,14 @@ public abstract class NostrNode
     private bool consumeCL;
     protected CancellationTokenSource CancellationTokenSource = new();
     public IRetryPolicy RetryPolicy;
-
-    public IFlowLogger FlowLogger { get; private set; }
+    LogWrapper<NostrNode> TRACE = FlowLoggerFactory.Trace<NostrNode>();
     public bool Started => nostrClient != null;
+
+    object waitingForEvent = new object();
+    string waitedEventId;
+    bool eventReceived = false;
+    bool eventAccepted = false;
+
 
     public event EventHandler<ServerConnectionStateEventArgs> OnServerConnectionState;
 
@@ -91,36 +97,28 @@ public abstract class NostrNode
 
     protected async Task SayHelloAsync()
     {
-        Guid? g__ = null; string? m__ = null; if (FlowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = FlowLogger.MetNam(); }
+        using var TL = TRACE.Log();
         try
         {
-            await FlowLogger.TraceInAsync(this, g__, m__);
+            var newEvent = new NostrEvent()
             {
-                var newEvent = new NostrEvent()
-                {
-                    Kind = NostrKind.GigGossipHelloKind,
-                    CreatedAt = DateTime.UtcNow,
-                    Content = "",
-                    Tags = { },
-                };
-                SendEvent(newEvent.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
-            }
-            await FlowLogger.TraceVoidAsync(this, g__, m__);
+                Kind = NostrKind.GigGossipHelloKind,
+                CreatedAt = DateTime.UtcNow,
+                Content = "",
+                Tags = { },
+            };
+            SendEvent(newEvent.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
         }
         catch (Exception ex)
         {
-            await FlowLogger.TraceExcAsync(this, g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
-    object waitingForEvent = new object();
-    string waitedEventId;
-    bool eventReceived = false;
-    bool eventAccepted = false;
-
     void EventAck(string eventId,bool accepted)
     {
+        using var TL = TRACE.Log().Args(eventId,accepted);
         lock(waitingForEvent)
         {
             if (eventId == waitedEventId)
@@ -134,107 +132,109 @@ public abstract class NostrNode
 
     void SendEvent(NostrEvent e, int retryCount,bool throwOnFailure)
     {
-        for (int i = 0; i < retryCount; i++)
+        using var TL = TRACE.Log().Args(e, retryCount, throwOnFailure);
+        try
         {
-            lock (waitingForEvent)
+            for (int i = 0; i < retryCount; i++)
             {
-                waitedEventId = e.Id;
-                eventReceived = false;
-                eventAccepted = false;
-                _ = Task.Run(() =>
-                    nostrClient.Send(new NostrEventRequest(e))
-                ); 
-                while (true)
+                lock (waitingForEvent)
                 {
-                    if (!Monitor.Wait(waitingForEvent, 60000))
-                        break;
-                    if (eventReceived)
+                    waitedEventId = e.Id;
+                    eventReceived = false;
+                    eventAccepted = false;
+                    _ = Task.Run(() =>
+                        nostrClient.Send(new NostrEventRequest(e))
+                    ); 
+                    while (true)
                     {
-                        if (eventAccepted)
-                            return;
-                        else
+                        if (!Monitor.Wait(waitingForEvent, 60000))
                             break;
+                        if (eventReceived)
+                        {
+                            if (eventAccepted)
+                                return;
+                            else
+                                break;
+                        }
                     }
                 }
+                Thread.Sleep(1000);
             }
-            Thread.Sleep(1000);
+            if (throwOnFailure)
+                throw new Exception();
         }
-        if (throwOnFailure)
-            throw new Exception();
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     protected async Task SaveSettings(string settings)
     {
-        Guid? g__ = null; string? m__ = null; if (FlowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = FlowLogger.MetNam(); }
+        using var TL = TRACE.Log().Args(settings);
         try
         {
-            await FlowLogger.TraceInAsync(this, g__, m__, settings);
+            var newEvent = new NostrEvent()
             {
-                var newEvent = new NostrEvent()
-                {
-                    Kind = NostrKind.GigGossipSettingsKind,
-                    CreatedAt = DateTime.UtcNow,
-                    Content = settings,
-                    Tags = new NostrEventTags(new NostrEventTag("p", this.PublicKey)),
-                };
-                var encrypted = NostrEncryptedEvent.Encrypt(newEvent, NostrPrivateKey.FromEc(this.privateKey), NostrKind.GigGossipSettingsKind);
-                SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
-            }
-            await FlowLogger.TraceVoidAsync(this, g__, m__);
+                Kind = NostrKind.GigGossipSettingsKind,
+                CreatedAt = DateTime.UtcNow,
+                Content = settings,
+                Tags = new NostrEventTags(new NostrEventTag("p", this.PublicKey)),
+            };
+            var encrypted = NostrEncryptedEvent.Encrypt(newEvent, NostrPrivateKey.FromEc(this.privateKey), NostrKind.GigGossipSettingsKind);
+            SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
         }
         catch (Exception ex)
         {
-            await FlowLogger.TraceExcAsync(this, g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     public async Task<string> SendMessageAsync<T>(string targetPublicKey, T frame, bool ephemeral, DateTime? expiration = null) where T:IProtoFrame
     {
-        Guid? g__ = null; string? m__ = null; if (FlowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = FlowLogger.MetNam(); }
+        using var TL = TRACE.Log().Args(targetPublicKey, frame, ephemeral, expiration);
         try
         {
-            await FlowLogger.TraceInAsync(this, g__, m__, targetPublicKey, frame, ephemeral, expiration);
+            var message = Convert.ToBase64String(Crypto.BinarySerializeObject(frame));
+            var evid = Guid.NewGuid().ToString();
+
+            int numOfParts = 1 + message.Length / ChunkSize;
+            List<NostrEvent> events = new();
+            for (int idx = 0; idx < numOfParts; idx++)
             {
-                var message = Convert.ToBase64String(Crypto.BinarySerializeObject(frame));
-                var evid = Guid.NewGuid().ToString();
+                var part = ((idx + 1) * ChunkSize < message.Length) ? message.Substring(idx * ChunkSize, ChunkSize) : message.Substring(idx * ChunkSize);
+                var tags = new List<NostrEventTag> {
+                    new NostrEventTag("p", targetPublicKey),
+                    new NostrEventTag("x", evid),
+                    new NostrEventTag("t", frame.GetType().Name),
+                    new NostrEventTag("i", idx.ToString()),
+                    new NostrEventTag("n", numOfParts.ToString())
+                };
+                if (expiration != null)
+                    tags.Add(new NostrEventTag("expiration", ((DateTimeOffset)expiration.Value).ToUnixTimeSeconds().ToString()));
 
-                int numOfParts = 1 + message.Length / ChunkSize;
-                List<NostrEvent> events = new();
-                for (int idx = 0; idx < numOfParts; idx++)
+                var kind = ephemeral ? NostrKind.GigGossipEphemeralMessageKind : NostrKind.GigGossipMessageKind;
+                var newEvent = new NostrEvent()
                 {
-                    var part = ((idx + 1) * ChunkSize < message.Length) ? message.Substring(idx * ChunkSize, ChunkSize) : message.Substring(idx * ChunkSize);
-                    var tags = new List<NostrEventTag> {
-                        new NostrEventTag("p", targetPublicKey),
-                        new NostrEventTag("x", evid),
-                        new NostrEventTag("t", frame.GetType().Name),
-                        new NostrEventTag("i", idx.ToString()),
-                        new NostrEventTag("n", numOfParts.ToString())
-                    };
-                    if (expiration != null)
-                        tags.Add(new NostrEventTag("expiration", ((DateTimeOffset)expiration.Value).ToUnixTimeSeconds().ToString()));
+                    Kind = kind,
+                    CreatedAt = DateTime.UtcNow,
+                    Content = part,
+                    Tags = new NostrEventTags(tags)
+                };
 
-                    var kind = ephemeral ? NostrKind.GigGossipEphemeralMessageKind : NostrKind.GigGossipMessageKind;
-                    var newEvent = new NostrEvent()
-                    {
-                        Kind = kind,
-                        CreatedAt = DateTime.UtcNow,
-                        Content = part,
-                        Tags = new NostrEventTags(tags)
-                    };
-
-                    var encrypted = newEvent.Encrypt(NostrPrivateKey.FromEc(this.privateKey), NostrPublicKey.FromHex(targetPublicKey), kind);
-                    if(ephemeral)
-                        SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)),1,false);
-                    else
-                        SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
-                }
-                return await FlowLogger.TraceOutAsync(this, g__, m__, evid);
+                var encrypted = newEvent.Encrypt(NostrPrivateKey.FromEc(this.privateKey), NostrPublicKey.FromHex(targetPublicKey), kind);
+                if(ephemeral)
+                    SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)), 1,false);
+                else
+                    SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
             }
+            return TL.Ret(evid);
         }
         catch (Exception ex)
         {
-            await FlowLogger.TraceExcAsync(this, g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
@@ -246,198 +246,228 @@ public abstract class NostrNode
 
     public abstract bool OpenMessage(string id);
     public abstract bool CommitMessage(string id);
-    public abstract void AbortMessage(string id);
+    public abstract bool AbortMessage(string id);
 
-    protected async Task StartAsync(string[] nostrRelays, IFlowLogger flowLogger)
+    protected async Task StartAsync(string[] nostrRelays)
     {
-        if (nostrClient != null)
-            await StopAsync();
-
-        if (OnServerConnectionState != null)
-            OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Connecting });
-
-        SubscriptionId = Guid.NewGuid().ToString();
-
-        CancellationTokenSource = new();
-        FlowLogger = flowLogger;
-        NostrRelays = nostrRelays;
-        var relays = (from rel in nostrRelays select new NostrWebsocketCommunicator(new System.Uri(rel))).ToArray();
-        foreach (var relay in relays)
+        using var TL = TRACE.Log().Args(nostrRelays);
+        try
         {
-            relay.Name = relay.Url.Host;
-            relay.ReconnectTimeout = TimeSpan.FromSeconds(30);
-            relay.ErrorReconnectTimeout = TimeSpan.FromSeconds(60);
-            relay.ReconnectionHappened.Subscribe((e) => NostrClient_ReconnectionHappened(relay.Name, relay.Url, e));
-            relay.DisconnectionHappened.Subscribe((e) => NostrClient_DisconnectionHappened(relay.Name, relay.Url, e));
+            if (nostrClient != null)
+                await StopAsync();
+
+            if (OnServerConnectionState != null)
+                OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Connecting });
+
+            SubscriptionId = Guid.NewGuid().ToString();
+
+            CancellationTokenSource = new();
+            NostrRelays = nostrRelays;
+            var relays = (from rel in nostrRelays select new NostrWebsocketCommunicator(new System.Uri(rel))).ToArray();
+            foreach (var relay in relays)
+            {
+                relay.Name = relay.Url.Host;
+                relay.ReconnectTimeout = TimeSpan.FromSeconds(30);
+                relay.ErrorReconnectTimeout = TimeSpan.FromSeconds(60);
+                relay.ReconnectionHappened.Subscribe((e) => NostrClient_ReconnectionHappened(relay.Name, relay.Url, e));
+                relay.DisconnectionHappened.Subscribe((e) => NostrClient_DisconnectionHappened(relay.Name, relay.Url, e));
+            }
+
+            nostrClient = new NostrMultiWebsocketClient(NullLogger<NostrWebsocketClient>.Instance, relays);
+            this.eoseReceived = false;
+            await RetryPolicy.WithRetryPolicy(async () => relays.ToList().ForEach(relay => relay.Start()));
+
+            var events = nostrClient.Streams.EventStream.Where(x => x.Event != null);
+            events.Subscribe(NostrClient_EventsReceived);
+            //        nostrClient.Streams.NoticeStream.Subscribe(NostrClient_NoticeReceived);
+            nostrClient.Streams.OkStream.Subscribe(NostrClient_OkReceived);
+            nostrClient.Streams.EoseStream.Subscribe(NostrClient_EoseReceived);
+            //nostrClient.Streams.UnknownMessageStream.Subscribe(NostrClient_UnknownMessageStream);
+            //        ForwardStream(client, client.Streams.UnknownRawStream, Streams.UnknownRawSubject);
+
+            if (OnServerConnectionState != null)
+                OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Open });
         }
-
-        nostrClient = new NostrMultiWebsocketClient(NullLogger<NostrWebsocketClient>.Instance, relays);
-        this.eoseReceived = false;
-        await RetryPolicy.WithRetryPolicy(async () => relays.ToList().ForEach(relay => relay.Start()));
-
-        var events = nostrClient.Streams.EventStream.Where(x => x.Event != null);
-        events.Subscribe(NostrClient_EventsReceived);
-        //        nostrClient.Streams.NoticeStream.Subscribe(NostrClient_NoticeReceived);
-        nostrClient.Streams.OkStream.Subscribe(NostrClient_OkReceived);
-        nostrClient.Streams.EoseStream.Subscribe(NostrClient_EoseReceived);
-        //nostrClient.Streams.UnknownMessageStream.Subscribe(NostrClient_UnknownMessageStream);
-        //        ForwardStream(client, client.Streams.UnknownRawStream, Streams.UnknownRawSubject);
-
-        if (OnServerConnectionState != null)
-            OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Open });
-
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public virtual async Task StopAsync()
     {
-        if (nostrClient == null)
-            return;
-        Unsubscribe();
-        nostrClient.Dispose();
-        nostrClient = null;
+        using var TL = TRACE.Log();
+        try
+        {
+            if (nostrClient == null)
+                return;
+            Unsubscribe();
+            nostrClient.Dispose();
+            nostrClient = null;
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     private void Subscribe(INostrClient client)
     {
-        client.Send(new NostrRequest4(SubscriptionId,
-            new NostrFilter
-            {
-                Kinds = new[] { NostrKind.GigGossipSettingsKind },
-                Authors = new[] { publicKey.AsHex() },
-                P = new[] { publicKey.AsHex() },
-            },
-            new NostrFilter
-            {
-                Kinds = new[] { NostrKind.GigGossipHelloKind },
-            },
-            new NostrFilter
-            {
-                Kinds = new[] { NostrKind.GigGossipMessageKind },
-                P = new[] { publicKey.AsHex() }
-            },
-            new NostrFilter
-            {
-                Kinds = new[] { NostrKind.GigGossipEphemeralMessageKind },
-                P = new[] { publicKey.AsHex() }
-            }));
+        using var TL = TRACE.Log();
+        try
+        {
+            client.Send(new NostrRequest4(SubscriptionId,
+                new NostrFilter
+                {
+                    Kinds = new[] { NostrKind.GigGossipSettingsKind },
+                    Authors = new[] { publicKey.AsHex() },
+                    P = new[] { publicKey.AsHex() },
+                },
+                new NostrFilter
+                {
+                    Kinds = new[] { NostrKind.GigGossipHelloKind },
+                },
+                new NostrFilter
+                {
+                    Kinds = new[] { NostrKind.GigGossipMessageKind },
+                    P = new[] { publicKey.AsHex() }
+                },
+                new NostrFilter
+                {
+                    Kinds = new[] { NostrKind.GigGossipEphemeralMessageKind },
+                    P = new[] { publicKey.AsHex() }
+                }));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     private void Unsubscribe()
     {
-        nostrClient.Send(new NostrCloseRequest(SubscriptionId));
+        using var TL = TRACE.Log();
+        try
+        {
+            nostrClient.Send(new NostrCloseRequest(SubscriptionId));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     private async void NostrClient_DisconnectionHappened(string relayName, Uri uri, Websocket.Client.DisconnectionInfo e)
     {
-        Guid? g__ = null; string? m__ = null; if (FlowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = FlowLogger.MetNam(); }
+        using var TL = TRACE.Log().Args(relayName, uri, e);
         try
         {
-            await FlowLogger.TraceInAsync(this, g__, m__);
-            {
-                await FlowLogger.TraceWarningAsync(this, g__, m__, "Connection to NOSTR relay lost");
-                if (e.Type != Websocket.Client.DisconnectionType.NoMessageReceived)
-                    OnServerConnectionState?.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Quiet, Uri = uri });
-                await FlowLogger.TraceVoidAsync(this, g__, m__);
-            }
+            TL.Warning("Connection to NOSTR relay lost");
+            if (e.Type != Websocket.Client.DisconnectionType.NoMessageReceived)
+                OnServerConnectionState?.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Quiet, Uri = uri });
         }
         catch (Exception ex)
         {
-            await FlowLogger.TraceExcAsync(this, g__, m__, ex);
+            TL.Exception(ex);
         }
     }
 
     private async void NostrClient_ReconnectionHappened(string relayName, Uri uri, Websocket.Client.ReconnectionInfo e)
     {
-        Guid? g__ = null; string? m__ = null; if (FlowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = FlowLogger.MetNam(); }
+        using var TL = TRACE.Log().Args(relayName, uri, e);
         try
         {
-            await FlowLogger.TraceInAsync(this, g__, m__);
+            var client = nostrClient.FindClient(relayName);
+            if (client != null)
             {
-                var client = nostrClient.FindClient(relayName);
-                if (client != null)
-                {
-                    this.eoseReceived = false;
-                    Subscribe(client);
-                }
-                else
-                {
-                    await FlowLogger.TraceWarningAsync(this, g__, m__, "Client Not Found");
-                }
-                if (e.Type == Websocket.Client.ReconnectionType.Initial)
-                    await FlowLogger.TraceWarningAsync(this, g__, m__, "Connected to NOSTR");
-                else
-                    await FlowLogger.TraceWarningAsync(this, g__, m__, "Reconnecting to NOSTR");
-                OnServerConnectionState?.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Open, Uri = uri });
-                await FlowLogger.TraceVoidAsync(this, g__, m__);
+                this.eoseReceived = false;
+                Subscribe(client);
             }
+            else
+            {
+                TL.Warning("Client Not Found");
+            }
+            if (e.Type == Websocket.Client.ReconnectionType.Initial)
+                TL.Warning("Connected to NOSTR");
+            else
+                TL.Warning("Reconnecting to NOSTR");
+
+            OnServerConnectionState?.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Open, Uri = uri });
         }
         catch (Exception ex)
         {
-            await FlowLogger.TraceExcAsync(this, g__, m__, ex);
+            TL.Exception(ex);
         }
     }
 
     private async void NostrClient_EoseReceived(NostrEoseResponse e)
     {
-        Guid? g__ = null; string? m__ = null; if (FlowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = FlowLogger.MetNam(); }
+        using var TL = TRACE.Log().Args(e);
         try
         {
-            await FlowLogger.TraceInAsync(this, g__, m__);
+            if (e.Subscription == SubscriptionId)
             {
-                if (e.Subscription == SubscriptionId)
+                await eventSemSlim.WaitAsync();
+                try
                 {
-                    await eventSemSlim.WaitAsync();
-                    try
+                    if (e.Subscription == SubscriptionId)
                     {
-                        if (e.Subscription == SubscriptionId)
-                        {
-                            eoseReceived = true;
-                            OnEose();
-                        }
-                    }
-                    finally
-                    {
-                        eventSemSlim.Release();
+                        eoseReceived = true;
+                        OnEose();
                     }
                 }
-                await FlowLogger.TraceVoidAsync(this, g__, m__);
+                finally
+                {
+                    eventSemSlim.Release();
+                }
             }
         }
         catch (Exception ex)
         {
-            await FlowLogger.TraceExcAsync(this, g__, m__, ex);
-            throw;
+            TL.Exception(ex);
         }
     }
 
     private async void NostrClient_OkReceived(NostrOkResponse e)
     {
-        EventAck(e.EventId,e.Accepted);
+        using var TL = TRACE.Log().Args(e);
+        try
+        {
+            EventAck(e.EventId,e.Accepted);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+        }
     }
 
     private async void NostrClient_EventsReceived(NostrEventResponse e)
     {
-        Guid? g__ = null; string? m__ = null; if (FlowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = FlowLogger.MetNam(); }
+        using var TL = TRACE.Log().Args(e);
         try
         {
-            await FlowLogger.TraceInAsync(this, g__, m__, e);
+            if (e.Subscription == SubscriptionId)
             {
-                if (e.Subscription == SubscriptionId)
-                {
-                    var nostrEvent = e.Event;
-                    if ((nostrEvent.Kind == NostrKind.GigGossipSettingsKind) && nostrEvent is NostrEncryptedEvent encryptedSettingsNostrEvent)
-                        await ProcessSettingsAsync(encryptedSettingsNostrEvent);
-                    else if (nostrEvent.Kind == NostrKind.GigGossipHelloKind)
-                        await ProcessHelloAsync(nostrEvent);
-                    else if (nostrEvent is NostrEncryptedEvent encryptedNostrEvent)
-                        await ProcessNewMessageAsync(encryptedNostrEvent);
-                }
+                var nostrEvent = e.Event;
+                if ((nostrEvent.Kind == NostrKind.GigGossipSettingsKind) && nostrEvent is NostrEncryptedEvent encryptedSettingsNostrEvent)
+                    await ProcessSettingsAsync(encryptedSettingsNostrEvent);
+                else if (nostrEvent.Kind == NostrKind.GigGossipHelloKind)
+                    await ProcessHelloAsync(nostrEvent);
+                else if (nostrEvent is NostrEncryptedEvent encryptedNostrEvent)
+                    await ProcessNewMessageAsync(encryptedNostrEvent);
             }
-            await FlowLogger.TraceVoidAsync(this, g__, m__);
+            else
+            {
+                TL.Warning($"Subscription ID mismatch {SubscriptionId} != {e.Subscription}");
+            }
         }
         catch (Exception ex)
         {
-            await FlowLogger.TraceExcAsync(this, g__, m__, ex);
+            TL.Exception(ex);
         }
     }
 
@@ -445,73 +475,77 @@ public abstract class NostrNode
 
     private async Task ProcessNewMessageAsync(NostrEncryptedEvent nostrEvent)
     {
-        Dictionary<string, List<string>> tagDic = new();
-        foreach (var tag in nostrEvent.Tags)
+        using var TL = TRACE.Log().Args(nostrEvent);
+        try
         {
-            if (tag.AdditionalData.Count() > 0)
-                tagDic[tag.TagIdentifier] = tag.AdditionalData.ToList();
-        }
-        if (tagDic.ContainsKey("p") && tagDic.ContainsKey("t"))
-            if (tagDic["p"][0] == publicKey.AsHex())
+            Dictionary<string, List<string>> tagDic = new();
+            foreach (var tag in nostrEvent.Tags)
             {
-                int parti = int.Parse(tagDic["i"][0]);
-                int partNum = int.Parse(tagDic["n"][0]);
-                string idx = tagDic["x"][0];
-                var msg = nostrEvent.DecryptContent(NostrPrivateKey.FromEc(this.privateKey));
-                if (partNum == 1)
+                if (tag.AdditionalData.Count() > 0)
+                    tagDic[tag.TagIdentifier] = tag.AdditionalData.ToList();
+            }
+            if (tagDic.ContainsKey("p") && tagDic.ContainsKey("t"))
+                if (tagDic["p"][0] == publicKey.AsHex())
                 {
-                    var t = GetFrameType(tagDic["t"][0]);
-                    if (t == null)
-                        return;
-                    var frame = Crypto.BinaryDeserializeObject(Convert.FromBase64String(msg), t);
-                    await this.DoOnMessageAsync(idx, eoseReceived, nostrEvent.Pubkey, frame);
-                }
-                else
-                {
-                    var inner_dic = _partial_messages.GetOrAdd(idx, (idx) => new ConcurrentDictionary<int, string>());
-                    if (inner_dic.TryAdd(parti, msg))
+                    int parti = int.Parse(tagDic["i"][0]);
+                    int partNum = int.Parse(tagDic["n"][0]);
+                    string idx = tagDic["x"][0];
+                    var msg = nostrEvent.DecryptContent(NostrPrivateKey.FromEc(this.privateKey));
+                    if (partNum == 1)
                     {
-                        if (inner_dic.Count == partNum)
+                        var t = GetFrameType(tagDic["t"][0]);
+                        if (t == null)
+                            return;
+                        var frame = Crypto.BinaryDeserializeObject(Convert.FromBase64String(msg), t);
+                        await this.DoOnMessageAsync(idx, eoseReceived, nostrEvent.Pubkey, frame);
+                    }
+                    else
+                    {
+                        var inner_dic = _partial_messages.GetOrAdd(idx, (idx) => new ConcurrentDictionary<int, string>());
+                        if (inner_dic.TryAdd(parti, msg))
                         {
-                            _partial_messages.TryRemove(idx, out _);
-                            var txt = string.Join("", new SortedDictionary<int, string>(inner_dic).Values);
-                            var t = GetFrameType(tagDic["t"][0]);
-                            if (t == null)
-                                return;
-                            var frame = Crypto.BinaryDeserializeObject(Convert.FromBase64String(txt), t);
-                            await this.DoOnMessageAsync(idx, eoseReceived, nostrEvent.Pubkey, frame);
+                            if (inner_dic.Count == partNum)
+                            {
+                                _partial_messages.TryRemove(idx, out _);
+                                var txt = string.Join("", new SortedDictionary<int, string>(inner_dic).Values);
+                                var t = GetFrameType(tagDic["t"][0]);
+                                if (t == null)
+                                    return;
+                                var frame = Crypto.BinaryDeserializeObject(Convert.FromBase64String(txt), t);
+                                await this.DoOnMessageAsync(idx, eoseReceived, nostrEvent.Pubkey, frame);
+                            }
                         }
                     }
                 }
-            }
+         }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     private async Task DoOnMessageAsync(string eventId, bool isNew, string senderPublicKey, object frame)
     {
-        Guid? g__ = null; string? m__ = null; if (FlowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = FlowLogger.MetNam(); }
+        using var TL = TRACE.Log().Args(eventId, isNew, senderPublicKey, frame);
         try
         {
-            await FlowLogger.TraceInAsync(this, g__, m__, eventId, isNew, senderPublicKey, frame);
+            if (!OpenMessage(eventId))
+                return;
+            try
             {
-
-                if (!OpenMessage(eventId))
-                    return;
-                try
-                {
-                    await OnMessageAsync(eventId, isNew, senderPublicKey, frame);
-                    CommitMessage(eventId);
-                }
-                catch (Exception ex)
-                {
-                    await FlowLogger.TraceExceptionAsync(ex);
-                    AbortMessage(eventId);
-                }
+                await OnMessageAsync(eventId, isNew, senderPublicKey, frame);
+                CommitMessage(eventId);
             }
-            await FlowLogger.TraceVoidAsync(this, g__, m__);
+            catch (Exception ex)
+            {
+                TL.Exception(ex);
+                AbortMessage(eventId);
+            }
         }
         catch (Exception ex)
         {
-            await FlowLogger.TraceExcAsync(this, g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
@@ -521,57 +555,49 @@ public abstract class NostrNode
         if (!consumeCL)
             return;
 
-        Guid? g__ = null; string? m__ = null; if (FlowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = FlowLogger.MetNam(); }
+        using var TL = TRACE.Log().Args(nostrEvent);
         try
         {
-            await FlowLogger.TraceInAsync(this, g__, m__, nostrEvent);
+            if (!OpenMessage(nostrEvent.Id))
+                return;
+            try
             {
-                if (!OpenMessage(nostrEvent.Id))
-                    return;
-                try
-                {
-                    OnHello(nostrEvent.Id, eoseReceived, nostrEvent.Pubkey);
-                }
-                catch (Exception ex)
-                {
-                    await FlowLogger.TraceExceptionAsync(ex);
-                    AbortMessage(nostrEvent.Id);
-                }
+                OnHello(nostrEvent.Id, eoseReceived, nostrEvent.Pubkey);
             }
-            await FlowLogger.TraceVoidAsync(this, g__, m__);
+            catch (Exception ex)
+            {
+                TL.Exception(ex);
+                AbortMessage(nostrEvent.Id);
+            }
         }
         catch (Exception ex)
         {
-            await FlowLogger.TraceExcAsync(this, g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
 
     private async Task ProcessSettingsAsync(NostrEncryptedEvent nostrEvent)
     {
-        Guid? g__ = null; string? m__ = null; if (FlowLogger.Enabled) { g__ = Guid.NewGuid(); m__ = FlowLogger.MetNam(); }
+        using var TL = TRACE.Log().Args(nostrEvent);
         try
         {
-            await FlowLogger.TraceInAsync(this, g__, m__, nostrEvent);
+            if (!OpenMessage(nostrEvent.Id))
+                return;
+            try
             {
-                if (!OpenMessage(nostrEvent.Id))
-                    return;
-                try
-                {
-                    var msg = nostrEvent.DecryptContent(NostrPrivateKey.FromEc(this.privateKey));
-                    OnSettings(nostrEvent.Id, eoseReceived, msg);
-                }
-                catch (Exception ex)
-                {
-                    await FlowLogger.TraceExceptionAsync(ex);
-                    AbortMessage(nostrEvent.Id);
-                }
+                var msg = nostrEvent.DecryptContent(NostrPrivateKey.FromEc(this.privateKey));
+                OnSettings(nostrEvent.Id, eoseReceived, msg);
             }
-            await FlowLogger.TraceVoidAsync(this, g__, m__);
+            catch (Exception ex)
+            {
+                TL.Exception(ex);
+                AbortMessage(nostrEvent.Id);
+            }
         }
         catch (Exception ex)
         {
-            await FlowLogger.TraceExcAsync(this, g__, m__, ex);
+            TL.Exception(ex);
             throw;
         }
     }
