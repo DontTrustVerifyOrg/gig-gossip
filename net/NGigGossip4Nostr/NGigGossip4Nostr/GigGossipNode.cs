@@ -74,7 +74,6 @@ public interface IGigGossipNodeEvents
 
     public void OnNewContact(GigGossipNode me, string pubkey);
     public void OnSettings(GigGossipNode me, string settings);
-    public void OnEoseArrived(GigGossipNode me);
 
     public void OnServerConnectionState(GigGossipNode me, ServerConnectionSource source, ServerConnectionState state, Uri uri);
 }
@@ -261,9 +260,9 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public override void OnHello(string eventId, bool isNew, string senderPublicKey)
+    public override void OnHello(string eventId, string senderPublicKey)
     {
-        using var TL = TRACE.Log().Args(eventId, isNew, senderPublicKey);
+        using var TL = TRACE.Log().Args(eventId, senderPublicKey);
         try
         {
             if (senderPublicKey != this.PublicKey)
@@ -276,28 +275,13 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public override void OnSettings(string eventId, bool isNew, string settings)
+    public override void OnSettings(string eventId, string settings)
     {
-        using var TL = TRACE.Log().Args(eventId, isNew, settings);  
+        using var TL = TRACE.Log().Args(eventId, settings);  
         try
         {
             Settings = settings;
-            if (isNew)
-                this.gigGossipNodeEvents.OnSettings(this, settings);
-        }
-        catch(Exception ex)
-        {
-            TL.Exception(ex);
-            throw;
-        }
-    }
-
-    public override void OnEose()
-    {
-        using var TL = TRACE.Log();
-        try
-        {
-            this.gigGossipNodeEvents.OnEoseArrived(this);
+            this.gigGossipNodeEvents.OnSettings(this, settings);
         }
         catch(Exception ex)
         {
@@ -1242,9 +1226,9 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public override async Task OnMessageAsync(string messageId, bool isNew, string senderPublicKey, object frame)
+    public override async Task OnMessageAsync(string messageId, string senderPublicKey, object frame)
     {
-        using var TL = TRACE.Log().Args(messageId, isNew, senderPublicKey, frame);
+        using var TL = TRACE.Log().Args(messageId, senderPublicKey, frame);
         try
         {
             if (frame is BroadcastFrame)

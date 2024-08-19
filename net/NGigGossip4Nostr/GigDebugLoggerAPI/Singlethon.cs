@@ -23,7 +23,7 @@ public static class Singlethon
         lock (fs)
         {
             var wr = new StreamWriter(fs);
-            wr.WriteLine($"{{\"timestamp\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()},\"eventtype\":{(int)eventType}\"body\":{message.Replace("\n", "\\n")}}}");
+            wr.WriteLine($"{{\"timestamp\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()},\"eventtype\":{(int)eventType},\"body\":{message.Replace("\n", "\\n")}}}");
             wr.Flush();
         }
     }
