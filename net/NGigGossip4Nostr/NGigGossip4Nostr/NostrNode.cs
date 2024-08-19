@@ -92,7 +92,7 @@ public abstract class NostrNode
         communicator.Dispose();
     }
 
-    protected async Task SayHelloAsync()
+    public async Task SayHelloAsync()
     {
         using var TL = TRACE.Log();
         try
@@ -104,7 +104,7 @@ public abstract class NostrNode
                 Content = "",
                 Tags = { },
             };
-            SendEvent(newEvent.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
+            SendEvent(newEvent.Sign(NostrPrivateKey.FromEc(this.privateKey)), 1, false);
         }
         catch (Exception ex)
         {
