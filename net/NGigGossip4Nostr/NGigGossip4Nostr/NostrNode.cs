@@ -26,7 +26,6 @@ using GigDebugLoggerAPIClient;
 namespace NGigGossip4Nostr;
 
 
-
 public abstract class NostrNode
 {
     NostrMultiWebsocketClient nostrClient;
@@ -37,8 +36,6 @@ public abstract class NostrNode
     public string[] NostrRelays { get; private set; }
     private Dictionary<string, Type> _registeredFrameTypes = new();
     private string SubscriptionId;
-    private bool eoseReceived = false;
-    private SemaphoreSlim eventSemSlim = new(1, 1);
     private bool consumeCL;
     protected CancellationTokenSource CancellationTokenSource = new();
     public IRetryPolicy RetryPolicy;
@@ -226,7 +223,7 @@ public abstract class NostrNode
 
                 var encrypted = newEvent.Encrypt(NostrPrivateKey.FromEc(this.privateKey), NostrPublicKey.FromHex(targetPublicKey), kind);
                 if(ephemeral)
-                    SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)), 1,false);
+                    SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)), 1, false);
                 else
                     SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
             }
@@ -239,10 +236,9 @@ public abstract class NostrNode
         }
     }
 
-    public abstract Task OnMessageAsync(string eventId, bool isNew, string senderPublicKey, object frame);
-    public virtual void OnHello(string eventId, bool isNew, string senderPublicKeye) { }
-    public virtual void OnSettings(string eventId, bool isNew, string settings) { }
-    public virtual void OnEose() { }
+    public abstract Task OnMessageAsync(string eventId, string senderPublicKey, object frame);
+    public virtual void OnHello(string eventId, string senderPublicKeye) { }
+    public virtual void OnSettings(string eventId, string settings) { }
 
     public abstract bool OpenMessage(string id);
     public abstract bool CommitMessage(string id);
@@ -274,16 +270,11 @@ public abstract class NostrNode
             }
 
             nostrClient = new NostrMultiWebsocketClient(NullLogger<NostrWebsocketClient>.Instance, relays);
-            this.eoseReceived = false;
             await RetryPolicy.WithRetryPolicy(async () => relays.ToList().ForEach(relay => relay.Start()));
 
             var events = nostrClient.Streams.EventStream.Where(x => x.Event != null);
             events.Subscribe(NostrClient_EventsReceived);
-            //        nostrClient.Streams.NoticeStream.Subscribe(NostrClient_NoticeReceived);
             nostrClient.Streams.OkStream.Subscribe(NostrClient_OkReceived);
-            nostrClient.Streams.EoseStream.Subscribe(NostrClient_EoseReceived);
-            //nostrClient.Streams.UnknownMessageStream.Subscribe(NostrClient_UnknownMessageStream);
-            //        ForwardStream(client, client.Streams.UnknownRawStream, Streams.UnknownRawSubject);
 
             if (OnServerConnectionState != null)
                 OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Open });
@@ -384,7 +375,6 @@ public abstract class NostrNode
             var client = nostrClient.FindClient(relayName);
             if (client != null)
             {
-                this.eoseReceived = false;
                 Subscribe(client);
             }
             else
@@ -397,34 +387,6 @@ public abstract class NostrNode
                 TL.Warning("Reconnecting to NOSTR");
 
             OnServerConnectionState?.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Open, Uri = uri });
-        }
-        catch (Exception ex)
-        {
-            TL.Exception(ex);
-        }
-    }
-
-    private async void NostrClient_EoseReceived(NostrEoseResponse e)
-    {
-        using var TL = TRACE.Log().Args(e);
-        try
-        {
-            if (e.Subscription == SubscriptionId)
-            {
-                await eventSemSlim.WaitAsync();
-                try
-                {
-                    if (e.Subscription == SubscriptionId)
-                    {
-                        eoseReceived = true;
-                        OnEose();
-                    }
-                }
-                finally
-                {
-                    eventSemSlim.Release();
-                }
-            }
         }
         catch (Exception ex)
         {
@@ -497,7 +459,7 @@ public abstract class NostrNode
                         if (t == null)
                             return;
                         var frame = Crypto.BinaryDeserializeObject(Convert.FromBase64String(msg), t);
-                        await this.DoOnMessageAsync(idx, eoseReceived, nostrEvent.Pubkey, frame);
+                        await this.DoOnMessageAsync(idx, nostrEvent.Pubkey, frame);
                     }
                     else
                     {
@@ -512,7 +474,7 @@ public abstract class NostrNode
                                 if (t == null)
                                     return;
                                 var frame = Crypto.BinaryDeserializeObject(Convert.FromBase64String(txt), t);
-                                await this.DoOnMessageAsync(idx, eoseReceived, nostrEvent.Pubkey, frame);
+                                await this.DoOnMessageAsync(idx, nostrEvent.Pubkey, frame);
                             }
                         }
                     }
@@ -525,22 +487,22 @@ public abstract class NostrNode
         }
     }
 
-    private async Task DoOnMessageAsync(string eventId, bool isNew, string senderPublicKey, object frame)
+    private async Task DoOnMessageAsync(string eventId, string senderPublicKey, object frame)
     {
-        using var TL = TRACE.Log().Args(eventId, isNew, senderPublicKey, frame);
+        using var TL = TRACE.Log().Args(eventId, senderPublicKey, frame);
         try
         {
             if (!OpenMessage(eventId))
                 return;
             try
             {
-                await OnMessageAsync(eventId, isNew, senderPublicKey, frame);
+                await OnMessageAsync(eventId, senderPublicKey, frame);
                 CommitMessage(eventId);
             }
             catch (Exception ex)
             {
-                TL.Exception(ex);
                 AbortMessage(eventId);
+                TL.Exception(ex);
             }
         }
         catch (Exception ex)
@@ -562,12 +524,12 @@ public abstract class NostrNode
                 return;
             try
             {
-                OnHello(nostrEvent.Id, eoseReceived, nostrEvent.Pubkey);
+                OnHello(nostrEvent.Id, nostrEvent.Pubkey);
             }
             catch (Exception ex)
             {
-                TL.Exception(ex);
                 AbortMessage(nostrEvent.Id);
+                TL.Exception(ex);
             }
         }
         catch (Exception ex)
@@ -587,7 +549,7 @@ public abstract class NostrNode
             try
             {
                 var msg = nostrEvent.DecryptContent(NostrPrivateKey.FromEc(this.privateKey));
-                OnSettings(nostrEvent.Id, eoseReceived, msg);
+                OnSettings(nostrEvent.Id, msg);
             }
             catch (Exception ex)
             {

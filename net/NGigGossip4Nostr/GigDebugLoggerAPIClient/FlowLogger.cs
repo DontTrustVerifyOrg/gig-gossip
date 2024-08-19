@@ -73,8 +73,9 @@ public class FlowLogger : IFlowLogger
             Message = message,
         });
 
-        while (memLogEntries.Count > 1000)
-            Thread.Sleep(250);
+        if (memLogEntries.Count > 1000)
+            while (memLogEntries.Count > 100)
+                Thread.Sleep(250);
     }
 
 }

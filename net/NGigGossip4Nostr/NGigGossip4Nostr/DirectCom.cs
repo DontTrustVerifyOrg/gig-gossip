@@ -1,9 +1,4 @@
-﻿using System;
-using NBitcoin.Protocol;
-using System.Diagnostics;
-using NBitcoin.Secp256k1;
-using System.Collections.Concurrent;
-using NetworkClientToolkit;
+﻿using NetworkClientToolkit;
 
 namespace NGigGossip4Nostr;
 
@@ -35,7 +30,7 @@ public class DirectCom : NostrNode
 
     public event EventHandler<DirectMessageEventArgs> OnDirectMessage;
 
-    public async override Task OnMessageAsync(string eventId, bool isNew, string senderPublicKey, object frame)
+    public async override Task OnMessageAsync(string eventId, string senderPublicKey, object frame)
     {
         OnDirectMessage.Invoke(this, new DirectMessageEventArgs()
         {
