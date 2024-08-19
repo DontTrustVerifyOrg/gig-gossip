@@ -51,7 +51,10 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
             if ((from i in gigGossipNode.nodeContext.Value.MonitoredPayments
                 where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
                 select i).FirstOrDefault() != null)
+            {
+                TL.Warning("Payment already monitored");
                 return;
+            }
 
             var obj = new MonitoredPaymentRow()
             {
@@ -88,7 +91,10 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
                     where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
                     select i).FirstOrDefault();
             if (o == null)
+            {
+                TL.Warning("Payment not monitored");
                 return;
+            }
 
             await this.PaymentStatusUpdatesClient.StopMonitoringAsync(await gigGossipNode.MakeWalletAuthToken(), phash, CancellationTokenSource.Token);
             gigGossipNode.nodeContext.Value.RemoveObject(o);
@@ -125,11 +131,13 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
 
                         foreach (var pay in payToMon)
                         {
+                            TL.Iteration(pay);
                             try
                             {
                                 var status = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().GetPaymentStatusAsync(await gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash, CancellationTokenSource.Token));
                                 if (status != pay.PaymentStatus)
                                 {
+                                    TL.Info("OnPaymentStatusChange");
                                     gigGossipNode.OnPaymentStatusChange(status, pay.Data);
                                     pay.PaymentStatus = status;
                                     gigGossipNode.nodeContext.Value.SaveObject(pay);
@@ -144,6 +152,7 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
 
                     await foreach (var paystateupd in this.PaymentStatusUpdatesClient.StreamAsync(await this.gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token))
                     {
+                        TL.Iteration(paystateupd);
                         var invp = paystateupd.Split('|');
                         var payhash = invp[0];
                         var status = invp[1];
@@ -153,12 +162,19 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
                                 && i.PaymentHash == payhash
                                 select i).FirstOrDefault();
                         if (pay != null)
+                        {
                             if (status != pay.PaymentStatus)
                             {
+                                TL.Info("OnPaymentStatusChange");
                                 gigGossipNode.OnPaymentStatusChange(status, pay.Data);
                                 pay.PaymentStatus = status;
                                 gigGossipNode.nodeContext.Value.SaveObject(pay);
                             }
+                        }
+                        else
+                        {
+                            TL.Warning("Payment not monitored");
+                        }
                     }
                 },
                 PaymentStatusUpdatesClient.Uri,

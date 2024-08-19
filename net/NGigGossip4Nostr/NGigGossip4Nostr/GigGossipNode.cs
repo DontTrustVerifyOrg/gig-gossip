@@ -463,7 +463,10 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             if (originatorPublicKey != null)
                 contacts.ExceptWith(new string[] { originatorPublicKey });
             if (contacts.Count == 0)
-                return new List<string>();
+            {
+                TL.Info("empty broadcast list");   
+                return TL.Ret(new List<string>());
+            }
 
             var retcontacts = (from r in contacts.AsEnumerable().OrderBy(x => rnd.Next()).Take(this.fanout) select new BroadcastHistoryRow() { ContactPublicKey = r, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
             this.nodeContext.Value.TryAddObjectRange(retcontacts);
@@ -493,7 +496,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             var tobroadcast = GetBroadcastContactList(requestPayload.Id, originatorPublicKey);
             if (tobroadcast.Count == 0)
             {
-                TL.Info("already broadcasted");
+                TL.Info("empty broadcast list (already broadcasted)");
                 return;
             }
 
@@ -565,7 +568,10 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         try
         {
             if (!await cancelBroadcastFrame.SignedCancelRequestPayload.VerifyAsync(SettlerSelector, CancellationTokenSource.Token))
+            {
+                TL.Warning("cancel request payload mismatch");
                 return;
+            }
 
             gigGossipNodeEvents.OnCancelBroadcast(this, peerPublicKey, cancelBroadcastFrame);
             await CancelBroadcastAsync(cancelBroadcastFrame.SignedCancelRequestPayload);
@@ -583,13 +589,22 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         try
         {
             if (broadcastFrame.SignedRequestPayload.Value.Timestamp > DateTime.UtcNow)
+            {
+                TL.Warning("future timestamp");
                 return;
+            }
 
             if (broadcastFrame.SignedRequestPayload.Value.Timestamp + this.timestampTolerance < DateTime.UtcNow)
+            {
+                TL.Warning("timestamp too old");
                 return;
+            }
 
             if (!await broadcastFrame.SignedRequestPayload.VerifyAsync(SettlerSelector, CancellationTokenSource.Token))
+            {
+                TL.Warning("request payload mismatch");
                 return;
+            }
 
             gigGossipNodeEvents.OnAcceptBroadcast(this, peerPublicKey, broadcastFrame);
         }
@@ -792,6 +807,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                     var topLayerPublicKey = responseFrame.ForwardOnion.Peel(privateKey);
                     if (!await responseFrame.SignedSettlementPromise.VerifyAsync(responseFrame.EncryptedReplyPayload, this.SettlerSelector, CancellationTokenSource.Token))
                     {
+                        TL.Warning("settlement promise mismatch");
                         return;
                     }
 
@@ -806,6 +822,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                             decodedNetworkInvoice.PaymentHash,
                             CancellationTokenSource.Token)))
                         {
+                            TL.Warning("related payment hashes mismatch");
                             return;
                         }
 
@@ -1028,7 +1045,11 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         try
         {
             if (_paymentStatusUpdatesMonitor.IsPaymentMonitored(iac.PaymentHash))
-                return GigLNDWalletAPIErrorCode.AlreadyPayed;
+            {
+                TL.Warning("already payed");
+                return TL.Ret(GigLNDWalletAPIErrorCode.AlreadyPayed);
+            }
+
             await _paymentStatusUpdatesMonitor.MonitorPaymentAsync(iac.PaymentHash, Crypto.BinarySerializeObject(
                 new PaymentData()
                 {
@@ -1126,7 +1147,10 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         {
             var ballance = WalletAPIResult.Get<long>(await GetWalletClient().GetBalanceAsync(await MakeWalletAuthToken(), cancellationToken));
             if (ballance < decodedReplyInvoice.ValueSat + decodedNetworkInvoice.ValueSat + 2 * feelimit)
+            {
+                TL.Info("not enough funds");
                 return TL.Ret(GigLNDWalletAPIErrorCode.NotEnoughFunds);
+            }
 
             if (!_paymentStatusUpdatesMonitor.IsPaymentMonitored(decodedNetworkInvoice.PaymentHash))
             {
@@ -1140,6 +1164,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 if(paymentStatus!= GigLNDWalletAPIErrorCode.Ok)
                 {
                     await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(decodedNetworkInvoice.PaymentHash);
+                    TL.Warning("network invoice payment failed");
                     return TL.Ret(paymentStatus);
                 }
             }
@@ -1156,6 +1181,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 if (paymentStatus != GigLNDWalletAPIErrorCode.Ok)
                 {
                     await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(decodedNetworkInvoice.PaymentHash);
+                    TL.Warning("reply invoice payment failed");
                     return TL.Ret(paymentStatus);
                 }
             }
