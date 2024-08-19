@@ -29,10 +29,14 @@ public class FlowLogger : IFlowLogger
     Thread writeThread;
 
     private IGigDebugLoggerAPI loggerAPI;
-    public bool Enabled { get; set; }
+    public bool Enabled { get; set; } = false;
     CancellationTokenSource CancellationTokenSource = new();
 
-    public FlowLogger(bool traceEnabled, string pubkey, Uri loggerUri, Func<HttpClient> httpFactory)
+    public FlowLogger()
+    {
+    }
+
+    public void Initialize(bool traceEnabled, string pubkey, Uri loggerUri, Func<HttpClient> httpFactory)
     {
         this.loggerAPI = new swaggerClient(loggerUri.AbsoluteUri, httpFactory());
         this.Enabled = traceEnabled;
@@ -65,7 +69,11 @@ public class FlowLogger : IFlowLogger
 
     public void WriteToLog(TraceEventType eventType, string message)
     {
-        if (!Enabled) return;
+        if (!Enabled)
+            return;
+
+        if (loggerAPI == null)
+            return;
 
         memLogEntries.Enqueue(new MemLogEntry
         {

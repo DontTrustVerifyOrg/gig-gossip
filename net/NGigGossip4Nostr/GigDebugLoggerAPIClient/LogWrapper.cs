@@ -12,6 +12,7 @@ public interface ILogEntryClosure : IDisposable
     void Iteration<I>(I v);
     void Info(string message);
     void Warning(string message);
+    void Error(string message);
     void NewMessage(string a, string b, string message);
     void NewReply(string a, string b, string message);
     void NewConnected(string a, string b, string message);
@@ -69,6 +70,10 @@ public class EmptyLogEntryClosure<T> : ILogEntryClosure
     public void NewNote(string a, string message)
     {
     }
+
+    public void Error(string message)
+    {
+    }
 }
 
 
@@ -118,6 +123,11 @@ public class LogEntryClosure<T> : ILogEntryClosure
     public void Warning(string message)
     {
         wrapper.TraceWarning(guid, message);
+    }
+
+    public void Error(string message)
+    {
+        wrapper.TraceError(guid, message);
     }
 
     public void NewMessage(string a, string b, string message)
@@ -273,6 +283,19 @@ public class LogWrapper<T>
                 JsonSerialize(new
                 {
                     kind = "warning",
+                    id = guid,
+                    message = msg,
+                }));
+    }
+
+    public void TraceError(Guid guid, string msg)
+    {
+        if (flowLogger.Enabled)
+            flowLogger.WriteToLog(
+                System.Diagnostics.TraceEventType.Error,
+                JsonSerialize(new
+                {
+                    kind = "error",
                     id = guid,
                     message = msg,
                 }));

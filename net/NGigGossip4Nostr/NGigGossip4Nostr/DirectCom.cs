@@ -1,4 +1,7 @@
-﻿using NetworkClientToolkit;
+﻿using System.Reflection;
+using GigDebugLoggerAPIClient;
+using NetworkClientToolkit;
+using Nostr.Client.Messages.Contacts;
 
 namespace NGigGossip4Nostr;
 
@@ -11,6 +14,8 @@ public class DirectMessageEventArgs : EventArgs
 
 public class DirectCom : NostrNode
 {
+    LogWrapper<DirectCom> TRACE = FlowLoggerFactory.Trace<DirectCom>();
+
     private GigGossipNode gigGossipNode;
     public DirectCom(GigGossipNode gigGossipNode) : base(gigGossipNode, gigGossipNode.ChunkSize,false)
     {
@@ -20,24 +25,51 @@ public class DirectCom : NostrNode
 
     public new async Task StartAsync(string[] nostrRelays)
     {
-        await base.StartAsync(nostrRelays);
+        using var TL = TRACE.Log().Args(nostrRelays);
+        try
+        {
+            await base.StartAsync(nostrRelays);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     private void DirectCom_OnServerConnectionState(object? sender, ServerConnectionStateEventArgs e)
     {
-        gigGossipNode.FireOnServerConnectionState(ServerConnectionSource.NostrRelay, e.State, e.Uri);
+        using var TL = TRACE.Log().Args(sender,e);
+        try
+        {
+            gigGossipNode.FireOnServerConnectionState(ServerConnectionSource.NostrRelay, e.State, e.Uri);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public event EventHandler<DirectMessageEventArgs> OnDirectMessage;
 
     public async override Task OnMessageAsync(string eventId, string senderPublicKey, object frame)
     {
-        OnDirectMessage.Invoke(this, new DirectMessageEventArgs()
+        using var TL = TRACE.Log().Args(eventId, senderPublicKey, frame);
+        try
         {
-            EventId = eventId,
-            SenderPublicKey = senderPublicKey,
-            Frame = frame,
-        });
+            OnDirectMessage.Invoke(this, new DirectMessageEventArgs()
+            {
+                EventId = eventId,
+                SenderPublicKey = senderPublicKey,
+                Frame = frame,
+            });
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
     }
 
     public override bool OpenMessage(string id)

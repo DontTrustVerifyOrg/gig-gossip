@@ -292,7 +292,10 @@ public abstract class NostrNode
         try
         {
             if (nostrClient == null)
+            {
+                TL.Warning("No NOSTR client to stop");
                 return;
+            }
             Unsubscribe();
             nostrClient.Dispose();
             nostrClient = null;
@@ -457,7 +460,10 @@ public abstract class NostrNode
                     {
                         var t = GetFrameType(tagDic["t"][0]);
                         if (t == null)
+                        {
+                            TL.Warning("Frame type not registered");
                             return;
+                        }
                         var frame = Crypto.BinaryDeserializeObject(Convert.FromBase64String(msg), t);
                         await this.DoOnMessageAsync(idx, nostrEvent.Pubkey, frame);
                     }
@@ -472,7 +478,10 @@ public abstract class NostrNode
                                 var txt = string.Join("", new SortedDictionary<int, string>(inner_dic).Values);
                                 var t = GetFrameType(tagDic["t"][0]);
                                 if (t == null)
+                                {
+                                    TL.Warning("Frame type not registered");
                                     return;
+                                }
                                 var frame = Crypto.BinaryDeserializeObject(Convert.FromBase64String(txt), t);
                                 await this.DoOnMessageAsync(idx, nostrEvent.Pubkey, frame);
                             }
