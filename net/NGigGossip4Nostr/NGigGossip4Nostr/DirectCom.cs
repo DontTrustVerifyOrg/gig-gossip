@@ -77,14 +77,19 @@ public class DirectCom : NostrNode
         return gigGossipNode.OpenMessage(id);
     }
 
-    public override bool CommitMessage(string id)
+    public override bool CommitMessage(string id, int kind, DateTime createdAt)
     {
-        return gigGossipNode.CommitMessage(id);
+        return gigGossipNode.CommitMessage(id,kind,createdAt);
     }
 
     public override bool AbortMessage(string id)
     {
         return gigGossipNode.AbortMessage(id);
+    }
+
+    public override DateTime? GetLastMessageCreatedAt(int kind, int secondsBefore)
+    {
+        return gigGossipNode.GetLastMessageCreatedAt(kind, secondsBefore);
     }
 
 }

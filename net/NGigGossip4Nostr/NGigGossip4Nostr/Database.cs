@@ -167,7 +167,7 @@ public class MonitoredGigStatusRow
 }
 
 [PrimaryKey(nameof(PublicKey), nameof(MessageId))]
-public class MessageDoneRow
+public class MessageTransactionRow
 {
     /// <summary>
     /// The public key of the subject.
@@ -177,6 +177,12 @@ public class MessageDoneRow
 
     [Column(Order = 2)]
     public required string MessageId { get; set; }
+
+    [Column(Order = 3)]
+    public required int EventKind { get; set; }
+
+    [Column(Order = 4)]
+    public required DateTime CreatedAt { get; set; }
 }
 
 [PrimaryKey(nameof(PublicKey), nameof(ContactPublicKey))]
@@ -220,7 +226,7 @@ public class GigGossipNodeContext : DbContext
     public DbSet<MonitoredPaymentRow> MonitoredPayments { get; set; }
     public DbSet<MonitoredPreimageRow> MonitoredPreimages { get; set; }
     public DbSet<MonitoredGigStatusRow> MonitoredGigStatuses { get; set; }
-    public DbSet<MessageDoneRow> MessagesDone { get; set; }
+    public DbSet<MessageTransactionRow> MessageTransactions { get; set; }
     public DbSet<NostrContact> NostrContacts { get; set; }
 
     /// <summary>
@@ -253,8 +259,8 @@ public class GigGossipNodeContext : DbContext
             return this.MonitoredPreimages;
         else if (obj is MonitoredGigStatusRow)
             return this.MonitoredGigStatuses;
-        else if (obj is MessageDoneRow)
-            return this.MessagesDone;
+        else if (obj is MessageTransactionRow)
+            return this.MessageTransactions;
         else if (obj is NostrContact)
             return this.NostrContacts;
 
