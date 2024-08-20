@@ -22,6 +22,7 @@ using Nostr.Client.Responses;
 using System.IO;
 using Nostr.Client.Requests;
 using GigDebugLoggerAPIClient;
+using Nostr.Client.Messages.Contacts;
 
 namespace NGigGossip4Nostr;
 
@@ -33,7 +34,8 @@ public abstract class NostrNode
     protected ECXOnlyPubKey publicKey;
     public string PublicKey;
     public int ChunkSize;
-    public string[] NostrRelays { get; private set; }
+    public HashSet<string> NostrRelays { get; private set; }
+    private HashSet<string> TempRelays = new();
     private Dictionary<string, Type> _registeredFrameTypes = new();
     private string SubscriptionId;
     private bool consumeCL;
@@ -276,8 +278,8 @@ public abstract class NostrNode
             SubscriptionId = Guid.NewGuid().ToString();
 
             CancellationTokenSource = new();
-            NostrRelays = nostrRelays;
-            var relays = (from rel in nostrRelays select new NostrWebsocketCommunicator(new System.Uri(rel))).ToArray();
+            NostrRelays = new(nostrRelays);
+            var relays = (from rel in NostrRelays select new NostrWebsocketCommunicator(new System.Uri(rel))).ToArray();
             foreach (var relay in relays)
             {
                 relay.Name = relay.Url.Host;
@@ -306,6 +308,29 @@ public abstract class NostrNode
         }
     }
 
+    public async Task AddTempRelaysAsync(string[] nostrRelays)
+    {
+        foreach (var nostrRelay in nostrRelays)
+        {
+            if (!NostrRelays.Contains(nostrRelay))
+            {
+                if (!TempRelays.Contains(nostrRelay))
+                {
+                    var relay = new NostrWebsocketCommunicator(new System.Uri(nostrRelay));
+                    relay.Name = relay.Url.Host;
+                    relay.ReconnectTimeout = TimeSpan.FromSeconds(30);
+                    relay.ErrorReconnectTimeout = TimeSpan.FromSeconds(60);
+                    relay.ReconnectionHappened.Subscribe((e) => NostrClient_ReconnectionHappened(relay.Name, relay.Url, e));
+                    relay.DisconnectionHappened.Subscribe((e) => NostrClient_DisconnectionHappened(relay.Name, relay.Url, e));
+                    nostrClient.RegisterCommunicator(relay);
+                    await RetryPolicy.WithRetryPolicy(relay.Start);
+                    TempRelays.Add(nostrRelay);
+                }
+            }
+        }
+    }
+
+
     public virtual async Task StopAsync()
     {
         using var TL = TRACE.Log();
@@ -318,6 +343,10 @@ public abstract class NostrNode
             }
             _myPingTimer.Stop();
             Unsubscribe();
+            foreach(var nostrRelay in TempRelays)
+            {
+                nostrClient.RemoveRegistration(nostrRelay);
+            }
             nostrClient.Dispose();
             nostrClient = null;
         }
