@@ -28,6 +28,7 @@ using NetworkClientToolkit;
 using GoogleApi;
 using ProtoBuf;
 using System.Text.Json;
+using Nostr.Client.Messages;
 
 [ProtoContract]
 public class InvoiceData : IProtoFrame
@@ -1199,7 +1200,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log();
         try
         {
-            messageLocks = new ConcurrentDictionary<string, bool>(from m in this.nodeContext.Value.MessagesDone where m.PublicKey == this.PublicKey select KeyValuePair.Create(m.MessageId, true));
+            messageLocks = new ConcurrentDictionary<string, bool>(from m in this.nodeContext.Value.MessageTransactions where m.PublicKey == this.PublicKey select KeyValuePair.Create(m.MessageId, true));
         }
         catch(Exception ex)
         {
@@ -1222,13 +1223,18 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public override bool CommitMessage(string id)
+    public override bool CommitMessage(string id, int kind, DateTime createdAt)
     {
         using var TL = TRACE.Log().Args(id);
         try
         {
             return TL.Ret(
-                this.nodeContext.Value.TryAddObject(new MessageDoneRow() { MessageId = id, PublicKey = this.PublicKey })
+                this.nodeContext.Value.TryAddObject(new MessageTransactionRow() { 
+                    MessageId = id, 
+                    PublicKey = this.PublicKey,
+                    CreatedAt = createdAt,
+                    EventKind = kind
+                })
             );
         }
         catch(Exception ex)
@@ -1237,6 +1243,18 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             throw;
         }
     }
+
+    public override DateTime? GetLastMessageCreatedAt(int kind, int secondsBefore)
+    {
+        var t= (from m in this.nodeContext.Value.MessageTransactions 
+                where m.PublicKey == this.PublicKey && m.EventKind == kind orderby m.CreatedAt descending 
+                select m).FirstOrDefault();
+
+        if (t == null)
+            return null;
+        return t.CreatedAt.AddSeconds(- secondsBefore);
+    }
+
 
     public override bool AbortMessage(string id)
     {

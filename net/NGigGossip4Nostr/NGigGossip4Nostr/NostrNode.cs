@@ -47,6 +47,7 @@ public abstract class NostrNode
     bool eventReceived = false;
     bool eventAccepted = false;
 
+    private System.Timers.Timer _myPingTimer = new System.Timers.Timer(10000);
 
     public event EventHandler<ServerConnectionStateEventArgs> OnServerConnectionState;
 
@@ -58,6 +59,7 @@ public abstract class NostrNode
         this.ChunkSize = chunkSize;
         this.consumeCL = consumeCL;
         this.RetryPolicy = retryPolicy;
+        _myPingTimer.Elapsed += _myPingTimer_Elapsed;
     }
 
     public NostrNode(NostrNode me, int chunkSize, bool consumeCL)
@@ -68,6 +70,7 @@ public abstract class NostrNode
         this.ChunkSize = chunkSize;
         this.consumeCL = consumeCL;
         this.RetryPolicy = me.RetryPolicy;
+        _myPingTimer.Elapsed += _myPingTimer_Elapsed;
     }
 
     public void RegisterFrameType<T>()
@@ -110,6 +113,19 @@ public abstract class NostrNode
         {
             TL.Exception(ex);
             throw;
+        }
+    }
+
+    private async void _myPingTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+    {
+        using var TL = TRACE.Log();
+        try
+        {
+            await SayHelloAsync();
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
         }
     }
 
@@ -241,8 +257,10 @@ public abstract class NostrNode
     public virtual void OnSettings(string eventId, string settings) { }
 
     public abstract bool OpenMessage(string id);
-    public abstract bool CommitMessage(string id);
+    public abstract bool CommitMessage(string id, int kind, DateTime createdAt);
     public abstract bool AbortMessage(string id);
+
+    public abstract DateTime? GetLastMessageCreatedAt(int kind, int secondsBefore);
 
     protected async Task StartAsync(string[] nostrRelays)
     {
@@ -278,6 +296,8 @@ public abstract class NostrNode
 
             if (OnServerConnectionState != null)
                 OnServerConnectionState.Invoke(this, new ServerConnectionStateEventArgs { State = ServerConnectionState.Open });
+
+            _myPingTimer.Start();
         }
         catch (Exception ex)
         {
@@ -296,6 +316,7 @@ public abstract class NostrNode
                 TL.Warning("No NOSTR client to stop");
                 return;
             }
+            _myPingTimer.Stop();
             Unsubscribe();
             nostrClient.Dispose();
             nostrClient = null;
@@ -312,21 +333,25 @@ public abstract class NostrNode
         using var TL = TRACE.Log();
         try
         {
+            
             client.Send(new NostrRequest4(SubscriptionId,
                 new NostrFilter
                 {
                     Kinds = new[] { NostrKind.GigGossipSettingsKind },
                     Authors = new[] { publicKey.AsHex() },
                     P = new[] { publicKey.AsHex() },
+                    Since = GetLastMessageCreatedAt((int)NostrKind.GigGossipSettingsKind, 10), 
                 },
                 new NostrFilter
                 {
                     Kinds = new[] { NostrKind.GigGossipHelloKind },
+                    Since = GetLastMessageCreatedAt((int)NostrKind.GigGossipHelloKind, 10), 
                 },
                 new NostrFilter
                 {
                     Kinds = new[] { NostrKind.GigGossipMessageKind },
-                    P = new[] { publicKey.AsHex() }
+                    P = new[] { publicKey.AsHex() },
+                    Since = GetLastMessageCreatedAt((int)NostrKind.GigGossipMessageKind, 10), 
                 },
                 new NostrFilter
                 {
@@ -375,15 +400,18 @@ public abstract class NostrNode
         using var TL = TRACE.Log().Args(relayName, uri, e);
         try
         {
+            if(nostrClient==null)
+            {
+                TL.Error("Client is null");
+                return;
+            }
             var client = nostrClient.FindClient(relayName);
-            if (client != null)
+            if (client == null)
             {
-                Subscribe(client);
+                TL.Error("Client Not Found");
+                return;
             }
-            else
-            {
-                TL.Warning("Client Not Found");
-            }
+            Subscribe(client);
             if (e.Type == Websocket.Client.ReconnectionType.Initial)
                 TL.Warning("Connected to NOSTR");
             else
@@ -465,7 +493,7 @@ public abstract class NostrNode
                             return;
                         }
                         var frame = Crypto.BinaryDeserializeObject(Convert.FromBase64String(msg), t);
-                        await this.DoOnMessageAsync(idx, nostrEvent.Pubkey, frame);
+                        await this.DoOnMessageAsync(idx, nostrEvent.CreatedAt.Value, nostrEvent.Pubkey, frame);
                     }
                     else
                     {
@@ -483,7 +511,7 @@ public abstract class NostrNode
                                     return;
                                 }
                                 var frame = Crypto.BinaryDeserializeObject(Convert.FromBase64String(txt), t);
-                                await this.DoOnMessageAsync(idx, nostrEvent.Pubkey, frame);
+                                await this.DoOnMessageAsync(idx, nostrEvent.CreatedAt.Value, nostrEvent.Pubkey, frame);
                             }
                         }
                     }
@@ -496,7 +524,7 @@ public abstract class NostrNode
         }
     }
 
-    private async Task DoOnMessageAsync(string eventId, string senderPublicKey, object frame)
+    private async Task DoOnMessageAsync(string eventId, DateTime createdAt, string senderPublicKey, object frame)
     {
         using var TL = TRACE.Log().Args(eventId, senderPublicKey, frame);
         try
@@ -506,7 +534,7 @@ public abstract class NostrNode
             try
             {
                 await OnMessageAsync(eventId, senderPublicKey, frame);
-                CommitMessage(eventId);
+                CommitMessage(eventId, (int) NostrKind.GigGossipMessageKind, createdAt);
             }
             catch (Exception ex)
             {
@@ -534,6 +562,7 @@ public abstract class NostrNode
             try
             {
                 OnHello(nostrEvent.Id, nostrEvent.Pubkey);
+                CommitMessage(nostrEvent.Id, (int) NostrKind.GigGossipHelloKind, nostrEvent.CreatedAt.Value);
             }
             catch (Exception ex)
             {
@@ -559,6 +588,7 @@ public abstract class NostrNode
             {
                 var msg = nostrEvent.DecryptContent(NostrPrivateKey.FromEc(this.privateKey));
                 OnSettings(nostrEvent.Id, msg);
+                CommitMessage(nostrEvent.Id, (int) NostrKind.GigGossipSettingsKind, nostrEvent.CreatedAt.Value);
             }
             catch (Exception ex)
             {
