@@ -116,7 +116,7 @@ public partial class RideShareCLIApp
         if (e.RequestPayloadId == requestedRide.SignedRequestPayload.Id)
         {
             await e.GigGossipNode.CancelBroadcastAsync(requestedRide.SignedCancelRequestPayload);
-            await directCom.StartAsync(e.Reply.Relays);
+            await gigGossipNode.AddTempRelaysAsync(e.Reply.Relays);
             directTimer.Start();
             directPubkeys[e.RequestPayloadId] = e.Reply.PublicKey;
             new Thread(async () => await RiderJourneyAsync(e.RequestPayloadId, e.ReplierCertificateId, e.Reply.Secret, settings.NodeSettings.SettlerOpenApi)).Start();
@@ -159,7 +159,7 @@ public partial class RideShareCLIApp
         riderDroppedOff = false;
         var pubkey = directPubkeys[signedRequestPayloadId];
         AnsiConsole.MarkupLine("I am [orange1]sending[/] my location to the driver");
-        await directCom.SendMessageAsync(pubkey, new LocationFrame
+        await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
             {
                 Secret = secret,
                 SignedRequestPayloadId = signedRequestPayloadId,
@@ -179,7 +179,7 @@ public partial class RideShareCLIApp
         while (!driverApproached)
         {
             AnsiConsole.MarkupLine("I am [orange1]waiting[/] for the driver");
-            await directCom.SendMessageAsync(pubkey, new LocationFrame
+            await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
             {
                 Secret = secret,
                 SignedRequestPayloadId = signedRequestPayloadId,
@@ -198,7 +198,7 @@ public partial class RideShareCLIApp
         while (!riderDroppedOff)
         {
             AnsiConsole.MarkupLine("I am [orange1]in the car[/]");
-            await directCom.SendMessageAsync(pubkey, new LocationFrame
+            await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
             {
                 Secret = secret,
                 SignedRequestPayloadId = signedRequestPayloadId,
@@ -217,7 +217,6 @@ public partial class RideShareCLIApp
         AnsiConsole.MarkupLine("I have reached the [orange1]destination[/]");
         requestedRide = null;
         directTimer.Stop();
-        await directCom.StopAsync();
     }
 
     GeoLocation lastDriverLocation;

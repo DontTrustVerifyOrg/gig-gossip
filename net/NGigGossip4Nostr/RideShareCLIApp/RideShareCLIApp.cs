@@ -76,7 +76,6 @@ public partial class RideShareCLIApp
     IGigGossipNodeEventSource gigGossipNodeEventSource = new GigGossipNodeEventSource();
 
     bool inDriverMode = false;
-    DirectCom directCom;
     System.Timers.Timer directTimer;
     Dictionary<Guid, string> directPubkeys = new();
     string privkeypassed;
@@ -259,9 +258,8 @@ public partial class RideShareCLIApp
             AnsiConsole.WriteLine("privkey:" + privateKey.AsHex());
             AnsiConsole.WriteLine("pubkey :" + gigGossipNode.PublicKey);
 
-            directCom = new DirectCom(gigGossipNode);
-            directCom.RegisterFrameType<LocationFrame>();
-            directCom.OnDirectMessage += DirectCom_OnDirectMessage;
+            gigGossipNode.RegisterFrameType<LocationFrame>();
+            gigGossipNode.OnDirectMessage += DirectCom_OnDirectMessage;
             directTimer = new System.Timers.Timer(1000);
             directTimer.Elapsed += DirectTimer_Elapsed;
 
@@ -563,7 +561,6 @@ public partial class RideShareCLIApp
     async Task StopAsync()
     {
         directTimer.Stop();
-        await directCom.StopAsync();
         await gigGossipNode.StopAsync();
     }
 
@@ -623,7 +620,7 @@ public partial class RideShareCLIApp
             {
                 AnsiConsole.MarkupLine($"{pubkey} last seen {(DateTime.UtcNow - lastSeen).Seconds} seconds ago");
 
-                await directCom.SendMessageAsync(pubkey,
+                await gigGossipNode.SendMessageAsync(pubkey,
                     myLastLocationFrame, true);
             }
         }

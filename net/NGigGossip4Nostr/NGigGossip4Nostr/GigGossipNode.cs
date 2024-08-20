@@ -95,6 +95,12 @@ public class AcceptBroadcastReturnValue
     public required string ReplyInvoiceHash { get; set; }
 }
 
+public class DirectMessageEventArgs : EventArgs
+{
+    public required string EventId;
+    public required string SenderPublicKey;
+    public required object Frame { get; set; }
+}
 
 public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaymentStatusUpdatesMonitorEvents, ISettlerMonitorEvents
 {
@@ -1270,6 +1276,10 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
+
+
+    public event EventHandler<DirectMessageEventArgs> OnDirectMessage;
+
     public override async Task OnMessageAsync(string messageId, string senderPublicKey, object frame)
     {
         using var TL = TRACE.Log().Args(messageId, senderPublicKey, frame);
@@ -1289,7 +1299,12 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             }
             else
             {
-                throw new GigGossipException(GigGossipNodeErrorCode.FrameTypeNotRegistered);
+                OnDirectMessage?.Invoke(this, new DirectMessageEventArgs()
+                {
+                    EventId = messageId,
+                    SenderPublicKey = senderPublicKey,
+                    Frame = frame,
+                });
             }
         }
         catch(Exception ex)

@@ -84,7 +84,7 @@ public partial class RideShareCLIApp
             var reply = new ConnectionReply()
             {
                 PublicKey = e.GigGossipNode.PublicKey,
-                Relays = e.GigGossipNode.NostrRelays,
+                Relays = e.GigGossipNode.NostrRelays.ToArray(),
                 Secret = secret,
                 Location = myLocation,
                 Message = message,
@@ -163,7 +163,6 @@ public partial class RideShareCLIApp
                             e.GigGossipNode.MarkBroadcastAsCancelled(broadcast);
                         }
                     }
-                    await directCom.StartAsync(e.GigGossipNode.NostrRelays);
                     directTimer.Start();
                 }
             }
@@ -240,7 +239,7 @@ public partial class RideShareCLIApp
             {
                 SupportPause();
                 AnsiConsole.MarkupLine($"({idx},{location.Lat},{location.Lon}) I am [orange1]driving[/] to meet rider");
-                await directCom.SendMessageAsync(pubkey, new LocationFrame
+                await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
                 {
                     SignedRequestPayloadId = requestPayloadId,
                     Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
@@ -262,7 +261,7 @@ public partial class RideShareCLIApp
         {
             SupportPause();
             AnsiConsole.MarkupLine($"({i}) I am [orange1]waiting[/] for rider");
-            await directCom.SendMessageAsync(pubkey, new LocationFrame
+            await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
             {
                 SignedRequestPayloadId = requestPayloadId,
                 Location = locationFrame.FromLocation,
@@ -291,7 +290,7 @@ public partial class RideShareCLIApp
             {
                 SupportPause();
                 AnsiConsole.MarkupLine($"({idx},{location.Lat},{location.Lon}) We are going [orange1]togheter[/]");
-                await directCom.SendMessageAsync(pubkey, new LocationFrame
+                await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
                 {
                     SignedRequestPayloadId = requestPayloadId,
                     Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
@@ -309,7 +308,7 @@ public partial class RideShareCLIApp
             }
         }
         AnsiConsole.MarkupLine("We have [orange1]reached[/] the destination");
-        await directCom.SendMessageAsync(pubkey, new LocationFrame
+        await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
         {
             SignedRequestPayloadId = requestPayloadId,
             Location = locationFrame.ToLocation,
@@ -326,7 +325,6 @@ public partial class RideShareCLIApp
         AnsiConsole.MarkupLine("Good [orange1]bye[/]");
         ActiveSignedRequestPayloadId = Guid.Empty;
         directTimer.Stop();
-        await directCom.StopAsync();
         inDriverMode = false;
     }
 
