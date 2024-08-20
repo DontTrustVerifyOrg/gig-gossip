@@ -68,6 +68,11 @@ while (true)
         break;
 
     TraceEx.TraceWarning("Node not synced to chain");
+    if (Singlethon.BitcoinNodeUtils.IsRegTest)
+    {
+        TraceEx.TraceWarning("Mining 101");
+        Singlethon.BitcoinNodeUtils.Mine101Blocks();
+    }
     Thread.Sleep(1000);
 }
 

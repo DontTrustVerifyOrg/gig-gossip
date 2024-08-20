@@ -33,7 +33,12 @@ public class BitcoinNodeUtils
         return bitcoinWalletClient;
     }
 
-	public void TopUpAndMine6Blocks(string bitcoinAddr, long satoshis)
+    public void Mine101Blocks()
+    {
+        walletClient().Generate(101);
+    }
+
+    public void TopUpAndMine6Blocks(string bitcoinAddr, long satoshis)
 	{
         walletClient().SendToAddress(NBitcoin.BitcoinAddress.Create(bitcoinAddr, network), new NBitcoin.Money(satoshis));
         walletClient().Generate(6);
