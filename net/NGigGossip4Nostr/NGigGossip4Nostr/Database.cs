@@ -193,10 +193,8 @@ public class NostrContact
     /// </summary>
     [Column(Order = 1)]
     public required string PublicKey { get; set; }
-
     public required string ContactPublicKey { get; set; }
-    public required string Relay { get; set; }
-    public required string Petname { get; set; }
+    public required DateTime LastSeen { get; set; }
 }
 
 /// <summary>
