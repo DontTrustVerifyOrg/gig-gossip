@@ -71,7 +71,7 @@ while (true)
         break;
 
     TraceEx.TraceWarning("Node not synced to chain");
-    if (btcConf.Network== "regtest")
+    if (btcConf.Network.ToLower() == "regtest")
     {
         TraceEx.TraceWarning("Mining 101");
         Singlethon.BitcoinNodeUtils.Mine101Blocks();
