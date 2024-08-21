@@ -18,7 +18,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Xml.Linq;
 using GigGossipSettlerAPIClient;
 using System.IO;
-using static NBitcoin.Protocol.Behaviors.ChainBehavior;
 using System.Collections.Concurrent;
 using GigGossipFrames;
 using System.Net.Http;
@@ -73,9 +72,6 @@ public interface IGigGossipNodeEvents
     public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage);
     public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata);
 
-    public void OnNewContact(GigGossipNode me, string pubkey);
-    public void OnSettings(GigGossipNode me, string settings);
-
     public void OnServerConnectionState(GigGossipNode me, ServerConnectionSource source, ServerConnectionState state, Uri uri);
 }
 
@@ -108,7 +104,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     protected TimeSpan timestampTolerance;
     public TimeSpan InvoicePaymentTimeout;
     protected int fanout;
-    public string Settings;
 
     private SemaphoreSlim alreadyBroadcastedSemaphore = new SemaphoreSlim(1, 1);
 
@@ -267,13 +262,13 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public override void OnHello(string eventId, string senderPublicKey)
+    public override void OnHello(string senderPublicKey, DateTime createdAt)
     {
-        using var TL = TRACE.Log().Args(eventId, senderPublicKey);
+        using var TL = TRACE.Log().Args(senderPublicKey);
         try
         {
             if (senderPublicKey != this.PublicKey)
-                AddContact(senderPublicKey, "");
+                UpdateContact(senderPublicKey, createdAt);
         }
         catch(Exception ex)
         {
@@ -287,8 +282,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log().Args(eventId, settings);  
         try
         {
-            Settings = settings;
-            this.gigGossipNodeEvents.OnSettings(this, settings);
         }
         catch(Exception ex)
         {
@@ -311,9 +304,9 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public void AddContact(string contactPublicKey, string petname, string relay = "")
+    public void UpdateContact(string contactPublicKey, DateTime createdAt)
     {
-        using var TL = TRACE.Log().Args(contactPublicKey, petname, relay);
+        using var TL = TRACE.Log().Args(contactPublicKey);
         try
         {
             if (contactPublicKey == this.PublicKey)
@@ -322,18 +315,14 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             {
                 PublicKey = this.PublicKey,
                 ContactPublicKey = contactPublicKey,
-                Petname = petname,
-                Relay = relay,
+                LastSeen = createdAt,
             };
 
             lock (_contactList)
             {
-                if (!_contactList.ContainsKey(c.ContactPublicKey))
-                {
-                    _contactList[c.ContactPublicKey] = c;
-                    this.nodeContext.Value.AddObject(c);
-                    this.gigGossipNodeEvents.OnNewContact(this, c.ContactPublicKey);
-                }
+                _contactList[c.ContactPublicKey] = c;
+                if (!this.nodeContext.Value.TryAddObject(c))
+                    this.nodeContext.Value.SaveObject(c);
             }
         }
         catch(Exception ex)
@@ -343,7 +332,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public List<string> LoadContactList()
+    public void LoadContactList()
     {
         using var TL = TRACE.Log();
         try
@@ -353,7 +342,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 var mycontacts = (from c in this.nodeContext.Value.NostrContacts where c.PublicKey == this.PublicKey select c);
                 foreach (var c in mycontacts)
                     _contactList[c.ContactPublicKey] = c;
-                return _contactList.Keys.ToList();
             }
         }
         catch(Exception ex)
@@ -363,17 +351,37 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public List<string> GetContactList()
+    public DateTime? ContactLastSeen(string pubkey)
     {
         using var TL = TRACE.Log();
         try
         {
             lock (_contactList)
             {
-                return _contactList.Keys.ToList();
+                if (_contactList.ContainsKey(pubkey))
+                    return TL.Ret(_contactList[pubkey].LastSeen);
+                else
+                    return TL.Ret<DateTime?>(null);
             }
         }
-        catch(Exception ex)
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public List<string> GetContactList(int activeBeforeAtLeastHours)
+    {
+        using var TL = TRACE.Log();
+        try
+        {
+            lock (_contactList)
+            {
+                return TL.Ret((from c in _contactList.Values where c.LastSeen >= DateTime.UtcNow.AddHours(-activeBeforeAtLeastHours) select c.ContactPublicKey).ToList());
+            }
+        }
+        catch (Exception ex)
         {
             TL.Exception(ex);
             throw;
@@ -464,7 +472,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         try
         {
             var rnd = new Random();
-            var contacts = new HashSet<string>(GetContactList());
+            var contacts = new HashSet<string>(GetContactList(24));
             var alreadyBroadcasted = (from inc in this.nodeContext.Value.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey).ToList();
             contacts.ExceptWith(alreadyBroadcasted);
             if (originatorPublicKey != null)

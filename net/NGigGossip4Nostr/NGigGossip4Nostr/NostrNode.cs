@@ -46,10 +46,12 @@ public abstract class NostrNode
 
     object waitingForEvent = new object();
     string waitedEventId;
+    string ackMessage = "";
     bool eventReceived = false;
     bool eventAccepted = false;
 
-    private System.Timers.Timer _myPingTimer = new System.Timers.Timer(10000);
+    const int PING_TIMER_INTER = 10000;
+    private System.Timers.Timer _myPingTimer = new System.Timers.Timer(PING_TIMER_INTER);
 
     public event EventHandler<ServerConnectionStateEventArgs> OnServerConnectionState;
 
@@ -102,14 +104,18 @@ public abstract class NostrNode
         using var TL = TRACE.Log();
         try
         {
-            var newEvent = new NostrEvent()
-            {
-                Kind = NostrKind.GigGossipHelloKind,
-                CreatedAt = DateTime.UtcNow,
-                Content = "",
-                Tags = { },
-            };
-            SendEvent(newEvent.Sign(NostrPrivateKey.FromEc(this.privateKey)), 1, false);
+
+            SendEvent(() => {
+                var newEvent = new NostrEvent()
+                {
+                    Kind = NostrKind.GigGossipHelloKind,
+                    CreatedAt = DateTime.UtcNow,
+                    Content = "",
+                    Tags = { },
+                };
+                return newEvent.Sign(NostrPrivateKey.FromEc(this.privateKey));
+            }
+            , 1, false);
         }
         catch (Exception ex)
         {
@@ -131,52 +137,59 @@ public abstract class NostrNode
         }
     }
 
-    void EventAck(string eventId,bool accepted)
+    void EventAck(string eventId,bool accepted,string message)
     {
         using var TL = TRACE.Log().Args(eventId,accepted);
         lock(waitingForEvent)
         {
+            _myPingTimer.Interval = PING_TIMER_INTER;
             if (eventId == waitedEventId)
             {
                 eventReceived = true;
                 eventAccepted = accepted;
+                ackMessage = message;
                 Monitor.PulseAll(waitingForEvent);
             }
         }
     }
 
-    void SendEvent(NostrEvent e, int retryCount,bool throwOnFailure)
+    void SendEvent(Func<NostrEvent> eventFactory, int retryCount,bool throwOnFailure)
     {
-        using var TL = TRACE.Log().Args(e, retryCount, throwOnFailure);
+        using var TL = TRACE.Log().Args(retryCount, throwOnFailure);
         try
         {
             for (int i = 0; i < retryCount; i++)
             {
                 lock (waitingForEvent)
                 {
+                    var e = eventFactory();
                     waitedEventId = e.Id;
                     eventReceived = false;
                     eventAccepted = false;
-                    _ = Task.Run(() =>
-                        nostrClient.Send(new NostrEventRequest(e))
-                    ); 
+                    nostrClient.Send(new NostrEventRequest(e));
                     while (true)
                     {
                         if (!Monitor.Wait(waitingForEvent, 60000))
+                        {
+                            TL.Warning("Timeout");
                             break;
+                        }
                         if (eventReceived)
                         {
                             if (eventAccepted)
                                 return;
                             else
+                            {
+                                TL.Warning($"Not Accepted {ackMessage}");
                                 break;
+                            }
                         }
                     }
                 }
                 Thread.Sleep(1000);
             }
             if (throwOnFailure)
-                throw new Exception();
+                throw new Exception(ackMessage);
         }
         catch (Exception ex)
         {
@@ -190,15 +203,18 @@ public abstract class NostrNode
         using var TL = TRACE.Log().Args(settings);
         try
         {
-            var newEvent = new NostrEvent()
+            SendEvent(()=>
             {
-                Kind = NostrKind.GigGossipSettingsKind,
-                CreatedAt = DateTime.UtcNow,
-                Content = settings,
-                Tags = new NostrEventTags(new NostrEventTag("p", this.PublicKey)),
-            };
-            var encrypted = NostrEncryptedEvent.Encrypt(newEvent, NostrPrivateKey.FromEc(this.privateKey), NostrKind.GigGossipSettingsKind);
-            SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
+                var newEvent = new NostrEvent()
+                {
+                    Kind = NostrKind.GigGossipSettingsKind,
+                    CreatedAt = DateTime.UtcNow,
+                    Content = settings,
+                    Tags = new NostrEventTags(new NostrEventTag("p", this.PublicKey)),
+                };
+                var encrypted = NostrEncryptedEvent.Encrypt(newEvent, NostrPrivateKey.FromEc(this.privateKey), NostrKind.GigGossipSettingsKind);
+                return encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey));
+            }, 5, true);
         }
         catch (Exception ex)
         {
@@ -231,19 +247,24 @@ public abstract class NostrNode
                     tags.Add(new NostrEventTag("expiration", ((DateTimeOffset)expiration.Value).ToUnixTimeSeconds().ToString()));
 
                 var kind = ephemeral ? NostrKind.GigGossipEphemeralMessageKind : NostrKind.GigGossipMessageKind;
-                var newEvent = new NostrEvent()
+
+                var eventFactory = () =>
                 {
-                    Kind = kind,
-                    CreatedAt = DateTime.UtcNow,
-                    Content = part,
-                    Tags = new NostrEventTags(tags)
+                    var newEvent = new NostrEvent()
+                    {
+                        Kind = kind,
+                        CreatedAt = DateTime.UtcNow,
+                        Content = part,
+                        Tags = new NostrEventTags(tags)
+                    };
+                    var encrypted = newEvent.Encrypt(NostrPrivateKey.FromEc(this.privateKey), NostrPublicKey.FromHex(targetPublicKey), kind);
+                    return encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey));
                 };
 
-                var encrypted = newEvent.Encrypt(NostrPrivateKey.FromEc(this.privateKey), NostrPublicKey.FromHex(targetPublicKey), kind);
-                if(ephemeral)
-                    SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)), 1, false);
+                if (ephemeral)
+                    SendEvent(eventFactory, 1, false);
                 else
-                    SendEvent(encrypted.Sign(NostrPrivateKey.FromEc(this.privateKey)), 5, true);
+                    SendEvent(eventFactory, 5, true);
             }
             return TL.Ret(evid);
         }
@@ -255,7 +276,7 @@ public abstract class NostrNode
     }
 
     public abstract Task OnMessageAsync(string eventId, string senderPublicKey, object frame);
-    public virtual void OnHello(string eventId, string senderPublicKeye) { }
+    public virtual void OnHello(string senderPublicKeye, DateTime createdAt) { }
     public virtual void OnSettings(string eventId, string settings) { }
 
     public abstract bool OpenMessage(string id);
@@ -459,7 +480,9 @@ public abstract class NostrNode
         using var TL = TRACE.Log().Args(e);
         try
         {
-            EventAck(e.EventId,e.Accepted);
+            if (!e.Accepted)
+                TL.Warning(e.Message);
+            EventAck(e.EventId,e.Accepted,e.Message);
         }
         catch (Exception ex)
         {
@@ -472,6 +495,7 @@ public abstract class NostrNode
         using var TL = TRACE.Log().Args(e);
         try
         {
+            _myPingTimer.Interval = PING_TIMER_INTER;
             if (e.Subscription == SubscriptionId)
             {
                 var nostrEvent = e.Event;
@@ -562,6 +586,7 @@ public abstract class NostrNode
                 return;
             try
             {
+                OnHello(senderPublicKey,createdAt);
                 await OnMessageAsync(eventId, senderPublicKey, frame);
                 CommitMessage(eventId, (int) NostrKind.GigGossipMessageKind, createdAt);
             }
@@ -590,8 +615,8 @@ public abstract class NostrNode
                 return;
             try
             {
-                OnHello(nostrEvent.Id, nostrEvent.Pubkey);
-                CommitMessage(nostrEvent.Id, (int) NostrKind.GigGossipHelloKind, nostrEvent.CreatedAt.Value);
+                OnHello(nostrEvent.Pubkey, nostrEvent.CreatedAt ?? DateTime.MinValue);
+                CommitMessage(nostrEvent.Id, (int)NostrKind.GigGossipHelloKind, nostrEvent.CreatedAt.Value);
             }
             catch (Exception ex)
             {
