@@ -61,6 +61,9 @@ var walletSettings = config.GetSection("wallet").Get<WalletSettings>();
 var lndConf = config.GetSection("lnd").Get<LndSettings>();
 BitcoinSettings? btcConf = walletSettings.AllowLocalBitcoinNode ? config.GetSection("bitcoin").Get<BitcoinSettings>() : null;
 
+if (btcConf != null)
+    Singlethon.BitcoinNodeUtils = new BitcoinNodeUtils(btcConf.NewRPCClient(), btcConf.GetNetwork(), btcConf.WalletName);
+
 while (true)
 {
     var nd1 = LND.GetNodeInfo(lndConf);
@@ -68,7 +71,7 @@ while (true)
         break;
 
     TraceEx.TraceWarning("Node not synced to chain");
-    if (Singlethon.BitcoinNodeUtils.IsRegTest)
+    if (btcConf.Network== "regtest")
     {
         TraceEx.TraceWarning("Mining 101");
         Singlethon.BitcoinNodeUtils.Mine101Blocks();
@@ -103,8 +106,6 @@ LNDChannelManager channelManager = new LNDChannelManager(
     walletSettings.EstimatedTxFee);
 channelManager.Start();
 
-if (btcConf != null)
-    Singlethon.BitcoinNodeUtils = new BitcoinNodeUtils(btcConf.NewRPCClient(), btcConf.GetNetwork(), btcConf.WalletName);
 
 TraceEx.TraceInformation("... Running");
 
