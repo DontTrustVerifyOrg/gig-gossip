@@ -26,6 +26,7 @@ using NBitcoin.RPC;
 using NBitcoin.Secp256k1;
 using NGeoHash;
 using NGigGossip4Nostr;
+using ProtoBuf.Serializers;
 using RideShareFrames;
 using Sharprompt;
 using Spectre;
@@ -245,6 +246,7 @@ public partial class RideShareCLIApp
             AnsiConsole.WriteLine($"Loading private key for {settings.Id}");
             await SetPrivateKeyAsync(privateKey);
 
+            GigDebugLoggerAPIClient.FlowLoggerFactory.Initialize(false, privateKey.CreateXOnlyPubKey().AsHex(), settings.NodeSettings.LoggerOpenApi, () => new HttpClient());
             gigGossipNode = new GigGossipNode(
                 settings.NodeSettings.ConnectionString.Replace("$ID", settings.Id),
                 privateKey,
@@ -580,7 +582,8 @@ public partial class RideShareCLIApp
         var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token));
         AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
 
-        var contactList = gigGossipNode.LoadContactList();
+        gigGossipNode.LoadContactList();
+        var contactList = gigGossipNode.GetContactList(24);
         AnsiConsole.WriteLine("Contacts:");
         foreach (var contact in contactList)
             AnsiConsole.WriteLine("contact :" + contact);

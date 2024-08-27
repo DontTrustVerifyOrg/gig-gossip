@@ -117,7 +117,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<StringArrayResult> AddressAutocompleteAsync(string authToken, string query, string country, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, query, country);
+        using var TL = TRACE.Log().Args(query, country);
         try
         {
             return TL.Ret(await API.AddressAutocompleteAsync(authToken, query, country, cancellationToken));
@@ -131,7 +131,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GeolocationRetResult> AddressGeocodeAsync(string authToken, string address, string country, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, address, country);
+        using var TL = TRACE.Log().Args(address, country);
         try
         {
             return TL.Ret(await API.AddressGeocodeAsync(authToken, address, country, cancellationToken));
@@ -145,7 +145,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.StringResult> LocationGeocodeAsync(string authToken, double lat, double lon, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, lat, lon);
+        using var TL = TRACE.Log().Args(lat, lon);
         try
         {
             return TL.Ret(await API.LocationGeocodeAsync(authToken, lat, lon, cancellationToken));
@@ -159,7 +159,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<RouteRetResult> GetRouteAsync(string authToken, double fromLat, double fromLon, double toLat, double toLon, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, fromLat, fromLon, toLat, toLon);
+        using var TL = TRACE.Log().Args(fromLat, fromLon, toLat, toLon);
         try
         {
             return TL.Ret(await API.GetRouteAsync(authToken, fromLat, fromLon, toLat, toLon, cancellationToken));
@@ -173,7 +173,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.Result> GiveUserPropertyAsync(string authToken, string pubkey, string name, string value, string secret, long validHours, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, pubkey, name, value, secret, validHours);
+        using var TL = TRACE.Log().Args(pubkey, name, value, secret, validHours);
         try
         {
             return TL.Ret(await API.GiveUserPropertyAsync(authToken, pubkey, name, value, secret, validHours, cancellationToken));
@@ -188,7 +188,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GetMyPropertyValueAsync(string authToken, string name, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, name);
+        using var TL = TRACE.Log().Args(name);
         try
         {
             return TL.Ret(await API.GetMyPropertyValueAsync(authToken, name, cancellationToken));
@@ -202,7 +202,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GetMyPropertySecretAsync(string authToken, string name, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, name);
+        using var TL = TRACE.Log().Args(name);
         try
         {
             return TL.Ret(await API.GetMyPropertySecretAsync(authToken, name, cancellationToken));
@@ -216,7 +216,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.Result> VerifyChannelAsync(string authToken, string pubkey, string name, string method, string value, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, pubkey, name, method, value);
+        using var TL = TRACE.Log().Args(pubkey, name, method, value);
         try
         {
             return TL.Ret(await API.VerifyChannelAsync(authToken, pubkey, name, method, value, cancellationToken));
@@ -230,7 +230,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<Int32Result> SubmitChannelSecretAsync(string authToken, string pubkey, string name, string method, string value, string secret, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, pubkey, name, method, value, secret);
+        using var TL = TRACE.Log().Args(pubkey, name, method, value, secret);
         try
         {
             return TL.Ret(await API.SubmitChannelSecretAsync(authToken, pubkey, name, method, value, secret, cancellationToken));
@@ -244,7 +244,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<BooleanResult> IsChannelVerifiedAsync(string authToken, string pubkey, string name, string value, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, pubkey, name, value);
+        using var TL = TRACE.Log().Args(pubkey, name, value);
         try
         {
             return TL.Ret(await API.IsChannelVerifiedAsync(authToken, pubkey, name, value, cancellationToken));
@@ -258,7 +258,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.Result> RevokeUserPropertyAsync(string authToken, string pubkey, string name, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, pubkey, name);
+        using var TL = TRACE.Log().Args(pubkey, name);
         try
         {
             return TL.Ret(await API.RevokeUserPropertyAsync(authToken, pubkey, name, cancellationToken));
@@ -272,7 +272,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GenerateReplyPaymentPreimageAsync(string authToken, System.Guid gigId, string repliperPubKey, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, gigId, repliperPubKey);
+        using var TL = TRACE.Log().Args(gigId, repliperPubKey);
         try
         {
             return TL.Ret(await API.GenerateReplyPaymentPreimageAsync(authToken, gigId, repliperPubKey, cancellationToken));
@@ -286,7 +286,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GenerateRelatedPreimageAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, paymentHash);
+        using var TL = TRACE.Log().Args(paymentHash);
         try
         {
             return TL.Ret(await API.GenerateRelatedPreimageAsync(authToken, paymentHash, cancellationToken));
@@ -300,7 +300,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<BooleanResult> ValidateRelatedPaymentHashesAsync(string authToken, string paymentHash1, string paymentHash2, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, paymentHash1, paymentHash2);
+        using var TL = TRACE.Log().Args(paymentHash1, paymentHash2);
         try
         {
             return TL.Ret(await API.ValidateRelatedPaymentHashesAsync(authToken, paymentHash1, paymentHash2, cancellationToken));
@@ -314,7 +314,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.StringResult> RevealPreimageAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, paymentHash);
+        using var TL = TRACE.Log().Args(paymentHash);
         try
         {
             return TL.Ret(await API.RevealPreimageAsync(authToken, paymentHash, cancellationToken));
@@ -328,7 +328,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.Result> GiveUserFileAsync(string authToken, string pubkey, string name, long? validHours, GigGossipSettlerAPIClient.FileParameter value, GigGossipSettlerAPIClient.FileParameter secret, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, pubkey, name, validHours);
+        using var TL = TRACE.Log().Args(pubkey, name, validHours);
         try
         {
             return TL.Ret(await API.GiveUserFileAsync(authToken, pubkey, name, validHours, value, secret, cancellationToken));
@@ -342,7 +342,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.Result> SaveUserTracePropertyAsync(string authToken, string pubkey, string name, string value, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, pubkey, name, value);
+        using var TL = TRACE.Log().Args(pubkey, name, value);
         try
         {
             return TL.Ret(await API.SaveUserTracePropertyAsync(authToken, pubkey, name, value, cancellationToken));
@@ -356,7 +356,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GetGigStatusAsync(string authToken, System.Guid signedRequestPayloadId, System.Guid repliperCertificateId, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, signedRequestPayloadId, repliperCertificateId);
+        using var TL = TRACE.Log().Args(signedRequestPayloadId, repliperCertificateId);
         try
         {
             return TL.Ret(await API.GetGigStatusAsync(authToken, signedRequestPayloadId, repliperCertificateId, cancellationToken));
@@ -370,7 +370,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GenerateRequestPayloadAsync(string authToken, string properties, GigGossipSettlerAPIClient.FileParameter serialisedTopic, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, properties, serialisedTopic.ToBytes());
+        using var TL = TRACE.Log().Args(properties, serialisedTopic.ToBytes());
         try
         {
             return TL.Ret(await API.GenerateRequestPayloadAsync(authToken, properties, serialisedTopic, cancellationToken));
@@ -384,7 +384,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GenerateSettlementTrustAsync(string authToken, string properties, string replyinvoice, GigGossipSettlerAPIClient.FileParameter message, GigGossipSettlerAPIClient.FileParameter signedRequestPayloadSerialized, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, properties, replyinvoice, message.ToBytes(), signedRequestPayloadSerialized.ToBytes());
+        using var TL = TRACE.Log().Args(properties, replyinvoice, message.ToBytes(), signedRequestPayloadSerialized.ToBytes());
         try
         {
             return TL.Ret(await API.GenerateSettlementTrustAsync(authToken, properties, replyinvoice, message, signedRequestPayloadSerialized, cancellationToken));
@@ -412,7 +412,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.Result> ManageDisputeAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, bool open, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, gigId, repliperCertificateId, open);
+        using var TL = TRACE.Log().Args(gigId, repliperCertificateId, open);
         try
         {
             return TL.Ret(await API.ManageDisputeAsync(authToken, gigId, repliperCertificateId, open, cancellationToken));
@@ -426,7 +426,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.Result> CancelGigAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, gigId, repliperCertificateId);
+        using var TL = TRACE.Log().Args(gigId, repliperCertificateId);
         try
         {
             return TL.Ret(await API.CancelGigAsync(authToken, gigId, repliperCertificateId, cancellationToken));
@@ -440,7 +440,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.Result> DeleteMyPersonalUserDataAsync(string authToken, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         try
         {
             return TL.Ret(await API.DeleteMyPersonalUserDataAsync(authToken, cancellationToken));
@@ -454,7 +454,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.StringResult> IssueNewAccessCodeAsync(string authToken, int length, bool singleUse, long validTill, string memo, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, singleUse, validTill, memo);
+        using var TL = TRACE.Log().Args(singleUse, validTill, memo);
         try
         {
             return TL.Ret(await API.IssueNewAccessCodeAsync(authToken, length, singleUse, validTill, memo, cancellationToken));
@@ -468,7 +468,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.Result> RevokeAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, accessCodeId);
+        using var TL = TRACE.Log().Args(accessCodeId);
         try
         {
             return TL.Ret(await API.RevokeAccessCodeAsync(authToken, accessCodeId, cancellationToken));
@@ -482,7 +482,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.Result> GrantAccessRightsAsync(string authToken, string pubkey, string accessRights, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, pubkey, accessRights);
+        using var TL = TRACE.Log().Args(pubkey, accessRights);
         try
         {
             return TL.Ret(await API.GrantAccessRightsAsync(authToken, pubkey, accessRights, cancellationToken));
@@ -496,7 +496,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.Result> RevokeAccessRightsAsync(string authToken, string pubkey, string accessRights, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, pubkey, accessRights);
+        using var TL = TRACE.Log().Args(pubkey, accessRights);
         try
         {
             return TL.Ret(await API.RevokeAccessRightsAsync(authToken, pubkey, accessRights, cancellationToken));
@@ -510,7 +510,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<BooleanResult> ValidateAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, accessCodeId);
+        using var TL = TRACE.Log().Args(accessCodeId);
         try
         {
             return TL.Ret(await API.ValidateAccessCodeAsync(authToken, accessCodeId,cancellationToken));
@@ -525,7 +525,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GetMemoFromAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, accessCodeId);
+        using var TL = TRACE.Log().Args(accessCodeId);
         try
         {
             return TL.Ret(await API.GetMemoFromAccessCodeAsync(authToken, accessCodeId, cancellationToken));
@@ -539,7 +539,7 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GetAccessRightsAsync(string authToken, string pubkey, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, pubkey);
+        using var TL = TRACE.Log().Args(pubkey);
         try
         {
             return TL.Ret(await API.GetAccessRightsAsync(authToken, pubkey, cancellationToken));
@@ -578,7 +578,7 @@ internal class GigStatusClientWrapper :  IGigStatusClient
 
     public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         try
         {
             await API.ConnectAsync(authToken, cancellationToken);
@@ -606,7 +606,7 @@ internal class GigStatusClientWrapper :  IGigStatusClient
 
     public async Task MonitorAsync(string authToken, Guid gigId, Guid replierCertificateId, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken,gigId, replierCertificateId);
+        using var TL = TRACE.Log().Args(gigId, replierCertificateId);
         try
         {
             await API.MonitorAsync(authToken, gigId, replierCertificateId, cancellationToken);
@@ -620,7 +620,7 @@ internal class GigStatusClientWrapper :  IGigStatusClient
 
     public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         await foreach (var row in API.StreamAsync(authToken, cancellationToken))
         {
             TL.Iteration(row);
@@ -642,7 +642,7 @@ internal class PreimageRevealClientWrapper : IPreimageRevealClient
 
     public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         try
         {
             await API.ConnectAsync(authToken, cancellationToken);
@@ -670,7 +670,7 @@ internal class PreimageRevealClientWrapper : IPreimageRevealClient
 
     public async Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, paymentHash);
+        using var TL = TRACE.Log().Args(paymentHash);
         try
         {
             await API.MonitorAsync(authToken, paymentHash, cancellationToken);
@@ -684,7 +684,7 @@ internal class PreimageRevealClientWrapper : IPreimageRevealClient
 
     public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         await foreach (var row in API.StreamAsync(authToken, cancellationToken))
         {
             TL.Iteration(row);

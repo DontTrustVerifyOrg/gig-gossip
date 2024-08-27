@@ -149,7 +149,7 @@ namespace NGigGossip4Nostr
 
         private void InvoiceStateUpdatesMonitor_OnServerConnectionState(object? sender, ServerConnectionStateEventArgs e)
         {
-            using var TL = TRACE.Log().Args(sender, e);
+            using var TL = TRACE.Log().Args(e);
             try
             {
                 gigGossipNode.FireOnServerConnectionState(ServerConnectionSource.WalletAPI, e.State, e.Uri);

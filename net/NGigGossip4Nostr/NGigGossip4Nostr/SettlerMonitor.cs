@@ -151,7 +151,7 @@ public class SettlerMonitor
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message);
+                    TL.Exception(ex);
                 }
             }
         }
@@ -195,7 +195,7 @@ public class SettlerMonitor
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message);
+                    TL.Exception(ex);
                 }
             }
         }
@@ -410,7 +410,7 @@ public class SettlerMonitor
 
     private void HubMonitor_OnServerConnectionState(object? sender, ServerConnectionStateEventArgs e)
     {
-        using var TL = TRACE.Log().Args(sender, e);
+        using var TL = TRACE.Log().Args(e);
         try
         {
             gigGossipNode.FireOnServerConnectionState(ServerConnectionSource.SettlerAPI, e.State, e.Uri);

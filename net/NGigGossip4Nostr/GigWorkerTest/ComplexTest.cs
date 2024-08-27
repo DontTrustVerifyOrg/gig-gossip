@@ -168,8 +168,8 @@ public class ComplexTest
                     if (already.Contains(node_name_1 + ":" + node_name))
                         continue;
 
-                    things[node_name].AddContact(things[node_name_1].PublicKey, node_name_1);
-                    things[node_name_1].AddContact(things[node_name].PublicKey, node_name);
+                    things[node_name].UpdateContact(things[node_name_1].PublicKey, DateTime.UtcNow);
+                    things[node_name_1].UpdateContact(things[node_name].PublicKey, DateTime.UtcNow);
                     already.Add(node_name + ":" + node_name_1);
                     already.Add(node_name_1 + ":" + node_name);
                     Console.WriteLine(node_name + "<->" + node_name_1);

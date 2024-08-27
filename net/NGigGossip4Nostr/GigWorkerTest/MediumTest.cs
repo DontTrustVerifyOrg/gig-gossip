@@ -195,19 +195,19 @@ public class MediumTest
                 }
             } while (true);
 
-            gigWorker.AddContact( gossipers[0].PublicKey, "Gossiper0");
-            gossipers[0].AddContact( gigWorker.PublicKey, "GigWorker");
+            gigWorker.UpdateContact( gossipers[0].PublicKey, DateTime.Now);
+            gossipers[0].UpdateContact( gigWorker.PublicKey, DateTime.Now);
 
             for (int i = 0; i < gossipers.Count; i++)
                 for (int j = 0; j < gossipers.Count; j++)
                 {
                     if (i == j)
                         continue;
-                    gossipers[i].AddContact(gossipers[j].PublicKey, "Gossiper" + j.ToString());
+                    gossipers[i].UpdateContact(gossipers[j].PublicKey, DateTime.Now);
                 }
 
-            customer.AddContact(gossipers[gossipers.Count-1].PublicKey, "Gossiper"+(gossipers.Count - 1).ToString());
-            gossipers[gossipers.Count - 1].AddContact(customer.PublicKey, "Customer");
+            customer.UpdateContact(gossipers[gossipers.Count-1].PublicKey, DateTime.Now);
+            gossipers[gossipers.Count - 1].UpdateContact(customer.PublicKey, DateTime.Now);
 
             {
                 var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);

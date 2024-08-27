@@ -151,8 +151,8 @@ public class BasicTest
             gigWorker.ClearContacts();
             customer.ClearContacts();
 
-            gigWorker.AddContact(customer.PublicKey,"Customer" );
-            customer.AddContact(gigWorker.PublicKey, "GigWorker");
+            gigWorker.UpdateContact(customer.PublicKey, DateTime.UtcNow);
+            customer.UpdateContact(gigWorker.PublicKey, DateTime.UtcNow);
 
             {
                 var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);

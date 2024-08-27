@@ -55,7 +55,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<InvoiceRetResult> AddHodlInvoiceAsync(string authToken, long satoshis, string hash, string memo, long expiry, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, satoshis, hash, memo, expiry);
+        using var TL = TRACE.Log().Args(satoshis, hash, memo, expiry);
         try
         {
             return TL.Ret(await API.AddHodlInvoiceAsync(authToken, satoshis, hash, memo, expiry, cancellationToken));
@@ -69,7 +69,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<InvoiceRetResult> AddInvoiceAsync(string authToken, long satoshis, string memo, long expiry, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, satoshis, memo, expiry);
+        using var TL = TRACE.Log().Args(satoshis, memo, expiry);
         try
         {
             return TL.Ret(await API.AddInvoiceAsync(authToken, satoshis, memo, expiry, cancellationToken));
@@ -83,7 +83,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<Result> CancelInvoiceAsync(string authToken, string paymenthash, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, paymenthash);
+        using var TL = TRACE.Log().Args(paymenthash);
         try
         {
             return TL.Ret(await API.CancelInvoiceAsync(authToken, paymenthash, cancellationToken));
@@ -97,7 +97,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<Result> CloseReserveAsync(string authToken, System.Guid reserveId, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, reserveId);
+        using var TL = TRACE.Log().Args(reserveId);
         try
         {
             return TL.Ret(await API.CloseReserveAsync(authToken, reserveId, cancellationToken));
@@ -111,7 +111,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<PayReqRetResult> DecodeInvoiceAsync(string authToken, string paymentRequest, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, paymentRequest);
+        using var TL = TRACE.Log().Args(paymentRequest);
         try
         {
             return TL.Ret(await API.DecodeInvoiceAsync(authToken, paymentRequest, cancellationToken));
@@ -125,7 +125,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<FeeEstimateRetResult> EstimateFeeAsync(string authToken, string address, long satoshis, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, address, satoshis);
+        using var TL = TRACE.Log().Args(address, satoshis);
         try
         {
             return TL.Ret(await API.EstimateFeeAsync(authToken, address, satoshis, cancellationToken));
@@ -139,7 +139,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<Result> GenerateBlocksAsync(string authToken, int blocknum, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, blocknum);
+        using var TL = TRACE.Log().Args(blocknum);
         try
         {
             return TL.Ret(await API.GenerateBlocksAsync(authToken, blocknum, cancellationToken));
@@ -153,7 +153,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<Int64Result> GetBalanceAsync(string authToken, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         try
         {
             return TL.Ret(await API.GetBalanceAsync(authToken, cancellationToken));
@@ -167,7 +167,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<AccountBallanceDetailsResult> GetBalanceDetailsAsync(string authToken, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         try
         {
             return TL.Ret(await API.GetBalanceDetailsAsync(authToken, cancellationToken));
@@ -181,7 +181,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<Int64Result> GetBitcoinWalletBallanceAsync(string authToken, int minConf, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, minConf);
+        using var TL = TRACE.Log().Args(minConf);
         try
         {
             return TL.Ret(await API.GetBitcoinWalletBallanceAsync(authToken, minConf, cancellationToken));
@@ -195,7 +195,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<StringResult> GetInvoiceStateAsync(string authToken, string paymenthash, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, paymenthash);
+        using var TL = TRACE.Log().Args(paymenthash);
         try
         {
             return TL.Ret(await API.GetInvoiceStateAsync(authToken, paymenthash, cancellationToken));
@@ -209,7 +209,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<LndWalletBallanceRetResult> GetLndWalletBallanceAsync(string authToken, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         try
         {
             return TL.Ret(await API.GetLndWalletBallanceAsync(authToken, cancellationToken));
@@ -223,7 +223,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<StringResult> GetPaymentStatusAsync(string authToken, string paymenthash, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, paymenthash);
+        using var TL = TRACE.Log().Args(paymenthash);
         try
         {
             return TL.Ret(await API.GetPaymentStatusAsync(authToken, paymenthash, cancellationToken));
@@ -251,7 +251,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<StringResult> NewAddressAsync(string authToken, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         try
         {
             return TL.Ret(await API.NewAddressAsync(authToken, cancellationToken));
@@ -265,7 +265,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<StringResult> NewBitcoinAddressAsync(string authToken, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         try
         {
             return TL.Ret(await API.NewBitcoinAddressAsync(authToken, cancellationToken));
@@ -279,7 +279,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<GuidResult> OpenReserveAsync(string authToken, long satoshis, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, satoshis);
+        using var TL = TRACE.Log().Args(satoshis);
         try
         {
             return TL.Ret(await API.OpenReserveAsync(authToken, satoshis, cancellationToken));
@@ -293,7 +293,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<Result> SendPaymentAsync(string authToken, string paymentrequest, int timeout, long feelimit, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, paymentrequest, timeout, feelimit);
+        using var TL = TRACE.Log().Args(paymentrequest, timeout, feelimit);
         try
         {
             return TL.Ret(await API.SendPaymentAsync(authToken, paymentrequest, timeout, feelimit, cancellationToken));
@@ -307,7 +307,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<Result> SendToAddressAsync(string authToken, string bitcoinAddr, long satoshis, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, bitcoinAddr, satoshis);
+        using var TL = TRACE.Log().Args(bitcoinAddr, satoshis);
         try
         {
             return TL.Ret(await API.SendToAddressAsync(authToken, bitcoinAddr, satoshis, cancellationToken));
@@ -321,7 +321,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<RouteFeeResponseResult> EstimateRouteFeeAsync(string authToken, string paymentrequest, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, paymentrequest);
+        using var TL = TRACE.Log().Args(paymentrequest);
         try
         {
             return TL.Ret(await API.EstimateRouteFeeAsync(authToken, paymentrequest, cancellationToken));
@@ -335,7 +335,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<InvoiceRetArrayResult> ListInvoicesAsync(string authToken, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         try
         {
             return TL.Ret(await API.ListInvoicesAsync(authToken, cancellationToken));
@@ -349,7 +349,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<PaymentRetArrayResult> ListPaymentsAsync(string authToken, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         try
         {
             return TL.Ret(await API.ListPaymentsAsync(authToken, cancellationToken));
@@ -363,7 +363,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<Result> SettleInvoiceAsync(string authToken, string preimage, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, preimage);
+        using var TL = TRACE.Log().Args(preimage);
         try
         {
             return TL.Ret(await API.SettleInvoiceAsync(authToken, preimage, cancellationToken));
@@ -377,7 +377,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<GuidResult> RegisterPayoutAsync(string authToken, long satoshis, string btcAddress, long txfee, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, satoshis, btcAddress, txfee);
+        using var TL = TRACE.Log().Args(satoshis, btcAddress, txfee);
         try
         {
             return TL.Ret(await API.RegisterPayoutAsync(authToken, satoshis, btcAddress, txfee, cancellationToken));
@@ -391,7 +391,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
 
     public async Task<Result> TopUpAndMine6BlocksAsync(string authToken, string bitcoinAddr, long satoshis, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, bitcoinAddr, satoshis);
+        using var TL = TRACE.Log().Args(bitcoinAddr, satoshis);
         try
         {
             return TL.Ret(await API.TopUpAndMine6BlocksAsync(authToken, bitcoinAddr, satoshis, cancellationToken));
@@ -430,7 +430,7 @@ internal class InvoiceStateUpdatesClientWrapper : IInvoiceStateUpdatesClient
 
     public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         try
         {
             await API.ConnectAsync(authToken, cancellationToken);
@@ -444,7 +444,7 @@ internal class InvoiceStateUpdatesClientWrapper : IInvoiceStateUpdatesClient
 
     public async Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken,paymentHash);
+        using var TL = TRACE.Log().Args(paymentHash);
         try
         {
             await API.MonitorAsync(authToken, paymentHash, cancellationToken);
@@ -459,7 +459,7 @@ internal class InvoiceStateUpdatesClientWrapper : IInvoiceStateUpdatesClient
 
     public async Task StopMonitoringAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, paymentHash);
+        using var TL = TRACE.Log().Args(paymentHash);
         try
         {
            await API.StopMonitoringAsync(authToken, paymentHash, cancellationToken);
@@ -473,7 +473,7 @@ internal class InvoiceStateUpdatesClientWrapper : IInvoiceStateUpdatesClient
 
     public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         await foreach (var row in API.StreamAsync(authToken, cancellationToken))
         {
             TL.Iteration(row);
@@ -496,7 +496,7 @@ internal class PaymentStatusUpdatesClientWrapper : IPaymentStatusUpdatesClient
 
     public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         try
         {
             await API.ConnectAsync(authToken, cancellationToken);
@@ -510,7 +510,7 @@ internal class PaymentStatusUpdatesClientWrapper : IPaymentStatusUpdatesClient
 
     public async Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken,paymentHash);
+        using var TL = TRACE.Log().Args(paymentHash);
         try
         {
             await API.MonitorAsync(authToken, paymentHash, cancellationToken);
@@ -524,7 +524,7 @@ internal class PaymentStatusUpdatesClientWrapper : IPaymentStatusUpdatesClient
 
     public async Task StopMonitoringAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken, paymentHash);
+        using var TL = TRACE.Log().Args(paymentHash);
         try
         {
             await API.StopMonitoringAsync(authToken, paymentHash, cancellationToken);
@@ -538,7 +538,7 @@ internal class PaymentStatusUpdatesClientWrapper : IPaymentStatusUpdatesClient
 
     public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(authToken);
+        using var TL = TRACE.Log();
         await foreach (var row in API.StreamAsync(authToken, cancellationToken))
         {
             TL.Iteration(row);
