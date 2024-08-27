@@ -3,6 +3,7 @@ using System.Net.WebSockets;
 using Microsoft.AspNetCore.SignalR.Client;
 using System.Collections.Concurrent;
 using System.Net.Sockets;
+using Microsoft.AspNetCore.Http.Connections.Client;
 
 namespace NetworkClientToolkit;
 
@@ -16,7 +17,9 @@ public static class Extensions
                 ex is IOException ||
                 ex is HttpRequestException ||
                 ex is SocketException ||
-                ex is InvalidOperationException;
+                ex is InvalidOperationException ||
+                ex is TransportFailedException ||
+                ex is NoTransportSupportedException;
     }
 
     public static async Task WithRetryPolicy(this IRetryPolicy retryPolicy, Func<Task> func)

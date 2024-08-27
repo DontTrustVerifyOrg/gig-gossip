@@ -52,6 +52,7 @@ public abstract class NostrNode
 
     const int PING_TIMER_INTER = 10000;
     private System.Timers.Timer _myPingTimer = new System.Timers.Timer(PING_TIMER_INTER);
+    private DateTime _myPingTimerLastPing = DateTime.MinValue;
 
     public event EventHandler<ServerConnectionStateEventArgs> OnServerConnectionState;
 
@@ -63,6 +64,7 @@ public abstract class NostrNode
         this.ChunkSize = chunkSize;
         this.consumeCL = consumeCL;
         this.RetryPolicy = retryPolicy;
+        _myPingTimerLastPing = DateTime.MinValue;
         _myPingTimer.Elapsed += _myPingTimer_Elapsed;
     }
 
@@ -129,7 +131,15 @@ public abstract class NostrNode
         using var TL = TRACE.Log();
         try
         {
-            await SayHelloAsync();
+            bool sayHello = false;
+            lock (_myPingTimer)
+            {
+                if ((DateTime.UtcNow - _myPingTimerLastPing).TotalMilliseconds > PING_TIMER_INTER / 2)
+                    sayHello = true;
+                _myPingTimerLastPing = DateTime.UtcNow;
+            }
+            if (sayHello)
+                await SayHelloAsync();
         }
         catch (Exception ex)
         {
@@ -139,10 +149,13 @@ public abstract class NostrNode
 
     void EventAck(string eventId,bool accepted,string message)
     {
-        using var TL = TRACE.Log().Args(eventId,accepted);
         lock(waitingForEvent)
         {
-            _myPingTimer.Interval = PING_TIMER_INTER;
+            using var TL = TRACE.Log().Args(eventId, accepted);
+            lock (_myPingTimer)
+            {
+                _myPingTimerLastPing = DateTime.UtcNow;
+            }
             if (eventId == waitedEventId)
             {
                 eventReceived = true;
@@ -313,8 +326,7 @@ public abstract class NostrNode
             nostrClient = new NostrMultiWebsocketClient(NullLogger<NostrWebsocketClient>.Instance, relays);
             await RetryPolicy.WithRetryPolicy(async () => relays.ToList().ForEach(relay => relay.Start()));
 
-            var events = nostrClient.Streams.EventStream.Where(x => x.Event != null);
-            events.Subscribe(NostrClient_EventsReceived);
+            nostrClient.Streams.EventStream.Subscribe(NostrClient_EventsReceived);
             nostrClient.Streams.OkStream.Subscribe(NostrClient_OkReceived);
 
             if (OnServerConnectionState != null)
@@ -475,7 +487,7 @@ public abstract class NostrNode
         }
     }
 
-    private async void NostrClient_OkReceived(NostrOkResponse e)
+    private void NostrClient_OkReceived(NostrOkResponse e)
     {
         using var TL = TRACE.Log().Args(e);
         try
@@ -495,7 +507,10 @@ public abstract class NostrNode
         using var TL = TRACE.Log().Args(e);
         try
         {
-            _myPingTimer.Interval = PING_TIMER_INTER;
+            lock (_myPingTimer)
+            {
+                _myPingTimerLastPing = DateTime.UtcNow;
+            }
             if (e.Subscription == SubscriptionId)
             {
                 var nostrEvent = e.Event;

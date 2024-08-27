@@ -215,7 +215,15 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     private void GigGossipNode_OnServerConnectionState(object? sender, ServerConnectionStateEventArgs e)
     {
-        FireOnServerConnectionState(ServerConnectionSource.NostrRelay, e.State, e.Uri);
+        using var TL = TRACE.Log();
+        try
+        {
+            FireOnServerConnectionState(ServerConnectionSource.NostrRelay, e.State, e.Uri);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+        }
     }
 
     public override async Task StopAsync()

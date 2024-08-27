@@ -221,111 +221,118 @@ public partial class RideShareCLIApp
 
     private async Task DriverJourneyAsync(LocationFrame locationFrame)
     {
-        var keys = new List<string>(MockData.FakeAddresses.Keys);
-        var myAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
-        var myStartLocation = new GeoLocation(MockData.FakeAddresses[myAddress].Latitude, MockData.FakeAddresses[myAddress].Longitude);
-
-        var requestPayloadId = locationFrame.SignedRequestPayloadId;
-        var pubkey = directPubkeys[requestPayloadId];
-
+        try
         {
-            var route = SettlerAPIResult.Get<RouteRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-                .GetRouteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi),
-                myStartLocation.Latitude, myStartLocation.Longitude,
-                locationFrame.FromLocation.Latitude, locationFrame.FromLocation.Longitude,
-                CancellationTokenSource.Token));
+            var keys = new List<string>(MockData.FakeAddresses.Keys);
+            var myAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+            var myStartLocation = new GeoLocation(MockData.FakeAddresses[myAddress].Latitude, MockData.FakeAddresses[myAddress].Longitude);
 
-            foreach (var (idx,location) in GeoSteps(route.Geometry,20))
+            var requestPayloadId = locationFrame.SignedRequestPayloadId;
+            var pubkey = directPubkeys[requestPayloadId];
+
+            {
+                var route = SettlerAPIResult.Get<RouteRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+                    .GetRouteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi),
+                    myStartLocation.Latitude, myStartLocation.Longitude,
+                    locationFrame.FromLocation.Latitude, locationFrame.FromLocation.Longitude,
+                    CancellationTokenSource.Token));
+
+                foreach (var (idx, location) in GeoSteps(route.Geometry, 5))
+                {
+                    SupportPause();
+                    AnsiConsole.MarkupLine($"({idx},{location.Lat},{location.Lon}) I am [orange1]driving[/] to meet rider");
+                    await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
+                    {
+                        SignedRequestPayloadId = requestPayloadId,
+                        Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
+                        Message = "I am going",
+                        RideStatus = RideState.Started,
+                        FromAddress = locationFrame.FromAddress,
+                        ToAddress = locationFrame.ToAddress,
+                        FromLocation = locationFrame.FromLocation,
+                        ToLocation = locationFrame.ToLocation,
+                        Secret = locationFrame.Secret,
+                        ReplierCertificateId = locationFrame.ReplierCertificateId,
+                        SettlerServiceUri = locationFrame.SettlerServiceUri,
+                    }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
+                    Thread.Sleep(5000);
+                }
+            }
+            AnsiConsole.MarkupLine("I have [orange1]arrived[/]");
+            for (int i = 3; i > 0; i--)
             {
                 SupportPause();
-                AnsiConsole.MarkupLine($"({idx},{location.Lat},{location.Lon}) I am [orange1]driving[/] to meet rider");
+                AnsiConsole.MarkupLine($"({i}) I am [orange1]waiting[/] for rider");
                 await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
                 {
                     SignedRequestPayloadId = requestPayloadId,
-                    Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
-                    Message = "I am going",
-                    RideStatus = idx==0 ? RideState.Started : RideState.DriverGoingForRider,
+                    Location = locationFrame.FromLocation,
                     FromAddress = locationFrame.FromAddress,
                     ToAddress = locationFrame.ToAddress,
                     FromLocation = locationFrame.FromLocation,
                     ToLocation = locationFrame.ToLocation,
                     Secret = locationFrame.Secret,
+                    Message = "I am waiting",
+                    RideStatus = RideState.DriverWaitingForRider,
                     ReplierCertificateId = locationFrame.ReplierCertificateId,
                     SettlerServiceUri = locationFrame.SettlerServiceUri,
                 }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-                Thread.Sleep(1000);
+                Thread.Sleep(5000);
             }
-        }
-        AnsiConsole.MarkupLine("I have [orange1]arrived[/]");
-        for (int i = 3; i > 0; i--)
-        {
-            SupportPause();
-            AnsiConsole.MarkupLine($"({i}) I am [orange1]waiting[/] for rider");
+
+            AnsiConsole.MarkupLine("Rider [orange1]in the car[/]");
+
+            {
+                var route = SettlerAPIResult.Get<RouteRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
+                    .GetRouteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi),
+                    locationFrame.FromLocation.Latitude, locationFrame.FromLocation.Longitude,
+                    locationFrame.ToLocation.Latitude, locationFrame.ToLocation.Longitude,
+                    CancellationTokenSource.Token));
+                foreach (var (idx, location) in GeoSteps(route.Geometry, 5))
+                {
+                    SupportPause();
+                    AnsiConsole.MarkupLine($"({idx},{location.Lat},{location.Lon}) We are going [orange1]togheter[/]");
+                    await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
+                    {
+                        SignedRequestPayloadId = requestPayloadId,
+                        Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
+                        Message = "We are driving",
+                        RideStatus = RideState.RiderPickedUp,
+                        FromAddress = locationFrame.FromAddress,
+                        ToAddress = locationFrame.ToAddress,
+                        FromLocation = locationFrame.FromLocation,
+                        ToLocation = locationFrame.ToLocation,
+                        Secret = locationFrame.Secret,
+                        ReplierCertificateId = locationFrame.ReplierCertificateId,
+                        SettlerServiceUri = locationFrame.SettlerServiceUri,
+                    }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
+                    Thread.Sleep(5000);
+                }
+            }
+            AnsiConsole.MarkupLine("We have [orange1]reached[/] the destination");
             await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
             {
                 SignedRequestPayloadId = requestPayloadId,
-                Location = locationFrame.FromLocation,
+                Location = locationFrame.ToLocation,
+                Message = "Thank you",
+                RideStatus = RideState.Completed,
                 FromAddress = locationFrame.FromAddress,
                 ToAddress = locationFrame.ToAddress,
                 FromLocation = locationFrame.FromLocation,
                 ToLocation = locationFrame.ToLocation,
                 Secret = locationFrame.Secret,
-                Message = "I am waiting",
-                RideStatus = RideState.DriverWaitingForRider,
                 ReplierCertificateId = locationFrame.ReplierCertificateId,
                 SettlerServiceUri = locationFrame.SettlerServiceUri,
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-            Thread.Sleep(1000);
+            AnsiConsole.MarkupLine("Good [orange1]bye[/]");
+            ActiveSignedRequestPayloadId = Guid.Empty;
+            directTimer.Stop();
+            inDriverMode = false;
         }
-
-        AnsiConsole.MarkupLine("Rider [orange1]in the car[/]");
-
+        catch(Exception ex)
         {
-            var route = SettlerAPIResult.Get<RouteRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-                .GetRouteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi),
-                locationFrame.FromLocation.Latitude, locationFrame.FromLocation.Longitude,
-                locationFrame.ToLocation.Latitude, locationFrame.ToLocation.Longitude,
-                CancellationTokenSource.Token));
-            foreach (var (idx, location) in GeoSteps(route.Geometry, 20))
-            {
-                SupportPause();
-                AnsiConsole.MarkupLine($"({idx},{location.Lat},{location.Lon}) We are going [orange1]togheter[/]");
-                await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
-                {
-                    SignedRequestPayloadId = requestPayloadId,
-                    Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
-                    Message = "We are driving",
-                    RideStatus = idx==0?RideState.RiderPickedUp:RideState.DriverGoingWithRider,
-                    FromAddress = locationFrame.FromAddress,
-                    ToAddress = locationFrame.ToAddress,
-                    FromLocation = locationFrame.FromLocation,
-                    ToLocation = locationFrame.ToLocation,
-                    Secret = locationFrame.Secret,
-                    ReplierCertificateId = locationFrame.ReplierCertificateId,
-                    SettlerServiceUri = locationFrame.SettlerServiceUri,
-                }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-                Thread.Sleep(1000);
-            }
+            AnsiConsole.WriteException(ex);
         }
-        AnsiConsole.MarkupLine("We have [orange1]reached[/] the destination");
-        await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
-        {
-            SignedRequestPayloadId = requestPayloadId,
-            Location = locationFrame.ToLocation,
-            Message = "Thank you",
-            RideStatus = RideState.Completed,
-            FromAddress = locationFrame.FromAddress,
-            ToAddress = locationFrame.ToAddress,
-            FromLocation = locationFrame.FromLocation,
-            ToLocation = locationFrame.ToLocation,
-            Secret = locationFrame.Secret,
-            ReplierCertificateId= locationFrame.ReplierCertificateId,
-            SettlerServiceUri = locationFrame.SettlerServiceUri,
-        }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-        AnsiConsole.MarkupLine("Good [orange1]bye[/]");
-        ActiveSignedRequestPayloadId = Guid.Empty;
-        directTimer.Stop();
-        inDriverMode = false;
     }
 
 
