@@ -8,6 +8,12 @@ using System.Diagnostics;
 
 namespace GigGossipSettler;
 
+public enum DBProvider
+{
+    Sqlite = 1,
+    SQLServer,
+}
+
 /// <summary>
 /// This class represents the access rights of a user. 
 /// </summary>
@@ -330,6 +336,7 @@ public class Token
 /// </summary>
 public class SettlerContext : DbContext
 {
+    DBProvider provider;
     /// <summary>
     /// The connection string for the database.
     /// </summary>
@@ -339,10 +346,12 @@ public class SettlerContext : DbContext
     /// Creates a new instance of the SettlerContext class.
     /// </summary>
     /// <param name="connectionString">The connection string for the database.</param>
-    public SettlerContext(string connectionString)
+    public SettlerContext(DBProvider provider, string connectionString)
     {
+        this.provider = provider;
         this.connectionString = connectionString;
     }
+
 
     /// <summary>
     /// Tokens table.
@@ -391,7 +400,14 @@ public class SettlerContext : DbContext
     /// <param name="optionsBuilder"></param>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseSqlite(connectionString).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+        if (provider == DBProvider.Sqlite)
+            optionsBuilder.UseSqlite(connectionString);
+        else if (provider == DBProvider.SQLServer)
+            optionsBuilder.UseSqlServer(connectionString);
+        else
+            throw new NotImplementedException();
+
+        optionsBuilder.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
     }
 
     dynamic Type2DbSet(object obj)

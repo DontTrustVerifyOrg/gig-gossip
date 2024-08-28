@@ -86,11 +86,11 @@ public class LNDAccountManager
     public string PublicKey;
     private LNDEventSource eventSource;
 
-    internal LNDAccountManager(LND.NodeSettings conf, string connectionString, ECXOnlyPubKey pubKey, LNDEventSource eventSource)
+    internal LNDAccountManager(LND.NodeSettings conf, DBProvider provider, string connectionString, ECXOnlyPubKey pubKey, LNDEventSource eventSource)
     {
         this.conf = conf;
         this.PublicKey = pubKey.AsHex();
-        this.walletContext = new ThreadLocal<WaletContext>(() => new WaletContext(connectionString));
+        this.walletContext = new ThreadLocal<WaletContext>(() => new WaletContext(provider, connectionString));
         this.eventSource = eventSource;
     }
 
@@ -611,16 +611,18 @@ public class LNDWalletManager : LNDEventSource
 {
     private LND.NodeSettings conf;
     private ThreadLocal<WaletContext> walletContext;
+    private DBProvider provider;
     private string connectionString;
     private CancellationTokenSource subscribeInvoicesCancallationTokenSource;
     private Thread subscribeInvoicesThread;
     private CancellationTokenSource trackPaymentsCancallationTokenSource;
     private Thread trackPaymentsThread;
 
-    public LNDWalletManager(string connectionString, LND.NodeSettings conf, string ownerPubkey)
+    public LNDWalletManager(DBProvider provider, string connectionString, LND.NodeSettings conf, string ownerPubkey)
     {
+        this.provider = provider;
         this.connectionString = connectionString;
-        this.walletContext = new ThreadLocal<WaletContext>(() => new WaletContext(connectionString));
+        this.walletContext = new ThreadLocal<WaletContext>(() => new WaletContext(provider, connectionString));
         this.conf = conf;
         walletContext.Value.Database.EnsureCreated();
         EnsureOwnerAccessRights(ownerPubkey);
@@ -846,7 +848,7 @@ public class LNDWalletManager : LNDEventSource
 
     public LNDAccountManager GetAccount(ECXOnlyPubKey pubkey)
     {
-        return new LNDAccountManager(conf, this.connectionString, pubkey, this);
+        return new LNDAccountManager(conf, this.provider, this.connectionString, pubkey, this);
     }
 
     private void EnsureOwnerAccessRights(string pubkey)

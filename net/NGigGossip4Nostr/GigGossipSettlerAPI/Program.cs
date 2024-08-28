@@ -97,7 +97,8 @@ Singlethon.Settler = new Settler(
     );
 
 await Singlethon.Settler.InitAsync(
-    lndWalletClient, 
+    lndWalletClient,
+    Enum.Parse<DBProvider>(settlerSettings.DBProvider),
     settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)),
     settlerSettings.OwnerPublicKey
     );
@@ -1180,6 +1181,7 @@ public class SettlerSettings
     public required Uri ServiceUri { get; set; }
     public required Uri GigWalletOpenApi { get; set; }
     public required long PriceAmountForSettlement { get; set; }
+    public required string DBProvider { get; set; }
     public required string ConnectionString { get; set; }
     public required string SettlerPrivateKey { get; set; }
     public required string OwnerPublicKey { get; set; }

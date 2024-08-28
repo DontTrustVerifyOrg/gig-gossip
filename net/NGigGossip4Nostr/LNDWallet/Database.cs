@@ -1,8 +1,15 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
+using System.Data.Common;
 
 namespace LNDWallet;
+
+public enum DBProvider
+{
+    Sqlite=1,
+    SQLServer,
+}
 
 /// <summary>
 /// Represents a Bitcoin address.
@@ -247,6 +254,7 @@ public class Token
 /// </summary>
 public class WaletContext : DbContext
 {
+    DBProvider provider;
     /// <summary>
     /// Connection string to the database.
     /// </summary>
@@ -256,8 +264,9 @@ public class WaletContext : DbContext
     /// Initializes a new instance of the <see cref="WaletContext"/> class.
     /// </summary>
     /// <param name="connectionString">The connection string to connect to the database.</param>
-    public WaletContext(string connectionString)
+    public WaletContext(DBProvider provider, string connectionString)
     {
+        this.provider = provider;
         this.connectionString = connectionString;
     }
 
@@ -302,7 +311,14 @@ public class WaletContext : DbContext
     /// <param name="optionsBuilder">A builder used to create or modify options for this context.</param>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseSqlite(connectionString).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+        if (provider == DBProvider.Sqlite)
+            optionsBuilder.UseSqlite(connectionString);
+        else if (provider == DBProvider.SQLServer)
+            optionsBuilder.UseSqlServer(connectionString);
+        else
+            throw new NotImplementedException();
+
+        optionsBuilder.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
     }
 
 

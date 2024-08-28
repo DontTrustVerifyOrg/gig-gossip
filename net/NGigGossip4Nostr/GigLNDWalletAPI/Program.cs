@@ -81,6 +81,7 @@ while (true)
 
 
 Singlethon.LNDWalletManager = new LNDWalletManager(
+    Enum.Parse<DBProvider>(walletSettings.DBProvider),
     walletSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)),
     lndConf,
     walletSettings.OwnerPublicKey);
@@ -1010,6 +1011,7 @@ public class WalletSettings
 {
     public Uri ListenHost { get; set; }
     public Uri ServiceUri { get; set; }
+    public string DBProvider { get; set; }
     public string ConnectionString { get; set; }
     public long NewAddressTxFee { get; set; }
     public long AddInvoiceTxFee { get; set; }
