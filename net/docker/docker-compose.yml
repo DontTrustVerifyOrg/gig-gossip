@@ -25,10 +25,10 @@ services:
         max-size: "100m"
 
 
-  lightning_node_1:
+  lightning_node:
     image: awazcognitum/gig-gossip-base:0.1
 
-    container_name: giggossip_lightning_node_1
+    container_name: giggossip_lightning_node
     restart: on-failure
     # command: /work/lnd/lnd-debug --lnddir=/work/locallnd/.lnd
     command: /work/lnd/lnd-debug --lnddir=/work/locallnd/.lnd --wallet-unlock-password-file=/work/locallnd/.secret/password.txt
@@ -46,45 +46,45 @@ services:
 
 
 
-  lightning_node_2:
-    image: awazcognitum/gig-gossip-base:0.1
+  # lightning_node_2:
+  #   image: awazcognitum/gig-gossip-base:0.1
 
-    container_name: giggossip_lightning_node_2
-    restart: on-failure
-    # command: /work/lnd/lnd-debug --lnddir=/work/locallnd/.lnd
-    command: /work/lnd/lnd-debug --lnddir=/work/locallnd/.lnd --wallet-unlock-password-file=/work/locallnd/.secret/password.txt
-    ports:
-      - 9734:9734
-      - 11009:11009
-      - 8180:8180
-    volumes:
-      - ./work/locallnd/.lnd2:/work/locallnd/.lnd:Z
-      - ./work/locallnd/.secret:/work/locallnd/.secret:ro
-    logging:
-      driver: local
-      options:
-        max-size: "100m"
+  #   container_name: giggossip_lightning_node_2
+  #   restart: on-failure
+  #   # command: /work/lnd/lnd-debug --lnddir=/work/locallnd/.lnd
+  #   command: /work/lnd/lnd-debug --lnddir=/work/locallnd/.lnd --wallet-unlock-password-file=/work/locallnd/.secret/password.txt
+  #   ports:
+  #     - 9734:9734
+  #     - 11009:11009
+  #     - 8180:8180
+  #   volumes:
+  #     - ./work/locallnd/.lnd2:/work/locallnd/.lnd:Z
+  #     - ./work/locallnd/.secret:/work/locallnd/.secret:ro
+  #   logging:
+  #     driver: local
+  #     options:
+  #       max-size: "100m"
 
 
 
-  lightning_node_3:
-    image: awazcognitum/gig-gossip-base:0.1
+  # lightning_node_3:
+  #   image: awazcognitum/gig-gossip-base:0.1
 
-    container_name: giggossip_lightning_node_3
-    restart: on-failure
-    # command: /work/lnd/lnd-debug --lnddir=/work/locallnd/.lnd
-    command: /work/lnd/lnd-debug --lnddir=/work/locallnd/.lnd --wallet-unlock-password-file=/work/locallnd/.secret/password.txt
-    ports:
-      - 9736:9736
-      - 11010:11010
-      - 8181:8181
-    volumes:
-      - ./work/locallnd/.lnd3:/work/locallnd/.lnd:Z
-      - ./work/locallnd/.secret:/work/locallnd/.secret:ro
-    logging:
-      driver: local
-      options:
-        max-size: "100m"
+  #   container_name: giggossip_lightning_node_3
+  #   restart: on-failure
+  #   # command: /work/lnd/lnd-debug --lnddir=/work/locallnd/.lnd
+  #   command: /work/lnd/lnd-debug --lnddir=/work/locallnd/.lnd --wallet-unlock-password-file=/work/locallnd/.secret/password.txt
+  #   ports:
+  #     - 9736:9736
+  #     - 11010:11010
+  #     - 8181:8181
+  #   volumes:
+  #     - ./work/locallnd/.lnd3:/work/locallnd/.lnd:Z
+  #     - ./work/locallnd/.secret:/work/locallnd/.secret:ro
+  #   logging:
+  #     driver: local
+  #     options:
+  #       max-size: "100m"
 
 
 
