@@ -83,7 +83,7 @@ public class Settler : CertificationAuthority
         this.RetryPolicy = retryPolicy;
     }
 
-    public async Task InitAsync(IWalletAPI lndWalletClient, string connectionString,string ownerPublicKey)
+    public async Task InitAsync(IWalletAPI lndWalletClient, DBProvider provider, string connectionString,string ownerPublicKey)
     {
         this.lndWalletClient = lndWalletClient;
 
@@ -92,7 +92,7 @@ public class Settler : CertificationAuthority
 #endif
         this.walletTokenGuid = WalletAPIResult.Get<Guid>(await lndWalletClient.GetTokenAsync(this.CaXOnlyPublicKey.AsHex(), CancellationTokenSource.Token));
 
-        settlerContext = new ThreadLocal<SettlerContext>(() => new SettlerContext(connectionString));
+        settlerContext = new ThreadLocal<SettlerContext>(() => new SettlerContext(provider, connectionString));
         settlerContext.Value.Database.EnsureCreated();
         EnsureOwnerAccessRights(ownerPublicKey);
 
