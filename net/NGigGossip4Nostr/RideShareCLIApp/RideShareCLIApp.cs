@@ -548,7 +548,7 @@ public partial class RideShareCLIApp
     private async void GigGossipNodeEventSource_OnNetworkInvoiceAccepted(object? sender, NetworkInvoiceAcceptedEventArgs e)
     {
         AnsiConsole.WriteLine("Network Invoice Accepted");
-        var paymentResult = await e.GigGossipNode.PayNetworkInvoiceAsync(e.InvoiceData, settings.NodeSettings.FeeLimitSat, CancellationTokenSource.Token);
+        var paymentResult = await e.GigGossipNode.PayInvoiceAsync(e.InvoiceData.Invoice, e.InvoiceData.PaymentHash, settings.NodeSettings.FeeLimitSat, CancellationTokenSource.Token);
         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
         {
             Console.WriteLine(paymentResult);

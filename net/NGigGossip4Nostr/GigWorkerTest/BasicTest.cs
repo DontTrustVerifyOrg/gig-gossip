@@ -228,7 +228,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         using var TL = TRACE.Log().Args(me, iac);
         try
         {
-            var paymentResult=await me.PayNetworkInvoiceAsync(iac, FeeLimit, CancellationToken.None);
+            var paymentResult=await me.PayInvoiceAsync(iac.Invoice, iac.PaymentHash, FeeLimit, CancellationToken.None);
             if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
                 Console.WriteLine(paymentResult);
         }
@@ -467,7 +467,27 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         try
         {
             TL.NewNote(me.PublicKey, "AcceptResponse");
-            var paymentResult = await me.AcceptResponseAsync(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice, FeeLimit, CancellationToken.None);
+            var balance = WalletAPIResult.Get<long>(await me.GetWalletClient().GetBalanceAsync(await me.MakeWalletAuthToken(), CancellationToken.None));
+
+            GigLNDWalletAPIErrorCode paymentResult = GigLNDWalletAPIErrorCode.Ok;
+
+            if (balance < decodedReplyInvoice.ValueSat + decodedNetworkInvoice.ValueSat + FeeLimit * 2)
+            {
+                paymentResult = GigLNDWalletAPIErrorCode.NotEnoughFunds;
+            }
+            else
+            {
+                var networkPayState = await me.PayInvoiceAsync(networkInvoice, decodedNetworkInvoice.PaymentHash, FeeLimit, CancellationToken.None);
+                if (networkPayState != GigLNDWalletAPIErrorCode.Ok)
+                    paymentResult = networkPayState;
+                else
+                {
+                    var replyPayState = await me.PayInvoiceAsync(replyInvoice, decodedReplyInvoice.PaymentHash, FeeLimit, CancellationToken.None);
+                    if (replyPayState != GigLNDWalletAPIErrorCode.Ok)
+                        paymentResult = replyPayState;
+                }
+            }
+
             if(paymentResult!= GigLNDWalletAPIErrorCode.Ok)
                 Console.WriteLine(paymentResult);
         }

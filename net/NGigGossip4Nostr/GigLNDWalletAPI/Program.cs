@@ -1009,15 +1009,15 @@ public struct LndWalletBallanceRet
 
 public class WalletSettings
 {
-    public Uri ListenHost { get; set; }
-    public Uri ServiceUri { get; set; }
-    public string DBProvider { get; set; }
-    public string ConnectionString { get; set; }
-    public long NewAddressTxFee { get; set; }
-    public long AddInvoiceTxFee { get; set; }
-    public long SendPaymentTxFee { get; set; }
-    public long EstimatedTxFee { get; set; }
-    public bool AllowLocalBitcoinNode { get; set; }
+    public required Uri ListenHost { get; set; }
+    public required Uri ServiceUri { get; set; }
+    public required string DBProvider { get; set; }
+    public required string ConnectionString { get; set; }
+    public required long NewAddressTxFee { get; set; }
+    public required long AddInvoiceTxFee { get; set; }
+    public required long SendPaymentTxFee { get; set; }
+    public required long EstimatedTxFee { get; set; }
+    public required bool AllowLocalBitcoinNode { get; set; }
     public required string OwnerPublicKey { get; set; }
     public required bool AllowAnonymous { get; set; }
 }
