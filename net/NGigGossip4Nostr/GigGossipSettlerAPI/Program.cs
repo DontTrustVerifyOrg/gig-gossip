@@ -909,7 +909,7 @@ app.MapGet("/validaterelatedpaymenthashes", (string authToken, string paymentHas
     try
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
-        return new Result<bool>(Singlethon.Settler.ValidateRelatedPaymentHashes(pubkey, paymentHash1, paymentHash2));
+        return new Result<bool>(Singlethon.Settler.ValidateRelatedPaymentHashes(paymentHash1, paymentHash2));
     }
     catch (Exception ex)
     {

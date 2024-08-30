@@ -62,24 +62,32 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                             gig.Status = GigStatus.Accepted;
                             gig.SubStatus = GigSubStatus.None;
                             gig.DisputeDeadline = DateTime.UtcNow + settler.disputeTimeout;
-                            settler.settlerContext.Value.SaveObject(gig);
+                            settler.settlerContext.Value
+                                .UPDATE(gig)
+                                .SAVE();
                             await settler.ScheduleGigAsync(gig);
                         }
                         else if (network_state == "Accepted")
                         {
                             gig.SubStatus = GigSubStatus.AcceptedByNetwork;
-                            settler.settlerContext.Value.SaveObject(gig);
+                            settler.settlerContext.Value
+                                .UPDATE(gig)
+                                .SAVE();
                         }
                         else if (payment_state == "Accepted")
                         {
                             gig.SubStatus = GigSubStatus.AcceptedByReply;
-                            settler.settlerContext.Value.SaveObject(gig);
+                            settler.settlerContext.Value
+                                .UPDATE(gig)
+                                .SAVE();
                         }
                         else if (network_state == "Cancelled" || payment_state == "Cancelled")
                         {
                             gig.Status = GigStatus.Cancelled;
                             gig.SubStatus = GigSubStatus.None;
-                            settler.settlerContext.Value.SaveObject(gig);
+                            settler.settlerContext.Value
+                                .UPDATE(gig)
+                                .SAVE();
                         }
                     }
                     else if (gig.Status == GigStatus.Accepted)
@@ -112,12 +120,16 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                             if (gig.SubStatus == GigSubStatus.None && gig.NetworkPaymentHash == payhash && gig.Status == GigStatus.Open)
                             {
                                 gig.SubStatus = GigSubStatus.AcceptedByNetwork;
-                                settler.settlerContext.Value.SaveObject(gig);
+                                settler.settlerContext.Value
+                                    .UPDATE(gig)
+                                    .SAVE();
                             }
                             else if (gig.SubStatus == GigSubStatus.None && gig.PaymentHash == payhash && gig.Status == GigStatus.Open)
                             {
                                 gig.SubStatus = GigSubStatus.AcceptedByReply;
-                                settler.settlerContext.Value.SaveObject(gig);
+                                settler.settlerContext.Value
+                                    .UPDATE(gig)
+                                    .SAVE();
                             }
                             else if ((gig.NetworkPaymentHash == payhash && gig.SubStatus == GigSubStatus.AcceptedByReply)
                             || (gig.PaymentHash == payhash && gig.SubStatus == GigSubStatus.AcceptedByNetwork))
@@ -125,7 +137,9 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                                 gig.Status = GigStatus.Accepted;
                                 gig.SubStatus = GigSubStatus.None;
                                 gig.DisputeDeadline = DateTime.UtcNow + this.settler.disputeTimeout;
-                                settler.settlerContext.Value.SaveObject(gig);
+                                settler.settlerContext.Value
+                                    .UPDATE(gig)
+                                    .SAVE();
                                 settler.FireOnGigStatus(gig.SignedRequestPayloadId, gig.ReplierCertificateId, gig.Status, gig.SymmetricKey);
                                 await settler.ScheduleGigAsync(gig);
                             }
@@ -149,7 +163,9 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                             {
                                 gig.Status = GigStatus.Cancelled;
                                 gig.SubStatus = GigSubStatus.None;
-                                settler.settlerContext.Value.SaveObject(gig);
+                                settler.settlerContext.Value
+                                    .UPDATE(gig)
+                                    .SAVE();
                                 settler.FireOnGigStatus(gig.SignedRequestPayloadId, gig.ReplierCertificateId, GigStatus.Cancelled);
                             }
                         }

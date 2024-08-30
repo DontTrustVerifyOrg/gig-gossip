@@ -1062,38 +1062,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public async Task<GigLNDWalletAPIErrorCode> PayNetworkInvoiceAsync(InvoiceData iac, long feelimit, CancellationToken cancellationToken)
-    {
-        using var TL = TRACE.Log().Args(iac, feelimit);
-        try
-        {
-            if (_paymentStatusUpdatesMonitor.IsPaymentMonitored(iac.PaymentHash))
-            {
-                TL.Warning("already payed");
-                return TL.Ret(GigLNDWalletAPIErrorCode.AlreadyPayed);
-            }
 
-            await _paymentStatusUpdatesMonitor.MonitorPaymentAsync(iac.PaymentHash, Crypto.BinarySerializeObject(
-                new PaymentData()
-                {
-                    Invoice = iac.Invoice,
-                    PaymentHash = iac.PaymentHash
-                }));
-            var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(
-                await MakeWalletAuthToken(), iac.Invoice, iac.TotalSeconds, feelimit, cancellationToken
-                ));
-            if (paymentStatus != GigLNDWalletAPIErrorCode.Ok)
-            {
-                await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(iac.PaymentHash);
-            }
-            return TL.Ret(paymentStatus);
-        }
-        catch(Exception ex)
-        {
-            TL.Exception(ex);
-            throw;
-        }
-    }
 
     public async void OnPaymentStatusChange(string status, byte[] data)
     {
@@ -1163,54 +1132,31 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public async Task<GigLNDWalletAPIErrorCode> AcceptResponseAsync(Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice, long feelimit, CancellationToken cancellationToken)
+    public async Task<GigLNDWalletAPIErrorCode> PayInvoiceAsync(string invoice, string paymentHash, long feelimit, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice, feelimit);
+        using var TL = TRACE.Log().Args(invoice, paymentHash, feelimit);
         try
         {
-            var ballance = WalletAPIResult.Get<long>(await GetWalletClient().GetBalanceAsync(await MakeWalletAuthToken(), cancellationToken));
-            if (ballance < decodedReplyInvoice.ValueSat + decodedNetworkInvoice.ValueSat + 2 * feelimit)
-            {
-                TL.Info("not enough funds");
-                return TL.Ret(GigLNDWalletAPIErrorCode.NotEnoughFunds);
-            }
+            if (_paymentStatusUpdatesMonitor.IsPaymentMonitored(paymentHash))
+                return TL.Ret(GigLNDWalletAPIErrorCode.AlreadyPayed);
 
-            if (!_paymentStatusUpdatesMonitor.IsPaymentMonitored(decodedNetworkInvoice.PaymentHash))
+            await _paymentStatusUpdatesMonitor.MonitorPaymentAsync(paymentHash, Crypto.BinarySerializeObject(
+            new PaymentData()
             {
-                await _paymentStatusUpdatesMonitor.MonitorPaymentAsync(decodedNetworkInvoice.PaymentHash, Crypto.BinarySerializeObject(
-                new PaymentData()
-                {
-                    Invoice = networkInvoice,
-                    PaymentHash = decodedNetworkInvoice.PaymentHash
-                }));
-                var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), networkInvoice, (int)this.InvoicePaymentTimeout.TotalSeconds, feelimit,cancellationToken));
-                if(paymentStatus!= GigLNDWalletAPIErrorCode.Ok)
-                {
-                    await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(decodedNetworkInvoice.PaymentHash);
-                    TL.Warning("network invoice payment failed");
-                    return TL.Ret(paymentStatus);
-                }
-            }
-
-            if (!_paymentStatusUpdatesMonitor.IsPaymentMonitored(decodedReplyInvoice.PaymentHash))
+                Invoice = invoice,
+                PaymentHash = paymentHash
+            }));
+            var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), invoice, (int)this.InvoicePaymentTimeout.TotalSeconds, feelimit, cancellationToken));
+            if (paymentStatus != GigLNDWalletAPIErrorCode.Ok)
             {
-                await _paymentStatusUpdatesMonitor.MonitorPaymentAsync(decodedReplyInvoice.PaymentHash, Crypto.BinarySerializeObject(
-                new PaymentData()
-                {
-                    Invoice = replyInvoice,
-                    PaymentHash = decodedReplyInvoice.PaymentHash
-                }));
-                var paymentStatus = WalletAPIResult.Status(await GetWalletClient().SendPaymentAsync(await MakeWalletAuthToken(), replyInvoice, (int)this.InvoicePaymentTimeout.TotalSeconds, feelimit,cancellationToken));
-                if (paymentStatus != GigLNDWalletAPIErrorCode.Ok)
-                {
-                    await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(decodedNetworkInvoice.PaymentHash);
-                    TL.Warning("reply invoice payment failed");
-                    return TL.Ret(paymentStatus);
-                }
+                await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(paymentHash);
+                TL.Error("invoice payment failed " + paymentStatus.ToString());
+                return TL.Ret(paymentStatus);
             }
-            return TL.Ret(GigLNDWalletAPIErrorCode.Ok);
+            else
+                return TL.Ret(GigLNDWalletAPIErrorCode.Ok);
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             TL.Exception(ex);
             throw;

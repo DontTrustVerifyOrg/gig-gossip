@@ -27,6 +27,8 @@ public enum SettlerErrorCode
     AccessDenied = 6,
 
     NotFound = 7,
+
+    InvoiceProblem =8,
 }
 
 public static class SettlerErrorCodeExtensions
@@ -40,6 +42,7 @@ public static class SettlerErrorCodeExtensions
         "Operation failed",
         "Access Denied",
         "Not Found",
+        "Problem with invoice"
     };
 
     /// <summary>

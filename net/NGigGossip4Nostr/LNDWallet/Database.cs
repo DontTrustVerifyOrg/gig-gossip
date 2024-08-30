@@ -345,44 +345,23 @@ public class WaletContext : DbContext
         throw new InvalidOperationException();
     }
 
-    public void SaveObject<T>(T obj)
+    public WaletContext UPDATE<T>(T obj)
     {
         this.Type2DbSet(obj!).Update(obj);
-        this.SaveChanges();
-        this.ChangeTracker.Clear();
+        return this;
     }
 
-    public void SaveObjectRange<T>(IEnumerable<T> range)
-    {
-        if (range.Count() == 0)
-            return;
-        this.Type2DbSet(range.First()!).UpdateRange(range);
-        this.SaveChanges();
-        this.ChangeTracker.Clear();
-    }
-
-    public void AddObject<T>(T obj)
+    public WaletContext INSERT<T>(T obj)
     {
         this.Type2DbSet(obj!).Add(obj);
-        this.SaveChanges();
-        this.ChangeTracker.Clear();
+        return this;
     }
 
-    public void AddObjectRange<T>(IEnumerable<T> range)
+    public void SAVE()
     {
-        if (range.Count() == 0)
-            return;
-        this.Type2DbSet(range.First()!).AddRange(range);
         this.SaveChanges();
         this.ChangeTracker.Clear();
     }
 
-    public void RemoveObject<T>(T obj)
-    {
-        this.Type2DbSet(obj!).Remove(obj);
-        this.SaveChanges();
-
-        this.ChangeTracker.Clear();
-    }
 }
 

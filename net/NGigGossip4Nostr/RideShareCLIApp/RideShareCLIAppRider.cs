@@ -56,7 +56,29 @@ public partial class RideShareCLIApp
         var evs = receivedResponsesForPaymentHashes[paymentHash];
         var e = evs.Aggregate((curMin, x) => (curMin == null || x.DecodedNetworkInvoice.ValueSat < curMin.DecodedNetworkInvoice.ValueSat) ? x : curMin);
 
-        var paymentResult = await e.GigGossipNode.AcceptResponseAsync(e.ReplyPayloadCert, e.ReplyInvoice, e.DecodedReplyInvoice, e.NetworkInvoice, e.DecodedNetworkInvoice, settings.NodeSettings.FeeLimitSat, CancellationTokenSource.Token);
+        var balance = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token));
+
+
+        GigLNDWalletAPIErrorCode paymentResult = GigLNDWalletAPIErrorCode.Ok;
+
+        if (balance < e.DecodedReplyInvoice.ValueSat + e.DecodedNetworkInvoice.ValueSat + settings.NodeSettings.FeeLimitSat * 2)
+        {
+            paymentResult = GigLNDWalletAPIErrorCode.NotEnoughFunds;
+        }
+        else
+        {
+
+            var networkPayState = await e.GigGossipNode.PayInvoiceAsync(e.NetworkInvoice, e.DecodedNetworkInvoice.PaymentHash, settings.NodeSettings.FeeLimitSat, CancellationToken.None);
+            if (networkPayState != GigLNDWalletAPIErrorCode.Ok)
+                paymentResult = networkPayState;
+            else
+            {
+                var replyPayState = await e.GigGossipNode.PayInvoiceAsync(e.ReplyInvoice, e.DecodedReplyInvoice.PaymentHash, settings.NodeSettings.FeeLimitSat, CancellationToken.None);
+                if (replyPayState != GigLNDWalletAPIErrorCode.Ok)
+                    paymentResult = replyPayState;
+            }
+        }
+
         if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
         {
             AnsiConsole.MarkupLine($"[red]{paymentResult}[/]");

@@ -97,7 +97,9 @@ public class LNDAccountManager
     public string NewAddress(long txfee)
     {
         var newaddress = LND.NewAddress(conf);
-        walletContext.Value.AddObject(new Address() { BitcoinAddress = newaddress, PublicKey = PublicKey, TxFee = txfee });
+        walletContext.Value
+            .INSERT(new Address() { BitcoinAddress = newaddress, PublicKey = PublicKey, TxFee = txfee })
+            .SAVE();
         return newaddress;
     }
 
@@ -108,21 +110,22 @@ public class LNDAccountManager
 
         var myid = Guid.NewGuid();
 
-        walletContext.Value.AddObject(new LNDWallet.Payout()
-        {
-            PayoutId = myid,
-            BitcoinAddress = btcAddress,
-            PublicKey = PublicKey,
-            TxFee = txfee,
-            State = PayoutState.Open,
-            Satoshis = satoshis
-        });
-
-        walletContext.Value.AddObject(new LNDWallet.Reserve()
-        {
-            ReserveId = myid,
-            Satoshis = satoshis
-        });
+        walletContext.Value
+            .INSERT(new Payout()
+            {
+                PayoutId = myid,
+                BitcoinAddress = btcAddress,
+                PublicKey = PublicKey,
+                TxFee = txfee,
+                State = PayoutState.Open,
+                Satoshis = satoshis
+            })
+            .INSERT(new Reserve()
+            {
+                ReserveId = myid,
+                Satoshis = satoshis
+            })
+            .SAVE();
         return myid;
     }
 
@@ -156,12 +159,18 @@ public class LNDAccountManager
 
     public (long amount, long amountTxFee) GetPendingPayedOutAmount()
     {
+        using var TX = walletContext.Value.Database.BeginTransaction();
+
         var amount = (from a in walletContext.Value.Payouts
-                      where a.PublicKey == PublicKey && a.State!= PayoutState.Sent
+                      where a.PublicKey == PublicKey && a.State != PayoutState.Sent
                       select ((long)(a.Satoshis))).Sum();
+
         var amountTxFee = (from a in walletContext.Value.Payouts
                            where a.PublicKey == PublicKey && a.State != PayoutState.Sent
                            select ((long)(a.TxFee))).Sum();
+
+        TX.Commit();
+
         return (amount, amountTxFee);
     }
 
@@ -197,7 +206,9 @@ public class LNDAccountManager
     public Invoicesrpc.AddHoldInvoiceResp AddHodlInvoice(long satoshis, string memo, byte[] hash, long txfee, long expiry)
     {
         var inv = LND.AddHodlInvoice(conf, satoshis, memo, hash, expiry);
-            walletContext.Value.AddObject(new Invoice() {
+        walletContext.Value
+            .INSERT(new Invoice()
+            {
                 PaymentHash = hash.AsHex(),
                 PublicKey = PublicKey,
                 PaymentRequest = inv.PaymentRequest,
@@ -206,24 +217,27 @@ public class LNDAccountManager
                 TxFee = txfee,
                 IsHodlInvoice = true,
                 IsSelfManaged = false,
-            }) ;
+            })
+            .SAVE();
         return inv;
     }
 
     public Lnrpc.AddInvoiceResponse AddInvoice(long satoshis, string memo, long txfee, long expiry)
     {
         var inv = LND.AddInvoice(conf, satoshis, memo, expiry);
-        walletContext.Value.AddObject(new Invoice()
-        {
-            PaymentHash = inv.RHash.ToArray().AsHex(),
-            PublicKey = PublicKey,
-            PaymentRequest = inv.PaymentRequest,
-            Satoshis = (long)satoshis,
-            State = InvoiceState.Open,
-            TxFee = txfee,
-            IsHodlInvoice = false,
-            IsSelfManaged = false,
-        });
+        walletContext.Value
+            .INSERT(new Invoice()
+            {
+                PaymentHash = inv.RHash.ToArray().AsHex(),
+                PublicKey = PublicKey,
+                PaymentRequest = inv.PaymentRequest,
+                Satoshis = (long)satoshis,
+                State = InvoiceState.Open,
+                TxFee = txfee,
+                IsHodlInvoice = false,
+                IsSelfManaged = false,
+            })
+            .SAVE();
         return inv;
     }
 
@@ -266,6 +280,8 @@ public class LNDAccountManager
 
     public async Task SendPaymentAsync(string paymentRequest, int timeout, long txfee, long feelimit)
     {
+        using var TX = walletContext.Value.Database.BeginTransaction();
+
         var decinv = LND.DecodeInvoice(conf, paymentRequest);
         var accountBallance = GetAccountBallance();
 
@@ -275,7 +291,7 @@ public class LNDAccountManager
         var selfInv = selfInvQuery.FirstOrDefault();
         if (selfInv != null) // selfpayment
         {
-            if (decinv.NumSatoshis > accountBallance -txfee)
+            if (decinv.NumSatoshis > accountBallance - txfee)
                 throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds);
 
             if (selfInv.State == InvoiceState.Settled)
@@ -289,27 +305,31 @@ public class LNDAccountManager
 
             selfInv.State = selfInv.IsHodlInvoice ? InvoiceState.Accepted : InvoiceState.Settled;
             selfInv.IsSelfManaged = true;
-            walletContext.Value.SaveObject(selfInv);
+            walletContext.Value
+                .UPDATE(selfInv)
+                .INSERT(new Payment()
+                {
+                    PaymentHash = decinv.PaymentHash,
+                    PublicKey = PublicKey,
+                    Satoshis = selfInv.Satoshis,
+                    TxFee = txfee,
+                    IsSelfManaged = true,
+                    PaymentFee = 0,
+                    Status = selfInv.IsHodlInvoice ? PaymentStatus.InFlight : PaymentStatus.Succeeded,
+                })
+                .SAVE();
+
             eventSource.FireOnInvoiceStateChanged(selfInv.PaymentHash, InvoiceState.Accepted);
-            if(!selfInv.IsHodlInvoice)
+            if (!selfInv.IsHodlInvoice)
                 eventSource.FireOnInvoiceStateChanged(selfInv.PaymentHash, InvoiceState.Settled);
 
-            walletContext.Value.AddObject(new Payment()
-            {
-                PaymentHash = decinv.PaymentHash,
-                PublicKey = PublicKey,
-                Satoshis = selfInv.Satoshis,
-                TxFee = txfee,
-                IsSelfManaged = true,
-                PaymentFee = 0,
-                Status = selfInv.IsHodlInvoice ? PaymentStatus.InFlight : PaymentStatus.Succeeded,
-            });
             eventSource.FireOnPaymentStatusChanged(selfInv.PaymentHash,
                 selfInv.IsHodlInvoice ? PaymentStatus.InFlight : PaymentStatus.Succeeded);
+
         }
         else
         {
-            if (decinv.NumSatoshis > accountBallance - feelimit-txfee)
+            if (decinv.NumSatoshis > accountBallance - feelimit - txfee)
                 throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds);
             var stream = LND.SendPaymentV2(conf, paymentRequest, timeout, (long)feelimit);
             LNDWallet.PaymentStatus paymentStatus = PaymentStatus.Unknown;
@@ -320,21 +340,27 @@ public class LNDAccountManager
                     paymentStatus = (LNDWallet.PaymentStatus)((int)status.Status);
                 break;
             }
-            walletContext.Value.AddObject(new Payment()
-            {
-                PaymentHash = decinv.PaymentHash,
-                PublicKey = PublicKey,
-                Satoshis = (long)decinv.NumSatoshis,
-                TxFee = txfee,
-                IsSelfManaged = false,
-                PaymentFee = feelimit,
-                Status = PaymentStatus.Unknown,
-            });
+            walletContext.Value
+                .INSERT(new Payment()
+                {
+                    PaymentHash = decinv.PaymentHash,
+                    PublicKey = PublicKey,
+                    Satoshis = (long)decinv.NumSatoshis,
+                    TxFee = txfee,
+                    IsSelfManaged = false,
+                    PaymentFee = feelimit,
+                    Status = PaymentStatus.Unknown,
+                })
+                .SAVE();
         }
+
+        TX.Commit();
     }
 
     public void SettleInvoice(byte[] preimage)
     {
+        using var TX = walletContext.Value.Database.BeginTransaction();
+
         var paymentHash = Crypto.ComputePaymentHash(preimage).AsHex();
         var invoice = (from inv in walletContext.Value.Invoices
                        where inv.PaymentHash == paymentHash && inv.IsSelfManaged
@@ -356,7 +382,9 @@ public class LNDAccountManager
 
             invoice.State = InvoiceState.Settled;
             invoice.Preimage = preimage;
-            walletContext.Value.SaveObject(invoice);
+            walletContext.Value
+                .UPDATE(invoice)
+                .SAVE();
             eventSource.FireOnInvoiceStateChanged(paymentHash, InvoiceState.Settled);
             var selfPayQuery = (from pay in walletContext.Value.Payments
                                 where pay.PaymentHash == paymentHash && pay.IsSelfManaged
@@ -366,6 +394,7 @@ public class LNDAccountManager
                 .SetProperty(a => a.Status, a => PaymentStatus.Succeeded)
                 ) > 0)
                 eventSource.FireOnPaymentStatusChanged(paymentHash, PaymentStatus.Succeeded);
+            TX.Commit();
         }
         else
         {
@@ -373,6 +402,7 @@ public class LNDAccountManager
             {
                 //this happens the invoice is not self managed so the update returned 0 rows changed
                 LND.SettleInvoice(conf, preimage);
+                TX.Commit();
             }
             catch (RpcException ex)
             {
@@ -383,6 +413,8 @@ public class LNDAccountManager
 
     public void CancelInvoice(string paymentHash)
     {
+        using var TX = walletContext.Value.Database.BeginTransaction();
+
         var invoice = (from inv in walletContext.Value.Invoices
                        where inv.PaymentHash == paymentHash && inv.IsSelfManaged
                        select inv).FirstOrDefault();
@@ -396,7 +428,9 @@ public class LNDAccountManager
                 throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadySettled);
 
             invoice.State = InvoiceState.Cancelled;
-            walletContext.Value.SaveObject(invoice);
+            walletContext.Value
+                .UPDATE(invoice)
+                .SAVE();
             eventSource.FireOnInvoiceStateChanged(paymentHash, InvoiceState.Cancelled);
             var selfPayQuery = (from pay in walletContext.Value.Payments
                                 where pay.PaymentHash == paymentHash && pay.IsSelfManaged
@@ -406,6 +440,8 @@ public class LNDAccountManager
                 .SetProperty(a => a.Status, a => PaymentStatus.Failed)
                 ) > 0)
                 eventSource.FireOnPaymentStatusChanged(paymentHash, PaymentStatus.Failed);
+
+            TX.Commit();
         }
         else
         {
@@ -413,6 +449,7 @@ public class LNDAccountManager
             {
                 //this happens the invoice is not self managed so the update returned 0 rows changed
                 LND.CancelInvoice(conf, paymentHash.AsBytes());
+                TX.Commit();
             }
             catch (RpcException ex)
             {
@@ -479,18 +516,20 @@ public class LNDAccountManager
 
     public long GetAccountBallance()
     {
-            var channelfunds = GetExecutedPayedInFundingAmount(6);
-            var alreadypayedout = GetPayedOutAmount();
+        using var TX = walletContext.Value.Database.BeginTransaction();
 
-            var earnedFromSettledInvoices = (from inv in walletContext.Value.Invoices
-                                            where inv.PublicKey == PublicKey && inv.State == InvoiceState.Settled
-                                            select (long)inv.Satoshis-(long)inv.TxFee).Sum();
+        var channelfunds = GetExecutedPayedInFundingAmount(6);
+        var alreadypayedout = GetPayedOutAmount();
 
-            var sendOrLocedPayments = (from pay in walletContext.Value.Payments
-                                            where pay.PublicKey == PublicKey && (pay.Status == PaymentStatus.Succeeded || pay.Status == PaymentStatus.InFlight)
-                                            select (long)pay.Satoshis + ((long)pay.PaymentFee + (long)pay.TxFee)).Sum();
+        var earnedFromSettledInvoices = (from inv in walletContext.Value.Invoices
+                                         where inv.PublicKey == PublicKey && inv.State == InvoiceState.Settled
+                                         select (long)inv.Satoshis - (long)inv.TxFee).Sum();
 
-            return channelfunds - alreadypayedout + earnedFromSettledInvoices - sendOrLocedPayments;
+        var sendOrLocedPayments = (from pay in walletContext.Value.Payments
+                                   where pay.PublicKey == PublicKey && (pay.Status == PaymentStatus.Succeeded || pay.Status == PaymentStatus.InFlight)
+                                   select (long)pay.Satoshis + ((long)pay.PaymentFee + (long)pay.TxFee)).Sum();
+
+        return channelfunds - alreadypayedout + earnedFromSettledInvoices - sendOrLocedPayments;
     }
 
     public AccountBallanceDetails GetAccountBallanceDetails()
@@ -660,7 +699,9 @@ public class LNDWalletManager : LNDEventSource
                             if (linv != null)
                             {
                                 linv.State = (InvoiceState)((int)inv.State);
-                                walletContext.Value.SaveObject(linv);
+                                walletContext.Value
+                                    .UPDATE(linv)
+                                    .SAVE();
                                 this.FireOnInvoiceStateChanged(linv.PaymentHash, linv.State);
                             }
                             return;
@@ -681,7 +722,9 @@ public class LNDWalletManager : LNDEventSource
                                 if (linv != null)
                                 {
                                     linv.State = (InvoiceState)((int)inv.State);
-                                    walletContext.Value.SaveObject(linv);
+                                    walletContext.Value
+                                        .UPDATE(linv)
+                                        .SAVE();
                                     this.FireOnInvoiceStateChanged(linv.PaymentHash, linv.State);
                                 }
                             }
@@ -853,44 +896,66 @@ public class LNDWalletManager : LNDEventSource
 
     private void EnsureOwnerAccessRights(string pubkey)
     {
+        using var TX = walletContext.Value.Database.BeginTransaction();
+
         var ar = (from a in walletContext.Value.UserAccessRights where a.AccessRights == AccessRights.Owner select a).FirstOrDefault();
         if (ar != null)
         {
             if(ar.PublicKey != pubkey)
             {
                 ar.PublicKey = pubkey;
-                walletContext.Value.SaveObject(ar);
+                walletContext.Value
+                    .UPDATE(ar)
+                    .SAVE();
             }
         }
         else 
         {
-            walletContext.Value.AddObject(new UserAccessRights() { PublicKey = pubkey, AccessRights = AccessRights.Owner });
+            walletContext.Value
+                .INSERT(new UserAccessRights() { PublicKey = pubkey, AccessRights = AccessRights.Owner })
+                .SAVE();
         }
+
+        TX.Commit();
     }
 
     public void GrantAccessRights(string pubkey, AccessRights accessRights)
     {
+        using var TX = walletContext.Value.Database.BeginTransaction();
+
         var ar = (from a in walletContext.Value.UserAccessRights where a.PublicKey == pubkey select a).FirstOrDefault();
         if (ar == null)
         {
             ar = new UserAccessRights() { PublicKey = pubkey, AccessRights = accessRights };
-            walletContext.Value.AddObject(ar);
+            walletContext.Value
+                .INSERT(ar)
+                .SAVE();
         }
         else
         {
             ar.AccessRights |= accessRights;
-            walletContext.Value.SaveObject(ar);
+            walletContext.Value
+                .UPDATE(ar)
+                .SAVE();
         }
+
+        TX.Commit();
     }
 
     public void RevokeAccessRights(string pubkey, AccessRights accessRights)
     {
+        using var TX = walletContext.Value.Database.BeginTransaction();
+
         var ar = (from a in walletContext.Value.UserAccessRights where a.PublicKey == pubkey select a).FirstOrDefault();
         if (ar != null)
         {
             ar.AccessRights &= ~accessRights;
-            walletContext.Value.SaveObject(ar);
+            walletContext.Value
+                .UPDATE(ar)
+                .SAVE();
         }
+
+        TX.Commit();
     }
 
     public AccessRights GetAccessRights(string pubkey)
@@ -913,7 +978,9 @@ public class LNDWalletManager : LNDEventSource
         if (t == null)
         {
             t = new Token() { id = Guid.NewGuid(), pubkey = pubkey };
-            walletContext.Value.AddObject(t);
+            walletContext.Value
+                .INSERT(t)
+                .SAVE();
         }
         return t.id;
     }
@@ -927,11 +994,13 @@ public class LNDWalletManager : LNDEventSource
     {
         var myid = Guid.NewGuid();
 
-        walletContext.Value.AddObject(new LNDWallet.Reserve()
-        {
-            ReserveId = myid,
-            Satoshis = satoshis
-        });
+        walletContext.Value
+            .INSERT(new LNDWallet.Reserve()
+            {
+                ReserveId = myid,
+                Satoshis = satoshis
+            })
+            .SAVE();
         return myid;
     }
 
@@ -956,12 +1025,16 @@ public class LNDWalletManager : LNDEventSource
 
     public void MarkPayoutAsSent(Guid id, string tx)
     {
+        using var TX = walletContext.Value.Database.BeginTransaction();
+
         if ((from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po)
         .ExecuteUpdate(po => po
         .SetProperty(a => a.State, PayoutState.Sent)
         .SetProperty(a => a.Tx, a => tx)) == 0)
             throw new LNDWalletException(LNDWalletErrorCode.PayoutAlreadySent);
         CloseReserve(id);
+
+        TX.Commit();
     }
 
     public (long feeSat, ulong satpervbyte) EstimateFee(string addr, long satoshis)
