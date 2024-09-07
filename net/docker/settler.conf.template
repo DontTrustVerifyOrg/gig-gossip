@@ -1,0 +1,15 @@
+[Settler]
+ListenHost=${ListenHost}
+ServiceUri=${ServiceUri}
+DBProvider=${DBProvider}
+ConnectionString=${ConnectionString}
+PriceAmountForSettlement=${PriceAmountForSettlement}
+InvoicePaymentTimeoutSec=${InvoicePaymentTimeoutSec}
+GigWalletOpenApi=${GigWalletOpenApi}
+SettlerPrivateKey=${SettlerPrivateKey}
+DisputeTimeoutSec=${DisputeTimeoutSec}
+GoogleMapsAPIKey=${GoogleMapsAPIKey}
+SMSGlobalAPIKeySecret=${SMSGlobalAPIKeySecret}
+SMSCodeRetryNumber=${SMSCodeRetryNumber}
+SMSCodeTimeoutMin=${SMSCodeTimeoutMin}
+OwnerPublicKey=${OwnerPublicKey}

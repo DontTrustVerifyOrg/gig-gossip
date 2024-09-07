@@ -1,0 +1,4 @@
+[Logger]
+ListenHost="${ListenHost}"
+ServiceUri="${ServiceUri}"
+LogFolder="${LogFolder}"
