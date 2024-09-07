@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ -e $2 ]
+if [ -e /app/data/$2 ]
 then
     echo "Using existing configuration file"
 else
