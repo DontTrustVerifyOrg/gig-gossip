@@ -101,3 +101,47 @@ jobs:
           tags: awazcognitum/logger_api:latest
 
 
+  build-wallet-api:
+    runs-on: ubuntu-latest
+    steps:
+      - # checkout to the repository on the build machine
+        name: Checkout
+        uses: actions/checkout@v3
+      - # login to Docker Hub using the secrets provided
+        name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - # build the container image and push it to Docker Hub
+        name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: ./net
+          file: ./net/docker/build_wallet_api.Dockerfile
+          push: true
+          tags: awazcognitum/wallet_api:latest
+
+
+  build-settler-api:
+    runs-on: ubuntu-latest
+    steps:
+      - # checkout to the repository on the build machine
+        name: Checkout
+        uses: actions/checkout@v3
+      - # login to Docker Hub using the secrets provided
+        name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - # build the container image and push it to Docker Hub
+        name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: ./net
+          file: ./net/docker/build_settler_api.Dockerfile
+          push: true
+          tags: awazcognitum/settler_api:latest
+
+

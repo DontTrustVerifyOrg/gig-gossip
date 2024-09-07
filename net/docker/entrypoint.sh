@@ -8,8 +8,6 @@ else
     envsubst < $2.template > $2
 fi
 
-echo "\nConfiguration file:"
-cat $2
 
-echo "\n\nStarting: dotnet $1 --basedir=/app/data"
+echo "\nStarting: dotnet $1 --basedir=/app/data\n"
 dotnet $1 --basedir=/app/data

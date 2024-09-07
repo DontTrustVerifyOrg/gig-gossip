@@ -1,12 +1,12 @@
 # Build
-FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 COPY ./NGigGossip4Nostr/ .
 RUN dotnet restore
 RUN dotnet publish -c Release -o out ./GigGossipSettlerAPI/GigGossipSettlerAPI.csproj
 
 # Run
-FROM mcr.microsoft.com/dotnet/aspnet:7.0
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
 RUN apt update && apt install -y gettext
 WORKDIR /app
 RUN mkdir -p /app/data/
