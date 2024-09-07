@@ -16,4 +16,4 @@ COPY ./docker/wallet.conf.template /app/wallet.conf.template
 
 ENV ListenHost=http://0.0.0.0:80/
 EXPOSE 80
-ENTRYPOINT ["./entrypoint.sh", "GigDebugLoggerAPI.dll", "wallet.conf"]
+ENTRYPOINT ["./entrypoint.sh", "GigLNDWalletAPI.dll", "wallet.conf"]
