@@ -5,7 +5,7 @@ then
     echo "Using existing configuration file"
 else
     echo "Creating configuration file from template and environment variables"
-    envsubst < $2.template > $2
+    envsubst < /app/$2.template > /app/data/$2
 fi
 
 

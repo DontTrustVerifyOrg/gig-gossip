@@ -12,9 +12,9 @@ WORKDIR /app
 RUN mkdir -p /app/data/
 COPY ./docker/entrypoint.sh .
 COPY --from=build /app/out .
-COPY ./docker/giglog.conf.template /app/data/giglog.conf.template
+COPY ./docker/giglog.conf.template /app/giglog.conf.template
 
 ENV ListenHost=http://0.0.0.0:80/
 ENV LogFolder=/app/data/
 EXPOSE 80
-ENTRYPOINT ["./entrypoint.sh", "GigDebugLoggerAPI.dll", "/app/data/giglog.conf"]
+ENTRYPOINT ["./entrypoint.sh", "GigDebugLoggerAPI.dll", "giglog.conf"]
