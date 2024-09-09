@@ -53,7 +53,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
     public string BaseUrl => API.BaseUrl;
     public IRetryPolicy RetryPolicy => API.RetryPolicy;
 
-    public async Task<InvoiceRetResult> AddHodlInvoiceAsync(string authToken, long satoshis, string hash, string memo, long expiry, CancellationToken cancellationToken)
+    public async Task<InvoiceRecordResult> AddHodlInvoiceAsync(string authToken, long satoshis, string hash, string memo, long expiry, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(satoshis, hash, memo, expiry);
         try
@@ -67,7 +67,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<InvoiceRetResult> AddInvoiceAsync(string authToken, long satoshis, string memo, long expiry, CancellationToken cancellationToken)
+    public async Task<InvoiceRecordResult> AddInvoiceAsync(string authToken, long satoshis, string memo, long expiry, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(satoshis, memo, expiry);
         try
@@ -109,7 +109,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<PayReqRetResult> DecodeInvoiceAsync(string authToken, string paymentRequest, CancellationToken cancellationToken)
+    public async Task<PaymentRequestRecordResult> DecodeInvoiceAsync(string authToken, string paymentRequest, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(paymentRequest);
         try
@@ -151,26 +151,12 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<Int64Result> GetBalanceAsync(string authToken, CancellationToken cancellationToken)
+    public async Task<AccountBalanceDetailsResult> GetBalanceAsync(string authToken, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log();
         try
         {
             return TL.Ret(await API.GetBalanceAsync(authToken, cancellationToken));
-        }
-        catch (Exception ex)
-        {
-            TL.Exception(ex);
-            throw;
-        }
-    }
-
-    public async Task<AccountBallanceDetailsResult> GetBalanceDetailsAsync(string authToken, CancellationToken cancellationToken)
-    {
-        using var TL = TRACE.Log();
-        try
-        {
-            return TL.Ret(await API.GetBalanceDetailsAsync(authToken, cancellationToken));
         }
         catch (Exception ex)
         {
@@ -193,12 +179,12 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<StringResult> GetInvoiceStateAsync(string authToken, string paymenthash, CancellationToken cancellationToken)
+    public async Task<InvoiceRecordResult> GetInvoiceAsync(string authToken, string paymenthash, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(paymenthash);
         try
         {
-            return TL.Ret(await API.GetInvoiceStateAsync(authToken, paymenthash, cancellationToken));
+            return TL.Ret(await API.GetInvoiceAsync(authToken, paymenthash, cancellationToken));
         }
         catch (Exception ex)
         {
@@ -221,12 +207,12 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<StringResult> GetPaymentStatusAsync(string authToken, string paymenthash, CancellationToken cancellationToken)
+    public async Task<PaymentRecordResult> GetPaymentAsync(string authToken, string paymenthash, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(paymenthash);
         try
         {
-            return TL.Ret(await API.GetPaymentStatusAsync(authToken, paymenthash, cancellationToken));
+            return TL.Ret(await API.GetPaymentAsync(authToken, paymenthash, cancellationToken));
         }
         catch (Exception ex)
         {
@@ -319,7 +305,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<RouteFeeResponseResult> EstimateRouteFeeAsync(string authToken, string paymentrequest, CancellationToken cancellationToken)
+    public async Task<RouteFeeRecordResult> EstimateRouteFeeAsync(string authToken, string paymentrequest, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(paymentrequest);
         try
@@ -333,7 +319,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<InvoiceRetArrayResult> ListInvoicesAsync(string authToken, CancellationToken cancellationToken)
+    public async Task<InvoiceRecordArrayResult> ListInvoicesAsync(string authToken, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log();
         try
@@ -347,7 +333,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<PaymentRetArrayResult> ListPaymentsAsync(string authToken, CancellationToken cancellationToken)
+    public async Task<PaymentRecordArrayResult> ListPaymentsAsync(string authToken, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log();
         try

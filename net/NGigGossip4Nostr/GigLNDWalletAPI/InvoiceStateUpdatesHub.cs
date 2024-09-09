@@ -10,11 +10,10 @@ namespace GigLNDWalletAPI;
 
 public class InvoiceStateUpdatesHub : Hub
 {
-    public static AccessRights AccessRights;
     public override async Task OnConnectedAsync()
     {
         var authToken = Context?.GetHttpContext()?.Request.Query["authtoken"].First();
-        var account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken,AccessRights);
+        var account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken, false);
         Context.Items["publicKey"] = account.PublicKey;
         Singlethon.InvoiceAsyncComQueue4ConnectionId.TryAdd(Context.ConnectionId, new AsyncComQueue<InvoiceStateChangedEventArgs>());
         await base.OnConnectedAsync();

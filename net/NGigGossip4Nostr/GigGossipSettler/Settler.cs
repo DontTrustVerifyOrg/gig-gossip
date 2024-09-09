@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin.Secp256k1;
 using Newtonsoft.Json;
-using NGigGossip4Nostr;
 using Quartz;
 using Quartz.Impl;
 using System.Diagnostics;
@@ -276,7 +275,7 @@ public class Settler : CertificationAuthority
         if (timedToken == null)
             throw new InvalidAuthTokenException();
 
-        var tk = (from token in settlerContext.Value.Tokens where token.PublicKey == timedToken.Value.PublicKey && token.TokenId == timedToken.Value.Guid select token).FirstOrDefault();
+        var tk = (from token in settlerContext.Value.Tokens where token.PublicKey == timedToken.PublicKey && token.TokenId == timedToken.Token.AsGuid() select token).FirstOrDefault();
         if (tk == null)
             throw new InvalidAuthTokenException();
 
@@ -355,26 +354,26 @@ public class Settler : CertificationAuthority
         query.ExecuteUpdate((x) => x.SetProperty(a => a.IsRevoked, true));
     }
 
-    private Certificate<T> IssueCertificate<T>(string kind, Guid id, string pubkey, string[] properties, T data)
+    private Certificate IssueCertificate<T>(string kind, Guid id, string pubkey, string[] properties, T data) where T : Google.Protobuf.IMessage<T>
     {
         using var TX = settlerContext.Value.Database.BeginTransaction();
 
         var props = (from u in settlerContext.Value.UserProperties where u.PublicKey == pubkey && !u.IsRevoked && u.ValidTill >= DateTime.UtcNow && properties.Contains(u.Name) select u).ToArray();
         var tracs = (from u in settlerContext.Value.UserTraceProperties where u.PublicKey == pubkey && properties.Contains(u.Name) select u).ToArray();
-        var prp = (from p in props select new PropertyValue { Name = p.Name, Value = p.Value }).ToList();
-        var trp = (from p in tracs select new PropertyValue { Name = p.Name, Value = p.Value }).ToList();
+        var prp = (from p in props select KeyValuePair.Create(p.Name, p.Value)).ToList();
+        var trp = (from p in tracs select KeyValuePair.Create(p.Name, p.Value)).ToList();
         prp.AddRange(trp);
 
-        if (!new HashSet<string>(properties).IsSubsetOf(new HashSet<string>(from p in prp select p.Name)))
+        if (!new HashSet<string>(properties).IsSubsetOf(new HashSet<string>(from p in prp select p.Key)))
             throw new PropertyNotGrantedException();
         var minDate = (from p in props select p.ValidTill).Min();
-        var cert = base.IssueCertificate<T>(kind, id, prp.ToArray(), minDate, DateTime.UtcNow, data);
+        var cert = base.IssueCertificate<T>(kind, id, prp.ToDictionary(), minDate, DateTime.UtcNow, data);
         foreach (var p in props)
             settlerContext.Value.INSERT(
-                new CertificateProperty() { Kind = kind, CertificateId = cert.Id, PropertyId = p.PropertyId });
+                new CertificateProperty() { Kind = kind, CertificateId = cert.Id.AsGuid(), PropertyId = p.PropertyId });
 
         settlerContext.Value
-            .INSERT(new UserCertificate() { Kind = kind, PublicKey = pubkey, CertificateId = cert.Id, IsRevoked = false })
+            .INSERT(new UserCertificate() { Kind = kind, PublicKey = pubkey, CertificateId = cert.Id.AsGuid(), IsRevoked = false })
             .SAVE();
 
         TX.Commit();
@@ -462,13 +461,13 @@ public class Settler : CertificationAuthority
             return gig.Status.ToString() + "|" + gig.SymmetricKey;
     }
 
-    public async Task<SettlementTrust> GenerateSettlementTrustAsync(string replierpubkey, string[] replierproperties, byte[] message, string replyInvoice, Certificate<RequestPayloadValue> signedRequestPayload)
+    public async Task<SettlementTrust> GenerateSettlementTrustAsync(string replierpubkey, string[] replierproperties, byte[] message, string replyInvoice, Certificate signedRequestPayload)
     {
         using var TX = settlerContext.Value.Database.BeginTransaction();
 
-        var decodedInv = WalletAPIResult.Get<PayReqRet>(await lndWalletClient.DecodeInvoiceAsync(MakeAuthToken(), replyInvoice, CancellationTokenSource.Token));
+        var decodedInv = WalletAPIResult.Get<PaymentRequestRecord>(await lndWalletClient.DecodeInvoiceAsync(MakeAuthToken(), replyInvoice, CancellationTokenSource.Token));
         var invPaymentHash = decodedInv.PaymentHash;
-        if ((from pi in settlerContext.Value.Preimages where pi.SignedRequestPayloadId == signedRequestPayload.Id && pi.PaymentHash == invPaymentHash select pi).FirstOrDefault() == null)
+        if ((from pi in settlerContext.Value.Preimages where pi.SignedRequestPayloadId == signedRequestPayload.Id.AsGuid() && pi.PaymentHash == invPaymentHash select pi).FirstOrDefault() == null)
             throw new UnknownPreimageException();
 
         byte[] key = Crypto.GenerateSymmetricKey();
@@ -482,14 +481,14 @@ public class Settler : CertificationAuthority
             new ReplyPayloadValue
             {
                 SignedRequestPayload = signedRequestPayload,
-                EncryptedReplyMessage = encryptedReplyMessage,
+                EncryptedReplyMessage = encryptedReplyMessage.AsByteString(),
                 ReplyInvoice = replyInvoice,
-                Timestamp = DateTime.UtcNow,
+                Timestamp = DateTime.UtcNow.AsUnixTimestamp(),
             }
         );
 
-        var networkInvoicePaymentHash = GenerateReplyPaymentPreimage(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.Id, replierpubkey);
-        var networkInvoice = WalletAPIResult.Get<InvoiceRet>(await lndWalletClient.AddHodlInvoiceAsync(
+        var networkInvoicePaymentHash = GenerateReplyPaymentPreimage(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.Id.AsGuid(), replierpubkey);
+        var networkInvoice = WalletAPIResult.Get<InvoiceRecord>(await lndWalletClient.AddHodlInvoiceAsync(
              MakeAuthToken(), priceAmountForSettlement, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds, CancellationTokenSource.Token));
 
 
@@ -497,8 +496,8 @@ public class Settler : CertificationAuthority
         settlerContext.Value
             .INSERT(new Gig()
             {
-                ReplierCertificateId = replyPayload.Id,
-                SignedRequestPayloadId = signedRequestPayload.Id,
+                ReplierCertificateId = replyPayload.Id.AsGuid(),
+                SignedRequestPayloadId = signedRequestPayload.Id.AsGuid(),
                 SymmetricKey = key.AsHex(),
                 Status = GigStatus.Open,
                 SubStatus = GigSubStatus.None,
@@ -508,8 +507,8 @@ public class Settler : CertificationAuthority
             })
             .SAVE();
 
-        var encryptedReplyPayload = Convert.FromBase64String(SettlerAPIResult.Get<string>(await settlerSelector.GetSettlerClient(signedRequestPayload.ServiceUri)
-            .EncryptObjectForCertificateIdAsync(signedRequestPayload.Id,
+        var encryptedReplyPayload = Convert.FromBase64String(SettlerAPIResult.Get<string>(await settlerSelector.GetSettlerClient(new Uri(signedRequestPayload.CertificationAuthorityUri))
+            .EncryptObjectForCertificateIdAsync(signedRequestPayload.Id.AsGuid(),
                                                 new FileParameter(new MemoryStream(Crypto.BinarySerializeObject(replyPayload))), CancellationTokenSource.Token)));
 
 
@@ -517,11 +516,11 @@ public class Settler : CertificationAuthority
 
         SettlementPromise signedSettlementPromise = new SettlementPromise()
         {
-            ServiceUri = this.ServiceUri,
-            RequestersServiceUri = signedRequestPayload.ServiceUri,
-            HashOfEncryptedReplyPayload = hashOfEncryptedReplyPayload,
-            ReplyPaymentAmount = decodedInv.ValueSat,
-            NetworkPaymentHash = networkInvoicePaymentHash.AsBytes(),
+            MySecurityCenterUri = this.ServiceUri.AbsoluteUri,
+            TheirSecurityCenterUri = signedRequestPayload.CertificationAuthorityUri,
+            HashOfEncryptedReplyPayload = hashOfEncryptedReplyPayload.AsByteString(),
+            ReplyPaymentAmountSat = (ulong)decodedInv.Satoshis,
+            NetworkPaymentHash = networkInvoicePaymentHash.AsBytes().AsByteString(),
         };
         signedSettlementPromise.Sign(_CaPrivateKey);
 
@@ -533,7 +532,7 @@ public class Settler : CertificationAuthority
         {
             SettlementPromise = signedSettlementPromise,
             NetworkInvoice = networkInvoice.PaymentRequest,
-            EncryptedReplyPayload = encryptedReplyPayload,
+            EncryptedReplyPayload = encryptedReplyPayload.AsByteString(),
             ReplierCertificateId = replyPayload.Id,
         };
     }
@@ -548,7 +547,7 @@ public class Settler : CertificationAuthority
 
     public byte[] EncryptObjectForPubkey(string pubkey, byte[] bytes)
     {
-        return Crypto.EncryptObject(Crypto.BinaryDeserializeObject<Certificate<ReplyPayloadValue>>(bytes)!, pubkey.AsECXOnlyPubKey(), this._CaPrivateKey);
+        return Crypto.EncryptObject(Crypto.BinaryDeserializeObject<Certificate>(bytes)!, pubkey.AsECXOnlyPubKey(), this._CaPrivateKey);
     }
 
     public BroadcastTopicResponse GenerateRequestPayload(string senderspubkey, string[] sendersproperties, byte[] topic)
@@ -564,8 +563,8 @@ public class Settler : CertificationAuthority
             sendersproperties,
             new RequestPayloadValue
             {
-                Topic = topic,
-                Timestamp = DateTime.UtcNow,
+                Topic = topic.AsByteString(),
+                Timestamp = DateTime.UtcNow.AsUnixTimestamp(),
             }
         );
         var cert2 = this.IssueCertificate(
@@ -575,7 +574,7 @@ public class Settler : CertificationAuthority
             sendersproperties,
             new CancelRequestPayloadValue
             {
-                Timestamp = DateTime.UtcNow,
+                Timestamp = DateTime.UtcNow.AsUnixTimestamp(),
             }
         );
 

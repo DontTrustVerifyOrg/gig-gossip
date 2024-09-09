@@ -7,6 +7,7 @@ using Grpc.Core;
 using System.Security.Cryptography.X509Certificates;
 using System.Net.Http;
 using NBitcoin.Protocol;
+using Grpc.Net.Client.Configuration;
 
 namespace LNDClient;
 
@@ -18,6 +19,7 @@ public static class LND
         public required string TlsCertFile { get; set; }
         public required string RpcHost { get; set; }
         public required string ListenHost { get; set; }
+        public required int GrpcMaxAttempts { get; set; }
     }
 
     public static HttpClient GetSSLHttpClient(string tlsCertFile)
@@ -38,14 +40,14 @@ public static class LND
         return Client<Invoicesrpc.Invoices.InvoicesClient>(conf);
     }
 
-    static Routerrpc.Router.RouterClient RouterClient(NodeSettings conf)
+    static Routerrpc.Router.RouterClient RouterClient(NodeSettings conf,bool retry=true)
     {
-        return Client<Routerrpc.Router.RouterClient>(conf);
+        return Client<Routerrpc.Router.RouterClient>(conf,retry);
     }
 
-    static Lnrpc.Lightning.LightningClient LightningClient(NodeSettings conf)
+    static Lnrpc.Lightning.LightningClient LightningClient(NodeSettings conf,bool retry=true)
     {
-        return Client<Lnrpc.Lightning.LightningClient>(conf);
+        return Client<Lnrpc.Lightning.LightningClient>(conf, retry);
     }
 
     static Walletrpc.WalletKit.WalletKitClient WalletKit(NodeSettings conf)
@@ -54,19 +56,45 @@ public static class LND
     }
 
 
-    static T Client<T>(NodeSettings conf) where T : ClientBase<T>
+    static T Client<T>(NodeSettings conf,bool retry=true) where T : ClientBase<T>
     {
+
+        ServiceConfig serconf;
+
+        if (retry)
+        {
+            serconf = new ServiceConfig
+            {
+                MethodConfigs = { new MethodConfig
+                                        {
+                                            Names = { MethodName.Default },
+                                            RetryPolicy = new RetryPolicy
+                                            {
+                                                MaxAttempts = conf.GrpcMaxAttempts,
+                                                InitialBackoff = TimeSpan.FromSeconds(1),
+                                                MaxBackoff = TimeSpan.FromSeconds(5),
+                                                BackoffMultiplier = 1.5,
+                                                RetryableStatusCodes = { StatusCode.Unavailable },
+                                            } } }
+            };
+        }
+        else
+        {
+            serconf = new ServiceConfig { };
+        }
+
         var channel = GrpcChannel.ForAddress(conf.RpcHost,
             new GrpcChannelOptions
             {
-                HttpClient = GetSSLHttpClient(conf.TlsCertFile.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)))
+                HttpClient = GetSSLHttpClient(conf.TlsCertFile.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))),
+                ServiceConfig= serconf,
+                MaxRetryAttempts = conf.GrpcMaxAttempts,
             });
 
         var ctors = typeof(T).GetConstructors();
         var ctor = ctors.First(x => x.GetParameters().Length == 1 && x.GetParameters().Single().Name == "channel");
         return ctor.Invoke(new object[] { channel }) as T;
     }
-
 
     static SslCredentials GetSslCredentials(NodeSettings conf)
     {
@@ -111,7 +139,7 @@ public static class LND
         else
             req.SendAll = true;
 
-        var response = LightningClient(conf).SendCoins(req, Metadata(conf), deadline, cancellationToken);
+        var response = LightningClient(conf,false).SendCoins(req, Metadata(conf), deadline, cancellationToken);
         return response.Txid;
     }
 
@@ -150,7 +178,7 @@ public static class LND
 
     public static SendResponse SendPayment(NodeSettings conf, string paymentRequest, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        return LightningClient(conf).SendPaymentSync(
+        return LightningClient(conf, false).SendPaymentSync(
             new SendRequest()
             {
                 PaymentRequest = paymentRequest
@@ -158,13 +186,12 @@ public static class LND
             Metadata(conf), deadline, cancellationToken);
     }
 
-    public static RouteFeeResponse EstimateRouteFee(NodeSettings conf, PayReq di, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static RouteFeeResponse EstimateRouteFee(NodeSettings conf, string paymentRequest, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         return RouterClient(conf).EstimateRouteFee(
             new RouteFeeRequest
             {
-                AmtSat = di.NumSatoshis,
-                Dest = Google.Protobuf.ByteString.CopyFrom(di.Destination.AsBytes())
+                PaymentRequest = paymentRequest
             },
             Metadata(conf), deadline, cancellationToken);
     }
@@ -179,12 +206,11 @@ public static class LND
         };
         if (outChanIds != null)
             spr.OutgoingChanIds.AddRange(outChanIds);
-        var stream = RouterClient(conf).SendPaymentV2(
+        var stream = RouterClient(conf, false).SendPaymentV2(
             spr,
             Metadata(conf), deadline, cancellationToken);
         return stream;
     }
-
 
     public static GetInfoResponse GetNodeInfo(NodeSettings conf, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
@@ -257,12 +283,13 @@ public static class LND
         return LightningClient(conf).OpenChannelSync(ocr, Metadata(conf), deadline, cancellationToken);
     }
 
-    public static AsyncServerStreamingCall<CloseStatusUpdate> CloseChannel(NodeSettings conf, string channelpoint, string closeAddress = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static AsyncServerStreamingCall<CloseStatusUpdate> CloseChannel(NodeSettings conf, string channelpoint, ulong maxFeePerVByte, string closeAddress = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var cp = channelpoint.Split(':');
         var ccr = new CloseChannelRequest()
         {
-            ChannelPoint = new ChannelPoint() { FundingTxidStr = cp[0], OutputIndex = uint.Parse(cp[1]) }
+            ChannelPoint = new ChannelPoint() { FundingTxidStr = cp[0], OutputIndex = uint.Parse(cp[1]) },
+            MaxFeePerVbyte = maxFeePerVByte,
         };
         if (closeAddress != null)
             ccr.DeliveryAddress = closeAddress;
@@ -383,6 +410,17 @@ public static class LND
             Metadata(conf), deadline, cancellationToken);
     }
 
+    public static AsyncServerStreamingCall<Payment> TrackPaymentV2(NodeSettings conf, byte[] hash, bool noInflightUpdates, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    {
+        return RouterClient(conf).TrackPaymentV2(
+            new TrackPaymentRequest()
+            {
+                PaymentHash = Google.Protobuf.ByteString.CopyFrom(hash),
+                NoInflightUpdates = noInflightUpdates,
+            },
+            Metadata(conf), deadline, cancellationToken);
+    }
+
     public static AsyncServerStreamingCall<Invoice> SubscribeSingleInvoice(NodeSettings conf, byte[] hash, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var stream = InvoicesClient(conf).SubscribeSingleInvoice(
@@ -395,11 +433,13 @@ public static class LND
         return stream;
     }
 
-    public static AsyncServerStreamingCall<Invoice> SubscribeInvoices(NodeSettings conf, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static AsyncServerStreamingCall<Invoice> SubscribeInvoices(NodeSettings conf, ulong addIndex, ulong settleIndex, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var stream = LightningClient(conf).SubscribeInvoices(
             new InvoiceSubscription()
             {
+                AddIndex = addIndex,
+                SettleIndex = settleIndex,
             }, Metadata(conf), deadline, cancellationToken);
 
         return stream;

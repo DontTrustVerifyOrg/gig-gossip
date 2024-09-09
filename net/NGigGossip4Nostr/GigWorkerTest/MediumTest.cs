@@ -6,7 +6,7 @@ using CryptoToolkit;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Configuration;
 using NBitcoin.Secp256k1;
-using NGigTaxiLib;
+using RideShareFrames;
 using System.Reflection;
 using NGeoHash;
 using NBitcoin.RPC;
@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using NetworkClientToolkit;
 using System.Text.Json;
 using GigDebugLoggerAPIClient;
+using GigGossipFrames;
 
 namespace GigWorkerMediumTest;
 
@@ -162,7 +163,7 @@ public class MediumTest
 
             async Task TopupNode(GigGossipNode node, long minAmout,long topUpAmount)
             {
-                var ballanceOfCustomer = WalletAPIResult.Get<long>(await node.GetWalletClient().GetBalanceAsync(await node.MakeWalletAuthToken(), CancellationToken.None));
+                var ballanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await node.GetWalletClient().GetBalanceAsync(await node.MakeWalletAuthToken(), CancellationToken.None)).AvailableAmount;
                 if (ballanceOfCustomer < minAmout)
                 {
                     var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await node.GetWalletClient().NewAddressAsync(await node.MakeWalletAuthToken(), CancellationToken.None));
@@ -182,11 +183,11 @@ public class MediumTest
 
             do
             {
-                if (WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken(), CancellationToken.None)) >= minAmount)
+                if (WalletAPIResult.Get<AccountBalanceDetails>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken(), CancellationToken.None)).AvailableAmount >= minAmount)
                 {
                 outer:
                     foreach (var node in gossipers)
-                        if (WalletAPIResult.Get<long>(await node.GetWalletClient().GetBalanceAsync(await node.MakeWalletAuthToken(), CancellationToken.None)) < minAmount)
+                        if (WalletAPIResult.Get<AccountBalanceDetails>(await node.GetWalletClient().GetBalanceAsync(await node.MakeWalletAuthToken(), CancellationToken.None)).AvailableAmount < minAmount)
                         {
                             Thread.Sleep(1000);
                             goto outer;
@@ -213,12 +214,12 @@ public class MediumTest
                 var fromGh = GeoHash.Encode(latitude: 42.6, longitude: -5.6, numberOfChars: 7);
                 var toGh = GeoHash.Encode(latitude: 42.5, longitude: -5.6, numberOfChars: 7);
 
-                await customer.BroadcastTopicAsync(new TaxiTopic()
+                await customer.BroadcastTopicAsync(new RideTopic()
                 {
                     FromGeohash = fromGh,
                     ToGeohash = toGh,
-                    PickupAfter = DateTime.UtcNow,
-                    DropoffBefore = DateTime.UtcNow.AddMinutes(20)
+                    PickupAfter = DateTime.UtcNow.AsUnixTimestamp(),
+                    PickupBefore = DateTime.UtcNow.AddMinutes(20).AsUnixTimestamp()
                 },
                 new[] {"ride"},
                 async (_) => { });
@@ -261,12 +262,13 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
         using var TL = TRACE.Log().Args(me, peerPublicKey, broadcastFrame);
         try
         {
-            var taxiTopic = Crypto.BinaryDeserializeObject<TaxiTopic>(broadcastFrame.SignedRequestPayload.Value.Topic);
+            var requestPayloadValue = Crypto.BinaryDeserializeObject<RequestPayloadValue>(broadcastFrame.SignedRequestPayload.Value.ToArray());
+            var taxiTopic = Crypto.BinaryDeserializeObject<RideTopic>(requestPayloadValue.Topic.ToArray());
             if (taxiTopic != null)
             {
                 if (taxiTopic.FromGeohash.Length >= 7 &&
                     taxiTopic.ToGeohash.Length >= 7 &&
-                    taxiTopic.DropoffBefore >= DateTime.UtcNow)
+                    taxiTopic.PickupBefore.AsUtcDateTime() >= DateTime.UtcNow)
                 {
                     me.BroadcastToPeersAsync(peerPublicKey, broadcastFrame);
                 }
@@ -279,7 +281,7 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice)
+    public void OnNewResponse(GigGossipNode me, Certificate replyPayload, string replyInvoice, PaymentRequestRecord decodedReplyInvoice, string networkInvoice, PaymentRequestRecord decodedNetworkInvoice)
     {
         using var TL = TRACE.Log().Args(me, replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
         try
@@ -291,7 +293,7 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
             throw;
         }
     }
-    public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
+    public void OnResponseReady(GigGossipNode me, Certificate replyPayload, string key)
     {
         using var TL = TRACE.Log().Args(me, replyPayload, key);
         try
@@ -303,7 +305,7 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
             throw;
         }
     }
-    public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
+    public void OnResponseCancelled(GigGossipNode me, Certificate replyPayload)
     {
         using var TL = TRACE.Log().Args(me, replyPayload);
         try
@@ -487,9 +489,8 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         using var TL = TRACE.Log().Args(me, peerPublicKey, broadcastFrame);
         try
         {
-            var taxiTopic = Crypto.BinaryDeserializeObject<TaxiTopic>(
-                broadcastFrame.SignedRequestPayload.Value.Topic);
-
+            var requestPayloadValue = Crypto.BinaryDeserializeObject<RequestPayloadValue>(broadcastFrame.SignedRequestPayload.Value.ToArray());
+            var taxiTopic = Crypto.BinaryDeserializeObject<RideTopic>(requestPayloadValue.Topic.ToArray());
             if (taxiTopic != null)
             {
                 await me.AcceptBroadcastAsync( peerPublicKey, broadcastFrame,
@@ -553,7 +554,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public async void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice)
+    public async void OnNewResponse(GigGossipNode me, Certificate replyPayload, string replyInvoice, PaymentRequestRecord decodedReplyInvoice, string networkInvoice, PaymentRequestRecord decodedNetworkInvoice)
     {
         using var TL = TRACE.Log().Args(me, replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
         try
@@ -565,7 +566,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
             throw;
         }
     }
-    public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
+    public void OnResponseReady(GigGossipNode me, Certificate replyPayload, string key)
     {
         using var TL = TRACE.Log().Args(me, replyPayload, key);
         try
@@ -577,7 +578,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
             throw;
         }
     }
-    public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
+    public void OnResponseCancelled(GigGossipNode me, Certificate replyPayload)
     {
         using var TL = TRACE.Log().Args(me, replyPayload);
         try
@@ -731,7 +732,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     Timer timer=null;
     int old_cnt = 0;
 
-    public async void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice)
+    public async void OnNewResponse(GigGossipNode me, Certificate replyPayload, string replyInvoice, PaymentRequestRecord decodedReplyInvoice, string networkInvoice, PaymentRequestRecord decodedNetworkInvoice)
     {
         using var TL = TRACE.Log().Args(me, replyPayload, replyInvoice, decodedReplyInvoice, networkInvoice, decodedNetworkInvoice);
         try
@@ -741,18 +742,19 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                 if (timer == null)
                     timer = new Timer(async (o) => {
                         timer.Change(Timeout.Infinite, Timeout.Infinite);
-                        var resps = me.GetReplyPayloads(replyPayload.Value.SignedRequestPayload.Id);
+                        var replyPayloadValue = Crypto.BinaryDeserializeObject<ReplyPayloadValue>(replyPayload.Value.ToArray());
+                        var resps = me.GetReplyPayloads(replyPayloadValue.SignedRequestPayload.Id.AsGuid());
                         if (resps.Count == old_cnt)
                         {
-                            resps.Sort((a, b) => (int)(JsonSerializer.Deserialize<PayReqRet>(new MemoryStream(a.DecodedNetworkInvoice)).ValueSat - JsonSerializer.Deserialize<PayReqRet>(new MemoryStream(b.DecodedNetworkInvoice)).ValueSat));
+                            resps.Sort((a, b) => (int)(JsonSerializer.Deserialize<PaymentRequestRecord>(new MemoryStream(a.DecodedNetworkInvoice)).Satoshis - JsonSerializer.Deserialize<PaymentRequestRecord>(new MemoryStream(b.DecodedNetworkInvoice)).Satoshis));
                             var win = resps[0];
 
 
-                            var balance = WalletAPIResult.Get<long>(await me.GetWalletClient().GetBalanceAsync(await me.MakeWalletAuthToken(), CancellationToken.None));
+                            var balance = WalletAPIResult.Get<AccountBalanceDetails>(await me.GetWalletClient().GetBalanceAsync(await me.MakeWalletAuthToken(), CancellationToken.None)).AvailableAmount;
 
                             GigLNDWalletAPIErrorCode paymentResult = GigLNDWalletAPIErrorCode.Ok;
 
-                            if (balance < decodedReplyInvoice.ValueSat + decodedNetworkInvoice.ValueSat + FeeLimit * 2)
+                            if (balance < decodedReplyInvoice.Satoshis + decodedNetworkInvoice.Satoshis + FeeLimit * 2)
                             {
                                 paymentResult = GigLNDWalletAPIErrorCode.NotEnoughFunds;
                             }
@@ -791,14 +793,15 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public async void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
+    public async void OnResponseReady(GigGossipNode me, Certificate replyPayload, string key)
     {
         using var TL = TRACE.Log().Args(me, replyPayload, key);
         try
         {
+            var replyPayloadValue = Crypto.BinaryDeserializeObject<ReplyPayloadValue>(replyPayload.Value.ToArray());
             var message = Encoding.Default.GetString(Crypto.SymmetricBytesDecrypt(
                 key.AsBytes(),
-                replyPayload.Value.EncryptedReplyMessage));
+                replyPayloadValue.EncryptedReplyMessage.ToArray()));
             Trace.TraceInformation(message);
             TL.NewNote(me.PublicKey, "OnResponseReady");
             TL.NewConnected(message, me.PublicKey, "connected");
@@ -809,7 +812,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
             throw;
         }
     }
-    public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
+    public void OnResponseCancelled(GigGossipNode me, Certificate replyPayload)
     {
         using var TL = TRACE.Log().Args(me, replyPayload);
         try

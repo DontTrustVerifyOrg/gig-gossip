@@ -13,6 +13,5 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
-    <ProjectReference Include="..\NGigGossip4Nostr\NGigGossip4Nostr.csproj" />
   </ItemGroup>
 </Project>

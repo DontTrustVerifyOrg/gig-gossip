@@ -1,4 +1,5 @@
 ﻿using CryptoToolkit;
+using GigGossipFrames;
 using GigLNDWalletAPIClient;
 using NetworkClientToolkit;
 using NGigGossip4Nostr;
@@ -45,10 +46,10 @@ public class NewResponseEventArgs : EventArgs
 {
     public required GigGossipNode GigGossipNode;
     public required string ReplyInvoice;
-    public required PayReqRet DecodedReplyInvoice;
+    public required PaymentRequestRecord DecodedReplyInvoice;
     public required string NetworkInvoice;
-    public required PayReqRet DecodedNetworkInvoice;
-    public required Certificate<ReplyPayloadValue> ReplyPayloadCert;
+    public required PaymentRequestRecord DecodedNetworkInvoice;
+    public required Certificate ReplyPayloadCert;
 }
 public class ResponseReadyEventArgs : EventArgs
 {

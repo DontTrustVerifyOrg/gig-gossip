@@ -16,9 +16,16 @@
     <NoWarn>1701;1702;1998;8600;8601;8602;8603;8604;8618;8625</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="protobuf-net" Version="3.2.30" />
+    <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
+    <PackageReference Include="Grpc.Tools" Version="2.66.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Google.Protobuf" Version="3.28.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Protobuf Include="rideshareframes.proto" GrpcServices="Client" />
   </ItemGroup>
 </Project>

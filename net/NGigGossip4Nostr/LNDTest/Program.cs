@@ -156,7 +156,7 @@ Console.WriteLine(LND.SendPayment(confs[1], paymentReqC.PaymentRequest));
 
 var channels21 = LND.ListChannels(confs[1]);
 foreach (var chanx in channels21.Channels)
-    LND.CloseChannel(confs[1], chanx.ChannelPoint.Split(':')[0]);
+    LND.CloseChannel(confs[1], chanx.ChannelPoint.Split(':')[0],1000);
 
 
 public class LndNodesSettings

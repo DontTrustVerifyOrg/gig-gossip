@@ -134,7 +134,7 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
                             TL.Iteration(pay);
                             try
                             {
-                                var status = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().GetPaymentStatusAsync(await gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash, CancellationTokenSource.Token));
+                                var status = WalletAPIResult.Get<PaymentRecord>(await gigGossipNode.GetWalletClient().GetPaymentAsync(await gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash, CancellationTokenSource.Token)).Status.ToString();
                                 if (status != pay.PaymentStatus)
                                 {
                                     TL.Info("OnPaymentStatusChange");

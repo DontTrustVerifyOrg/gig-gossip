@@ -1,0 +1,234 @@
+syntax = "proto3";
+
+package giggossipframes;
+option csharp_namespace = "GigGossipFrames";
+
+/// <summary>
+/// A Digital Certificate issued by Certification Authority for the Subject
+/// </summary>
+message Certificate
+{
+    bytes Signature = 1;
+
+    /// <summary>
+    /// The Uri of the Certification Authority service
+    /// </summary>
+    string CertificationAuthorityUri = 2;
+
+    /// <summary>
+    /// Kind of the certificate
+    /// </summary>
+    string Kind = 3;
+
+    /// <summary>
+    /// Serial number of the certificate
+    /// </summary>
+    bytes Id = 4;
+
+    /// <summary>
+    /// Collection of certified properties of the Subject
+    /// </summary>
+    map<string,bytes> Properties = 5;
+
+    /// <summary>
+    /// Date and Time before which the Certificate will no longer be valid
+    /// </summary>
+    int64 NotValidAfter = 6;
+
+    /// <summary>
+    /// Date and Time before which the Certificate is not yet valid
+    /// </summary>
+    int64 NotValidBefore = 7;
+
+    /// <summary>
+    /// The value managed by the certificate
+    /// </summary>
+    bytes Value = 8;
+}
+
+/// <summary>
+/// Represents a layer in the Onion routing protocol, which contains a public key and encrypted data core.
+/// </summary>
+message OnionLayer 
+{
+    /// <summary>
+    /// Gets or sets the public key associated with this layer of the onion route.
+    /// </summary>
+    string PublicKey = 1;
+
+    /// <summary>
+    /// Gets or sets the encrypted core of the onion layer.
+    /// </summary>
+    bytes Core = 2;
+}
+
+
+/// <summary>
+/// An onion route is used in the onion routing protocol to establish an anonymous communication channel. 
+/// Each "onion" in the route is peeled back one at a time by each gig gossip node in the network. 
+/// </summary>
+message OnionRoute
+{
+    /// <summary>
+    /// An array of bytes representing the "Onion", the data passed through the route.
+    /// </summary>
+    bytes Onion = 1;
+}
+
+/// <summary>
+/// Represents a broadcast frame in proof of work (POW) which contains the broadcast payload and the work proof.
+/// </summary>
+message BroadcastFrame
+{
+    /// <summary>
+    /// Gets or sets the signed payload for the request. This contains the necessary data for processing the request.
+    /// </summary>
+    Certificate SignedRequestPayload = 1;
+
+    /// <summary>
+    /// Gets or sets the Onion Route used for back-routing of the message.
+    /// </summary>
+    OnionRoute BackwardOnion = 2;
+}
+
+message BroadcastTopicResponse 
+{
+    Certificate SignedRequestPayload = 1;
+    Certificate SignedCancelRequestPayload = 2;
+}
+
+message CancelBroadcastFrame
+{
+    Certificate SignedCancelRequestPayload = 1;
+}
+
+message CancelRequestPayloadValue
+{
+    int64 Timestamp = 1;
+}
+
+
+
+/// <summary>
+/// Represents a reply frame that contains encrypted payload, settlement promise, onion route and network invoice.
+/// </summary>
+message ReplyFrame
+{
+    /// <summary>
+    /// Gets or sets the encrypted reply payload.
+    /// </summary>
+    bytes EncryptedReplyPayload = 1;
+
+    /// <summary>
+    /// Gets or sets the signed settlement promise.
+    /// </summary>
+    /// <see cref="SettlementPromise"/>
+    SettlementPromise SignedSettlementPromise = 2;
+
+    /// <summary>
+    /// Gets or sets the forward onion route.
+    /// </summary>
+    /// <see cref="OnionRoute"/>
+    OnionRoute ForwardOnion = 3;
+
+    /// <summary>
+    /// Gets or sets the network invoice.
+    /// </summary>
+    string NetworkInvoice = 4;
+}
+
+
+/// <summary>
+/// Represents the payload of a reply message.
+/// </summary>
+message ReplyPayloadValue 
+{
+    /// <summary>
+    /// Gets or sets the signed request payload.
+    /// </summary>
+    Certificate SignedRequestPayload = 1;
+
+    /// <summary>
+    /// Gets or sets the encrypted reply message.
+    /// </summary>
+    bytes EncryptedReplyMessage = 2;
+
+    /// <summary>
+    /// Gets or sets the reply invoice.
+    /// </summary>
+    string ReplyInvoice = 3;
+
+    /// <summary>
+    /// Gets or sets creation timestamp of the payload.
+    /// </summary>
+    int64 Timestamp = 4;
+}
+
+/// <summary>
+/// Represents the payload of a request message.
+/// </summary>
+message RequestPayloadValue 
+{
+    /// <summary>
+    /// Gets or sets the topic of the payload.
+    /// </summary>
+    bytes Topic = 1;
+
+    /// <summary>
+    /// Gets or sets creation timestamp of the payload.
+    /// </summary>
+    int64 Timestamp = 2;
+}
+
+/// <summary>
+/// Represents a settlement promise.
+/// </summary>
+message SettlementPromise 
+{
+    bytes Signature = 1;
+
+    /// <summary>
+    /// Gets or sets the service URI of the Settler.
+    /// </summary>
+
+    string MySecurityCenterUri = 2;
+
+    /// <summary>
+    /// Gets or sets the service URI of the Requester Settler.
+    /// </summary>
+    string TheirSecurityCenterUri = 3;
+
+    /// <summary>
+    /// Gets or sets the network payment hash.
+    /// </summary>
+    bytes NetworkPaymentHash = 4;
+
+    bytes HashOfEncryptedReplyPayload = 5;
+
+    /// <summary>
+    /// Gets or sets the reply payment amount.
+    /// </summary>
+    uint64 ReplyPaymentAmountSat = 6;
+
+}
+
+message SettlementTrust 
+{
+    /// <summary>
+    /// Gets or sets the settlement promise.
+    /// </summary>
+    /// <see cref="SettlementPromise"/>
+    SettlementPromise SettlementPromise = 1;
+
+    /// <summary>
+    /// Gets or sets the network invoice.
+    /// </summary>
+    string NetworkInvoice = 2;
+
+    /// <summary>
+    /// Gets or sets the encrypted reply payload.
+    /// </summary>
+    bytes EncryptedReplyPayload = 3;
+
+    bytes ReplierCertificateId = 4;
+}

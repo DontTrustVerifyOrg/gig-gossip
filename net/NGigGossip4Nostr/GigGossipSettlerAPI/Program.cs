@@ -4,7 +4,6 @@ using GigGossipSettler.Exceptions;
 using GigGossipSettlerAPI;
 using GigLNDWalletAPIClient;
 using NBitcoin.Secp256k1;
-using NGigGossip4Nostr;
 using System.Text;
 using Spectre.Console;
 using Microsoft.AspNetCore.Mvc;
@@ -24,6 +23,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using NetworkToolkit;
 using GoogleApi.Entities.Maps.Directions.Request;
 using GoogleApi.Entities.Maps.Common;
+using GigGossipFrames;
 
 #pragma warning disable 1591
 
@@ -1031,7 +1031,7 @@ app.MapPost("/generatesettlementtrust", async ([FromForm] string authToken, [Fro
     try
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
-        var signedRequestPayload = Crypto.BinaryDeserializeObject<Certificate<RequestPayloadValue>>(await signedRequestPayloadSerialized.ToBytes());
+        var signedRequestPayload = Crypto.BinaryDeserializeObject<Certificate>(await signedRequestPayloadSerialized.ToBytes());
         var st = await Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, properties.Split(","), await message.ToBytes(), replyinvoice, signedRequestPayload);
         return new Result<string>(Convert.ToBase64String(Crypto.BinarySerializeObject(st)));
     }

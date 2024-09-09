@@ -1,4 +1,5 @@
 ﻿using CryptoToolkit;
+using GigGossipFrames;
 using GigLNDWalletAPIClient;
 using NBitcoin;
 using NetworkClientToolkit;
@@ -46,7 +47,7 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
         });
     }
 
-    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayloadCert, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice)
+    public void OnNewResponse(GigGossipNode me, Certificate replyPayloadCert, string replyInvoice, PaymentRequestRecord decodedReplyInvoice, string networkInvoice, PaymentRequestRecord decodedNetworkInvoice)
     {
         _gigGossipNodeEventSource.FireOnNewResponse(new NewResponseEventArgs()
         {
@@ -59,30 +60,32 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
         });
     }
 
-    public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
+    public void OnResponseReady(GigGossipNode me, Certificate replyPayload, string key)
     {
+        var replyPayloadValue = Crypto.BinaryDeserializeObject<ReplyPayloadValue>(replyPayload.Value.ToArray());
         var connectionReply = Crypto.BinaryDeserializeObject<ConnectionReply>(
                                     Crypto.SymmetricBytesDecrypt(
                                         key.AsBytes(),
-                                        replyPayload.Value.EncryptedReplyMessage));
+                                        replyPayloadValue.EncryptedReplyMessage.ToArray()));
 
         _gigGossipNodeEventSource.FireOnResponseReady(new ResponseReadyEventArgs()
         {
             GigGossipNode = me,
-            ReplierCertificateId = replyPayload.Id,
-            RequestPayloadId = replyPayload.Value.SignedRequestPayload.Id,
+            ReplierCertificateId = replyPayload.Id.AsGuid(),
+            RequestPayloadId = replyPayloadValue.SignedRequestPayload.Id.AsGuid(),
             Reply = connectionReply
         });
     }
 
 
-    public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
+    public void OnResponseCancelled(GigGossipNode me, Certificate replyPayload)
     {
+        var replyPayloadValue = Crypto.BinaryDeserializeObject<ReplyPayloadValue>(replyPayload.Value.ToArray());
         _gigGossipNodeEventSource.FireOnResponseCancelled(new ResponseCancelledEventArgs()
         {
             GigGossipNode = me,
-            ReplierCertificateId = replyPayload.Id,
-            RequestPayloadId = replyPayload.Value.SignedRequestPayload.Id,
+            ReplierCertificateId = replyPayload.Id.AsGuid(),
+            RequestPayloadId = replyPayloadValue.SignedRequestPayload.Id.AsGuid(),
         });
     }
 

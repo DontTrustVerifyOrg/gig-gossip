@@ -26,7 +26,6 @@ using NBitcoin.RPC;
 using NBitcoin.Secp256k1;
 using NGeoHash;
 using NGigGossip4Nostr;
-using ProtoBuf.Serializers;
 using RideShareFrames;
 using Sharprompt;
 using Spectre;
@@ -368,7 +367,7 @@ public partial class RideShareCLIApp
                                 {
                                     var keys = new List<string>(MockData.FakeAddresses.Keys);
                                     var myAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
-                                    var myStartLocation = new GeoLocation(MockData.FakeAddresses[myAddress].Latitude, MockData.FakeAddresses[myAddress].Longitude);
+                                    var myStartLocation = new GeoLocation { Latitude = MockData.FakeAddresses[myAddress].Latitude, Longitude = MockData.FakeAddresses[myAddress].Longitude };
 
                                     await AcceptRideAsync(me.SelectedRowIdx, myStartLocation,"Hello from Driver!");
                                     me.UpdateCell(me.SelectedRowIdx, 0, "sent");
@@ -428,8 +427,8 @@ public partial class RideShareCLIApp
                                 break;
                         }
                         
-                        fromLocation = new GeoLocation(MockData.FakeAddresses[fromAddress].Latitude, MockData.FakeAddresses[fromAddress].Longitude);
-                        toLocation = new GeoLocation(MockData.FakeAddresses[toAddress].Latitude, MockData.FakeAddresses[toAddress].Longitude);
+                        fromLocation = new GeoLocation { Latitude = MockData.FakeAddresses[fromAddress].Latitude, Longitude = MockData.FakeAddresses[fromAddress].Longitude };
+                        toLocation = new GeoLocation { Latitude = MockData.FakeAddresses[toAddress].Latitude, Longitude = MockData.FakeAddresses[toAddress].Longitude };
                     }
                     else
                     {
@@ -530,7 +529,7 @@ public partial class RideShareCLIApp
     {
         var r = SettlerAPIResult.Get<GeolocationRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
             .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au", CancellationTokenSource.Token));
-        return new GeoLocation(r.Lat, r.Lon);
+        return new GeoLocation { Latitude = r.Lat, Longitude = r.Lon };
     }
 
     private async Task<string> GetLocationGeocodeAsync(double lat, double lon)
@@ -541,7 +540,7 @@ public partial class RideShareCLIApp
 
     private async Task WriteBalance()
     {
-        var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token));
+        var ballanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token)).AvailableAmount;
         AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
     }
 
@@ -579,7 +578,7 @@ public partial class RideShareCLIApp
             settings.NodeSettings.GigWalletOpenApi,
             settings.NodeSettings.SettlerOpenApi);
 
-        var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token));
+        var ballanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token)).AvailableAmount;
         AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
 
         gigGossipNode.LoadContactList();
@@ -609,10 +608,10 @@ public partial class RideShareCLIApp
         else
         {
             if (requestedRide != null)
-                if (directPubkeys.ContainsKey(requestedRide.SignedRequestPayload.Id))
+                if (directPubkeys.ContainsKey(requestedRide.SignedRequestPayload.Id.AsGuid()))
                 {
-                    pubkey = directPubkeys[requestedRide.SignedRequestPayload.Id];
-                    requestPayloadId = requestedRide.SignedRequestPayload.Id;
+                    pubkey = directPubkeys[requestedRide.SignedRequestPayload.Id.AsGuid()];
+                    requestPayloadId = requestedRide.SignedRequestPayload.Id.AsGuid();
                     lastSeen = lastDriverSeenAt;
                 }
         }

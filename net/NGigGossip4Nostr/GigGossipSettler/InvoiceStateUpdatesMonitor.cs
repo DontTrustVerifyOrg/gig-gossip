@@ -55,8 +55,8 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                 {
                     if (gig.Status == GigStatus.Open)
                     {
-                        var network_state = WalletAPIResult.Get<string>(await settler.lndWalletClient.GetInvoiceStateAsync(settler.MakeAuthToken(), gig.NetworkPaymentHash, CancellationTokenSource.Token));
-                        var payment_state = WalletAPIResult.Get<string>(await settler.lndWalletClient.GetInvoiceStateAsync(settler.MakeAuthToken(), gig.PaymentHash, CancellationTokenSource.Token));
+                        var network_state = WalletAPIResult.Get<InvoiceRecord>(await settler.lndWalletClient.GetInvoiceAsync(settler.MakeAuthToken(), gig.NetworkPaymentHash, CancellationTokenSource.Token)).State.ToString();
+                        var payment_state = WalletAPIResult.Get<InvoiceRecord>(await settler.lndWalletClient.GetInvoiceAsync(settler.MakeAuthToken(), gig.PaymentHash, CancellationTokenSource.Token)).State.ToString();
                         if (network_state == "Accepted" && payment_state == "Accepted")
                         {
                             gig.Status = GigStatus.Accepted;

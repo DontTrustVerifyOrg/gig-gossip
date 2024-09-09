@@ -1,49 +1,14 @@
 ﻿using System;
 using CryptoToolkit;
 using NBitcoin.Secp256k1;
-using ProtoBuf;
 
-namespace NGigGossip4Nostr;
+namespace GigGossipFrames;
 
 /// <summary>
 /// Represents a settlement promise.
 /// </summary>
-[ProtoContract]
-public class SettlementPromise : IProtoFrame
+public partial class SettlementPromise 
 {
-    [ProtoMember(1)]
-    public byte[]? Signature { get; set; }
-
-    /// <summary>
-    /// Gets or sets the service URI of the Settler.
-    /// </summary>
-    [ProtoMember(2)]
-    public required Uri ServiceUri { get; set; }
-
-    /// <summary>
-    /// Gets or sets the service URI of the Requester Settler.
-    /// </summary>
-    [ProtoMember(3)]
-    public required Uri RequestersServiceUri { get; set; }
-
-    /// <summary>
-    /// Gets or sets the network payment hash.
-    /// </summary>
-    [ProtoMember(4)]
-    public required byte[] NetworkPaymentHash { get; set; }
-
-    /// <summary>
-    /// Gets or sets the hash of encrypted reply payload.
-    /// </summary>
-    [ProtoMember(5)]
-    public required byte[] HashOfEncryptedReplyPayload { get; set; }
-
-    /// <summary>
-    /// Gets or sets the reply payment amount.
-    /// </summary>
-    [ProtoMember(6)]
-    public required long ReplyPaymentAmount { get; set; }
-
     /// <summary>
     /// Verifies the settlement promise.
     /// </summary>
@@ -52,12 +17,12 @@ public class SettlementPromise : IProtoFrame
     /// <returns><c>true</c> if the verification was successful; otherwise, <c>false</c>.</returns>
     public async Task<bool> VerifyAsync(byte[] encryptedSignedReplyPayload, ICertificationAuthorityAccessor caAccessor,CancellationToken cancellationToken)
     {
-        var caPubKey = await caAccessor.GetPubKeyAsync(this.ServiceUri, cancellationToken);
+        var caPubKey = await caAccessor.GetPubKeyAsync(new Uri(this.MySecurityCenterUri), cancellationToken);
         var sign = Signature;
         try
         {
             Signature = null;
-            if (Crypto.VerifyObject(this, sign, caPubKey))
+            if (Crypto.VerifyObject(this, sign.ToArray(), caPubKey))
                 if (Crypto.ComputeSha256(encryptedSignedReplyPayload).SequenceEqual(this.HashOfEncryptedReplyPayload))
                     return true;
         }
@@ -81,8 +46,8 @@ public class SettlementPromise : IProtoFrame
         var sign = Signature;
         try
         {
-            this.Signature = null;
-            this.Signature = Crypto.SignObject(this, privateKey);
+            this.Signature = Google.Protobuf.ByteString.Empty;
+            this.Signature = Crypto.SignObject(this, privateKey).AsByteString();
         }
         catch
         {
@@ -101,12 +66,12 @@ public class SettlementPromise : IProtoFrame
             throw new InvalidOperationException("Object must be signed but the signature is null.");
         return new SettlementPromise()
         {
-            ServiceUri = this.ServiceUri,
-            RequestersServiceUri = this.RequestersServiceUri,
-            NetworkPaymentHash = this.NetworkPaymentHash.ToArray(),
-            HashOfEncryptedReplyPayload = this.HashOfEncryptedReplyPayload.ToArray(),
-            ReplyPaymentAmount = this.ReplyPaymentAmount,
-            Signature = this.Signature!.ToArray()
+            MySecurityCenterUri = this.MySecurityCenterUri,
+            TheirSecurityCenterUri = this.TheirSecurityCenterUri,
+            NetworkPaymentHash = this.NetworkPaymentHash.ToArray().AsByteString(),
+            HashOfEncryptedReplyPayload = this.HashOfEncryptedReplyPayload.ToArray().AsByteString(),
+            ReplyPaymentAmountSat = this.ReplyPaymentAmountSat,
+            Signature = this.Signature!.ToArray().AsByteString(),
         };
     }
 }

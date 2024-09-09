@@ -236,7 +236,7 @@ public abstract class NostrNode
         }
     }
 
-    public async Task<string> SendMessageAsync<T>(string targetPublicKey, T frame, bool ephemeral, DateTime? expiration = null) where T:IProtoFrame
+    public async Task<string> SendMessageAsync<T>(string targetPublicKey, T frame, bool ephemeral, DateTime? expiration = null) where T : Google.Protobuf.IMessage<T>
     {
         using var TL = TRACE.Log().Args(targetPublicKey, frame, ephemeral, expiration);
         try

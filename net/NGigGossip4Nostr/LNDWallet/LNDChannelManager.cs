@@ -14,14 +14,17 @@ public class LNDChannelManager
 	List<string> nearbyNodes;
 	long maxSatoshisPerChannel;
 	long estimatedTxFee;
+	long maxChannelCloseFeePerVByte;
 
 
-    public LNDChannelManager(LNDWalletManager walletManager, List<string> nearbyNodes, long maxSatoshisPerChannel, long estimatedTxFee)
+    public LNDChannelManager(LNDWalletManager walletManager, List<string> nearbyNodes, long maxSatoshisPerChannel, long estimatedTxFee, long maxChannelCloseFeePerVByte)
 	{
 		this.walletManager = walletManager;
 		this.nearbyNodes = nearbyNodes;
 		this.maxSatoshisPerChannel = maxSatoshisPerChannel;
+		this.maxChannelCloseFeePerVByte = maxChannelCloseFeePerVByte;
 		this.estimatedTxFee = estimatedTxFee;
+
 	}
 
     Thread mainThread;
@@ -41,7 +44,7 @@ public class LNDChannelManager
 					GoForConnectingToNodes();
                     foreach (var friend in nearbyNodes)
 						again = again | await GoForOpeningNewChannelsForNodeAsync(friend.Split("@")[0], maxSatoshisPerChannel, estimatedTxFee);
-					await GoForExecutingPayoutsAsync(estimatedTxFee);
+					await GoForExecutingPayoutsAsync(estimatedTxFee, maxChannelCloseFeePerVByte);
 				}
 				catch(Exception ex)
 				{
@@ -97,7 +100,6 @@ public class LNDChannelManager
 		var requestedReserve = walletManager.GetRequestedReserveAmount();
         TraceEx.TraceInformation($"requestedReserve={requestedReserve}");
 
-
         if (confirmedWalletBalance >= requiredReserve + requestedReserve + estimatedTxFee)
 			try
 			{
@@ -113,7 +115,7 @@ public class LNDChannelManager
 					var ocs = walletManager.OpenChannel(nodePubKey, amount);
 					while (await ocs.ResponseStream.MoveNext())
 					{
-						TraceEx.TraceInformation($"Channel state {ocs.ResponseStream.Current.UpdateCase.ToString()} to [{nodePubKey}] id {ocs.ResponseStream.Current.PendingChanId}");
+                        TraceEx.TraceInformation($"Channel state {ocs.ResponseStream.Current.UpdateCase.ToString()} to [{nodePubKey}] id {ocs.ResponseStream.Current.PendingChanId}");
 						if (ocs.ResponseStream.Current.UpdateCase == OpenStatusUpdate.UpdateOneofCase.ChanOpen)
 							return true;
 					}
@@ -131,11 +133,11 @@ public class LNDChannelManager
         return false;
 	}
 
-	public async Task GoForExecutingPayoutsAsync(long estimatedTxFee)
+	public async Task GoForExecutingPayoutsAsync(long estimatedTxFee, long maxChannelCloseFeePerVByte)
 	{
-        var walletBallance = walletManager.GetWalletBalance();
-        var confirmedWalletBalance = walletBallance.ConfirmedBalance;
-        TraceEx.TraceInformation($"confirmedWalletBalance={confirmedWalletBalance}");
+		var walletBallance = walletManager.GetWalletBalance();
+		var confirmedWalletBalance = walletBallance.ConfirmedBalance;
+		TraceEx.TraceInformation($"confirmedWalletBalance={confirmedWalletBalance}");
 
 		var requestedReserves = walletManager.GetRequestedReserves();
 		var reserveIds = (from r in requestedReserves select r.ReserveId).ToList();
@@ -144,7 +146,7 @@ public class LNDChannelManager
 		var requestedReserve = (from r in requestedReserves select r.Satoshis).Sum();
 		TraceEx.TraceInformation($"requestedReserve={requestedReserve}");
 
-		if (confirmedWalletBalance  < requestedReserve + estimatedTxFee)
+		if (confirmedWalletBalance < requestedReserve + estimatedTxFee)
 		{
 			var amoutToFree = requestedReserve + estimatedTxFee - confirmedWalletBalance;
 
@@ -155,7 +157,7 @@ public class LNDChannelManager
 			foreach (var channel in sortedChannelsByLocalBalance)
 			{
 				TraceEx.TraceInformation($"Closing Channel [{channel.ChannelPoint}] ...");
-				updateStreams.Add(channel.ChannelPoint, walletManager.CloseChannel(channel.ChannelPoint));
+				updateStreams.Add(channel.ChannelPoint, walletManager.CloseChannel(channel.ChannelPoint, (ulong)maxChannelCloseFeePerVByte));
 				freedAmount += channel.LocalBalance - estimatedTxFee;
 				if (freedAmount >= amoutToFree)
 					break;
@@ -174,19 +176,20 @@ public class LNDChannelManager
 
 		foreach (var payout in pendingPayouts)
 		{
+			string tx = "";
 			try
 			{
 				if (walletManager.MarkPayoutAsSending(payout.PayoutId))
 				{
-					TraceEx.TraceInformation($"Sending Coins to [{payout.BitcoinAddress}] amount={(long)payout.Satoshis - (long)payout.TxFee}, txfee={(long)payout.TxFee}");
-					var tx = walletManager.SendCoins(payout.BitcoinAddress, (long)payout.Satoshis - (long)payout.TxFee, 0, payout.PayoutId.ToString());
+					TraceEx.TraceInformation($"Sending Coins to [{payout.BitcoinAddress}] amount={(long)payout.Satoshis - (long)payout.PayoutFee}, txfee={(long)payout.PayoutFee}");
+					tx = walletManager.SendCoins(payout.BitcoinAddress, (long)payout.Satoshis - (long)payout.PayoutFee, 0, payout.PayoutId.ToString());
 					walletManager.MarkPayoutAsSent(payout.PayoutId, tx);
 				}
 			}
-			catch(Exception ex)
+			catch (Exception ex)
 			{
+				walletManager.MarkPayoutAsFailure(payout.PayoutId, tx);
 				TraceEx.TraceException(ex);
-				walletManager.MarkPayoutAsOpen(payout.PayoutId);
 				throw;
 			}
 		}

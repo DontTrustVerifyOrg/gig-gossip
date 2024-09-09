@@ -38,150 +38,6 @@
         }
       }
     },
-    "/grantaccessrights": {
-      "get": {
-        "tags": [
-          "GigLNDWalletAPI"
-        ],
-        "summary": "Grants access rights to the subject.",
-        "description": "Grants access rights to the subject. Only authorised users can grant the rights.",
-        "operationId": "GrantAccessRights",
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "query",
-            "description": "Public key of the subject.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "accessRights",
-            "in": "query",
-            "description": "Access rights to be granted.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Result"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/revokeaccessrights": {
-      "get": {
-        "tags": [
-          "GigLNDWalletAPI"
-        ],
-        "summary": "Revokes access rights from the subject.",
-        "description": "Revokes access rights from the subject. Only authorised users can revoke the rights.",
-        "operationId": "RevokeAccessRights",
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "query",
-            "description": "Public key of the subject.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "accessRights",
-            "in": "query",
-            "description": "Access rights to be revoked.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Result"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/getaccessrights": {
-      "get": {
-        "tags": [
-          "GigLNDWalletAPI"
-        ],
-        "summary": "Gets access rights to the subject.",
-        "description": "Gets access rights to the subject. Only authorised users can grant the rights.",
-        "operationId": "GetAccessRights",
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "query",
-            "description": "Public key of the subject.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StringResult"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/topupandmine6blocks": {
       "get": {
         "tags": [
@@ -595,40 +451,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Int64Result"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/getbalancedetails": {
-      "get": {
-        "tags": [
-          "GigLNDWalletAPI"
-        ],
-        "summary": "Balance details of the account",
-        "description": "Returns the account balance details in Satoshis",
-        "operationId": "GetBalanceDetails",
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "description": "authorisation token for the communication",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountBallanceDetailsResult"
+                  "$ref": "#/components/schemas/AccountBalanceDetailsResult"
                 }
               }
             }
@@ -785,7 +608,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvoiceRetResult"
+                  "$ref": "#/components/schemas/InvoiceRecordResult"
                 }
               }
             }
@@ -856,7 +679,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvoiceRetResult"
+                  "$ref": "#/components/schemas/InvoiceRecordResult"
                 }
               }
             }
@@ -898,7 +721,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PayReqRetResult"
+                  "$ref": "#/components/schemas/PaymentRequestRecordResult"
                 }
               }
             }
@@ -1001,7 +824,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RouteFeeResponseResult"
+                  "$ref": "#/components/schemas/RouteFeeRecordResult"
                 }
               }
             }
@@ -1093,14 +916,14 @@
         }
       }
     },
-    "/getinvoicestate": {
+    "/getinvoice": {
       "get": {
         "tags": [
           "GigLNDWalletAPI"
         ],
-        "summary": "Returns a state of the invoice identified by the given payment hash",
-        "description": "Returns a state of the invoice identified by the given payment hash",
-        "operationId": "GetInvoiceState",
+        "summary": "Returns an invoice identified by the given payment hash",
+        "description": "Returns an invoice identified by the given payment hash",
+        "operationId": "GetInvoice",
         "parameters": [
           {
             "name": "authToken",
@@ -1127,7 +950,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StringResult"
+                  "$ref": "#/components/schemas/InvoiceRecordResult"
                 }
               }
             }
@@ -1160,7 +983,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvoiceRetArrayResult"
+                  "$ref": "#/components/schemas/InvoiceRecordArrayResult"
                 }
               }
             }
@@ -1193,7 +1016,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentRetArrayResult"
+                  "$ref": "#/components/schemas/PaymentRecordArrayResult"
                 }
               }
             }
@@ -1201,14 +1024,14 @@
         }
       }
     },
-    "/getpaymentstatus": {
+    "/getpayment": {
       "get": {
         "tags": [
           "GigLNDWalletAPI"
         ],
-        "summary": "Returns a status of the payment identified by the given payment hash",
-        "description": "Returns a status of the payment identified by the given payment hash",
-        "operationId": "GetPaymentStatus",
+        "summary": "Returns a payment identified by the given payment hash",
+        "description": "Returns a payment identified by the given payment hash",
+        "operationId": "GetPayment",
         "parameters": [
           {
             "name": "authToken",
@@ -1235,7 +1058,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StringResult"
+                  "$ref": "#/components/schemas/PaymentRecordResult"
                 }
               }
             }
@@ -1246,105 +1069,64 @@
   },
   "components": {
     "schemas": {
-      "AccountBallanceDetails": {
+      "AccountBalanceDetails": {
+        "required": [
+          "availableAmount",
+          "incomingAcceptedNotSettled",
+          "incomingNotConfirmed",
+          "outgoingInFlightPaymentFees",
+          "outgoingInFlightPayments",
+          "outgoingInProgressPayoutFees",
+          "outgoingInProgressPayouts",
+          "outgoingPaymentFees",
+          "outgoingPayoutFees"
+        ],
         "type": "object",
         "properties": {
-          "allChannelFunds": {
+          "availableAmount": {
             "type": "integer",
             "format": "int64"
           },
-          "allChannelFundsTxFee": {
+          "incomingNotConfirmed": {
             "type": "integer",
             "format": "int64"
           },
-          "confirmedChannelFunds": {
+          "incomingAcceptedNotSettled": {
             "type": "integer",
             "format": "int64"
           },
-          "confirmedChannelFundsTxFee": {
+          "outgoingInFlightPayments": {
             "type": "integer",
             "format": "int64"
           },
-          "payedOutAmount": {
+          "outgoingInProgressPayouts": {
             "type": "integer",
             "format": "int64"
           },
-          "payedOutAmountTxFee": {
+          "outgoingPaymentFees": {
             "type": "integer",
             "format": "int64"
           },
-          "pendingPayOutAmount": {
+          "outgoingInFlightPaymentFees": {
             "type": "integer",
             "format": "int64"
           },
-          "pendingPayOutAmountTxFee": {
+          "outgoingPayoutFees": {
             "type": "integer",
             "format": "int64"
           },
-          "allPayOutFunds": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "allPayOutFundsTxFee": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "confirmedPayOutFunds": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "confirmedPayOutFundsTxFee": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "earnedFromSettledInvoices": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "earnedFromSettledInvoicesTxFee": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "earnedFromAcceptedOrSettledInvoices": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "earnedFromAcceptedOrSettledInvoicesTxFee": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "succesfulPayments": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "succesfulPaymentsFee": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "succesfulPaymentsTxFee": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "succesfulOrFlyingPayments": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "succesfulOrFlyingPaymentsFee": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "succesfulOrFlyingPaymentsTxFee": {
+          "outgoingInProgressPayoutFees": {
             "type": "integer",
             "format": "int64"
           }
         },
         "additionalProperties": false
       },
-      "AccountBallanceDetailsResult": {
+      "AccountBalanceDetailsResult": {
         "type": "object",
         "properties": {
           "value": {
-            "$ref": "#/components/schemas/AccountBallanceDetails"
+            "$ref": "#/components/schemas/AccountBalanceDetails"
           },
           "errorCode": {
             "$ref": "#/components/schemas/LNDWalletErrorCode"
@@ -1420,81 +1202,69 @@
         },
         "additionalProperties": false
       },
-      "InvoiceRet": {
+      "InvoiceRecord": {
         "required": [
-          "amtPaidSat",
-          "creationDate",
-          "description",
-          "descriptionHash",
-          "expiry",
+          "creationTime",
+          "expiryTime",
+          "isHodl",
+          "memo",
           "paymentAddr",
           "paymentHash",
           "paymentRequest",
-          "preimage",
-          "settleDate",
-          "state",
-          "valueSat"
+          "satoshis",
+          "state"
         ],
         "type": "object",
         "properties": {
-          "description": {
-            "type": "string",
-            "nullable": true
-          },
-          "descriptionHash": {
-            "type": "string",
-            "nullable": true
-          },
-          "preimage": {
-            "type": "string",
-            "nullable": true
-          },
           "paymentHash": {
             "type": "string",
             "nullable": true
+          },
+          "satoshis": {
+            "type": "integer",
+            "format": "int64"
           },
           "paymentAddr": {
             "type": "string",
             "nullable": true
           },
-          "valueSat": {
-            "type": "integer",
-            "format": "int64"
+          "memo": {
+            "type": "string",
+            "nullable": true
           },
-          "creationDate": {
-            "type": "integer",
-            "format": "int64"
+          "creationTime": {
+            "type": "string",
+            "format": "date-time"
           },
-          "settleDate": {
-            "type": "integer",
-            "format": "int64"
+          "expiryTime": {
+            "type": "string",
+            "format": "date-time"
           },
           "paymentRequest": {
             "type": "string",
             "nullable": true
           },
-          "expiry": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "amtPaidSat": {
-            "type": "integer",
-            "format": "int64"
-          },
           "state": {
+            "$ref": "#/components/schemas/InvoiceState"
+          },
+          "isHodl": {
+            "type": "boolean"
+          },
+          "settleTime": {
             "type": "string",
+            "format": "date-time",
             "nullable": true
           }
         },
         "additionalProperties": false
       },
-      "InvoiceRetArrayResult": {
+      "InvoiceRecordArrayResult": {
         "type": "object",
         "properties": {
           "value": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/InvoiceRet"
+              "$ref": "#/components/schemas/InvoiceRecord"
             },
             "nullable": true
           },
@@ -1508,11 +1278,11 @@
         },
         "additionalProperties": false
       },
-      "InvoiceRetResult": {
+      "InvoiceRecordResult": {
         "type": "object",
         "properties": {
           "value": {
-            "$ref": "#/components/schemas/InvoiceRet"
+            "$ref": "#/components/schemas/InvoiceRecord"
           },
           "errorCode": {
             "$ref": "#/components/schemas/LNDWalletErrorCode"
@@ -1523,6 +1293,16 @@
           }
         },
         "additionalProperties": false
+      },
+      "InvoiceState": {
+        "enum": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "type": "integer",
+        "format": "int32"
       },
       "LNDWalletErrorCode": {
         "enum": [
@@ -1539,7 +1319,8 @@
           10,
           11,
           12,
-          13
+          13,
+          14
         ],
         "type": "integer",
         "format": "int32"
@@ -1586,110 +1367,62 @@
         },
         "additionalProperties": false
       },
-      "PayReqRet": {
-        "required": [
-          "description",
-          "descriptionHash",
-          "expiry",
-          "paymentAddr",
-          "paymentHash",
-          "timestamp",
-          "valueSat"
+      "PaymentFailureReason": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          101,
+          102,
+          103,
+          104,
+          105
         ],
-        "type": "object",
-        "properties": {
-          "valueSat": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "timestamp": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "expiry": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "description": {
-            "type": "string",
-            "nullable": true
-          },
-          "descriptionHash": {
-            "type": "string",
-            "nullable": true
-          },
-          "paymentHash": {
-            "type": "string",
-            "nullable": true
-          },
-          "paymentAddr": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
+        "type": "integer",
+        "format": "int32"
       },
-      "PayReqRetResult": {
-        "type": "object",
-        "properties": {
-          "value": {
-            "$ref": "#/components/schemas/PayReqRet"
-          },
-          "errorCode": {
-            "$ref": "#/components/schemas/LNDWalletErrorCode"
-          },
-          "errorMessage": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "PaymentRet": {
+      "PaymentRecord": {
         "required": [
-          "creationTimeNs",
-          "feeSat",
+          "failureReason",
+          "feeMsat",
           "paymentHash",
-          "paymentRequest",
-          "status",
-          "valueSat"
+          "satoshis",
+          "status"
         ],
         "type": "object",
         "properties": {
           "paymentHash": {
             "type": "string",
             "nullable": true
-          },
-          "valueSat": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "creationTimeNs": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "feeSat": {
-            "type": "integer",
-            "format": "int64"
           },
           "status": {
-            "type": "string",
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentStatus"
           },
-          "paymentRequest": {
-            "type": "string",
-            "nullable": true
+          "failureReason": {
+            "$ref": "#/components/schemas/PaymentFailureReason"
+          },
+          "satoshis": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "feeMsat": {
+            "type": "integer",
+            "format": "int64"
           }
         },
         "additionalProperties": false
       },
-      "PaymentRetArrayResult": {
+      "PaymentRecordArrayResult": {
         "type": "object",
         "properties": {
           "value": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PaymentRet"
+              "$ref": "#/components/schemas/PaymentRecord"
             },
             "nullable": true
           },
@@ -1702,6 +1435,86 @@
           }
         },
         "additionalProperties": false
+      },
+      "PaymentRecordResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/PaymentRecord"
+          },
+          "errorCode": {
+            "$ref": "#/components/schemas/LNDWalletErrorCode"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaymentRequestRecord": {
+        "required": [
+          "creationTime",
+          "expiryTime",
+          "memo",
+          "paymentAddr",
+          "paymentHash",
+          "satoshis"
+        ],
+        "type": "object",
+        "properties": {
+          "paymentHash": {
+            "type": "string",
+            "nullable": true
+          },
+          "satoshis": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "paymentAddr": {
+            "type": "string",
+            "nullable": true
+          },
+          "memo": {
+            "type": "string",
+            "nullable": true
+          },
+          "creationTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiryTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaymentRequestRecordResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/PaymentRequestRecord"
+          },
+          "errorCode": {
+            "$ref": "#/components/schemas/LNDWalletErrorCode"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaymentStatus": {
+        "enum": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "type": "integer",
+        "format": "int32"
       },
       "Result": {
         "type": "object",
@@ -1716,7 +1529,12 @@
         },
         "additionalProperties": false
       },
-      "RouteFeeResponse": {
+      "RouteFeeRecord": {
+        "required": [
+          "failureReason",
+          "routingFeeMsat",
+          "timeLockDelay"
+        ],
         "type": "object",
         "properties": {
           "routingFeeMsat": {
@@ -1726,15 +1544,18 @@
           "timeLockDelay": {
             "type": "integer",
             "format": "int64"
+          },
+          "failureReason": {
+            "$ref": "#/components/schemas/PaymentFailureReason"
           }
         },
         "additionalProperties": false
       },
-      "RouteFeeResponseResult": {
+      "RouteFeeRecordResult": {
         "type": "object",
         "properties": {
           "value": {
-            "$ref": "#/components/schemas/RouteFeeResponse"
+            "$ref": "#/components/schemas/RouteFeeRecord"
           },
           "errorCode": {
             "$ref": "#/components/schemas/LNDWalletErrorCode"
