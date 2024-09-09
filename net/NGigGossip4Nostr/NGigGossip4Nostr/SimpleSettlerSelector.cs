@@ -14,7 +14,7 @@ using System.Net.Sockets;
 using System.Threading;
 using Microsoft.AspNetCore.SignalR.Client;
 using NetworkClientToolkit;
-using GigGossipFrames;
+using GigGossip;
 
 namespace NGigGossip4Nostr;
 

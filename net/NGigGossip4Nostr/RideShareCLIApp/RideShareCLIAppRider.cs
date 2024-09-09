@@ -1,20 +1,19 @@
 ﻿using System;
 using Sharprompt;
 using System.Globalization;
-using GigGossipFrames;
+using GigGossip;
 using NGeoHash;
 using Spectre.Console;
 using NBitcoin;
 using System.Diagnostics;
 using CryptoToolkit;
 using GigLNDWalletAPIClient;
-using RideShareFrames;
 
 namespace RideShareCLIApp;
 
 public partial class RideShareCLIApp
 {
-    BroadcastTopicResponse requestedRide = null;
+    BroadcastRequest requestedRide = null;
     GeoLocation fromLocation;
     GeoLocation toLocation;
     string fromAddress;
@@ -27,7 +26,7 @@ public partial class RideShareCLIApp
     bool driverApproached;
     bool riderDroppedOff;
 
-    async Task<BroadcastTopicResponse> RequestRide(string fromAddress, GeoLocation fromLocation, string toAddress, GeoLocation toLocation, int precision, int waitingTimeForPickupMinutes)
+    async Task<BroadcastRequest> RequestRide(string fromAddress, GeoLocation fromLocation, string toAddress, GeoLocation toLocation, int precision, int waitingTimeForPickupMinutes)
     {
         var fromGh = GeoHash.Encode(latitude: fromLocation.Latitude, longitude: fromLocation.Longitude, numberOfChars: precision);
         var toGh = GeoHash.Encode(latitude: toLocation.Latitude, longitude: toLocation.Longitude, numberOfChars: precision);
@@ -37,7 +36,7 @@ public partial class RideShareCLIApp
         this.toAddress = toAddress;
 
         return await gigGossipNode.BroadcastTopicAsync(
-            topic: new RideTopic
+            topic: new RideShareTopic
             {
                 FromGeohash = fromGh,
                 ToGeohash = toGh,
@@ -88,7 +87,7 @@ public partial class RideShareCLIApp
 
     private async Task CancelBroadcast()
     {
-        await gigGossipNode.CancelBroadcastAsync(requestedRide.SignedCancelRequestPayload);
+        await gigGossipNode.CancelBroadcastAsync(requestedRide.CancelJobRequest);
     }
 
 
@@ -104,19 +103,16 @@ public partial class RideShareCLIApp
             if (!receivedResponsesForPaymentHashes.ContainsKey(paymentHash))
             {
                 receivedResponsesForPaymentHashes[paymentHash] = new List<NewResponseEventArgs> { e };
-                receivedResponseIdxesForReplyPayloadId[e.ReplyPayloadCert.Id.AsGuid()] = receivedResponsesForPaymentHashes.Count - 1;
+                receivedResponseIdxesForReplyPayloadId[e.ReplyPayloadCert.Header.JobReplyId.AsGuid()] = receivedResponsesForPaymentHashes.Count - 1;
                 receivedResponseIdxesForPaymentHashes[paymentHash] = receivedResponsesForPaymentHashes.Count - 1;
                 var fee = e.DecodedReplyInvoice.Satoshis;
                 var netfee = e.DecodedNetworkInvoice.Satoshis;
-
-                var replyPayloadValue = Crypto.BinaryDeserializeObject<ReplyPayloadValue>(e.ReplyPayloadCert.Value.ToArray());
-                var requestPayloadValue = Crypto.BinaryDeserializeObject<RequestPayloadValue>(replyPayloadValue.SignedRequestPayload.Value.ToArray());
-                var taxiTopic = Crypto.BinaryDeserializeObject<RideTopic>(requestPayloadValue.Topic.ToArray());
+                var taxiTopic = e.ReplyPayloadCert.Header.JobRequest.Header.RideShare;
                 var from = taxiTopic.FromGeohash;
-                var tim = "(" + taxiTopic.PickupAfter.ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore.AsUtcDateTime() - taxiTopic.PickupAfter.AsUtcDateTime()).TotalMinutes).ToString() + ")";
+                var tim = "(" + taxiTopic.PickupAfter.AsUtcDateTime().ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore.AsUtcDateTime() - taxiTopic.PickupAfter.AsUtcDateTime()).TotalMinutes).ToString() + ")";
                 var to = taxiTopic.ToGeohash;
 
-                receivedResponsesTable.AddRow(new string[] { paymentHash, e.ReplyPayloadCert.Id.ToString(), "1", from, tim, to, fee.ToString(), netfee.ToString() });
+                receivedResponsesTable.AddRow(new string[] { paymentHash, e.ReplyPayloadCert.Header.JobReplyId.ToString(), "1", from, tim, to, fee.ToString(), netfee.ToString() });
 
             }
             else
@@ -137,13 +133,13 @@ public partial class RideShareCLIApp
             AnsiConsole.WriteLine("requestedRide is empty 2");
             return;
         }
-        if (e.RequestPayloadId.AsUUID() == requestedRide.SignedRequestPayload.Id)
+        if (e.RequestPayloadId.AsUUID() == requestedRide.JobRequest.Header.JobRequestId)
         {
-            await e.GigGossipNode.CancelBroadcastAsync(requestedRide.SignedCancelRequestPayload);
-            await gigGossipNode.AddTempRelaysAsync(e.Reply.Relays.ToArray());
+            await e.GigGossipNode.CancelBroadcastAsync(requestedRide.CancelJobRequest);
+            await gigGossipNode.AddTempRelaysAsync((from u in e.Reply.RideShare.Relays select u.AsUri().AbsoluteUri).ToArray());
             directTimer.Start();
-            directPubkeys[e.RequestPayloadId] = e.Reply.PublicKey;
-            new Thread(async () => await RiderJourneyAsync(e.RequestPayloadId, e.ReplierCertificateId, e.Reply.Secret, settings.NodeSettings.SettlerOpenApi)).Start();
+            directPubkeys[e.RequestPayloadId] = e.Reply.RideShare.PublicKey.AsHex();
+            new Thread(async () => await RiderJourneyAsync(e.RequestPayloadId, e.ReplierCertificateId, e.Reply.RideShare.Secret, settings.NodeSettings.SettlerOpenApi)).Start();
         }
         else
             AnsiConsole.WriteLine("SignedRequestPayloadId mismatch 2");
@@ -188,9 +184,9 @@ public partial class RideShareCLIApp
             await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
             {
                 Secret = secret,
-                SignedRequestPayloadId = signedRequestPayloadId.AsUUID(),
-                ReplierCertificateId = replierCertificateId.AsUUID(),
-                SecurityCenterUri = settlerServiceUri.AbsoluteUri,
+                JobRequestId = signedRequestPayloadId.AsUUID(),
+                JobReplyId = replierCertificateId.AsUUID(),
+                SecurityCenterUri = settlerServiceUri.AsURI(),
                 Location = fromLocation,
                 Message = "Hello From Rider!",
                 RideStatus = RideState.Started,
@@ -208,9 +204,9 @@ public partial class RideShareCLIApp
                 await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
                 {
                     Secret = secret,
-                    SignedRequestPayloadId = signedRequestPayloadId.AsUUID(),
-                    ReplierCertificateId = replierCertificateId.AsUUID(),
-                    SecurityCenterUri = settlerServiceUri.AbsoluteUri,
+                    JobRequestId = signedRequestPayloadId.AsUUID(),
+                    JobReplyId = replierCertificateId.AsUUID(),
+                    SecurityCenterUri = settlerServiceUri.AsURI(),
                     Location = fromLocation,
                     Message = "I am waiting",
                     RideStatus = RideState.Started,
@@ -227,9 +223,9 @@ public partial class RideShareCLIApp
                 await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
                 {
                     Secret = secret,
-                    SignedRequestPayloadId = signedRequestPayloadId.AsUUID(),
-                    ReplierCertificateId = replierCertificateId.AsUUID(),
-                    SecurityCenterUri = settlerServiceUri.AbsoluteUri,
+                    JobRequestId = signedRequestPayloadId.AsUUID(),
+                    JobReplyId = replierCertificateId.AsUUID(),
+                    SecurityCenterUri = settlerServiceUri.AsURI(),
                     Location = lastDriverLocation,
                     Message = "I am in the car",
                     RideStatus = RideState.RiderPickedUp,
@@ -260,7 +256,7 @@ public partial class RideShareCLIApp
             AnsiConsole.WriteLine("requestedRide is empty");
             return;
         }
-        if (locationFrame.SignedRequestPayloadId == requestedRide.SignedRequestPayload.Id)
+        if (locationFrame.JobRequestId.AsGuid() == requestedRide.JobRequest.Header.JobRequestId.AsGuid())
         {
             AnsiConsole.WriteLine("driver location:" + senderPublicKey + "|" + locationFrame.RideStatus.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
             if (locationFrame.RideStatus >= RideState.DriverWaitingForRider)

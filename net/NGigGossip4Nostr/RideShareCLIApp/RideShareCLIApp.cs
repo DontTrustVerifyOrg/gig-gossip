@@ -12,7 +12,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Timers;
 using CryptoToolkit;
-using GigGossipFrames;
+using GigGossip;
 using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -26,7 +26,6 @@ using NBitcoin.RPC;
 using NBitcoin.Secp256k1;
 using NGeoHash;
 using NGigGossip4Nostr;
-using RideShareFrames;
 using Sharprompt;
 using Spectre;
 using Spectre.Console;
@@ -608,10 +607,10 @@ public partial class RideShareCLIApp
         else
         {
             if (requestedRide != null)
-                if (directPubkeys.ContainsKey(requestedRide.SignedRequestPayload.Id.AsGuid()))
+                if (directPubkeys.ContainsKey(requestedRide.JobRequest.Header.JobRequestId.AsGuid()))
                 {
-                    pubkey = directPubkeys[requestedRide.SignedRequestPayload.Id.AsGuid()];
-                    requestPayloadId = requestedRide.SignedRequestPayload.Id.AsGuid();
+                    pubkey = directPubkeys[requestedRide.JobRequest.Header.JobRequestId.AsGuid()];
+                    requestPayloadId = requestedRide.JobRequest.Header.JobRequestId.AsGuid();
                     lastSeen = lastDriverSeenAt;
                 }
         }

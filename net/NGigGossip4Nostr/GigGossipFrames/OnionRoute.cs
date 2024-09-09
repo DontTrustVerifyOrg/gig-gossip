@@ -2,13 +2,13 @@
 using CryptoToolkit;
 
 
-namespace GigGossipFrames;
+namespace GigGossip;
 
 /// <summary>
 /// An onion route is used in the onion routing protocol to establish an anonymous communication channel. 
 /// Each "onion" in the route is peeled back one at a time by each gig gossip node in the network. 
 /// </summary>
-public partial class OnionRoute 
+public partial class Onion
 {
     /// <summary>
     /// Peel off each layer of the onion route using a private key, revealing the next destination.
@@ -17,9 +17,9 @@ public partial class OnionRoute
     /// <returns></returns>
     public string Peel(ECPrivKey privKey)
     {
-        var layerData = Crypto.DecryptObject<OnionLayer>(Onion.ToArray(), privKey, null) ;
-        Onion = layerData.Core;
-        return layerData.PublicKey;
+        var layerData = EncryptedOnionLayer.Decrypt<OnionLayer>(privKey);
+        EncryptedOnionLayer = layerData.EncryptedOnionLayer;
+        return layerData.PublicKey.AsHex();
     }
 
     /// <summary>
@@ -28,15 +28,15 @@ public partial class OnionRoute
     /// <param name="otherPublicKey">The public key of the other party to add to the onion layer.</param>
     /// <param name="pubKey">The public key used to encrypt the onion layer.</param>
     /// <returns>A new OnionRoute object with added layer.</returns>
-    public OnionRoute Grow(string otherPublicKey, ECXOnlyPubKey pubKey)
+    public Onion Grow(string otherPublicKey, ECXOnlyPubKey pubKey)
     {
-        var newOnion = new OnionRoute()
+        var newOnion = new Onion()
         {
-            Onion = Crypto.EncryptObject(new OnionLayer()
+            EncryptedOnionLayer = new OnionLayer()
             {
-                PublicKey = otherPublicKey,
-                Core = Onion
-            }, pubKey, null).AsByteString()
+                PublicKey = otherPublicKey.AsPublicKey(),
+                EncryptedOnionLayer = this.EncryptedOnionLayer.Clone(),
+            }.Encrypt(pubKey),
         };
         return newOnion;
     }
@@ -47,19 +47,8 @@ public partial class OnionRoute
     /// <returns>True if the onion route is empty; otherwise, false.</returns>
     public bool IsEmpty()
     {
-        return Onion.Length == 0;
+        return this. EncryptedOnionLayer.Value.Length == 0;
     }
 
-    /// <summary>
-    /// Creates a deep copy of the current OnionRoute instance.
-    /// </summary>
-    /// <returns>A deep copy of the current OnionRoute instance.</returns>
-    public OnionRoute DeepCopy()
-    {
-        return new OnionRoute()
-        {
-            Onion = this.Onion.ToArray().AsByteString()
-        };
-    }
 }
 

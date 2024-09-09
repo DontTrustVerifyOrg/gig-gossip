@@ -1179,11 +1179,11 @@ public class LNDWalletManager : LNDEventSource
 
     private string ValidateAuthToken(string authTokenBase64)
     {
-        var timedToken = CryptoToolkit.Crypto.VerifySignedTimedToken(authTokenBase64, 120.0);
+        var timedToken = GigGossip.AuthToken.Verify(authTokenBase64, 120.0);
         if (timedToken == null)
             throw new LNDWalletException(LNDWalletErrorCode.InvalidToken);
 
-        var tk = (from token in walletContext.Value.Tokens where token.PublicKey == timedToken.PublicKey && token.Id == timedToken.Token.AsGuid() select token).FirstOrDefault();
+        var tk = (from token in walletContext.Value.Tokens where token.PublicKey == GigGossip.ProtoBufExtensions.AsHex(timedToken.Header.PublicKey) && token.Id == GigGossip.ProtoBufExtensions.AsGuid(timedToken.Header.TokenId) select token).FirstOrDefault();
         if (tk == null)
             throw new LNDWalletException(LNDWalletErrorCode.InvalidToken);
         return tk.PublicKey;

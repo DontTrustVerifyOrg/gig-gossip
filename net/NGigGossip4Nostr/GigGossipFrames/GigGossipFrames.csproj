@@ -27,9 +27,5 @@
   </ItemGroup>
   <ItemGroup>
     <Protobuf Include="giggossipframes.proto" GrpcServices="Client" />
-    <Protobuf Include="giggossipframes %28copy%29.proto" GrpcServices="Client" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Remove="giggossipframes %28copy%29.proto" />
   </ItemGroup>
 </Project>

@@ -23,7 +23,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using NetworkToolkit;
 using GoogleApi.Entities.Maps.Directions.Request;
 using GoogleApi.Entities.Maps.Common;
-using GigGossipFrames;
+using GigGossip;
 
 #pragma warning disable 1591
 
@@ -1011,7 +1011,8 @@ app.MapPost("/generaterequestpayload", async ([FromForm] string authToken, [From
     try
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
-        var st = Singlethon.Settler.GenerateRequestPayload(pubkey, properties.Split(","), await serialisedTopic.ToBytes());
+        var rideShareTopic = Crypto.BinaryDeserializeObject<RideShareTopic>(await serialisedTopic.ToBytes());
+        var st = Singlethon.Settler.GenerateRequestPayload(pubkey, properties.Split(","), rideShareTopic);
         return new Result<string>(Convert.ToBase64String(Crypto.BinarySerializeObject(st)));
     }
     catch (Exception ex)
@@ -1031,8 +1032,9 @@ app.MapPost("/generatesettlementtrust", async ([FromForm] string authToken, [Fro
     try
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
-        var signedRequestPayload = Crypto.BinaryDeserializeObject<Certificate>(await signedRequestPayloadSerialized.ToBytes());
-        var st = await Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, properties.Split(","), await message.ToBytes(), replyinvoice, signedRequestPayload);
+        var signedRequestPayload = Crypto.BinaryDeserializeObject<JobRequest>(await signedRequestPayloadSerialized.ToBytes());
+        var reply = Crypto.BinaryDeserializeObject<Reply>(await message.ToBytes());
+        var st = await Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, properties.Split(","), reply, replyinvoice, signedRequestPayload);
         return new Result<string>(Convert.ToBase64String(Crypto.BinarySerializeObject(st)));
     }
     catch (Exception ex)
@@ -1054,7 +1056,8 @@ app.MapPost("/encryptobjectforcertificateid", async ([FromForm] Guid certificate
 
         if(!Singlethon.Settler.HasAccessRights(pubkey, AccessRights.Valid))
             throw new AccessDeniedException();
-        byte[] encryptedReplyPayload = Singlethon.Settler.EncryptObjectForPubkey(pubkey, await objectSerialized.ToBytes());
+        var jobReply = Crypto.BinaryDeserializeObject<JobReply>(await objectSerialized.ToBytes());
+        byte[] encryptedReplyPayload = Singlethon.Settler.EncryptJobReplyForPubkey(pubkey, jobReply).Value.ToArray();
         return new Result<string>(Convert.ToBase64String(encryptedReplyPayload));
     }
     catch (Exception ex)

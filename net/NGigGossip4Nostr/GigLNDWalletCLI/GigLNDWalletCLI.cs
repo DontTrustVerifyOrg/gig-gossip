@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Threading;
 using CryptoToolkit;
+using GigGossip;
 using GigLNDWalletAPIClient;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
@@ -145,7 +146,7 @@ public class GigLNDWalletCLI
         var ecpriv = userSettings.UserPrivateKey.AsECPrivKey();
         string pubkey = ecpriv.CreateXOnlyPubKey().AsHex();
         var guid = WalletAPIResult.Get<Guid>(await walletClient.GetTokenAsync(pubkey, CancellationToken.None));
-        return Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid);
+        return AuthToken.Create(ecpriv, DateTime.UtcNow, guid);
     }
 
     private async Task WriteBalance()

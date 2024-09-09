@@ -6,7 +6,7 @@ using System;
 using System.Diagnostics;
 using System.Text;
 using NGeoHash;
-using RideShareFrames;
+using GigGossip;
 
 public static class Extensions
 {

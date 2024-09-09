@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Net.NetworkInformation;
-using RideShareFrames;
+using GigGossip;
 
 namespace RideShareCLIApp;
 

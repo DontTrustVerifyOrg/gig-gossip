@@ -30,7 +30,6 @@
   <ItemGroup>
     <ProjectReference Include="..\NGigGossip4Nostr\NGigGossip4Nostr.csproj" />
     <ProjectReference Include="..\GigGossipSettlerAPIClient\GigGossipSettlerAPIClient.csproj" />
-    <ProjectReference Include="..\RideShareFrames\RideShareFrames.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Remove="Services\" />

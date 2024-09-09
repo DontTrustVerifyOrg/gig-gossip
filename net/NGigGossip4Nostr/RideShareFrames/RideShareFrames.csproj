@@ -25,7 +25,4 @@
     </PackageReference>
     <PackageReference Include="Google.Protobuf" Version="3.28.0" />
   </ItemGroup>
-  <ItemGroup>
-    <Protobuf Include="rideshareframes.proto" GrpcServices="Client" />
-  </ItemGroup>
 </Project>

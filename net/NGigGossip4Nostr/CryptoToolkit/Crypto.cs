@@ -66,40 +66,6 @@ public static class HexExtensions
 /// </summary>
 public static class Crypto
 {
-    /// <summary>
-    /// A struct to represent a timed GUID token with its signature. Used in API calls.
-    /// </summary>
-
-
-    /// <summary>
-    /// Creates a signed timed token using a provided private key, date time and guid.
-    /// </summary>
-    public static string MakeSignedTimedToken(ECPrivKey ecpriv, DateTime dateTime, Guid guid)
-    {
-        var tt = new TimedGuidToken();
-        tt.PublicKey = ecpriv.CreateXOnlyPubKey().AsHex();
-        tt.Timestamp = dateTime.ToUnixTimestamp();
-        tt.Token = guid.AsUUID();
-        tt.Signature = SignObject(tt, ecpriv).AsByteString();
-        return Convert.ToBase64String(BinarySerializeObject(tt));
-    }
-
-    /// <summary>
-    /// Verifies the validity of a signed timed token. Returns the timed token if it is valid within a given period of seconds. Returns null otherwise.
-    /// </summary>
-    public static TimedGuidToken? VerifySignedTimedToken(string TimedTokenBase64, double seconds)
-    {
-        var serialized = Convert.FromBase64String(TimedTokenBase64);
-        TimedGuidToken timedToken = BinaryDeserializeObject<TimedGuidToken>(serialized);
-        var ecpub = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(timedToken.PublicKey));
-        if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - timedToken.Timestamp > seconds)
-            return null;
-        var signature = timedToken.Signature.ToArray();
-        timedToken.Signature = Google.Protobuf.ByteString.Empty;
-        if (!VerifyObject(timedToken, signature, ecpub))
-            return null;
-        return timedToken;
-    }
 
     /// <summary>
     /// Computes a SHA256 hash of an array of bytes representing a preimage for a payment. Used in Lightning Network HODL invoices for manual settlement.

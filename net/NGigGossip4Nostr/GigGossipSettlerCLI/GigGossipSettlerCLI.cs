@@ -14,6 +14,7 @@ using Newtonsoft.Json.Converters;
 using Sharprompt;
 using Spectre.Console;
 using NGeoHash;
+using GigGossip;
 
 namespace GigGossipSettlerCLI;
 
@@ -172,7 +173,7 @@ public class GigGossipSettlerCLI
         var ecpriv = userSettings.UserPrivateKey.AsECPrivKey();
         string pubkey = ecpriv.CreateXOnlyPubKey().AsHex();
         var guid = SettlerAPIResult.Get<Guid>(await settlerClient.GetTokenAsync(pubkey, CancellationToken.None));
-        return Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid);
+        return AuthToken.Create(ecpriv, DateTime.UtcNow, guid);
     }
 
     enum ClipType

@@ -1,9 +1,8 @@
 ﻿using CryptoToolkit;
-using GigGossipFrames;
+using GigGossip;
 using GigLNDWalletAPIClient;
 using NetworkClientToolkit;
 using NGigGossip4Nostr;
-using RideShareFrames;
 
 namespace RideShareCLIApp;
 
@@ -49,14 +48,14 @@ public class NewResponseEventArgs : EventArgs
     public required PaymentRequestRecord DecodedReplyInvoice;
     public required string NetworkInvoice;
     public required PaymentRequestRecord DecodedNetworkInvoice;
-    public required Certificate ReplyPayloadCert;
+    public required JobReply ReplyPayloadCert;
 }
 public class ResponseReadyEventArgs : EventArgs
 {
     public required GigGossipNode GigGossipNode;
     public required Guid RequestPayloadId;
     public required Guid ReplierCertificateId;
-    public required ConnectionReply Reply;
+    public required Reply Reply;
 }
 public class ResponseCancelledEventArgs : EventArgs
 {

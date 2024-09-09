@@ -1,8 +1,7 @@
 ﻿using CryptoToolkit;
 using NBitcoin.Secp256k1;
-using Newtonsoft.Json.Linq;
 
-namespace GigGossipFrames;
+namespace GigGossip;
 
 /// <summary>
 /// Interface that allows access and operations related to the Certification Authority.
@@ -25,54 +24,14 @@ public interface ICertificationAuthorityAccessor
 }
 
 
-
-
-public partial class Certificate
+public partial class CertificateHeader
 {
     /// <summary>
     /// Verifies the certificate with the Certification Authority public key.
     /// </summary>
     /// <param name="caAccessor">An instance of an object that implements ICertificationAuthorityAccessor</param>
     /// <returns>Returns true if the certificate is valid, false otherwise.</returns>
-    public async Task<bool> VerifyAsync(ICertificationAuthorityAccessor caAccessor, CancellationToken cancellationToken)
-    {
-        if (NotValidAfter.AsUtcDateTime() >= DateTime.UtcNow && NotValidBefore.AsUtcDateTime() <= DateTime.UtcNow)
-        {
-            var caPubKey = await caAccessor.GetPubKeyAsync(new Uri(this.CertificationAuthorityUri), cancellationToken);
-            var sign = Signature;
-            try
-            {
-                Signature = null;
-                if (Crypto.VerifyObject<Certificate>(this, sign.ToArray(), caPubKey))
-                    return true;
-            }
-            finally
-            {
-                Signature = sign;
-            }
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// Signs the certificate using the supplied private key of Certification Authority. For intertnal use only.
-    /// </summary>
-    /// <param name="privateKey">Private key of Certification Authority.</param>
-    internal void Sign(ECPrivKey privateKey)
-    {
-        var sign = Signature;
-        try
-        {
-            this.Signature = Google.Protobuf.ByteString.Empty;
-            this.Signature = Crypto.SignObject(this, privateKey).AsByteString();
-        }
-        catch
-        {
-            this.Signature = sign;
-            throw;
-        }
-    }
-
+    public bool IsStillValid => NotValidBefore.AsUtcDateTime() <= DateTime.UtcNow && DateTime.UtcNow <= NotValidAfter.AsUtcDateTime();
 }
 
 /// <summary>
@@ -106,26 +65,8 @@ public class CertificationAuthority
         CaXOnlyPublicKey = caPrivateKey.CreateXOnlyPubKey();
     }
 
-    /// <summary>
-    /// Issues a new certificate with provided details.
-    /// </summary>
-    /// <param name="properties">Properties of the Subject.</param>
-    /// <param name="notValidAfter">The date after which the certificate is not valid.</param>
-    /// <param name="notValidBefore">The date before which the certificate is not valid.</param>
-    /// <returns>A new certificate signed and issued by the Certification Authority for the Subject.</returns>
-    protected Certificate IssueCertificate<T>(string kind, Guid id, IDictionary<string, byte[]> properties, DateTime notValidAfter, DateTime notValidBefore, T value) where T : Google.Protobuf.IMessage<T>
+    protected Signature Sign<T>(T obj) where T: Google.Protobuf.IMessage<T>
     {
-        var certificate = new Certificate
-        {
-            Kind = kind,
-            Id = id.AsUUID(),
-            CertificationAuthorityUri = ServiceUri.AbsoluteUri,
-            NotValidAfter = notValidAfter.AsUnixTimestamp(),
-            NotValidBefore = notValidBefore.AsUnixTimestamp(),
-            Value = Crypto.BinarySerializeObject(value).AsByteString(),
-        };
-        certificate.Properties.Add(new Dictionary<string, Google.Protobuf.ByteString>(from kv in properties select KeyValuePair.Create(kv.Key, kv.Value.AsByteString())));
-        certificate.Sign(this._CaPrivateKey);
-        return certificate;
+        return obj.Sign(this._CaPrivateKey);
     }
 }

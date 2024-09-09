@@ -3,21 +3,21 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using CryptoToolkit;
+using GigGossip;
 
 var privkeyx = "3a2d5e66bcac006201687f5cfab18c0d4adbbf5809fd9f79ed79916749351a23";
 var pubkey = "a97c15464ee25ca4d1f0908f5aed1f10e41c3c117822f1f3f6e30ad038f869e0";
 var token = Guid.Parse("77502787-93c3-4d4f-9e04-a59a5cb7faae");
 var dt = DateTime.Parse("2021-01-01");
 
-var authToken = new TimedGuidToken
+var authToken = new AuthTokenHeader
 {
-    Token = token.AsUUID(),
+    TokenId = token.AsUUID(),
     Timestamp = dt.AsUnixTimestamp(),
-    PublicKey = pubkey,
-    Signature = Google.Protobuf.ByteString.Empty,
+    PublicKey = new PublicKey { Value = pubkey.AsECXOnlyPubKey().ToBytes().AsByteString() },
 };
 Console.WriteLine(token);
-Console.WriteLine(token.AsUUID().ToArray().AsHex());
+Console.WriteLine(token.AsUUID().Value.ToArray().AsHex());
 Console.WriteLine(new DateTimeOffset(dt).ToUnixTimeSeconds());
 
 var serializedObj = Crypto.BinarySerializeObject(authToken);
@@ -38,12 +38,15 @@ privkeyx.AsECPrivKey().SignBIP340(buf[..32]).WriteToSpan(buf);
 Console.WriteLine(buf.ToArray().AsHex());
 Console.WriteLine(Convert.ToBase64String(buf));
 
-var authToken2 = new TimedGuidToken
+var authToken2 = new AuthToken
 {
-    Token = token.AsUUID(),
-    Timestamp = dt.AsUnixTimestamp(),
-    PublicKey = pubkey,
-    Signature = buf.AsByteString(),
+    Header = new AuthTokenHeader
+    {
+        TokenId = token.AsUUID(),
+        Timestamp = dt.AsUnixTimestamp(),
+        PublicKey = new PublicKey { Value = pubkey.AsECXOnlyPubKey().ToBytes().AsByteString() },
+    },
+    Signature = new Signature { Value = buf.AsByteString() },
 };
 
 var mstr = new MemoryStream();
@@ -55,15 +58,15 @@ var serializedObj2 = mstr.ToArray();
 
 Console.WriteLine(serializedObj2.AsHex());
 
-var ttok = CryptoToolkit.TimedGuidToken.Parser.ParseFrom(serializedObj2);
+var ttok = AuthToken.Parser.ParseFrom(serializedObj2);
 
 var toks = "020a406139376331353436346565323563613464316630393038663561656431663130653431633363313137383232663166336636653330616430333866383639653010d096b7ff051a107750278793c34d4f9e04a59a5cb7faae22408f86e42d26f2390359c3db9cde4b0b78df9122ad6eaeb0a66230d67a1c4a4206796b8d09cbbfd42cb61d803646a2ec84488fac4eaf04f9ed0774c16fa9b7f73c";
 
 
-var ttoken = Crypto.BinaryDeserializeObject<TimedGuidToken>(serializedObj2);
+var ttoken = Crypto.BinaryDeserializeObject<AuthToken>(serializedObj2);
 
 var token64 = "AgpAYTk3YzE1NDY0ZWUyNWNhNGQxZjA5MDhmNWFlZDFmMTBlNDFjM2MxMTc4MjJmMWYzZjZlMzBhZDAzOGY4NjllMBDQlrf/BRoQd1Anh5PDTU+eBKWaXLf6riJA6iYsUcCyZcdlu7AQR4gLdET0aIUyxjv2OMrwrqLmBR7Pm5UEJPLgZ6JlKQnUfKwgN71Sdu74k2jGJW9T9JtH4A==";
-var verif = Crypto.VerifySignedTimedToken(token64, 600);
+var verif = AuthToken.Verify(token64, 600);
 
 
 var mnemonic = Crypto.GenerateMnemonic();

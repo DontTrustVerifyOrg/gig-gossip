@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR.Client;
 using NetworkClientToolkit;
-using GigGossipFrames;
+using GigGossip;
 
 namespace GigGossipSettler;
 
