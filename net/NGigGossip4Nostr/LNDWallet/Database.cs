@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.Data.Common;
-using CryptoToolkit;
+
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using static Google.Protobuf.WellKnownTypes.Field.Types;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -148,22 +148,6 @@ public class ExternalPayment
 }
 
 
-public enum PaymentFailureReason
-{
-    None = 0,
-    Timeout = 1,
-    NoRoute = 2,
-    Error = 3,
-    IncorrectPaymentDetails = 4,
-    InsufficientBalance = 5,
-    Canceled = 6,
-    EmptyReturnStream = 101,
-    InvoiceAlreadySettled = 102,
-    InvoiceAlreadyCancelled = 103,
-    InvoiceAlreadyAccepted = 104,
-    FeeLimitTooSmall= 105,
-
-}
 
 /// <summary>
 /// Represents a Payment for the invoice.
@@ -354,6 +338,8 @@ public class WaletContext : DbContext
             return this.Reserves;
         else if (obj is ClassicInvoice)
             return this.ClassicInvoices;
+        else if (obj is HodlInvoice)
+            return this.HodlInvoices;
         else if (obj is InternalPayment)
             return this.InternalPayments;
         else if (obj is ExternalPayment)

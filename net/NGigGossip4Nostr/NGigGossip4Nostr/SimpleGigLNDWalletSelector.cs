@@ -1,5 +1,4 @@
 ﻿using System;
-using CryptoToolkit;
 using GigLNDWalletAPIClient;
 using NBitcoin.Secp256k1;
 using System.Threading.Tasks;
@@ -277,7 +276,7 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<Result> SendPaymentAsync(string authToken, string paymentrequest, int timeout, long feelimit, CancellationToken cancellationToken)
+    public async Task<PaymentRecordResult> SendPaymentAsync(string authToken, string paymentrequest, int timeout, long feelimit, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(paymentrequest, timeout, feelimit);
         try
@@ -457,7 +456,7 @@ internal class InvoiceStateUpdatesClientWrapper : IInvoiceStateUpdatesClient
         }
     }
 
-    public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<InvoiceStateChange> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log();
         await foreach (var row in API.StreamAsync(authToken, cancellationToken))
@@ -522,7 +521,7 @@ internal class PaymentStatusUpdatesClientWrapper : IPaymentStatusUpdatesClient
         }
     }
 
-    public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<PaymentStatusChanged> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log();
         await foreach (var row in API.StreamAsync(authToken, cancellationToken))

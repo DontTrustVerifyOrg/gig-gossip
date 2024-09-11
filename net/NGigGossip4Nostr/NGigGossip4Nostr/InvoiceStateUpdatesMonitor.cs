@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.WebSockets;
-using CryptoToolkit;
 using GigLNDWalletAPIClient;
 using Microsoft.AspNetCore.SignalR;
 using NBitcoin.Secp256k1;
@@ -16,7 +15,7 @@ namespace NGigGossip4Nostr
 {
 	public interface IInvoiceStateUpdatesMonitorEvents
 	{
-        public void OnInvoiceStateChange(string state, byte[] data);
+        public void OnInvoiceStateChange(InvoiceState state, byte[] data);
     }
 
     public class InvoiceStateUpdatesMonitor : HubMonitor
@@ -50,7 +49,7 @@ namespace NGigGossip4Nostr
                 {
                     PublicKey = this.gigGossipNode.PublicKey,
                     PaymentHash = phash,
-                    InvoiceState = "Unknown",
+                    InvoiceState =  InvoiceState.Open,
                     Data = data,
                 };
                 gigGossipNode.nodeContext.Value.AddObject(obj);
@@ -89,16 +88,16 @@ namespace NGigGossip4Nostr
                     {
                         var invToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredInvoices
                                         where i.PublicKey == this.gigGossipNode.PublicKey
-                                        && i.InvoiceState != "Settled" && i.InvoiceState != "Cancelled"
+                                        && i.InvoiceState != InvoiceState.Settled && i.InvoiceState !=  InvoiceState.Cancelled
                                         select i).ToList();
 
                         foreach (var inv in invToMon)
                         {
                             TL.Iteration(inv);
-                            string state = string.Empty;
+                            InvoiceState state = InvoiceState.Open;
                             try
                             {
-                                state = WalletAPIResult.Get<InvoiceRecord>(await gigGossipNode.GetWalletClient().GetInvoiceAsync(await gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash, CancellationTokenSource.Token)).State.ToString();
+                                state = WalletAPIResult.Get<InvoiceRecord>(await gigGossipNode.GetWalletClient().GetInvoiceAsync(await gigGossipNode.MakeWalletAuthToken(), inv.PaymentHash, CancellationTokenSource.Token)).State;
                                 TL.Iteration(state);
                             }
                             catch (Exception ex)
@@ -119,12 +118,11 @@ namespace NGigGossip4Nostr
                     await foreach (var invstateupd in this.InvoiceStateUpdatesClient.StreamAsync(await this.gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token))
                     {
                         TL.Iteration(invstateupd);
-                        var invp = invstateupd.Split('|');
-                        var payhash = invp[0];
-                        var state = invp[1];
+                        var payhash = invstateupd.PaymentHash;
+                        var state = invstateupd.NewState;
                         var inv = (from i in gigGossipNode.nodeContext.Value.MonitoredInvoices
                                    where i.PublicKey == this.gigGossipNode.PublicKey
-                                   && i.InvoiceState != "Settled" && i.InvoiceState != "Cancelled"
+                                   && i.InvoiceState !=  InvoiceState.Settled && i.InvoiceState != InvoiceState.Cancelled
                                    && i.PaymentHash == payhash
                                    select i).FirstOrDefault();
                         if (inv != null)

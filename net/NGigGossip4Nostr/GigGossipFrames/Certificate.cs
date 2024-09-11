@@ -1,5 +1,4 @@
-﻿using CryptoToolkit;
-using NBitcoin.Secp256k1;
+﻿using NBitcoin.Secp256k1;
 
 namespace GigGossip;
 

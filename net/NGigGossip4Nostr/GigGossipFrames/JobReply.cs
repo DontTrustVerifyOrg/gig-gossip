@@ -1,5 +1,4 @@
 ﻿using System;
-using CryptoToolkit;
 using GigGossip;
 
 namespace GigGossip;

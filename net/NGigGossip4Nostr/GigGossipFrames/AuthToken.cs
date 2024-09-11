@@ -1,5 +1,4 @@
 ﻿using System;
-using CryptoToolkit;
 using NBitcoin;
 using NBitcoin.Secp256k1;
 

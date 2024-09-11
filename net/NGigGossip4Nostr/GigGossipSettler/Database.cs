@@ -1,7 +1,7 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
-using CryptoToolkit;
+
 using System.Security.Cryptography.X509Certificates;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics;
@@ -278,42 +278,6 @@ public class Gig
 }
 
 
-[Flags]
-public enum AccessRights
-{
-// flags
-    Valid = 1,
-    KYC = 2,
-    Screening = 4,
-    Disputes = 8,
-    AccessCodes = 16,
-    AccessRights = 0x00800000,
-// roles
-    Anonymous = 0,
-    ValidUser = Valid,
-    KnownUser = Valid|KYC,
-    Operator = Screening|Disputes|AccessCodes,
-    Admin = 0x00FFFFFF,
-    Owner = ~0,
-}
-
-/// <summary>
-/// This class represents access rights of all the users.
-/// </summary>
-public class UserAccessRights
-{
-    /// <summary>
-    /// The public key of the subject.
-    /// </summary>
-    [Key]
-    public required string PublicKey { get; set; }
-
-    /// <summary>
-    /// Access rights of the user.
-    /// </summary>
-    public required AccessRights AccessRights { get; set; }
-}
-
 /// <summary>
 /// This class represents an authorisation token.
 /// </summary>
@@ -358,11 +322,6 @@ public class SettlerContext : DbContext
     /// </summary>
     public DbSet<Token> Tokens { get; set; }
  
-    /// <summary>
-    /// UserAccessRights table.
-    /// </summary>
-    public DbSet<UserAccessRights> UserAccessRights { get; set; }
-
      /// <summary>
     /// Preimages table.
     /// </summary>
@@ -417,8 +376,6 @@ public class SettlerContext : DbContext
 
         if (obj is Token)
             return this.Tokens;
-        else if (obj is UserAccessRights)
-            return this.UserAccessRights;
         else if (obj is InvoicePreimage)
             return this.Preimages;
         else if (obj is Gig)

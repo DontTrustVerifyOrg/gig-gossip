@@ -1,4 +1,4 @@
-﻿using CryptoToolkit;
+﻿
 using GigGossip;
 using GigLNDWalletAPIClient;
 using NetworkClientToolkit;
@@ -46,7 +46,7 @@ public class NewResponseEventArgs : EventArgs
     public required GigGossipNode GigGossipNode;
     public required string ReplyInvoice;
     public required PaymentRequestRecord DecodedReplyInvoice;
-    public required string NetworkInvoice;
+    public required string NetworkPaymentRequest;
     public required PaymentRequestRecord DecodedNetworkInvoice;
     public required JobReply ReplyPayloadCert;
 }
@@ -75,7 +75,7 @@ public class InvoiceSettledEventArgs : EventArgs
 public class PaymentStatusChangeEventArgs : EventArgs
 {
     public required GigGossipNode GigGossipNode;
-    public required string Status;
+    public required PaymentStatus Status;
     public required PaymentData PaymentData;
 }
 

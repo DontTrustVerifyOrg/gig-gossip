@@ -2,7 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Threading;
-using CryptoToolkit;
+
 using GigGossip;
 using GigLNDWalletAPIClient;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -12,6 +12,7 @@ using NBitcoin.RPC;
 using NBitcoin.Secp256k1;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Linq;
 using Sharprompt;
 using Spectre.Console;
 
@@ -126,9 +127,9 @@ public class GigLNDWalletCLI
         [Display(Name = "Settle Invoice")]
         SettleInvoice,
         [Display(Name = "Get Invoice State")]
-        GetInvoiceState,
+        GetInvoice,
         [Display(Name = "Get Payment Status")]
-        GetPaymentStatus,
+        GetPayment,
         [Display(Name = "List Invoices")]
         ListInvoices,
         [Display(Name = "List Payments")]
@@ -152,7 +153,8 @@ public class GigLNDWalletCLI
     private async Task WriteBalance()
     {
         var ballanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await walletClient.GetBalanceAsync(await MakeToken(), CancellationToken.None));
-        AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.AvailableAmount.ToString());
+        AnsiConsole.WriteLine("Current amout in satoshis:");
+        PrintObjectAsTree (ballanceOfCustomer);
     }
 
 
@@ -183,7 +185,7 @@ public class GigLNDWalletCLI
     private string FromClipboard(ClipType clipType)
     {
         var clip = TextCopy.ClipboardService.GetText();
-        if (string.IsNullOrWhiteSpace(clip) || !clip.StartsWith("GigLNDWalletTest\n"))
+        if (string.IsNullOrWhiteSpace(clip) || !clip.StartsWith("GigGossipClipboard\n"))
             return "";
         var clarr = clip.Split("\n");
         return clarr[((int)clipType) + 1];
@@ -200,7 +202,8 @@ public class GigLNDWalletCLI
             {
                 await foreach (var invstateupd in invoiceStateUpdatesClient.StreamAsync(await MakeToken(), CancellationTokenSource.Token))
                 {
-                    AnsiConsole.MarkupLine("[yellow]Invoice State Change:" + invstateupd + "[/]");
+                    AnsiConsole.WriteLine("InvoiceStateUpdate");
+                    PrintObjectAsTree(invstateupd);
                     await WriteBalance();
                 }
             }
@@ -219,7 +222,8 @@ public class GigLNDWalletCLI
             {
                 await foreach (var paystateupd in paymentStatusUpdatesClient.StreamAsync(await MakeToken(), CancellationTokenSource.Token))
                 {
-                    AnsiConsole.MarkupLine("[yellow]Payment Status Change:" + paystateupd + "[/]");
+                    AnsiConsole.WriteLine("PaymentStatusUpdate");
+                    PrintObjectAsTree(paystateupd);
                     await WriteBalance();
                 }
             }
@@ -281,11 +285,7 @@ public class GigLNDWalletCLI
                 else if (cmd == CommandEnum.LndWalletBallance)
                 {
                     var ballance = WalletAPIResult.Get<LndWalletBallanceRet>(await walletClient.GetLndWalletBallanceAsync(await MakeToken(), CancellationToken.None));
-                    AnsiConsole.WriteLine($"TotalBalance={ballance.TotalBalance}");
-                    AnsiConsole.WriteLine($"ConfirmedBalance={ballance.ConfirmedBalance}");
-                    AnsiConsole.WriteLine($"UnconfirmedBalance={ballance.UnconfirmedBalance}");
-                    AnsiConsole.WriteLine($"LockedBalance={ballance.LockedBalance}");
-                    AnsiConsole.WriteLine($"ReservedBalanceAnchorChan={ballance.ReservedBalanceAnchorChan}");
+                    PrintObjectAsTree(ballance);
                 }
                 else if (cmd == CommandEnum.EstimateFee)
                 {
@@ -294,7 +294,7 @@ public class GigLNDWalletCLI
                     {
                         var bitcoinAddressOfCustomer = Prompt.Input<string>("Bitcoin Address", FromClipboard(ClipType.BitcoinAddr));
                         var feeEr = WalletAPIResult.Get<FeeEstimateRet>(await walletClient.EstimateFeeAsync(await MakeToken(), bitcoinAddressOfCustomer, satoshis, CancellationToken.None));
-                        AnsiConsole.WriteLine($"FeeSat={feeEr.FeeSat},SatPerVbyte={feeEr.SatPerVbyte}");
+                        PrintObjectAsTree(feeEr);
                     }
                 }
                 else if (cmd == CommandEnum.Payout)
@@ -330,8 +330,7 @@ public class GigLNDWalletCLI
                     var inv = WalletAPIResult.Get<InvoiceRecord>(await walletClient.AddInvoiceAsync(await MakeToken(), satoshis, memo, expiry, CancellationToken.None));
                     ToClipboard(ClipType.Invoice, inv.PaymentRequest);
                     ToClipboard(ClipType.PaymentHash, inv.PaymentHash);
-                    AnsiConsole.WriteLine(inv.PaymentRequest);
-                    AnsiConsole.WriteLine(inv.PaymentHash);
+                    PrintObjectAsTree(inv);
                     await invoiceStateUpdatesClient.MonitorAsync(await MakeToken(), inv.PaymentHash, CancellationTokenSource.Token);
                 }
                 else if (cmd == CommandEnum.AddHodlInvoice)
@@ -346,8 +345,7 @@ public class GigLNDWalletCLI
                     ToClipboard(ClipType.Preimage, preimage.AsHex());
                     ToClipboard(ClipType.Invoice, inv.PaymentRequest);
                     ToClipboard(ClipType.PaymentHash, inv.PaymentHash);
-                    AnsiConsole.WriteLine(inv.PaymentRequest);
-                    AnsiConsole.WriteLine(inv.PaymentHash);
+                    PrintObjectAsTree(inv);
                     await invoiceStateUpdatesClient.MonitorAsync(await MakeToken(), inv.PaymentHash, CancellationTokenSource.Token);
                 }
                 else if (cmd == CommandEnum.AcceptInvoice)
@@ -362,8 +360,10 @@ public class GigLNDWalletCLI
                     AnsiConsole.WriteLine($"Payment Hash:{pay.PaymentHash}");
                     ToClipboard(ClipType.PaymentHash, pay.PaymentHash);
                     var timeout = Prompt.Input<int>("Timeout", 1000);
+                    var feeLimit = Prompt.Input<int>("FeeLimit", 10000);
                     await paymentStatusUpdatesClient.MonitorAsync(await MakeToken(), pay.PaymentHash, CancellationTokenSource.Token);
-                    WalletAPIResult.Check(await walletClient.SendPaymentAsync(await MakeToken(), paymentreq, timeout, userSettings.FeeLimitSat, CancellationToken.None));
+                    var payment = WalletAPIResult.Get<PaymentRecord>(await walletClient.SendPaymentAsync(await MakeToken(), paymentreq, timeout, feeLimit, CancellationToken.None));
+                    PrintObjectAsTree(payment);
                 }
                 else if (cmd == CommandEnum.CancelInvoice)
                 {
@@ -380,14 +380,14 @@ public class GigLNDWalletCLI
                     WalletAPIResult.Check(await walletClient.SettleInvoiceAsync(await MakeToken(), preimage, CancellationToken.None));
                     ToClipboard(ClipType.PaymentHash, paymenthash);
                 }
-                else if (cmd == CommandEnum.GetPaymentStatus)
+                else if (cmd == CommandEnum.GetPayment)
                 {
                     var paymenthash = Prompt.Input<string>("Payment Hash", FromClipboard(ClipType.PaymentHash));
                     AnsiConsole.WriteLine(paymenthash);
-                    var payStatus = WalletAPIResult.Get<PaymentRecord>(await walletClient.GetPaymentAsync(await MakeToken(), paymenthash, CancellationToken.None)).Status.ToString();
-                    AnsiConsole.WriteLine($"Payment Status:{payStatus}");
+                    var payment = WalletAPIResult.Get<PaymentRecord>(await walletClient.GetPaymentAsync(await MakeToken(), paymenthash, CancellationToken.None));
+                    PrintObjectAsTree(payment);
                 }
-                else if (cmd == CommandEnum.GetInvoiceState)
+                else if (cmd == CommandEnum.GetInvoice)
                 {
                     var paymenthash = Prompt.Input<string>("Payment Hash");
                     if (string.IsNullOrWhiteSpace(paymenthash))
@@ -395,16 +395,15 @@ public class GigLNDWalletCLI
                         paymenthash = FromClipboard(ClipType.PaymentHash);
                         AnsiConsole.WriteLine(paymenthash);
                     }
-                    var invState = WalletAPIResult.Get<InvoiceRecord>(await walletClient.GetInvoiceAsync(await MakeToken(), paymenthash, CancellationToken.None)).State.ToString();
-                    AnsiConsole.WriteLine($"Invoice State:{invState}");
+                    var invState = WalletAPIResult.Get<InvoiceRecord>(await walletClient.GetInvoiceAsync(await MakeToken(), paymenthash, CancellationToken.None));
+                    PrintObjectAsTree(invState);
                 }
                 else if (cmd == CommandEnum.EstimateRouteFee)
                 {
                     var paymentreq = Prompt.Input<string>("Payment Request", FromClipboard(ClipType.Invoice));
                     AnsiConsole.WriteLine(paymentreq);
                     var fee = WalletAPIResult.Get<RouteFeeRecord>(await walletClient.EstimateRouteFeeAsync(await MakeToken(), paymentreq, CancellationToken.None));
-                    AnsiConsole.WriteLine($"Satoshis:{fee.RoutingFeeMsat / 1000.0}");
-                    AnsiConsole.WriteLine($"TimeLockDelay:{fee.TimeLockDelay}");
+                    PrintObjectAsTree(fee);
                 }
                 else if (cmd == CommandEnum.ListInvoices)
                 {
@@ -466,6 +465,81 @@ public class GigLNDWalletCLI
         foreach (var row in rows)
             table = table.AddRow(row);
         AnsiConsole.Write(table);
+    }
+
+    public static void PrintObjectAsTree(object obj, string intend="  - ")
+    {
+        AnsiConsole.MarkupLine($"[lime]--- [[{obj.GetType().Name}]][/]");
+
+        // Serialize the object to JSON
+        var settings = new JsonSerializerSettings();
+        settings.Converters.Add(new StringEnumConverter());
+        string json = JsonConvert.SerializeObject(obj, Formatting.Indented, settings);
+
+        // Parse the JSON into a JObject
+        JObject jsonObject = JObject.Parse(json);
+
+        // Recursively print the JSON object as a tree
+        PrintJTokenAsTree(jsonObject, "  - ", CalculateMaxKeyLength(jsonObject));
+        AnsiConsole.WriteLine();
+    }
+
+
+    private static int CalculateMaxKeyLength(JToken token)
+    {
+        int maxLength = 0;
+        if (token.Type == JTokenType.Object)
+        {
+            foreach (var property in token.Children<JProperty>())
+            {
+                int keyLength = property.Name.Length;
+                if (keyLength > maxLength)
+                {
+                    maxLength = keyLength;
+                }
+
+                // Recursively check nested objects
+                int childMax = CalculateMaxKeyLength(property.Value);
+                if (childMax > maxLength)
+                {
+                    maxLength = childMax;
+                }
+            }
+        }
+        return maxLength;
+    }
+
+    private static void PrintJTokenAsTree(JToken token, string indent, int keyWidth)
+    {
+        switch (token.Type)
+        {
+            case JTokenType.Object:
+                foreach (var property in token.Children<JProperty>())
+                {
+                    // Format the key and apply colors
+                    string formattedKey = $"{indent}{property.Name}:".PadRight(keyWidth + indent.Length + 2);
+                    AnsiConsole.Markup($"[cyan]{formattedKey}[/]");
+
+                    PrintJTokenAsTree(property.Value, indent + "  ", keyWidth);
+                }
+                break;
+
+            case JTokenType.Array:
+                var array = token as JArray;
+                for (int i = 0; i < array.Count; i++)
+                {
+                    // Format arrays separately
+                    string formattedKey = $"{indent}[{i}]:".PadRight(keyWidth + indent.Length + 2);
+                    AnsiConsole.Markup($"[green]{formattedKey}[/]");
+                    PrintJTokenAsTree(array[i], indent + "  ", keyWidth);
+                }
+                break;
+
+            default:
+                // For primitive types (leaf nodes), print the value on the same line
+                AnsiConsole.MarkupLine($"[yellow]\t{token.ToString()}[/]");
+                break;
+        }
     }
 }
 

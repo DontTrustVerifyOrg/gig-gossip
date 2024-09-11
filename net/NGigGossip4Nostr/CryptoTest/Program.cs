@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
-using CryptoToolkit;
+
 using GigGossip;
 
 var privkeyx = "3a2d5e66bcac006201687f5cfab18c0d4adbbf5809fd9f79ed79916749351a23";
@@ -10,7 +10,7 @@ var pubkey = "a97c15464ee25ca4d1f0908f5aed1f10e41c3c117822f1f3f6e30ad038f869e0";
 var token = Guid.Parse("77502787-93c3-4d4f-9e04-a59a5cb7faae");
 var dt = DateTime.Parse("2021-01-01");
 
-var authToken = new AuthTokenHeader
+var authTokenHeader = new AuthTokenHeader
 {
     TokenId = token.AsUUID(),
     Timestamp = dt.AsUnixTimestamp(),
@@ -20,16 +20,12 @@ Console.WriteLine(token);
 Console.WriteLine(token.AsUUID().Value.ToArray().AsHex());
 Console.WriteLine(new DateTimeOffset(dt).ToUnixTimeSeconds());
 
-var serializedObj = Crypto.BinarySerializeObject(authToken);
+var serializedObj = Crypto.BinarySerializeObject(authTokenHeader);
 Console.WriteLine(serializedObj.AsHex());
-
-Console.WriteLine(NBitcoin.Crypto.Hashes.SHA256( "050607".AsBytes() ).AsHex());
 
 Console.WriteLine(NBitcoin.Crypto.Hashes.SHA256(serializedObj).AsHex());
 
 using var sha256 = System.Security.Cryptography.SHA256.Create();
-
-
 Span<byte> buf = stackalloc byte[64];
 sha256.TryComputeHash(serializedObj, buf, out _);
 Console.WriteLine(buf.ToArray().AsHex());
@@ -54,9 +50,12 @@ using (var gstr = new Google.Protobuf.CodedOutputStream(mstr))
 {
     authToken2.WriteTo(gstr);
 }
+
 var serializedObj2 = mstr.ToArray();
 
+
 Console.WriteLine(serializedObj2.AsHex());
+Console.WriteLine(Convert.ToBase64String(serializedObj2));
 
 var ttok = AuthToken.Parser.ParseFrom(serializedObj2);
 

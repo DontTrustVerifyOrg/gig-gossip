@@ -1,13 +1,14 @@
 ﻿using Invoicesrpc;
 using Lnrpc;
 using Routerrpc;
-using CryptoToolkit;
+using GigGossip;
 using Grpc.Net.Client;
 using Grpc.Core;
 using System.Security.Cryptography.X509Certificates;
 using System.Net.Http;
 using NBitcoin.Protocol;
 using Grpc.Net.Client.Configuration;
+using PaymentHash = Lnrpc.PaymentHash;
 
 namespace LNDClient;
 

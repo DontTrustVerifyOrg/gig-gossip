@@ -26,9 +26,6 @@
 		<ProjectReference Include="..\GigGossipSettler\GigGossipSettler.csproj">
 			<GlobalPropertiesToRemove></GlobalPropertiesToRemove>
 		</ProjectReference>
-		<ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj">
-			<GlobalPropertiesToRemove></GlobalPropertiesToRemove>
-		</ProjectReference>
 		<ProjectReference Include="..\Tracer\TraceEx.csproj">
 		  <GlobalPropertiesToRemove></GlobalPropertiesToRemove>
 		</ProjectReference>

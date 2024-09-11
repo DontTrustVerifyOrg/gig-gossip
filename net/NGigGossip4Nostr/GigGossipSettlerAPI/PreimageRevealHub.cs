@@ -14,7 +14,7 @@ public class PreimageRevealHub : Hub
     public override async Task OnConnectedAsync()
     {
         var authToken = Context?.GetHttpContext()?.Request.Query["authtoken"].First();
-        var publicKey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
         Context.Items["publicKey"] = publicKey;
         Singlethon.PreimagesAsyncComQueue4ConnectionId.TryAdd(Context.ConnectionId, new AsyncComQueue<PreimageRevealEventArgs>());
         await base.OnConnectedAsync();
@@ -30,24 +30,24 @@ public class PreimageRevealHub : Hub
     {
         string publicKey;
         lock (Singlethon.Settler)
-            publicKey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+            publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
 
         Singlethon.Preimages4UserPublicKey.AddItem(publicKey, paymentHash);
     }
 
-    public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<PreimageReveal> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         string publicKey;
         lock (Singlethon.Settler)
-            publicKey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+            publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
 
         AsyncComQueue<PreimageRevealEventArgs> asyncCom;
         if (Singlethon.PreimagesAsyncComQueue4ConnectionId.TryGetValue(Context.ConnectionId, out asyncCom))
         {
             await foreach (var ic in asyncCom.DequeueAsync(cancellationToken))
             {
-                if (Singlethon.Preimages4UserPublicKey.ContainsItem(publicKey, ic.PaymentHash))
-                    yield return ic.PaymentHash + "|" + ic.Preimage;
+                if (Singlethon.Preimages4UserPublicKey.ContainsItem(publicKey, ic.PreimageReveal.PaymentHash))
+                    yield return ic.PreimageReveal;
             }
         }
     }

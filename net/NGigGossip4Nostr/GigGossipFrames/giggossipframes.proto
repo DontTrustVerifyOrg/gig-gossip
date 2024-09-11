@@ -28,7 +28,7 @@ message PublicKey
     bytes Value = 1;
 }
 
-message Invoice
+message PaymentRequest
 {
     string Value = 1;
 }
@@ -168,7 +168,7 @@ message BroadcastRequest
 }
 
 /// <summary>
-/// Represents a reply frame that contains encrypted payload, settlement promise, onion route and network invoice.
+/// Represents a reply frame that contains encrypted payload, settlement promise, onion route and network PaymentRequest.
 /// </summary>
 message ReplyFrame
 {
@@ -190,9 +190,9 @@ message ReplyFrame
     Onion ForwardOnion = 3;
 
     /// <summary>
-    /// Gets or sets the network invoice.
+    /// Gets or sets the network PaymentRequest.
     /// </summary>
-    Invoice NetworkInvoice = 4;
+    PaymentRequest NetworkPaymentRequest = 4;
 }
 
 
@@ -211,9 +211,9 @@ message JobReplyHeader
     EncryptedData EncryptedReply = 4;
 
     /// <summary>
-    /// Gets or sets the reply invoice.
+    /// Gets or sets the reply PaymentRequest.
     /// </summary>
-    Invoice JobInvoice = 5;
+    PaymentRequest JobPaymentRequest = 5;
 
     /// <summary>
     /// Gets or sets creation timestamp of the payload.
@@ -312,9 +312,9 @@ message SettlementTrust
     SettlementPromise SettlementPromise = 1;
 
     /// <summary>
-    /// Gets or sets the network invoice.
+    /// Gets or sets the network PaymentRequest.
     /// </summary>
-    Invoice NetworkInvoice = 2;
+    PaymentRequest NetworkPaymentRequest = 2;
 
     /// <summary>
     /// Gets or sets the encrypted reply payload.

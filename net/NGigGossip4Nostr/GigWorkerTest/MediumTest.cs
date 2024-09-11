@@ -2,7 +2,6 @@
 using NGigGossip4Nostr;
 using System.Diagnostics;
 using System.Text;
-using CryptoToolkit;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Configuration;
 using NBitcoin.Secp256k1;
@@ -322,7 +321,7 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
         try
         {
             var paymentResult = await me.PayInvoiceAsync(iac.Invoice, iac.PaymentHash, FeeLimit, CancellationToken.None);
-            if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
+            if (paymentResult != LNDWalletErrorCode.Ok)
             {
                 Console.WriteLine(paymentResult);
             }
@@ -358,7 +357,7 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
+    public void OnPaymentStatusChange(GigGossipNode me, PaymentStatus status, PaymentData paydata)
     {
         using var TL = TRACE.Log().Args(me, status, paydata);
         try
@@ -494,7 +493,10 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
                     new AcceptBroadcastResponse()
                     {
                         Properties = new string[] { "drive"},
-                        Message = Encoding.Default.GetBytes(me.PublicKey),
+                        RideShareReply = new RideShareReply
+                        {
+                            PublicKey = me.PublicKey.AsPublicKey()
+                        },
                         Fee = 4321,
                         SettlerServiceUri = SettlerUri,
                     }, async (_) => { },
@@ -515,7 +517,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         try
         {
             var paymentResult = await me.PayInvoiceAsync(iac.Invoice, iac.PaymentHash, FeeLimit, CancellationToken.None);
-            if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
+            if (paymentResult != LNDWalletErrorCode.Ok)
             {
                 Console.WriteLine(paymentResult);
             }
@@ -588,7 +590,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
+    public void OnPaymentStatusChange(GigGossipNode me, PaymentStatus status, PaymentData paydata)
     {
         using var TL = TRACE.Log().Args(me, status, paydata);
         try
@@ -748,26 +750,26 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 
                             var balance = WalletAPIResult.Get<AccountBalanceDetails>(await me.GetWalletClient().GetBalanceAsync(await me.MakeWalletAuthToken(), CancellationToken.None)).AvailableAmount;
 
-                            GigLNDWalletAPIErrorCode paymentResult = GigLNDWalletAPIErrorCode.Ok;
+                            LNDWalletErrorCode paymentResult = LNDWalletErrorCode.Ok;
 
                             if (balance < decodedReplyInvoice.Satoshis + decodedNetworkInvoice.Satoshis + FeeLimit * 2)
                             {
-                                paymentResult = GigLNDWalletAPIErrorCode.NotEnoughFunds;
+                                paymentResult = LNDWalletErrorCode.NotEnoughFunds;
                             }
                             else
                             {
                                 var networkPayState = await me.PayInvoiceAsync(networkInvoice, decodedNetworkInvoice.PaymentHash, FeeLimit, CancellationToken.None);
-                                if (networkPayState != GigLNDWalletAPIErrorCode.Ok)
+                                if (networkPayState != LNDWalletErrorCode.Ok)
                                     paymentResult = networkPayState;
                                 else
                                 {
                                     var replyPayState = await me.PayInvoiceAsync(replyInvoice, decodedReplyInvoice.PaymentHash, FeeLimit, CancellationToken.None);
-                                    if (replyPayState != GigLNDWalletAPIErrorCode.Ok)
+                                    if (replyPayState != LNDWalletErrorCode.Ok)
                                         paymentResult = replyPayState;
                                 }
                             }
 
-                            if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
+                            if (paymentResult != LNDWalletErrorCode.Ok)
                             {
                                 Console.WriteLine(paymentResult);
                                 return;
@@ -857,7 +859,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
+    public void OnPaymentStatusChange(GigGossipNode me, PaymentStatus status, PaymentData paydata)
     {
         using var TL = TRACE.Log().Args(me, status, paydata);
         try

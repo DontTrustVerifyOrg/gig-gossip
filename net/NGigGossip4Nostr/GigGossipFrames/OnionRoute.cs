@@ -1,6 +1,4 @@
 ﻿using NBitcoin.Secp256k1;
-using CryptoToolkit;
-
 
 namespace GigGossip;
 
@@ -10,6 +8,12 @@ namespace GigGossip;
 /// </summary>
 public partial class Onion
 {
+
+    public static Onion GetEmpty()
+    {
+        return new Onion { EncryptedOnionLayer = new EncryptedData { Value = new byte[] { }.AsByteString() } };
+    }
+
     /// <summary>
     /// Peel off each layer of the onion route using a private key, revealing the next destination.
     /// </summary>

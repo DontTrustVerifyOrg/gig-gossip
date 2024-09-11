@@ -8,58 +8,11 @@ using NBitcoin.JsonConverters;
 using System.IO;
 using System.IO.Compression;
 using System.Text.Json;
-using Snappier;
 using System.Runtime.ConstrainedExecution;
 using Newtonsoft.Json.Linq;
 using System.Reflection;
 
-namespace CryptoToolkit;
-
-/// <summary>
-/// This static class contains extension methods for working with hexadecimal values.
-/// </summary>
-public static class HexExtensions
-{
-    public static string AsHex(this ECPrivKey key)
-    {
-        Span<byte> span = stackalloc byte[32];
-        key.WriteToSpan(span);
-        return span.AsHex();
-    }
-    public static string AsHex(this Span<byte> bytes)
-    {
-        return Convert.ToHexString(bytes).ToLowerInvariant();
-    }
-    public static string AsHex(this byte[] bytes)
-    {
-        return Convert.ToHexString(bytes).ToLowerInvariant();
-    }
-    public static string AsHex(this ECXOnlyPubKey key)
-    {
-        return key.ToBytes().AsSpan().AsHex();
-    }
-    public static ECPrivKey AsECPrivKey(this string key)
-    {
-        return Context.Instance.CreateECPrivKey(Convert.FromHexString(key));
-    }
-    public static async Task<ECPrivKey> AsECPrivKeyAsync(this string key)
-    {
-        ECPrivKey? result = null;
-        await Task.Run(() =>
-        {
-            result = Context.Instance.CreateECPrivKey(Convert.FromHexString(key));
-        });
-        return result!;
-    }
-    public static ECXOnlyPubKey AsECXOnlyPubKey(this string key)
-    {
-        return Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(key));
-    }
-    public static byte[] AsBytes(this string data)
-    {
-        return Convert.FromHexString(data);
-    }
-}
+namespace GigGossip;
 
 /// <summary>
 /// The Crypto class provides utilities for cryptographic operations such as signing objects, verifying signatures, encryption and decryption.
@@ -353,17 +306,6 @@ public static class Crypto
         var parser = new Google.Protobuf.MessageParser<T>(() => new T());
         return parser.ParseFrom(data);
     }
-
-    /// <summary>
-    /// Deserializes a byte array into an object of type T using GZipped Json serialization
-    /// </summary>
-    public static object BinaryDeserializeObject(byte[] data, Type type)
-    {
-        Type parserType = typeof(Google.Protobuf.MessageParser<>).MakeGenericType(type);
-        var parser = Activator.CreateInstance(parserType, () => Activator.CreateInstance(type));
-        return parserType.InvokeMember("ParseFrom", BindingFlags.InvokeMethod | BindingFlags.Public | BindingFlags.Instance, null, parser, new object[] { data });
-    }
-
 
     public static bool TryParseBitcoinAddress(string text, Network network, out BitcoinAddress? address)
     {

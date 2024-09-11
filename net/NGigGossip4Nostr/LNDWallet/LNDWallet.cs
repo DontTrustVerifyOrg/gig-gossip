@@ -1,5 +1,5 @@
 ﻿using NBitcoin.Secp256k1;
-using CryptoToolkit;
+
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin;
@@ -14,9 +14,11 @@ using System.Security.Cryptography.X509Certificates;
 using Spectre.Console;
 using Walletrpc;
 using System.Runtime.ConstrainedExecution;
+using GigGossip;
 
 namespace LNDWallet;
 
+[Serializable]
 public enum InvoiceState
 {
     Open = 0,
@@ -25,6 +27,7 @@ public enum InvoiceState
     Accepted = 3,
 }
 
+[Serializable]
 public enum PaymentStatus
 {
     InFlight = 1,
@@ -33,6 +36,7 @@ public enum PaymentStatus
     Initiated = 4,
 }
 
+[Serializable]
 public enum PayoutState
 {
     Open = 0,
@@ -40,6 +44,24 @@ public enum PayoutState
     Sending = 2,
     Sent = 3,
     Failure = 4,
+}
+
+[Serializable]
+public enum PaymentFailureReason
+{
+    None = 0,
+    Timeout = 1,
+    NoRoute = 2,
+    Error = 3,
+    IncorrectPaymentDetails = 4,
+    InsufficientBalance = 5,
+    Canceled = 6,
+    EmptyReturnStream = 101,
+    InvoiceAlreadySettled = 102,
+    InvoiceAlreadyCancelled = 103,
+    InvoiceAlreadyAccepted = 104,
+    FeeLimitTooSmall = 105,
+
 }
 
 [Serializable]
@@ -151,19 +173,33 @@ public class AccountBalanceDetails
     public required long OutgoingInProgressPayoutFees { get; set; }
 }
 
-public class InvoiceStateChangedEventArgs : EventArgs
+[Serializable]
+public class InvoiceStateChange
 {
     public required string PaymentHash { get; set; }
     public required InvoiceState NewState { get; set; }
 }
-public delegate void InvoiceStateChangedEventHandler(object sender, InvoiceStateChangedEventArgs e);
 
-public class PaymentStatusChangedEventArgs : EventArgs
+[Serializable]
+public class PaymentStatusChanged
 {
     public required string PaymentHash { get; set; }
     public required PaymentStatus NewStatus { get; set; }
     public required PaymentFailureReason FailureReason { get; set; }
 }
+
+public class InvoiceStateChangedEventArgs : EventArgs
+{
+    public required InvoiceStateChange InvoiceStateChange { get; set; }
+}
+
+public delegate void InvoiceStateChangedEventHandler(object sender, InvoiceStateChangedEventArgs e);
+
+public class PaymentStatusChangedEventArgs : EventArgs
+{
+    public required PaymentStatusChanged PaymentStatusChanged { get; set; }
+}
+
 public delegate void PaymentStatusChangedEventHandler(object sender, PaymentStatusChangedEventArgs e);
 
 public class LNDEventSource
@@ -175,8 +211,11 @@ public class LNDEventSource
     {
         OnInvoiceStateChanged?.Invoke(this, new InvoiceStateChangedEventArgs()
         {
-            PaymentHash = paymentHash,
-            NewState = invstate
+             InvoiceStateChange = new InvoiceStateChange
+             {
+                 PaymentHash = paymentHash,
+                 NewState = invstate
+             }
         });
     }
 
@@ -184,9 +223,12 @@ public class LNDEventSource
     {
         OnPaymentStatusChanged?.Invoke(this, new PaymentStatusChangedEventArgs()
         {
-            PaymentHash = paymentHash,
-            NewStatus = paystatus,
-            FailureReason = failureReason,
+             PaymentStatusChanged= new PaymentStatusChanged
+             {
+                 PaymentHash = paymentHash,
+                 NewStatus = paystatus,
+                 FailureReason = failureReason,
+             }
         });
     }
 
@@ -904,10 +946,16 @@ public class LNDEventSource
         throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
     }
 
-
-    public AccountBalanceDetails GetAccountBallance()
+    public AccountBalanceDetails GetBallance()
     {
         using var TX = walletContext.Value.Database.BeginTransaction(IsolationLevel.Serializable);
+        var bal= GetAccountBallance();
+        TX.Commit();
+        return bal;
+    }
+
+    private AccountBalanceDetails GetAccountBallance()
+    {
 
         var channelfunds = GetExecutedTopupTotalAmount(6);
         var payedout = (from a in walletContext.Value.Payouts
@@ -955,8 +1003,6 @@ public class LNDEventSource
         var lockedPaymentFeesMsat = (from pay in payments
                                      where pay.Status != PaymentStatus.Succeeded
                                      select pay.FeeMsat).Sum();
-
-        TX.Commit();
 
         return new AccountBalanceDetails
         {
@@ -1057,6 +1103,15 @@ public class LNDWalletManager : LNDEventSource
     {
         alreadySubscribedSingleInvoicesTokenSources = new();
         subscribeInvoicesCancallationTokenSource = new CancellationTokenSource();
+        try
+        {
+            walletContext.Value.INSERT(new TrackingIndex { Id = TackingIndexId.AddInvoice, Value = 0 }).SAVE();
+            walletContext.Value.INSERT(new TrackingIndex { Id = TackingIndexId.SettleInvoice, Value = 0 }).SAVE();
+        }
+        catch(DbUpdateException)
+        {
+            //Ignore already inserted
+        }
         subscribeInvoicesThread = new Thread(async () =>
         {
             try
@@ -1096,9 +1151,7 @@ public class LNDWalletManager : LNDEventSource
                         var trackIdxes = new Dictionary<TackingIndexId, ulong>(from idx in walletContext.Value.TrackingIndexes
                                                                                select KeyValuePair.Create(idx.Id, idx.Value));
 
-                        var stream = LND.SubscribeInvoices(lndConf,
-                            trackIdxes.ContainsKey(TackingIndexId.AddInvoice) ? trackIdxes[TackingIndexId.AddInvoice] : 0,
-                            trackIdxes.ContainsKey(TackingIndexId.SettleInvoice) ? trackIdxes[TackingIndexId.SettleInvoice] : 0,
+                        var stream = LND.SubscribeInvoices(lndConf, trackIdxes[TackingIndexId.AddInvoice], trackIdxes[TackingIndexId.SettleInvoice],
                             cancellationToken: subscribeInvoicesCancallationTokenSource.Token);
 
                         while (await stream.ResponseStream.MoveNext(subscribeInvoicesCancallationTokenSource.Token))
@@ -1108,15 +1161,8 @@ public class LNDWalletManager : LNDEventSource
                             if (inv.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)
                                 SubscribeSingleInvoiceTracking(inv.RHash.ToArray().AsHex());
 
-                            if (!trackIdxes.ContainsKey(TackingIndexId.AddInvoice))
-                                walletContext.Value.INSERT(new TrackingIndex { Id = TackingIndexId.AddInvoice, Value = inv.AddIndex }).SAVE();
-                            else
-                                walletContext.Value.UPDATE(new TrackingIndex { Id = TackingIndexId.AddInvoice, Value = inv.AddIndex }).SAVE();
-
-                            if (!trackIdxes.ContainsKey(TackingIndexId.SettleInvoice))
-                                walletContext.Value.INSERT(new TrackingIndex { Id = TackingIndexId.SettleInvoice, Value = inv.SettleIndex }).SAVE();
-                            else
-                                walletContext.Value.UPDATE(new TrackingIndex { Id = TackingIndexId.SettleInvoice, Value = inv.SettleIndex }).SAVE();
+                            walletContext.Value.UPDATE(new TrackingIndex { Id = TackingIndexId.AddInvoice, Value = inv.AddIndex }).SAVE();
+                            walletContext.Value.UPDATE(new TrackingIndex { Id = TackingIndexId.SettleInvoice, Value = inv.SettleIndex }).SAVE();
                         }
                     }
                     catch (RpcException e) when (e.Status.StatusCode == StatusCode.Unavailable)

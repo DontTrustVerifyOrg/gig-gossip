@@ -11,7 +11,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Timers;
-using CryptoToolkit;
+
 using GigGossip;
 using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
@@ -258,7 +258,6 @@ public partial class RideShareCLIApp
             AnsiConsole.WriteLine("privkey:" + privateKey.AsHex());
             AnsiConsole.WriteLine("pubkey :" + gigGossipNode.PublicKey);
 
-            gigGossipNode.RegisterFrameType<LocationFrame>();
             gigGossipNode.OnDirectMessage += DirectCom_OnDirectMessage;
             directTimer = new System.Timers.Timer(1000);
             directTimer.Elapsed += DirectTimer_Elapsed;
@@ -547,7 +546,7 @@ public partial class RideShareCLIApp
     {
         AnsiConsole.WriteLine("Network Invoice Accepted");
         var paymentResult = await e.GigGossipNode.PayInvoiceAsync(e.InvoiceData.Invoice, e.InvoiceData.PaymentHash, settings.NodeSettings.FeeLimitSat, CancellationTokenSource.Token);
-        if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
+        if (paymentResult != LNDWalletErrorCode.Ok)
         {
             Console.WriteLine(paymentResult);
         }
@@ -622,20 +621,17 @@ public partial class RideShareCLIApp
                 AnsiConsole.MarkupLine($"{pubkey} last seen {(DateTime.UtcNow - lastSeen).Seconds} seconds ago");
 
                 await gigGossipNode.SendMessageAsync(pubkey,
-                    myLastLocationFrame, true);
+                    new Frame { Location = myLastLocationFrame }, true);
             }
         }
     }
 
     private async void DirectCom_OnDirectMessage(object? sender, DirectMessageEventArgs e)
     {
-        if (e.Frame is LocationFrame locationFrame)
-        {
-            if (inDriverMode)
-                await OnRiderLocation(e.SenderPublicKey, locationFrame);
-            else
-                await OnDriverLocation(e.SenderPublicKey, locationFrame);
-        }
+        if (inDriverMode)
+            await OnRiderLocation(e.SenderPublicKey, e.LocationFrame);
+        else
+            await OnDriverLocation(e.SenderPublicKey, e.LocationFrame);
     }
 
     async Task<bool> IsPhoneNumberValidated(string phoneNumber)

@@ -2,6 +2,7 @@
 
 namespace GigGossipSettler.Exceptions;
 
+[Serializable]
 public enum SettlerErrorCode
 {
     Ok = 0,

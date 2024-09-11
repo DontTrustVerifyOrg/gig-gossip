@@ -13,7 +13,7 @@ public class GigStatusHub : Hub
     public override async Task OnConnectedAsync()
     {
         var authToken = Context?.GetHttpContext()?.Request.Query["authtoken"].First();
-        var publicKey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        var publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
         Context.Items["publicKey"] = publicKey;
         Singlethon.GigStatusAsyncComQueue4ConnectionId.TryAdd(Context.ConnectionId, new AsyncComQueue<GigStatusEventArgs>());
         await base.OnConnectedAsync();
@@ -29,24 +29,24 @@ public class GigStatusHub : Hub
     {
         string publicKey;
         lock (Singlethon.Settler)
-            publicKey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+            publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
 
         Singlethon.GigStatus4UserPublicKey.AddItem(publicKey, new GigReplCert { SignerRequestPayloadId = signedRequestPayload, ReplierCertificateId = replierCertificateId });
     }
 
-    public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<GigStatusKey> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         string publicKey;
         lock (Singlethon.Settler)
-            publicKey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+            publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
 
         AsyncComQueue<GigStatusEventArgs> asyncCom;
         if (Singlethon.GigStatusAsyncComQueue4ConnectionId.TryGetValue(Context.ConnectionId, out asyncCom))
         {
             await foreach (var ic in asyncCom.DequeueAsync(cancellationToken))
             {
-                if (Singlethon.GigStatus4UserPublicKey.ContainsItem(publicKey, new GigReplCert { SignerRequestPayloadId = ic.SignedRequestPayloadId, ReplierCertificateId = ic.ReplierCertificateId }))
-                    yield return ic.SignedRequestPayloadId.ToString() + "|" + ic.ReplierCertificateId.ToString() + "|" + ic.Status.ToString() + "|" + ic.Value;
+                if (Singlethon.GigStatus4UserPublicKey.ContainsItem(publicKey, new GigReplCert { SignerRequestPayloadId = ic.GigStatusChanged.JobRequestId, ReplierCertificateId = ic.GigStatusChanged.JobReplyId }))
+                    yield return ic.GigStatusChanged;
             }
         }
     }

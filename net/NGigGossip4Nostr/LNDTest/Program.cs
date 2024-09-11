@@ -106,8 +106,8 @@ if (channels2.Channels.Where((c) => c.RemotePubkey == nd1.IdentityPubkey).Count(
 }
 
 
-var preimage = CryptoToolkit.Crypto.GenerateRandomPreimage();
-var hash = CryptoToolkit.Crypto.ComputePaymentHash(preimage);
+var preimage = GigGossip.Crypto.GenerateRandomPreimage();
+var hash = GigGossip.Crypto.ComputePaymentHash(preimage);
 var paymentReq1 = LND.AddHodlInvoice(confs[0], 1000, "hello", hash);
 var paymentReq2 = LND.AddHodlInvoice(confs[0], 1000, "hello", hash);
 var paymentReq3 = LND.AddHodlInvoice(confs[0], 1000, "hello", hash);

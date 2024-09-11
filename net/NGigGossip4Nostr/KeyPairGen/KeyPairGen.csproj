@@ -15,7 +15,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
+    <ProjectReference Include="..\GigGossipFrames\GigGossipFrames.csproj" />
   </ItemGroup>
-
 </Project>

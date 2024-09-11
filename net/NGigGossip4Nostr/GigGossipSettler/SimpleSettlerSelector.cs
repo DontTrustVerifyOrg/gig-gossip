@@ -1,5 +1,5 @@
 ﻿using System;
-using CryptoToolkit;
+
 using GigGossipSettlerAPIClient;
 using NBitcoin.Secp256k1;
 using GigLNDWalletAPIClient;

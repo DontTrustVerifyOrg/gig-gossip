@@ -1,9 +1,10 @@
-﻿using CryptoToolkit;
+﻿
 using NBitcoin.Secp256k1;
 using CommandLine;
 using CommandLine.Text;
 using Spectre.Console;
 using System.Reflection;
+using GigGossip;
 
 namespace KeyPairGen;
 
@@ -33,13 +34,13 @@ class Program
                     {
                         if(options.Mnemonic==null)
                         {
-                            mnemonic = CryptoToolkit.Crypto.GenerateMnemonic();
+                            mnemonic = GigGossip.Crypto.GenerateMnemonic();
                             AnsiConsole.WriteLine(mnemonic);
                         }
                         else
                             mnemonic = options.Mnemonic;
 
-                        privKey = CryptoToolkit.Crypto.DeriveECPrivKeyFromMnemonic(mnemonic);
+                        privKey = GigGossip.Crypto.DeriveECPrivKeyFromMnemonic(mnemonic);
                         AnsiConsole.WriteLine(privKey.AsHex());
                     }
                     else

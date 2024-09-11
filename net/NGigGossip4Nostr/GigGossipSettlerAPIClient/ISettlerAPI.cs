@@ -14,9 +14,6 @@ public interface ISettlerAPI
     Task<StringResult> GetCaPublicKeyAsync(CancellationToken cancellationToken);
     Task<BooleanResult> IsCertificateRevokedAsync(System.Guid certid, CancellationToken cancellationToken);
     Task<GuidResult> GetTokenAsync(string pubkey, CancellationToken cancellationToken);
-    Task<Result> GrantAccessRightsAsync(string authToken, string pubkey, string accessRights, System.Threading.CancellationToken cancellationToken);
-    Task<Result> RevokeAccessRightsAsync(string authToken, string pubkey, string accessRights, System.Threading.CancellationToken cancellationToken);
-    Task<StringResult> GetAccessRightsAsync(string authToken, string pubkey, System.Threading.CancellationToken cancellationToken);
 
     Task<StringArrayResult> AddressAutocompleteAsync(string authToken, string query, string country, CancellationToken cancellationToken);
     Task<GeolocationRetResult> AddressGeocodeAsync(string authToken, string address, string country, CancellationToken cancellationToken);
@@ -40,10 +37,10 @@ public interface ISettlerAPI
     Task<StringResult> GenerateRelatedPreimageAsync(string authToken, string paymentHash, CancellationToken cancellationToken);
     Task<BooleanResult> ValidateRelatedPaymentHashesAsync(string authToken, string paymentHash1, string paymentHash2, CancellationToken cancellationToken);
     Task<StringResult> RevealPreimageAsync(string authToken, string paymentHash, CancellationToken cancellationToken);
-    Task<StringResult> GetGigStatusAsync(string authToken, System.Guid signedRequestPayloadId, System.Guid repliperCertificateId, CancellationToken cancellationToken);
+    Task<GigStatusKeyResult> GetGigStatusAsync(string authToken, System.Guid signedRequestPayloadId, System.Guid repliperCertificateId, CancellationToken cancellationToken);
     Task<StringResult> GenerateRequestPayloadAsync(string authToken, string properties, FileParameter serialisedTopic, CancellationToken cancellationToken);
     Task<StringResult> GenerateSettlementTrustAsync(string authToken, string properties, string replyinvoice, FileParameter message, FileParameter signedRequestPayloadSerialized, CancellationToken cancellationToken);
-    Task<StringResult> EncryptObjectForCertificateIdAsync(System.Guid? certificateId, FileParameter objectSerialized, CancellationToken cancellationToken);
+    Task<StringResult> EncryptJobReplyForCertificateIdAsync(System.Guid? certificateId, FileParameter objectSerialized, CancellationToken cancellationToken);
     Task<Result> ManageDisputeAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, bool open, CancellationToken cancellationToken);
     Task<Result> CancelGigAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, CancellationToken cancellationToken);
 
@@ -106,21 +103,6 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
     public async Task<GuidResult> GetTokenAsync(string pubkey, CancellationToken cancellationToken)
     {
         return await RetryPolicy.WithRetryPolicy(() => api.GetTokenAsync(pubkey, cancellationToken));
-    }
-
-    public async Task<Result> GrantAccessRightsAsync(string authToken, string pubkey, string accessRights, System.Threading.CancellationToken cancellationToken)
-    {
-        return await RetryPolicy.WithRetryPolicy(() => api.GrantAccessRightsAsync(authToken, pubkey, accessRights, cancellationToken));
-    }
-
-    public async Task<Result> RevokeAccessRightsAsync(string authToken, string pubkey, string accessRights, System.Threading.CancellationToken cancellationToken)
-    {
-        return await RetryPolicy.WithRetryPolicy(() => api.RevokeAccessRightsAsync(authToken, pubkey, accessRights, cancellationToken));
-    }
-
-    public async Task<StringResult> GetAccessRightsAsync(string authToken, string pubkey, System.Threading.CancellationToken cancellationToken)
-    {
-        return await RetryPolicy.WithRetryPolicy(() => api.GetAccessRightsAsync(authToken, pubkey, cancellationToken));
     }
 
     public async Task<StringArrayResult> AddressAutocompleteAsync(string authToken, string query, string country, CancellationToken cancellationToken)
@@ -203,7 +185,7 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
         return await RetryPolicy.WithRetryPolicy(() => api.RevealPreimageAsync(authToken, paymentHash, cancellationToken));
     }
 
-    public async Task<StringResult> GetGigStatusAsync(string authToken, System.Guid signedRequestPayloadId, System.Guid repliperCertificateId, CancellationToken cancellationToken)
+    public async Task<GigStatusKeyResult> GetGigStatusAsync(string authToken, System.Guid signedRequestPayloadId, System.Guid repliperCertificateId, CancellationToken cancellationToken)
     {
         return await RetryPolicy.WithRetryPolicy(() => api.GetGigStatusAsync(authToken, signedRequestPayloadId, repliperCertificateId, cancellationToken));
     }
@@ -218,9 +200,9 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
         return await RetryPolicy.WithRetryPolicy(() => api.GenerateSettlementTrustAsync(authToken, properties, replyinvoice, message, signedRequestPayloadSerialized, cancellationToken));
     }
 
-    public async Task<StringResult> EncryptObjectForCertificateIdAsync(System.Guid? certificateId, FileParameter objectSerialized, CancellationToken cancellationToken)
+    public async Task<StringResult> EncryptJobReplyForCertificateIdAsync(System.Guid? certificateId, FileParameter objectSerialized, CancellationToken cancellationToken)
     {
-        return await RetryPolicy.WithRetryPolicy(() => api.EncryptObjectForCertificateIdAsync(certificateId, objectSerialized, cancellationToken));
+        return await RetryPolicy.WithRetryPolicy(() => api.EncryptJobReplyForCertificateIdAsync(certificateId, objectSerialized, cancellationToken));
     }
 
     public async Task<Result> ManageDisputeAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, bool open, CancellationToken cancellationToken)

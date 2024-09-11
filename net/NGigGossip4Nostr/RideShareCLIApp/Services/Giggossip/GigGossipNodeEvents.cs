@@ -1,4 +1,4 @@
-﻿using CryptoToolkit;
+﻿
 using GigGossip;
 using GigLNDWalletAPIClient;
 using NBitcoin;
@@ -54,7 +54,7 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
             ReplyPayloadCert = replyPayloadCert,
             ReplyInvoice = replyInvoice,
             DecodedReplyInvoice = decodedReplyInvoice,
-            NetworkInvoice = networkInvoice,
+            NetworkPaymentRequest = networkInvoice,
             DecodedNetworkInvoice = decodedNetworkInvoice,
         });
     }
@@ -83,7 +83,7 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
         });
     }
 
-    public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
+    public void OnPaymentStatusChange(GigGossipNode me, PaymentStatus status, PaymentData paydata)
     {
         _gigGossipNodeEventSource.FireOnPaymentStatusChange(new PaymentStatusChangeEventArgs()
         {

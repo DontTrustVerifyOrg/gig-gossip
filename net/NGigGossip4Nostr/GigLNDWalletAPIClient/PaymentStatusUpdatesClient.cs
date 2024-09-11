@@ -9,7 +9,7 @@ namespace GigLNDWalletAPIClient
         Task ConnectAsync(string authToken, CancellationToken cancellationToken);
         Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken);
         Task StopMonitoringAsync(string authToken, string paymentHash, CancellationToken cancellationToken);
-        IAsyncEnumerable<string> StreamAsync(string authToken, CancellationToken cancellationToken);
+        IAsyncEnumerable<PaymentStatusChanged> StreamAsync(string authToken, CancellationToken cancellationToken);
     }
 
     public class PaymentStatusUpdatesClient : IPaymentStatusUpdatesClient
@@ -69,12 +69,12 @@ namespace GigLNDWalletAPIClient
             }
         }
 
-        public IAsyncEnumerable<string> StreamAsync(string authToken, CancellationToken cancellationToken)
+        public IAsyncEnumerable<PaymentStatusChanged> StreamAsync(string authToken, CancellationToken cancellationToken)
         {
             slimLock.Wait();
             try
             {
-                return connection.StreamAsync<string>("StreamAsync", authToken, cancellationToken);
+                return connection.StreamAsync<PaymentStatusChanged>("StreamAsync", authToken, cancellationToken);
             }
             finally
             {

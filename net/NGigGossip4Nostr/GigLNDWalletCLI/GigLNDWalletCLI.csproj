@@ -25,7 +25,6 @@
     <PackageReference Include="TextCopy" Version="6.2.1" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
     <ProjectReference Include="..\GigLNDWalletAPIClient\GigLNDWalletAPIClient.csproj" />
     <ProjectReference Include="..\GigGossipFrames\GigGossipFrames.csproj" />
   </ItemGroup>

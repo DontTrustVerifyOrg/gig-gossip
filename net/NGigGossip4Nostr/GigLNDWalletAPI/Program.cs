@@ -1,12 +1,25 @@
-﻿using System.Text.Json.Nodes;
-using CryptoToolkit;
+﻿using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using GigGossip;
 using GigLNDWalletAPI;
+using Google.Protobuf.WellKnownTypes;
 using LNDClient;
 using LNDWallet;
+using Microsoft.Extensions.Options;
+using Microsoft.OpenApi;
+using Microsoft.OpenApi.Any;
+using Microsoft.OpenApi.Interfaces;
+using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi.Writers;
 using NBitcoin;
 using NBitcoin.RPC;
 using Spectre.Console;
+using Swashbuckle.AspNetCore.SwaggerGen;
 using TraceExColor;
+using Enum = System.Enum;
+using Type = System.Type;
 
 TraceEx.TraceInformation("[[lime]]Starting[[/]] ...");
 
@@ -18,6 +31,11 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.EnableAnnotations();
+    c.UseAllOfToExtendReferenceSchemas();
+    c.DocumentFilter<CustomModelDocumentFilter<PaymentStatusChanged>>();
+    c.DocumentFilter<CustomModelDocumentFilter<InvoiceStateChange>>();
+    c.SchemaFilter<NSwagEnumExtensionSchemaFilter>();
+    c.SchemaFilter<EnumFilter>();
 });
 builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
@@ -155,8 +173,9 @@ app.MapGet("/topupandmine6blocks", (string authToken, string bitcoinAddr, long s
 .WithDescription("Sends satoshis from local BTC wallet to the address (Regtest only), then mines 6 blocks.")
 .WithOpenApi(g =>
 {
-    g.Parameters[0].Description = "bitcoin address";
-    g.Parameters[1].Description = "number of satoshis";
+    g.Parameters[0].Description = "authtoken";
+    g.Parameters[1].Description = "bitcoin address";
+    g.Parameters[2].Description = "number of satoshis";
     return g;
 });
 
@@ -183,8 +202,9 @@ app.MapGet("/sendtoaddress", (string authToken, string bitcoinAddr, long satoshi
 .WithDescription("Sends satoshis from local BTC wallet to the address.")
 .WithOpenApi(g =>
 {
-    g.Parameters[0].Description = "bitcoin address";
-    g.Parameters[1].Description = "number of satoshis";
+    g.Parameters[0].Description = "authtoken";
+    g.Parameters[1].Description = "bitcoin address";
+    g.Parameters[2].Description = "number of satoshis";
     return g;
 });
 
@@ -211,7 +231,8 @@ app.MapGet("/generateblocks", (string authToken, int blocknum) =>
 .WithDescription("Mines Number of Blocks (Regtest only)")
 .WithOpenApi(g =>
 {
-    g.Parameters[0].Description = "number of blocks to mine";
+    g.Parameters[0].Description = "authtoken";
+    g.Parameters[1].Description = "number of blocks to mine";
     return g;
 });
 
@@ -371,7 +392,7 @@ app.MapGet("/getbalance",(string authToken) =>
 {
     try
     {
-        return new Result<AccountBalanceDetails>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetAccountBallance());
+        return new Result<AccountBalanceDetails>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetBallance());
     }
     catch (Exception ex)
     {
@@ -510,13 +531,12 @@ app.MapGet("/sendpayment", async (string authToken, string paymentrequest, int t
 {
     try
     {
-        await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SendPaymentAsync(paymentrequest, timeout, walletSettings.SendPaymentFee, feelimit);
-        return new Result();
+        return new Result<PaymentRecord>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SendPaymentAsync(paymentrequest, timeout, walletSettings.SendPaymentFee, feelimit));
     }
     catch (Exception ex)
     {
         TraceEx.TraceException(ex);
-        return new Result(ex);
+        return new Result<PaymentRecord>(ex);
     }
 })
 .WithName("SendPayment")
@@ -701,10 +721,8 @@ app.MapHub<PaymentStatusUpdatesHub>("/paymentstatusupdates")
 
 app.Run(walletSettings.ListenHost.AbsoluteUri);
 
-
-
 [Serializable]
-public struct Result
+public class Result 
 {
     public Result() { }
     public Result(Exception exception) {
@@ -718,7 +736,7 @@ public struct Result
 }
 
 [Serializable]
-public struct Result<T>
+public class Result<T> 
 {
     public Result(T value) { Value = value; }
     public Result(Exception exception) {
@@ -787,4 +805,162 @@ public class BitcoinSettings
     public required string Network { get; set; }
     public required string WalletName { get; set; }
 
+}
+
+public class CustomModelDocumentFilter<T> : IDocumentFilter where T : class
+{
+    public void Apply(OpenApiDocument openapiDoc, DocumentFilterContext context)
+    {
+        context.SchemaGenerator.GenerateSchema(typeof(T), context.SchemaRepository);
+    }
+}
+
+/// <summary>
+/// Add enum value descriptions to Swagger
+/// https://stackoverflow.com/a/49941775/1910735
+/// </summary>
+public class EnumDocumentFilter : IDocumentFilter
+{
+    /// <inheritdoc />
+    public void Apply(OpenApiDocument swaggerDoc, DocumentFilterContext context)
+    {
+        foreach (KeyValuePair<string, OpenApiPathItem> schemaDictionaryItem in swaggerDoc.Paths)
+        {
+            OpenApiPathItem schema = schemaDictionaryItem.Value;
+            foreach (OpenApiParameter property in schema.Parameters)
+            {
+                IList<IOpenApiAny> propertyEnums = property.Schema.Enum;
+                if (propertyEnums.Count > 0)
+                    property.Description += DescribeEnum(propertyEnums);
+            }
+        }
+
+        if (swaggerDoc.Paths.Count == 0)
+            return;
+
+        // add enum descriptions to input parameters
+        foreach (OpenApiPathItem pathItem in swaggerDoc.Paths.Values)
+        {
+            DescribeEnumParameters(pathItem.Parameters);
+
+            foreach (KeyValuePair<OperationType, OpenApiOperation> operation in pathItem.Operations)
+                DescribeEnumParameters(operation.Value.Parameters);
+        }
+    }
+
+    private static void DescribeEnumParameters(IList<OpenApiParameter> parameters)
+    {
+        if (parameters == null)
+            return;
+
+        foreach (OpenApiParameter param in parameters)
+        {
+            if (param.Schema.Enum?.Any() == true)
+            {
+                param.Description += DescribeEnum(param.Schema.Enum);
+            }
+            else if (param.Extensions.ContainsKey("enum") &&
+                     param.Extensions["enum"] is IList<object> paramEnums &&
+                     paramEnums.Count > 0)
+            {
+                param.Description += DescribeEnum(paramEnums);
+            }
+        }
+    }
+
+    private static string DescribeEnum(IEnumerable<object> enums)
+    {
+        List<string> enumDescriptions = new();
+        Type? type = null;
+        foreach (object enumOption in enums)
+        {
+            if (type == null)
+                type = enumOption.GetType();
+
+            enumDescriptions.Add($"{Convert.ChangeType(enumOption, type.GetEnumUnderlyingType())} = {Enum.GetName(type, enumOption)}");
+        }
+
+        return Environment.NewLine + string.Join(Environment.NewLine, enumDescriptions);
+    }
+}
+
+//https://stackoverflow.com/a/60276722/4390133
+public class EnumFilter : ISchemaFilter
+{
+    public void Apply(OpenApiSchema schema, SchemaFilterContext context)
+    {
+        if (schema is null)
+            throw new ArgumentNullException(nameof(schema));
+
+        if (context is null)
+            throw new ArgumentNullException(nameof(context));
+
+        if (context.Type.IsEnum is false)
+            return;
+
+        schema.Extensions.Add("x-ms-enum", new EnumFilterOpenApiExtension(context));
+    }
+}
+
+public class EnumFilterOpenApiExtension : IOpenApiExtension
+{
+    private readonly SchemaFilterContext _context;
+    public EnumFilterOpenApiExtension(SchemaFilterContext context)
+    {
+        _context = context;
+    }
+
+    public void Write(IOpenApiWriter writer, OpenApiSpecVersion specVersion)
+    {
+        JsonSerializerOptions options = new() { WriteIndented = true };
+
+        var obj = new
+        {
+            name = _context.Type.Name,
+            modelAsString = false,
+            values = _context.Type
+                            .GetEnumValues()
+                            .Cast<object>()
+                            .Distinct()
+                            .Select(value => new { value, name = value.ToString() })
+                            .ToArray()
+        };
+        writer.WriteRaw(JsonSerializer.Serialize(obj, options));
+    }
+}
+
+/// <summary>
+/// Adds extra schema details for an enum in the swagger.json i.e. x-enumNames (used by NSwag to generate Enums for C# client)
+/// https://github.com/RicoSuter/NSwag/issues/1234
+/// </summary>
+public class NSwagEnumExtensionSchemaFilter : ISchemaFilter
+{
+    public void Apply(OpenApiSchema schema, SchemaFilterContext context)
+    {
+        if (schema is null)
+            throw new ArgumentNullException(nameof(schema));
+
+        if (context is null)
+            throw new ArgumentNullException(nameof(context));
+
+        if (context.Type.IsEnum)
+            schema.Extensions.Add("x-enumNames", new NSwagEnumOpenApiExtension(context));
+    }
+}
+
+public class NSwagEnumOpenApiExtension : IOpenApiExtension
+{
+    private readonly SchemaFilterContext _context;
+    public NSwagEnumOpenApiExtension(SchemaFilterContext context)
+    {
+        _context = context;
+    }
+
+    public void Write(IOpenApiWriter writer, OpenApiSpecVersion specVersion)
+    {
+        string[] enums = Enum.GetNames(_context.Type);
+        JsonSerializerOptions options = new() { WriteIndented = true };
+        string value = JsonSerializer.Serialize(enums, options);
+        writer.WriteRaw(value);
+    }
 }

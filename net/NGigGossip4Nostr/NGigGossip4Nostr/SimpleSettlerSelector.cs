@@ -1,5 +1,4 @@
 ﻿using System;
-using CryptoToolkit;
 using GigGossipSettlerAPIClient;
 using NBitcoin.Secp256k1;
 using GigLNDWalletAPIClient;
@@ -355,7 +354,7 @@ public class SettlerAPIWrapper : ISettlerAPI
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.StringResult> GetGigStatusAsync(string authToken, System.Guid signedRequestPayloadId, System.Guid repliperCertificateId, CancellationToken cancellationToken)
+    public async Task<GigGossipSettlerAPIClient.GigStatusKeyResult> GetGigStatusAsync(string authToken, System.Guid signedRequestPayloadId, System.Guid repliperCertificateId, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(signedRequestPayloadId, repliperCertificateId);
         try
@@ -397,12 +396,12 @@ public class SettlerAPIWrapper : ISettlerAPI
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.StringResult> EncryptObjectForCertificateIdAsync(System.Guid? certificateId, GigGossipSettlerAPIClient.FileParameter objectSerialized, CancellationToken cancellationToken)
+    public async Task<GigGossipSettlerAPIClient.StringResult> EncryptJobReplyForCertificateIdAsync(System.Guid? certificateId, GigGossipSettlerAPIClient.FileParameter objectSerialized, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(certificateId, objectSerialized.ToBytes());
         try
         {
-            return TL.Ret(await API.EncryptObjectForCertificateIdAsync(certificateId, objectSerialized, cancellationToken));
+            return TL.Ret(await API.EncryptJobReplyForCertificateIdAsync(certificateId, objectSerialized, cancellationToken));
         }
         catch (Exception ex)
         {
@@ -481,33 +480,6 @@ public class SettlerAPIWrapper : ISettlerAPI
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.Result> GrantAccessRightsAsync(string authToken, string pubkey, string accessRights, CancellationToken cancellationToken)
-    {
-        using var TL = TRACE.Log().Args(pubkey, accessRights);
-        try
-        {
-            return TL.Ret(await API.GrantAccessRightsAsync(authToken, pubkey, accessRights, cancellationToken));
-        }
-        catch (Exception ex)
-        {
-            TL.Exception(ex);
-            throw;
-        }
-    }
-
-    public async Task<GigGossipSettlerAPIClient.Result> RevokeAccessRightsAsync(string authToken, string pubkey, string accessRights, CancellationToken cancellationToken)
-    {
-        using var TL = TRACE.Log().Args(pubkey, accessRights);
-        try
-        {
-            return TL.Ret(await API.RevokeAccessRightsAsync(authToken, pubkey, accessRights, cancellationToken));
-        }
-        catch (Exception ex)
-        {
-            TL.Exception(ex);
-            throw;
-        }
-    }
 
     public async Task<BooleanResult> ValidateAccessCodeAsync(string authToken, string accessCodeId, CancellationToken cancellationToken)
     {
@@ -530,20 +502,6 @@ public class SettlerAPIWrapper : ISettlerAPI
         try
         {
             return TL.Ret(await API.GetMemoFromAccessCodeAsync(authToken, accessCodeId, cancellationToken));
-        }
-        catch (Exception ex)
-        {
-            TL.Exception(ex);
-            throw;
-        }
-    }
-
-    public async Task<GigGossipSettlerAPIClient.StringResult> GetAccessRightsAsync(string authToken, string pubkey, CancellationToken cancellationToken)
-    {
-        using var TL = TRACE.Log().Args(pubkey);
-        try
-        {
-            return TL.Ret(await API.GetAccessRightsAsync(authToken, pubkey, cancellationToken));
         }
         catch (Exception ex)
         {
@@ -619,7 +577,7 @@ internal class GigStatusClientWrapper :  IGigStatusClient
         }
     }
 
-    public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<GigStatusKey> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log();
         await foreach (var row in API.StreamAsync(authToken, cancellationToken))
@@ -683,7 +641,7 @@ internal class PreimageRevealClientWrapper : IPreimageRevealClient
         }
     }
 
-    public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<PreimageReveal> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log();
         await foreach (var row in API.StreamAsync(authToken, cancellationToken))

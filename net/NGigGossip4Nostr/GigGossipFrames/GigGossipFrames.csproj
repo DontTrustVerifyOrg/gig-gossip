@@ -15,15 +15,13 @@
     <NoWarn>1701;1702;1998;8600;8601;8602;8603;8604;8618;8625</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="NBitcoin.Secp256k1" Version="3.1.5" />
     <PackageReference Include="Google.Protobuf" Version="3.28.0" />
     <PackageReference Include="Grpc.Tools" Version="2.66.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="NBitcoin" Version="7.0.38" />
   </ItemGroup>
   <ItemGroup>
     <Protobuf Include="giggossipframes.proto" GrpcServices="Client" />

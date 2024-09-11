@@ -6,7 +6,7 @@ using NGeoHash;
 using Spectre.Console;
 using NBitcoin;
 using System.Diagnostics;
-using CryptoToolkit;
+
 using GigLNDWalletAPIClient;
 
 namespace RideShareCLIApp;
@@ -58,27 +58,27 @@ public partial class RideShareCLIApp
         var balance = WalletAPIResult.Get<AccountBalanceDetails>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token)).AvailableAmount;
 
 
-        GigLNDWalletAPIErrorCode paymentResult = GigLNDWalletAPIErrorCode.Ok;
+        LNDWalletErrorCode paymentResult = LNDWalletErrorCode.Ok;
 
         if (balance < e.DecodedReplyInvoice.Satoshis + e.DecodedNetworkInvoice.Satoshis + settings.NodeSettings.FeeLimitSat * 2)
         {
-            paymentResult = GigLNDWalletAPIErrorCode.NotEnoughFunds;
+            paymentResult = LNDWalletErrorCode.NotEnoughFunds;
         }
         else
         {
 
-            var networkPayState = await e.GigGossipNode.PayInvoiceAsync(e.NetworkInvoice, e.DecodedNetworkInvoice.PaymentHash, settings.NodeSettings.FeeLimitSat, CancellationToken.None);
-            if (networkPayState != GigLNDWalletAPIErrorCode.Ok)
+            var networkPayState = await e.GigGossipNode.PayInvoiceAsync(e.NetworkPaymentRequest, e.DecodedNetworkInvoice.PaymentHash, settings.NodeSettings.FeeLimitSat, CancellationToken.None);
+            if (networkPayState != LNDWalletErrorCode.Ok)
                 paymentResult = networkPayState;
             else
             {
                 var replyPayState = await e.GigGossipNode.PayInvoiceAsync(e.ReplyInvoice, e.DecodedReplyInvoice.PaymentHash, settings.NodeSettings.FeeLimitSat, CancellationToken.None);
-                if (replyPayState != GigLNDWalletAPIErrorCode.Ok)
+                if (replyPayState != LNDWalletErrorCode.Ok)
                     paymentResult = replyPayState;
             }
         }
 
-        if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
+        if (paymentResult != LNDWalletErrorCode.Ok)
         {
             AnsiConsole.MarkupLine($"[red]{paymentResult}[/]");
             return;
@@ -181,19 +181,22 @@ public partial class RideShareCLIApp
             riderDroppedOff = false;
             var pubkey = directPubkeys[signedRequestPayloadId];
             AnsiConsole.MarkupLine("I am [orange1]sending[/] my location to the driver");
-            await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
+            await gigGossipNode.SendMessageAsync(pubkey, new Frame
             {
-                Secret = secret,
-                JobRequestId = signedRequestPayloadId.AsUUID(),
-                JobReplyId = replierCertificateId.AsUUID(),
-                SecurityCenterUri = settlerServiceUri.AsURI(),
-                Location = fromLocation,
-                Message = "Hello From Rider!",
-                RideStatus = RideState.Started,
-                FromAddress = fromAddress,
-                FromLocation = fromLocation,
-                ToAddress = toAddress,
-                ToLocation = toLocation,
+                Location = new LocationFrame
+                {
+                    Secret = secret,
+                    JobRequestId = signedRequestPayloadId.AsUUID(),
+                    JobReplyId = replierCertificateId.AsUUID(),
+                    SecurityCenterUri = settlerServiceUri.AsURI(),
+                    Location = fromLocation,
+                    Message = "Hello From Rider!",
+                    RideStatus = RideState.Started,
+                    FromAddress = fromAddress,
+                    FromLocation = fromLocation,
+                    ToAddress = toAddress,
+                    ToLocation = toLocation,
+                }
             }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
 
             lastDriverLocation = fromLocation;
@@ -201,38 +204,44 @@ public partial class RideShareCLIApp
             while (!driverApproached)
             {
                 AnsiConsole.MarkupLine("I am [orange1]waiting[/] for the driver");
-                await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
+                await gigGossipNode.SendMessageAsync(pubkey, new Frame
                 {
-                    Secret = secret,
-                    JobRequestId = signedRequestPayloadId.AsUUID(),
-                    JobReplyId = replierCertificateId.AsUUID(),
-                    SecurityCenterUri = settlerServiceUri.AsURI(),
-                    Location = fromLocation,
-                    Message = "I am waiting",
-                    RideStatus = RideState.Started,
-                    FromAddress = fromAddress,
-                    FromLocation = fromLocation,
-                    ToAddress = toAddress,
-                    ToLocation = toLocation,
+                    Location = new LocationFrame
+                    {
+                        Secret = secret,
+                        JobRequestId = signedRequestPayloadId.AsUUID(),
+                        JobReplyId = replierCertificateId.AsUUID(),
+                        SecurityCenterUri = settlerServiceUri.AsURI(),
+                        Location = fromLocation,
+                        Message = "I am waiting",
+                        RideStatus = RideState.Started,
+                        FromAddress = fromAddress,
+                        FromLocation = fromLocation,
+                        ToAddress = toAddress,
+                        ToLocation = toLocation,
+                    }
                 }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
                 Thread.Sleep(5000);
             }
             while (!riderDroppedOff)
             {
                 AnsiConsole.MarkupLine("I am [orange1]in the car[/]");
-                await gigGossipNode.SendMessageAsync(pubkey, new LocationFrame
+                await gigGossipNode.SendMessageAsync(pubkey, new Frame
                 {
-                    Secret = secret,
-                    JobRequestId = signedRequestPayloadId.AsUUID(),
-                    JobReplyId = replierCertificateId.AsUUID(),
-                    SecurityCenterUri = settlerServiceUri.AsURI(),
-                    Location = lastDriverLocation,
-                    Message = "I am in the car",
-                    RideStatus = RideState.RiderPickedUp,
-                    FromAddress = fromAddress,
-                    FromLocation = fromLocation,
-                    ToAddress = toAddress,
-                    ToLocation = toLocation,
+                    Location = new LocationFrame
+                    {
+                        Secret = secret,
+                        JobRequestId = signedRequestPayloadId.AsUUID(),
+                        JobReplyId = replierCertificateId.AsUUID(),
+                        SecurityCenterUri = settlerServiceUri.AsURI(),
+                        Location = lastDriverLocation,
+                        Message = "I am in the car",
+                        RideStatus = RideState.RiderPickedUp,
+                        FromAddress = fromAddress,
+                        FromLocation = fromLocation,
+                        ToAddress = toAddress,
+                        ToLocation = toLocation,
+                    }
                 }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
                 Thread.Sleep(5000);
             }

@@ -41,7 +41,7 @@ public class InvoiceStateUpdatesHub : Hub
         Singlethon.InvoiceHashes4PublicKey.RemoveItem(account.PublicKey, paymentHash);
     }
 
-    public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<InvoiceStateChange> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         LNDAccountManager account;
         lock (Singlethon.LNDWalletManager)
@@ -52,10 +52,10 @@ public class InvoiceStateUpdatesHub : Hub
         {
             await foreach (var ic in asyncCom.DequeueAsync(cancellationToken))
             {
-                if (Singlethon.InvoiceHashes4PublicKey.ContainsItem(account.PublicKey, ic.PaymentHash))
+                if (Singlethon.InvoiceHashes4PublicKey.ContainsItem(account.PublicKey, ic.InvoiceStateChange.PaymentHash))
                 {
-                    Trace.TraceInformation(ic.PaymentHash + "|" + ic.NewState.ToString());
-                    yield return ic.PaymentHash + "|" + ic.NewState.ToString();
+                    Trace.TraceInformation(ic.InvoiceStateChange.PaymentHash + "|" + ic.InvoiceStateChange.NewState.ToString());
+                    yield return ic.InvoiceStateChange;
                 }
             }
         }
