@@ -1,0 +1,392 @@
+syntax = "proto3";
+
+package giggossipframes;
+option csharp_namespace = "GigGossip";
+
+message UUID
+{
+  bytes Value = 1;
+}
+
+message Timestamp
+{
+  int64 Value = 1;
+}
+
+message URI
+{
+    string Value = 1;
+}
+
+message Signature
+{
+    bytes Value = 1;
+}
+
+message PublicKey
+{
+    bytes Value = 1;
+}
+
+message PaymentRequest
+{
+    string Value = 1;
+}
+
+message PaymentHash
+{
+    bytes Value = 1;
+}
+
+message Satoshis
+{
+    int64 Value = 1;
+}
+
+message EncryptedData
+{
+    bytes Value = 1;
+}
+
+message CryptographicHash
+{
+    bytes Value = 1;
+}
+
+message AuthTokenHeader
+{
+  UUID TokenId = 1;
+  PublicKey PublicKey = 2;
+  Timestamp Timestamp = 3;
+}
+
+/// <summary>
+/// A struct to represent a timed GUID token with its signature. Used in API calls.
+/// </summary>
+message AuthToken
+{
+    AuthTokenHeader Header = 1;
+    Signature Signature = 2;
+}
+
+message CertificateProperty
+{
+    string Name = 1;
+    bytes Value = 2;
+}
+
+message CertificateHeader
+{
+    /// <summary>
+    /// The Uri of the Certification Authority service
+    /// </summary>
+    URI AuthorityUri = 1;
+
+    /// <summary>
+    /// Collection of certified properties of the Subject
+    /// </summary>
+    repeated CertificateProperty Properties = 2;
+
+    /// <summary>
+    /// Date and Time before which the Certificate will no longer be valid
+    /// </summary>
+    Timestamp NotValidAfter = 3;
+
+    /// <summary>
+    /// Date and Time before which the Certificate is not yet valid
+    /// </summary>
+    Timestamp NotValidBefore = 4;
+}
+
+/// <summary>
+/// Represents a layer in the Onion routing protocol, which contains a public key and encrypted data core.
+/// </summary>
+message OnionLayer 
+{
+    /// <summary>
+    /// Gets or sets the public key associated with this layer of the onion route.
+    /// </summary>
+    PublicKey PublicKey = 1;
+
+    /// <summary>
+    /// Gets or sets the encrypted core of the onion layer.
+    /// </summary>
+    EncryptedData EncryptedOnionLayer = 2;
+}
+
+
+/// <summary>
+/// An onion route is used in the onion routing protocol to establish an anonymous communication channel. 
+/// Each "onion" in the route is peeled back one at a time by each gig gossip node in the network. 
+/// </summary>
+message Onion
+{
+    /// <summary>
+    /// An array of bytes representing the "Onion", the data passed through the route.
+    /// </summary>
+    EncryptedData EncryptedOnionLayer = 1;
+}
+
+/// <summary>
+/// Represents a broadcast frame in proof of work (POW) which contains the broadcast payload and the work proof.
+/// </summary>
+message BroadcastFrame
+{
+    /// <summary>
+    /// Gets or sets the signed payload for the request. This contains the necessary data for processing the request.
+    /// </summary>
+    JobRequest JobRequest = 1;
+
+    /// <summary>
+    /// Gets or sets the Onion Route used for back-routing of the message.
+    /// </summary>
+    Onion BackwardOnion = 2;
+}
+
+message CancelBroadcastFrame
+{
+    CancelJobRequest CancelJobRequest = 1;
+}
+
+message CancelJobRequestHeader
+{
+    CertificateHeader Header = 1;
+    UUID JobRequestId = 2;
+    Timestamp Timestamp = 3;
+}
+
+message CancelJobRequest
+{
+    CancelJobRequestHeader Header = 1;
+    Signature Signature = 2;
+}
+
+message BroadcastRequest
+{
+    JobRequest JobRequest = 1;
+    CancelJobRequest CancelJobRequest = 2;
+}
+
+/// <summary>
+/// Represents a reply frame that contains encrypted payload, settlement promise, onion route and network PaymentRequest.
+/// </summary>
+message ReplyFrame
+{
+    /// <summary>
+    /// Gets or sets the encrypted reply payload.
+    /// </summary>
+    EncryptedData EncryptedJobReply = 1;
+
+    /// <summary>
+    /// Gets or sets the signed settlement promise.
+    /// </summary>
+    /// <see cref="SettlementPromise"/>
+    SettlementPromise SettlementPromise = 2;
+
+    /// <summary>
+    /// Gets or sets the forward onion route.
+    /// </summary>
+    /// <see cref="OnionRoute"/>
+    Onion ForwardOnion = 3;
+
+    /// <summary>
+    /// Gets or sets the network PaymentRequest.
+    /// </summary>
+    PaymentRequest NetworkPaymentRequest = 4;
+}
+
+
+message JobReplyHeader
+{
+    CertificateHeader Header = 1;
+    UUID JobReplyId = 2;
+    /// <summary>
+    /// Gets or sets the signed request payload.
+    /// </summary>
+    JobRequest JobRequest = 3;
+
+    /// <summary>
+    /// Gets or sets the encrypted reply message.
+    /// </summary>
+    EncryptedData EncryptedReply = 4;
+
+    /// <summary>
+    /// Gets or sets the reply PaymentRequest.
+    /// </summary>
+    PaymentRequest JobPaymentRequest = 5;
+
+    /// <summary>
+    /// Gets or sets creation timestamp of the payload.
+    /// </summary>
+    Timestamp Timestamp = 6;
+}
+
+/// <summary>
+/// Represents the payload of a reply message.
+/// </summary>
+message JobReply 
+{
+    JobReplyHeader Header = 1;
+    Signature Signature = 2;
+}
+
+message Reply
+{
+    oneof Value
+    {
+        bytes Unknown = 1;
+        RideShareReply RideShare = 2;
+    }
+}
+
+message JobRequestHeader
+{
+    CertificateHeader Header = 1;
+    UUID JobRequestId = 2;
+    /// <summary>
+    /// Gets or sets creation timestamp of the payload.
+    /// </summary>
+    Timestamp Timestamp = 3;
+
+    /// <summary>
+    /// Gets or sets the topic of the payload.
+    /// </summary>
+    oneof Topic
+    {
+        bytes Unknown = 4;
+        RideShareTopic RideShare = 5;
+    }
+}
+
+/// <summary>
+/// Represents the payload of a request message.
+/// </summary>
+message JobRequest 
+{
+    JobRequestHeader Header = 1;
+    Signature Signature = 2;
+}
+
+message SettlementPromiseHeader
+{
+    
+    /// <summary>
+    /// Gets or sets the service URI of the Settler.
+    /// </summary>
+
+    URI MySecurityCenterUri = 1;
+
+    /// <summary>
+    /// Gets or sets the service URI of the Requester Settler.
+    /// </summary>
+    URI TheirSecurityCenterUri = 2;
+
+    /// <summary>
+    /// Gets or sets the network payment hash.
+    /// </summary>
+    PaymentHash NetworkPaymentHash = 3;
+
+    CryptographicHash HashOfEncryptedJobReply = 4;
+
+    /// <summary>
+    /// Gets or sets the reply payment amount.
+    /// </summary>
+    Satoshis ReplyPaymentAmount = 5;
+}
+
+/// <summary>
+/// Represents a settlement promise.
+/// </summary>
+message SettlementPromise 
+{
+    SettlementPromiseHeader Header = 1;
+    Signature Signature = 2;
+}
+
+message SettlementTrust 
+{
+    /// <summary>
+    /// Gets or sets the settlement promise.
+    /// </summary>
+    /// <see cref="SettlementPromise"/>
+    SettlementPromise SettlementPromise = 1;
+
+    /// <summary>
+    /// Gets or sets the network PaymentRequest.
+    /// </summary>
+    PaymentRequest NetworkPaymentRequest = 2;
+
+    /// <summary>
+    /// Gets or sets the encrypted reply payload.
+    /// </summary>
+    EncryptedData EncryptedJobReply = 3;
+
+    UUID JobReplyId = 4;
+}
+
+message Frame
+{
+    oneof Value
+    {
+        BroadcastFrame Broadcast = 1;
+        CancelBroadcastFrame CancelBroadcast = 2;
+        ReplyFrame Reply = 3;
+        LocationFrame Location = 4;
+    }
+}
+
+
+//// RIDESHARE
+
+
+message GeoLocation 
+{
+    double Latitude = 1;
+    double Longitude = 2;
+}
+
+message RideShareTopic
+{
+    string FromGeohash = 1;
+    string ToGeohash = 2;
+    Timestamp PickupAfter = 3;
+    Timestamp PickupBefore = 4;
+    double Distance = 5;
+}
+
+message RideShareReply
+{
+    PublicKey PublicKey = 1;
+    repeated URI Relays = 2;
+    string Secret = 3;
+    GeoLocation Location = 4;
+    string Message = 5;
+}
+
+enum RideState
+{
+    Started = 0;
+    DriverGoingForRider = 1;
+    DriverWaitingForRider = 2;
+    RiderPickedUp = 3;
+    DriverGoingWithRider = 4;
+    Completed = 5;
+    Disputed = 6;
+    Failed = 7;
+    Cancelled = 8;
+}
+
+message LocationFrame
+{
+    UUID JobRequestId = 1;
+    UUID JobReplyId = 2;
+    URI SecurityCenterUri = 3;
+    string Secret = 4;
+    GeoLocation FromLocation = 5;
+    GeoLocation ToLocation = 6;
+    string FromAddress = 7;
+    string ToAddress = 8;
+    GeoLocation Location = 9;
+    string Message = 10;
+    RideState RideStatus = 11;
+}
