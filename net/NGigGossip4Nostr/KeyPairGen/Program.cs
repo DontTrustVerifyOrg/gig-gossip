@@ -24,7 +24,7 @@ class Program
     {
         var parserResult = new Parser(with => { with.IgnoreUnknownArguments = true; with.HelpWriter = null; })
             .ParseArguments<Options>(args)
-            .WithParsed(options =>
+            .WithParsed((Action<Options>)(options =>
             {
                 try
                 {
@@ -44,7 +44,7 @@ class Program
                         AnsiConsole.WriteLine(privKey.AsHex());
                     }
                     else
-                        privKey = options.PrivateKey.AsECPrivKey();
+                        privKey = HexExtensions.AsECPrivKey(options.PrivateKey);
 
                     var pubKey = privKey.CreateXOnlyPubKey();
                     AnsiConsole.WriteLine(pubKey.AsHex());
@@ -56,7 +56,7 @@ class Program
                         ExceptionFormats.ShortenMethods | ExceptionFormats.ShowLinks);
                     throw;
                 }
-            });
+            }));
 
         if (parserResult.Tag == ParserResultType.NotParsed)
         {

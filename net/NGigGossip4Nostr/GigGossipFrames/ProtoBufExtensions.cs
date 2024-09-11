@@ -101,7 +101,7 @@ public static class ProtoBufExtensions
 
     public static T Decrypt<T>(this EncryptedData data, ECPrivKey ecpriv, ECXOnlyPubKey theirpubkey = null) where T : Google.Protobuf.IMessage<T>, new()
     {
-        return Crypto.DecryptObject<T>(data.Value.ToArray(), ecpriv, theirpubkey); ;
+        return Crypto.DecryptObject<T>(data.Value.ToArray(), ecpriv, theirpubkey);
     }
 
     public static EncryptedData Encrypt<T>(this T obj, ECXOnlyPubKey theirpubkey, ECPrivKey ecpriv = null) where T : Google.Protobuf.IMessage<T>

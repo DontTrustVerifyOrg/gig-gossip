@@ -10,16 +10,13 @@ public class BitcoinNode
     public string Network { get; set; }
     public string WalletName { get; set; }
 
-    public NBitcoin.Network GetNetwork()
+    public NBitcoin.Network GetNetwork() => Network.ToLower() switch
     {
-        if (Network.ToLower() == "main")
-            return NBitcoin.Network.Main;
-        if (Network.ToLower() == "testnet")
-            return NBitcoin.Network.TestNet;
-        if (Network.ToLower() == "regtest")
-            return NBitcoin.Network.RegTest;
-        throw new NotImplementedException();
-    }
+        "main" => NBitcoin.Network.Main,
+        "testnet" => NBitcoin.Network.TestNet,
+        "regtest" => NBitcoin.Network.RegTest,
+        _ => throw new NotImplementedException()
+    };
 
     public RPCClient WalletClient()
     {

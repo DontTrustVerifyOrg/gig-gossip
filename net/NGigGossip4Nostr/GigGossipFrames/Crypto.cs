@@ -9,8 +9,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Text.Json;
 using System.Runtime.ConstrainedExecution;
-using Newtonsoft.Json.Linq;
-using System.Reflection;
 
 namespace GigGossip;
 

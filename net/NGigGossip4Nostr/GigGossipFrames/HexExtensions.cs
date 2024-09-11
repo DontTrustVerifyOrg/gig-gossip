@@ -32,15 +32,6 @@ public static class HexExtensions
     {
         return Context.Instance.CreateECPrivKey(Convert.FromHexString(key));
     }
-    public static async Task<ECPrivKey> AsECPrivKeyAsync(this string key)
-    {
-        ECPrivKey? result = null;
-        await Task.Run(() =>
-        {
-            result = Context.Instance.CreateECPrivKey(Convert.FromHexString(key));
-        });
-        return result!;
-    }
     public static ECXOnlyPubKey AsECXOnlyPubKey(this string key)
     {
         return Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(key));
