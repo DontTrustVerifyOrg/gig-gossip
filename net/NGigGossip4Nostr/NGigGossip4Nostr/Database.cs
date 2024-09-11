@@ -3,7 +3,8 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using CryptoToolkit;
+using GigGossipSettlerAPIClient;
+using GigLNDWalletAPIClient;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin.Protocol;
 
@@ -57,7 +58,7 @@ public class ReplyPayloadRow
 
     public required Guid ReplierCertificateId { get; set; }
     public required byte[] TheReplyPayload { get; set; }
-    public required string NetworkInvoice { get; set; }
+    public required string NetworkPaymentRequest { get; set; }
     public required byte[] DecodedNetworkInvoice { get; set; }
     public required string ReplyInvoice { get; set; }
     public required byte[] DecodedReplyInvoice { get; set; }
@@ -84,7 +85,7 @@ public class AcceptedBroadcastRow
     public required Guid ReplierCertificateId { get; set; }
 
     public required byte[] SignedSettlementPromise { get; set; }
-    public required string NetworkInvoice { get; set; }
+    public required string NetworkPaymentRequest { get; set; }
 
     public required byte[] EncryptedReplyPayload { get; set; }
 
@@ -109,7 +110,7 @@ public class MonitoredInvoiceRow
     [Column(Order = 2)]
     public required string PaymentHash { get; set; }
 
-    public required string InvoiceState { get; set; }
+    public required InvoiceState InvoiceState { get; set; }
     public required byte[] Data { get; set; }
 }
 
@@ -125,7 +126,7 @@ public class MonitoredPaymentRow
     [Column(Order = 2)]
     public required string PaymentHash { get; set; }
 
-    public required string PaymentStatus { get; set; }
+    public required PaymentStatus PaymentStatus { get; set; }
     public required byte[] Data { get; set; }
 }
 
@@ -161,7 +162,7 @@ public class MonitoredGigStatusRow
     public required Guid ReplierCertificateId { get; set; }
 
     public required Uri ServiceUri { get; set; }
-    public required string Status { get; set; }
+    public required GigStatus Status { get; set; }
     public string? SymmetricKey { get; set; }
     public required byte[] Data { get; set; }
 }

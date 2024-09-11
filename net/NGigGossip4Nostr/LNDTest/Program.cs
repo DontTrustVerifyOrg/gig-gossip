@@ -106,8 +106,8 @@ if (channels2.Channels.Where((c) => c.RemotePubkey == nd1.IdentityPubkey).Count(
 }
 
 
-var preimage = CryptoToolkit.Crypto.GenerateRandomPreimage();
-var hash = CryptoToolkit.Crypto.ComputePaymentHash(preimage);
+var preimage = GigGossip.Crypto.GenerateRandomPreimage();
+var hash = GigGossip.Crypto.ComputePaymentHash(preimage);
 var paymentReq1 = LND.AddHodlInvoice(confs[0], 1000, "hello", hash);
 var paymentReq2 = LND.AddHodlInvoice(confs[0], 1000, "hello", hash);
 var paymentReq3 = LND.AddHodlInvoice(confs[0], 1000, "hello", hash);
@@ -156,7 +156,7 @@ Console.WriteLine(LND.SendPayment(confs[1], paymentReqC.PaymentRequest));
 
 var channels21 = LND.ListChannels(confs[1]);
 foreach (var chanx in channels21.Channels)
-    LND.CloseChannel(confs[1], chanx.ChannelPoint.Split(':')[0]);
+    LND.CloseChannel(confs[1], chanx.ChannelPoint.Split(':')[0],1000);
 
 
 public class LndNodesSettings

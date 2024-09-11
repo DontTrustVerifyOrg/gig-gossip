@@ -1,6 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using GigGossipSettlerAPIClient;
-using CryptoToolkit;
+
 using NBitcoin.Secp256k1;
 using Microsoft.Extensions.Configuration;
 using CommandLine;

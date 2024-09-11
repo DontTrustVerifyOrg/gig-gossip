@@ -1,5 +1,5 @@
 ﻿using System;
-using CryptoToolkit;
+
 using GigGossipSettlerAPIClient;
 using NBitcoin.Secp256k1;
 using GigLNDWalletAPIClient;
@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR.Client;
 using NetworkClientToolkit;
+using GigGossip;
 
 namespace GigGossipSettler;
 

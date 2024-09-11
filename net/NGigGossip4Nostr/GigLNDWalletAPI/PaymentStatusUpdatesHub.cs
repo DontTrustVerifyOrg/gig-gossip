@@ -10,11 +10,10 @@ namespace GigLNDWalletAPI;
 
 public class PaymentStatusUpdatesHub : Hub
 {
-    public static AccessRights AccessRights;
     public override async Task OnConnectedAsync()
     {
         var authToken = Context?.GetHttpContext()?.Request.Query["authtoken"].First();
-        var account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken,AccessRights);
+        var account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken, false);
         Context.Items["publicKey"] = account.PublicKey;
         Singlethon.PaymentAsyncComQueue4ConnectionId.TryAdd(Context.ConnectionId, new AsyncComQueue<PaymentStatusChangedEventArgs>());
         await base.OnConnectedAsync();
@@ -42,7 +41,7 @@ public class PaymentStatusUpdatesHub : Hub
         Singlethon.PaymentHashes4PublicKey.RemoveItem(account.PublicKey, paymentHash);
     }
 
-    public async IAsyncEnumerable<string> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<PaymentStatusChanged> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         LNDAccountManager account;
         lock (Singlethon.LNDWalletManager)
@@ -53,10 +52,10 @@ public class PaymentStatusUpdatesHub : Hub
         {
             await foreach (var ic in asyncCom.DequeueAsync(cancellationToken))
             {
-                if (Singlethon.PaymentHashes4PublicKey.ContainsItem(account.PublicKey, ic.PaymentHash))
+                if (Singlethon.PaymentHashes4PublicKey.ContainsItem(account.PublicKey, ic.PaymentStatusChanged.PaymentHash))
                 {
-                    Trace.TraceInformation(ic.PaymentHash + "|" + ic.NewStatus.ToString());
-                    yield return ic.PaymentHash + "|" + ic.NewStatus.ToString();
+                    Trace.TraceInformation(ic.PaymentStatusChanged.PaymentHash + "|" + ic.PaymentStatusChanged.NewStatus.ToString() + "|" + ic.PaymentStatusChanged.FailureReason.ToString());
+                    yield return ic.PaymentStatusChanged;
                 }
             }
         }

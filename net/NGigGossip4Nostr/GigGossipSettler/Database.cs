@@ -1,7 +1,7 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
-using CryptoToolkit;
+
 using System.Security.Cryptography.X509Certificates;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics;
@@ -278,42 +278,6 @@ public class Gig
 }
 
 
-[Flags]
-public enum AccessRights
-{
-// flags
-    Valid = 1,
-    KYC = 2,
-    Screening = 4,
-    Disputes = 8,
-    AccessCodes = 16,
-    AccessRights = 0x00800000,
-// roles
-    Anonymous = 0,
-    ValidUser = Valid,
-    KnownUser = Valid|KYC,
-    Operator = Screening|Disputes|AccessCodes,
-    Admin = 0x00FFFFFF,
-    Owner = ~0,
-}
-
-/// <summary>
-/// This class represents access rights of all the users.
-/// </summary>
-public class UserAccessRights
-{
-    /// <summary>
-    /// The public key of the subject.
-    /// </summary>
-    [Key]
-    public required string PublicKey { get; set; }
-
-    /// <summary>
-    /// Access rights of the user.
-    /// </summary>
-    public required AccessRights AccessRights { get; set; }
-}
-
 /// <summary>
 /// This class represents an authorisation token.
 /// </summary>
@@ -352,17 +316,20 @@ public class SettlerContext : DbContext
         this.connectionString = connectionString;
     }
 
+    public Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction BEGIN_TRANSACTION(System.Data.IsolationLevel isolationLevel= System.Data.IsolationLevel.ReadCommitted)
+    {
+        if (provider == DBProvider.Sqlite)
+            return new NullTransaction();
+        else
+            return this.Database.BeginTransaction(isolationLevel);
+    }
+
 
     /// <summary>
     /// Tokens table.
     /// </summary>
     public DbSet<Token> Tokens { get; set; }
  
-    /// <summary>
-    /// UserAccessRights table.
-    /// </summary>
-    public DbSet<UserAccessRights> UserAccessRights { get; set; }
-
      /// <summary>
     /// Preimages table.
     /// </summary>
@@ -417,8 +384,6 @@ public class SettlerContext : DbContext
 
         if (obj is Token)
             return this.Tokens;
-        else if (obj is UserAccessRights)
-            return this.UserAccessRights;
         else if (obj is InvoicePreimage)
             return this.Preimages;
         else if (obj is Gig)
@@ -455,4 +420,35 @@ public class SettlerContext : DbContext
         this.ChangeTracker.Clear();
     }
 
+}
+
+
+
+public class NullTransaction : Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction
+{
+    public Guid TransactionId => Guid.NewGuid();
+
+    public void Commit()
+    {
+    }
+
+    public async Task CommitAsync(CancellationToken cancellationToken = default)
+    {
+    }
+
+    public void Dispose()
+    {
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+    }
+
+    public void Rollback()
+    {
+    }
+
+    public async Task RollbackAsync(CancellationToken cancellationToken = default)
+    {
+    }
 }

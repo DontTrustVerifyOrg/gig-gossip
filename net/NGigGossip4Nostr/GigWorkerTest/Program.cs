@@ -2,7 +2,7 @@
 using System.Text;
 using Newtonsoft.Json;
 using NGigGossip4Nostr;
-using NGigTaxiLib;
+using GigGossip;
 using NGeoHash;
 using NBitcoin.Protocol;
 using System.Diagnostics;

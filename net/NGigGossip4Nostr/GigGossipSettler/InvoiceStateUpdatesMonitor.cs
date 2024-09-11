@@ -4,7 +4,7 @@ using System.IO;
 using System.Net.Http;
 using System.Net.WebSockets;
 using System.Security.Cryptography;
-using CryptoToolkit;
+
 using GigLNDWalletAPIClient;
 using NBitcoin.Secp256k1;
 using Newtonsoft.Json.Linq;
@@ -55,9 +55,24 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                 {
                     if (gig.Status == GigStatus.Open)
                     {
-                        var network_state = WalletAPIResult.Get<string>(await settler.lndWalletClient.GetInvoiceStateAsync(settler.MakeAuthToken(), gig.NetworkPaymentHash, CancellationTokenSource.Token));
-                        var payment_state = WalletAPIResult.Get<string>(await settler.lndWalletClient.GetInvoiceStateAsync(settler.MakeAuthToken(), gig.PaymentHash, CancellationTokenSource.Token));
-                        if (network_state == "Accepted" && payment_state == "Accepted")
+                        var network_state_result = await settler.lndWalletClient.GetInvoiceAsync(settler.MakeAuthToken(), gig.NetworkPaymentHash, CancellationTokenSource.Token); 
+                        var payment_state_result = await settler.lndWalletClient.GetInvoiceAsync(settler.MakeAuthToken(), gig.PaymentHash, CancellationTokenSource.Token);
+
+                        InvoiceState network_invoice_state;
+                        if (WalletAPIResult.Status(network_state_result) == LNDWalletErrorCode.UnknownInvoice)
+                            network_invoice_state =  InvoiceState.Cancelled;
+                        else
+                            network_invoice_state = WalletAPIResult.Get<InvoiceRecord>(network_state_result).State;
+
+                        InvoiceState job_invoice_state;
+                        if (WalletAPIResult.Status(payment_state_result) == LNDWalletErrorCode.UnknownInvoice)
+                            job_invoice_state = InvoiceState.Cancelled;
+                        else
+                            job_invoice_state = WalletAPIResult.Get<InvoiceRecord>(payment_state_result).State;
+
+
+
+                        if (network_invoice_state == InvoiceState.Accepted && job_invoice_state == InvoiceState.Accepted)
                         {
                             gig.Status = GigStatus.Accepted;
                             gig.SubStatus = GigSubStatus.None;
@@ -67,21 +82,21 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                                 .SAVE();
                             await settler.ScheduleGigAsync(gig);
                         }
-                        else if (network_state == "Accepted")
+                        else if (network_invoice_state == InvoiceState.Accepted)
                         {
                             gig.SubStatus = GigSubStatus.AcceptedByNetwork;
                             settler.settlerContext.Value
                                 .UPDATE(gig)
                                 .SAVE();
                         }
-                        else if (payment_state == "Accepted")
+                        else if (job_invoice_state == InvoiceState.Accepted)
                         {
                             gig.SubStatus = GigSubStatus.AcceptedByReply;
                             settler.settlerContext.Value
                                 .UPDATE(gig)
                                 .SAVE();
                         }
-                        else if (network_state == "Cancelled" || payment_state == "Cancelled")
+                        else if (network_invoice_state == InvoiceState.Cancelled || job_invoice_state == InvoiceState.Cancelled)
                         {
                             gig.Status = GigStatus.Cancelled;
                             gig.SubStatus = GigSubStatus.None;
@@ -106,11 +121,10 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
 
                 await foreach (var invstateupd in invoiceStateUpdatesClient.StreamAsync(settler.MakeAuthToken(), CancellationTokenSource.Token))
                 {
-                    var invp = invstateupd.Split('|');
-                    var payhash = invp[0];
-                    var state = invp[1];
+                    var payhash = invstateupd.PaymentHash;
+                    var state = invstateupd.NewState;
 
-                    if (state == "Accepted")
+                    if (state ==  InvoiceState.Accepted)
                     {
                         var gig = (from g in settler.settlerContext.Value.Gigs
                                    where (g.NetworkPaymentHash == payhash) || (g.PaymentHash == payhash)
@@ -145,7 +159,7 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                             }
                         }
                     }
-                    else if (state == "Cancelled")
+                    else if (state ==  InvoiceState.Cancelled)
                     {
                         var gig = (from g in settler.settlerContext.Value.Gigs
                                    where (g.NetworkPaymentHash == payhash) || (g.PaymentHash == payhash)
@@ -156,7 +170,7 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                             {
                                 await settler.DescheduleGigAsync(gig);
                                 var status = WalletAPIResult.Status(await settler.lndWalletClient.CancelInvoiceAsync(settler.MakeAuthToken(), gig.NetworkPaymentHash, CancellationTokenSource.Token));
-                                if (status != GigLNDWalletAPIErrorCode.Ok)
+                                if (status != LNDWalletErrorCode.Ok)
                                     Trace.TraceWarning("CancelInvoice failed");
                             }
                             if (gig.Status != GigStatus.Cancelled)

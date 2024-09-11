@@ -2,7 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Threading;
-using CryptoToolkit;
+
 using GigGossipSettlerAPIClient;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
@@ -14,6 +14,7 @@ using Newtonsoft.Json.Converters;
 using Sharprompt;
 using Spectre.Console;
 using NGeoHash;
+using GigGossip;
 
 namespace GigGossipSettlerCLI;
 
@@ -172,7 +173,7 @@ public class GigGossipSettlerCLI
         var ecpriv = userSettings.UserPrivateKey.AsECPrivKey();
         string pubkey = ecpriv.CreateXOnlyPubKey().AsHex();
         var guid = SettlerAPIResult.Get<Guid>(await settlerClient.GetTokenAsync(pubkey, CancellationToken.None));
-        return Crypto.MakeSignedTimedToken(ecpriv, DateTime.UtcNow, guid);
+        return AuthToken.Create(ecpriv, DateTime.UtcNow, guid);
     }
 
     enum ClipType
@@ -299,28 +300,6 @@ public class GigGossipSettlerCLI
                     var certificateId = Prompt.Input<Guid>("Enter certificate ID");
                     var isRevoked = SettlerAPIResult.Get<bool>(await settlerClient.IsCertificateRevokedAsync(certificateId, CancellationToken.None));
                     AnsiConsole.WriteLine(isRevoked? "Revoked" : "Valid");
-                }
-                else if(cmd == CommandEnum.GrantAccessRights)
-                {
-                    var pubkey = Prompt.Input<string>("Enter user Public Key", FromClipboard(ClipType.PublicKey));
-                    var curAccessRights = SettlerAPIResult.Get<string>(await settlerClient.GetAccessRightsAsync(await MakeToken(), pubkey, CancellationToken.None));
-                    var accessRights = Prompt.MultiSelect("Enter access rights", AccessRightsLabels,defaultValues: curAccessRights.Split(","));
-                    SettlerAPIResult.Check(await settlerClient.GrantAccessRightsAsync(await MakeToken(), pubkey, string.Join(", ", accessRights), CancellationToken.None));
-                    AnsiConsole.WriteLine("Granted");
-                }
-                else if(cmd == CommandEnum.RevokeAccessRights)
-                {
-                    var pubkey = Prompt.Input<string>("Enter user Public Key", FromClipboard(ClipType.PublicKey));
-                    var curAccessRights = SettlerAPIResult.Get<string>(await settlerClient.GetAccessRightsAsync(await MakeToken(), pubkey, CancellationToken.None));
-                    var accessRights = Prompt.MultiSelect("Enter access rights", AccessRightsLabels,defaultValues: curAccessRights.Split(","));
-                    SettlerAPIResult.Check(await settlerClient.RevokeAccessRightsAsync(await MakeToken(), pubkey, string.Join(", ", accessRights), CancellationToken.None));
-                    AnsiConsole.WriteLine("Revoked");
-                }
-                else if(cmd == CommandEnum.GetAccessRights)
-                {
-                    var pubkey = Prompt.Input<string>("Enter user Public Key", FromClipboard(ClipType.PublicKey));
-                    var accessRights = SettlerAPIResult.Get<string>(await settlerClient.GetAccessRightsAsync(await MakeToken(), pubkey, CancellationToken.None));
-                    AnsiConsole.WriteLine(accessRights);
                 }
                 else if(cmd ==CommandEnum.AddressAutocomplete)
                 {
@@ -494,7 +473,7 @@ public class GigGossipSettlerCLI
                     var certificateId = Prompt.Input<Guid>("Enter Certificate Id:");
                     var obj = Prompt.Input<string>("Enter path to object:");
                     var objStream = new FileStream(obj, FileMode.Open, FileAccess.Read);
-                    var encrypted = SettlerAPIResult.Get<string>(await settlerClient.EncryptObjectForCertificateIdAsync(certificateId, new FileParameter(objStream), CancellationToken.None));
+                    var encrypted = SettlerAPIResult.Get<string>(await settlerClient.EncryptJobReplyForCertificateIdAsync(certificateId, new FileParameter(objStream), CancellationToken.None));
                 }
                 else if(cmd == CommandEnum.ManageDispute)
                 {

@@ -15,18 +15,33 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Grpc.Net.Client" Version="2.65.0" />
-    <PackageReference Include="Google.Protobuf" Version="3.27.4" />
-    <PackageReference Include="NBitcoin" Version="7.0.37" />
+    <PackageReference Include="Google.Protobuf" Version="3.28.0" />
+    <PackageReference Include="NBitcoin" Version="7.0.38" />
   </ItemGroup>
   <ItemGroup>
-<Protobuf Include="GRPC\lightning.proto" GrpcService="Client" />
-<Protobuf Include="GRPC\invoices.proto" GrpcService="Client" />
-<Protobuf Include="GRPC\router.proto" GrpcService="Client" />
-<Protobuf Include="GRPC\walletkit.proto" GrpcService="Client" />
-<Protobuf Include="GRPC\signer.proto" GrpcService="Client" />
+<Protobuf Include="invoices.proto">
+  <GrpcService>Client</GrpcService>
+</Protobuf>
+<Protobuf Include="lightning.proto">
+  <GrpcService>Client</GrpcService>
+</Protobuf>
+<Protobuf Include="router.proto">
+  <GrpcService>Client</GrpcService>
+</Protobuf>
+<Protobuf Include="walletkit.proto">
+  <GrpcService>Client</GrpcService>
+</Protobuf>
+<Protobuf Include="signrpc\signer.proto">
+  <GrpcService>Client</GrpcService>
+</Protobuf>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
+    <ProjectReference Include="..\NetworkClientToolkit\NetworkClientToolkit.csproj" />
+    <ProjectReference Include="..\GigGossipFrames\GigGossipFrames.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="signrpc\" />
   </ItemGroup>
 </Project>

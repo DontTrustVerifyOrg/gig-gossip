@@ -25,8 +25,8 @@
     <PackageReference Include="TextCopy" Version="6.2.1" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
     <ProjectReference Include="..\GigGossipSettlerAPIClient\GigGossipSettlerAPIClient.csproj" />
+    <ProjectReference Include="..\GigGossipFrames\GigGossipFrames.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Remove="speed.flf" />

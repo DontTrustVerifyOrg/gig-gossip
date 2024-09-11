@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using NBitcoin.Secp256k1;
-using CryptoToolkit;
 using System.Threading;
 using NBitcoin.RPC;
 using System.Collections.Concurrent;
@@ -23,6 +22,7 @@ using System.IO;
 using Nostr.Client.Requests;
 using GigDebugLoggerAPIClient;
 using Nostr.Client.Messages.Contacts;
+using GigGossip;
 
 namespace NGigGossip4Nostr;
 
@@ -36,7 +36,6 @@ public abstract class NostrNode
     public int ChunkSize;
     public HashSet<string> NostrRelays { get; private set; }
     private HashSet<string> TempRelays = new();
-    private Dictionary<string, Type> _registeredFrameTypes = new();
     private string SubscriptionId;
     private bool consumeCL;
     protected CancellationTokenSource CancellationTokenSource = new();
@@ -77,19 +76,6 @@ public abstract class NostrNode
         this.consumeCL = consumeCL;
         this.RetryPolicy = me.RetryPolicy;
         _myPingTimer.Elapsed += _myPingTimer_Elapsed;
-    }
-
-    public void RegisterFrameType<T>()
-    {
-        var t = typeof(T);
-        _registeredFrameTypes[t.Name] = t;
-    }
-
-    private Type? GetFrameType(string name)
-    {
-        if (!_registeredFrameTypes.ContainsKey(name))
-            return null;
-        return _registeredFrameTypes[name];
     }
 
     public async static Task TryConnectingToRelayAsync(Uri relay, CancellationToken cancellationToken)
@@ -236,7 +222,7 @@ public abstract class NostrNode
         }
     }
 
-    public async Task<string> SendMessageAsync<T>(string targetPublicKey, T frame, bool ephemeral, DateTime? expiration = null) where T:IProtoFrame
+    public async Task<string> SendMessageAsync(string targetPublicKey, Frame frame, bool ephemeral, DateTime? expiration = null)
     {
         using var TL = TRACE.Log().Args(targetPublicKey, frame, ephemeral, expiration);
         try
@@ -252,7 +238,6 @@ public abstract class NostrNode
                 var tags = new List<NostrEventTag> {
                     new NostrEventTag("p", targetPublicKey),
                     new NostrEventTag("x", evid),
-                    new NostrEventTag("t", frame.GetType().Name),
                     new NostrEventTag("i", idx.ToString()),
                     new NostrEventTag("n", numOfParts.ToString())
                 };
@@ -288,7 +273,7 @@ public abstract class NostrNode
         }
     }
 
-    public abstract Task OnMessageAsync(string eventId, string senderPublicKey, object frame);
+    public abstract Task OnMessageAsync(string eventId, string senderPublicKey, Frame frame);
     public virtual void OnHello(string senderPublicKeye, DateTime createdAt) { }
     public virtual void OnSettings(string eventId, string settings) { }
 
@@ -545,7 +530,7 @@ public abstract class NostrNode
                 if (tag.AdditionalData.Count() > 0)
                     tagDic[tag.TagIdentifier] = tag.AdditionalData.ToList();
             }
-            if (tagDic.ContainsKey("p") && tagDic.ContainsKey("t"))
+            if (tagDic.ContainsKey("p"))
                 if (tagDic["p"][0] == publicKey.AsHex())
                 {
                     int parti = int.Parse(tagDic["i"][0]);
@@ -554,13 +539,7 @@ public abstract class NostrNode
                     var msg = nostrEvent.DecryptContent(NostrPrivateKey.FromEc(this.privateKey));
                     if (partNum == 1)
                     {
-                        var t = GetFrameType(tagDic["t"][0]);
-                        if (t == null)
-                        {
-                            TL.Warning("Frame type not registered");
-                            return;
-                        }
-                        var frame = Crypto.BinaryDeserializeObject(Convert.FromBase64String(msg), t);
+                        var frame = Crypto.BinaryDeserializeObject<Frame>(Convert.FromBase64String(msg));
                         await this.DoOnMessageAsync(idx, nostrEvent.CreatedAt.Value, nostrEvent.Pubkey, frame);
                     }
                     else
@@ -572,19 +551,13 @@ public abstract class NostrNode
                             {
                                 _partial_messages.TryRemove(idx, out _);
                                 var txt = string.Join("", new SortedDictionary<int, string>(inner_dic).Values);
-                                var t = GetFrameType(tagDic["t"][0]);
-                                if (t == null)
-                                {
-                                    TL.Warning("Frame type not registered");
-                                    return;
-                                }
-                                var frame = Crypto.BinaryDeserializeObject(Convert.FromBase64String(txt), t);
+                                var frame = Crypto.BinaryDeserializeObject<Frame>(Convert.FromBase64String(txt));
                                 await this.DoOnMessageAsync(idx, nostrEvent.CreatedAt.Value, nostrEvent.Pubkey, frame);
                             }
                         }
                     }
                 }
-         }
+        }
         catch (Exception ex)
         {
             TL.Exception(ex);
@@ -592,7 +565,7 @@ public abstract class NostrNode
         }
     }
 
-    private async Task DoOnMessageAsync(string eventId, DateTime createdAt, string senderPublicKey, object frame)
+    private async Task DoOnMessageAsync(string eventId, DateTime createdAt, string senderPublicKey, Frame frame)
     {
         using var TL = TRACE.Log().Args(eventId, senderPublicKey, frame);
         try

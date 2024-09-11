@@ -1,9 +1,10 @@
-﻿using CryptoToolkit;
+﻿
 using NBitcoin.Secp256k1;
 using CommandLine;
 using CommandLine.Text;
 using Spectre.Console;
 using System.Reflection;
+using GigGossip;
 
 namespace KeyPairGen;
 
@@ -23,7 +24,7 @@ class Program
     {
         var parserResult = new Parser(with => { with.IgnoreUnknownArguments = true; with.HelpWriter = null; })
             .ParseArguments<Options>(args)
-            .WithParsed(options =>
+            .WithParsed((Action<Options>)(options =>
             {
                 try
                 {
@@ -33,17 +34,17 @@ class Program
                     {
                         if(options.Mnemonic==null)
                         {
-                            mnemonic = CryptoToolkit.Crypto.GenerateMnemonic();
+                            mnemonic = GigGossip.Crypto.GenerateMnemonic();
                             AnsiConsole.WriteLine(mnemonic);
                         }
                         else
                             mnemonic = options.Mnemonic;
 
-                        privKey = CryptoToolkit.Crypto.DeriveECPrivKeyFromMnemonic(mnemonic);
+                        privKey = GigGossip.Crypto.DeriveECPrivKeyFromMnemonic(mnemonic);
                         AnsiConsole.WriteLine(privKey.AsHex());
                     }
                     else
-                        privKey = options.PrivateKey.AsECPrivKey();
+                        privKey = HexExtensions.AsECPrivKey(options.PrivateKey);
 
                     var pubKey = privKey.CreateXOnlyPubKey();
                     AnsiConsole.WriteLine(pubKey.AsHex());
@@ -55,7 +56,7 @@ class Program
                         ExceptionFormats.ShortenMethods | ExceptionFormats.ShowLinks);
                     throw;
                 }
-            });
+            }));
 
         if (parserResult.Tag == ParserResultType.NotParsed)
         {

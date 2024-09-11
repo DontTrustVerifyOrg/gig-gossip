@@ -9,7 +9,7 @@ namespace NGigGossip4Nostr;
 
 public interface IPaymentStatusUpdatesMonitorEvents
 {
-    public void OnPaymentStatusChange(string status, byte[] data);
+    public void OnPaymentStatusChange(PaymentStatus status, byte[] data);
 }
 
 public class PaymentStatusUpdatesMonitor : HubMonitor
@@ -60,7 +60,7 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
             {
                 PublicKey = this.gigGossipNode.PublicKey,
                 PaymentHash = phash,
-                PaymentStatus = "Unknown",
+                PaymentStatus =  PaymentStatus.Initiated,
                 Data = data,
             };
             gigGossipNode.nodeContext.Value.AddObject(obj);
@@ -126,7 +126,7 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
                     {
                         var payToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPayments
                                         where i.PublicKey == this.gigGossipNode.PublicKey
-                                        && i.PaymentStatus != "Succeeded" && i.PaymentStatus != "Failed"
+                                        && i.PaymentStatus !=  PaymentStatus.Succeeded && i.PaymentStatus != PaymentStatus.Failed
                                         select i).ToList();
 
                         foreach (var pay in payToMon)
@@ -134,7 +134,7 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
                             TL.Iteration(pay);
                             try
                             {
-                                var status = WalletAPIResult.Get<string>(await gigGossipNode.GetWalletClient().GetPaymentStatusAsync(await gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash, CancellationTokenSource.Token));
+                                var status = WalletAPIResult.Get<PaymentRecord>(await gigGossipNode.GetWalletClient().GetPaymentAsync(await gigGossipNode.MakeWalletAuthToken(), pay.PaymentHash, CancellationTokenSource.Token)).Status;
                                 if (status != pay.PaymentStatus)
                                 {
                                     TL.Info("OnPaymentStatusChange");
@@ -152,13 +152,12 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
 
                     await foreach (var paystateupd in this.PaymentStatusUpdatesClient.StreamAsync(await this.gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token))
                     {
-                        TL.Iteration(paystateupd);
-                        var invp = paystateupd.Split('|');
-                        var payhash = invp[0];
-                        var status = invp[1];
+                        TL.Iteration(paystateupd.PaymentHash+"|"+ paystateupd.NewStatus.ToString());
+                        var payhash = paystateupd.PaymentHash;
+                        var status = paystateupd.NewStatus;
                         var pay = (from i in gigGossipNode.nodeContext.Value.MonitoredPayments
                                 where i.PublicKey == this.gigGossipNode.PublicKey
-                                && i.PaymentStatus != "Succeeded" && i.PaymentStatus != "Failed"
+                                && i.PaymentStatus != PaymentStatus.Succeeded && i.PaymentStatus != PaymentStatus.Failed
                                 && i.PaymentHash == payhash
                                 select i).FirstOrDefault();
                         if (pay != null)

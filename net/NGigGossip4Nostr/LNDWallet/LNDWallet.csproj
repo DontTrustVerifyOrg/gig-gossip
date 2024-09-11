@@ -11,9 +11,9 @@
     <NoWarn>1701;1702;1998;8600;8601;8602;8603;8604;8618;8625</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
     <ProjectReference Include="..\LNDClient\LNDClient.csproj" />
     <ProjectReference Include="..\Tracer\TraceEx.csproj" />
+    <ProjectReference Include="..\GigGossipFrames\GigGossipFrames.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.8" />

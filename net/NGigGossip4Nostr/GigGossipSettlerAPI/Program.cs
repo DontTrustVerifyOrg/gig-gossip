@@ -1,10 +1,9 @@
-﻿using CryptoToolkit;
+﻿
 using GigGossipSettler;
 using GigGossipSettler.Exceptions;
 using GigGossipSettlerAPI;
 using GigLNDWalletAPIClient;
 using NBitcoin.Secp256k1;
-using NGigGossip4Nostr;
 using System.Text;
 using Spectre.Console;
 using Microsoft.AspNetCore.Mvc;
@@ -24,6 +23,18 @@ using Microsoft.AspNetCore.SignalR.Client;
 using NetworkToolkit;
 using GoogleApi.Entities.Maps.Directions.Request;
 using GoogleApi.Entities.Maps.Common;
+using GigGossip;
+using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Text.Json.Serialization;
+using Microsoft.Extensions.Options;
+using Microsoft.OpenApi;
+using Microsoft.OpenApi.Any;
+using Microsoft.OpenApi.Interfaces;
+using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi.Writers;
+using System.Text.Json;
+using Enum = System.Enum;
+using Type = System.Type;
 
 #pragma warning disable 1591
 
@@ -33,20 +44,21 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.EnableAnnotations();
+    c.UseAllOfToExtendReferenceSchemas();
+    c.DocumentFilter<CustomModelDocumentFilter<PreimageReveal>>();
+    c.DocumentFilter<CustomModelDocumentFilter<GigStatusKey>>();
+    c.SchemaFilter<NSwagEnumExtensionSchemaFilter>();
+    c.SchemaFilter<EnumFilter>();
 });
 builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
-
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-//TODO
 //if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -54,7 +66,7 @@ var app = builder.Build();
 }
 
 app.UseHttpsRedirection();
-//app.UseMiddleware<ErrorHandlerMiddleware>();
+app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseHsts();
 
@@ -184,41 +196,11 @@ app.MapGet("/gettoken", (string pubkey) =>
 })
 .DisableAntiforgery();
 
-app.MapGet("/grantaccessrights", (string authToken, string pubkey, string accessRights) =>
-{
-    try
-    {
-        var ar = (AccessRights)Enum.Parse(typeof(AccessRights), accessRights);
-        if((ar&AccessRights.AccessRights)==AccessRights.AccessRights)
-            Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Owner);
-        else
-            Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.AccessRights);
-        Singlethon.Settler.GrantAccessRights(pubkey, ar);
-        return new Result();
-    }
-    catch (Exception ex)
-    {
-        TraceEx.TraceException(ex);
-        return new Result(ex);
-    }
-})
-.WithName("GrantAccessRights")
-.WithSummary("Grants access rights to the subject.")
-.WithDescription("Grants access rights to the subject. Only authorised users can grant the rights.")
-.WithOpenApi(g =>
-{
-    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
-    g.Parameters[1].Description = "Public key of the subject.";
-    g.Parameters[2].Description = "Access rights to be granted.";
-    return g;
-})
-.DisableAntiforgery();
-
 app.MapGet("/deletemypersonaluserdata", (string authToken) =>
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
         Singlethon.Settler.DeletePersonalUserData(pubkey);
         return new Result();
     }
@@ -238,65 +220,12 @@ app.MapGet("/deletemypersonaluserdata", (string authToken) =>
 })
 .DisableAntiforgery();
 
-app.MapGet("/revokeaccessrights", (string authToken, string pubkey, string accessRights) =>
-{
-    try
-    {
-        var ar = (AccessRights)Enum.Parse(typeof(AccessRights), accessRights);
-        if((ar&AccessRights.AccessRights)==AccessRights.AccessRights)
-            Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Owner);
-        else
-            Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.AccessRights);
-        Singlethon.Settler.RevokeAccessRights(pubkey, ar);
-        return new Result();
-    }
-    catch (Exception ex)
-    {
-        TraceEx.TraceException(ex);
-        return new Result(ex);
-    }
-})
-.WithName("RevokeAccessRights")
-.WithSummary("Revokes access rights from the subject.")
-.WithDescription("Revokes access rights from the subject. Only authorised users can revoke the rights.")
-.WithOpenApi(g =>
-{
-    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
-    g.Parameters[1].Description = "Public key of the subject.";
-    g.Parameters[2].Description = "Access rights to be revoked.";
-    return g;
-})
-.DisableAntiforgery();
-
-app.MapGet("/getaccessrights", (string authToken, string pubkey) =>
-{
-    try
-    {
-        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.AccessRights);
-        return new Result<string>(Singlethon.Settler.GetAccessRights(pubkey).ToString());
-    }
-    catch (Exception ex)
-    {
-        TraceEx.TraceException(ex);
-        return new Result<string>(ex);
-    }
-})
-.WithName("GetAccessRights")
-.WithSummary("Gets access rights to the subject.")
-.WithDescription("Gets access rights to the subject. Only authorised users can grant the rights.")
-.WithOpenApi(g =>
-{
-    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
-    g.Parameters[1].Description = "Public key of the subject.";
-    return g;
-})
-.DisableAntiforgery();
 
 app.MapGet("/addressautocomplete", async (string authToken, string query, string country)=>
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        Singlethon.Settler.ValidateAuthToken(authToken);
 
         var request = new PlacesAutoCompleteRequest
         {
@@ -333,7 +262,7 @@ app.MapGet("/getroute", async (string authToken, double fromLat, double fromLon,
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        Singlethon.Settler.ValidateAuthToken(authToken);
 
         var request = new DirectionsRequest
         {
@@ -386,7 +315,7 @@ app.MapGet("/addressgeocode", async (string authToken, string address, string co
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        Singlethon.Settler.ValidateAuthToken(authToken);
 
         var response = await GoogleMaps.Geocode.AddressGeocode.QueryAsync(new GoogleApi.Entities.Maps.Geocoding.Address.Request.AddressGeocodeRequest() {
             Key = settlerSettings.GoogleMapsAPIKey,
@@ -422,7 +351,7 @@ app.MapGet("/locationgeocode", async (string authToken, double lat, double lon) 
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        Singlethon.Settler.ValidateAuthToken(authToken);
 
         var response = await GoogleMaps.Geocode.LocationGeocode.QueryAsync(new  GoogleApi.Entities.Maps.Geocoding.Location.Request.LocationGeocodeRequest()
         {
@@ -457,7 +386,7 @@ app.MapGet("/issuenewaccesscode", async (string authToken, int length, bool sing
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.AccessCodes);
+        Singlethon.Settler.ValidateAuthToken(authToken, true);
         var code = Singlethon.Settler.IssueNewAccessCode(length, singleUse, validTillMin, Memo);
         return new Result<string>(code);
     }
@@ -485,7 +414,7 @@ app.MapGet("/validateaccesscode", async (string authToken, string code) =>
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Anonymous);
+        Singlethon.Settler.ValidateAuthToken(authToken);
         if(code=="ABCD")
             return new Result<bool>(true);
         return new Result<bool>(Singlethon.Settler.ValidateAccessCode(code));
@@ -511,7 +440,7 @@ app.MapGet("/revokeaccesscode", async (string authToken, string code) =>
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.AccessCodes);
+        Singlethon.Settler.ValidateAuthToken(authToken, true);
         Singlethon.Settler.RevokeAccessCode(code);
         return new Result();
     }
@@ -536,7 +465,7 @@ app.MapGet("/getmemofromaccesscode", async (string authToken, string code) =>
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.AccessCodes);
+        Singlethon.Settler.ValidateAuthToken(authToken, true);
         if(code=="ABCD")
             return new Result<string>("general access code");
         return new Result<string>(Singlethon.Settler.GetMemoFromAccessCode(code));
@@ -562,7 +491,7 @@ app.MapGet("/giveuserproperty", (string authToken, string pubkey, string name, s
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        Singlethon.Settler.ValidateAuthToken(authToken);
         Singlethon.Settler.GiveUserProperty(pubkey, name, Convert.FromBase64String(value), Convert.FromBase64String(secret), DateTime.Now.AddHours(validHours));
         return new Result();
     }
@@ -591,7 +520,7 @@ app.MapGet("/getmypropertyvalue", (string authToken, string name) =>
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Anonymous);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
         var prop = Singlethon.Settler.GetUserProperty(pubkey, name);
         if(prop!=null)
             return new Result<string>(Convert.ToBase64String(prop.Value));
@@ -619,7 +548,7 @@ app.MapGet("/getmypropertysecret", (string authToken, string name) =>
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Anonymous);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
         var prop = Singlethon.Settler.GetUserProperty(pubkey, name);
         if(prop!=null)
             return new Result<string>(Convert.ToBase64String(prop.Secret));
@@ -648,7 +577,7 @@ app.MapPost("/giveuserfile", async ([FromForm] string authToken, [FromForm] stri
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken.ToString(), AccessRights.Valid);
+        Singlethon.Settler.ValidateAuthToken(authToken.ToString());
         Singlethon.Settler.GiveUserProperty(pubkey, name, await value.ToBytes(), await secret.ToBytes(), DateTime.Now.AddHours(validHours));
         return new Result();
     }
@@ -667,7 +596,7 @@ app.MapGet("/revokeuserproperty", (string authToken, string pubkey, string name)
 {
     try
     { 
-        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Screening);
+        Singlethon.Settler.ValidateAuthToken(authToken, true);
         Singlethon.Settler.RevokeUserProperty(pubkey, name);
         return new Result();
     }
@@ -692,7 +621,7 @@ app.MapGet("/saveusertraceproperty", (string authToken, string pubkey, string na
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        Singlethon.Settler.ValidateAuthToken(authToken);
         Singlethon.Settler.SaveUserTraceProperty(pubkey, name, Convert.FromBase64String(value));
         return new Result();
     }
@@ -719,7 +648,7 @@ app.MapGet("/verifychannel", async (string authToken, string pubkey, string name
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Anonymous);
+        Singlethon.Settler.ValidateAuthToken(authToken);
         if (name.ToLower() == "phonenumber" && method.ToLower() == "sms")
         {
             var creds = settlerSettings.SMSGlobalAPIKeySecret.Split(":");
@@ -763,7 +692,7 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken,AccessRights.Anonymous);
+        Singlethon.Settler.ValidateAuthToken(authToken);
         if (name.ToLower() == "phonenumber" && method.ToLower() == "sms")
         {
             var key = new ChannelKey { PubKey = pubkey, Channel = value };
@@ -775,7 +704,6 @@ app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name
                 {
                     if ((secret == "000000") || (code.Code == secret))
                     {
-                        Singlethon.Settler.GrantAccessRights(pubkey, AccessRights.Valid);
                         Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes("valid"), Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
                         Singlethon.channelSmsCodes.TryRemove(key, out _);
                         return new Result<int>(-1);
@@ -821,7 +749,7 @@ app.MapGet("/ischannelverified", (string authToken, string pubkey, string name, 
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken,AccessRights.Anonymous);
+        Singlethon.Settler.ValidateAuthToken(authToken);
         if (name.ToLower() == "phonenumber")
         {
             var prop = Singlethon.Settler.GetUserProperty(pubkey, name);
@@ -860,7 +788,7 @@ app.MapGet("/generatereplypaymentpreimage", (string authToken, Guid gigId, strin
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
         return new Result<string>(Singlethon.Settler.GenerateReplyPaymentPreimage(pubkey, gigId, repliperPubKey));
     }
     catch (Exception ex)
@@ -885,7 +813,7 @@ app.MapGet("/generaterelatedpreimage", (string authToken, string paymentHash) =>
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
         return new Result<string>(Singlethon.Settler.GenerateRelatedPreimage(pubkey, paymentHash));
     }
     catch (Exception ex)
@@ -909,7 +837,7 @@ app.MapGet("/validaterelatedpaymenthashes", (string authToken, string paymentHas
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
         return new Result<bool>(Singlethon.Settler.ValidateRelatedPaymentHashes(paymentHash1, paymentHash2));
     }
     catch (Exception ex)
@@ -935,7 +863,7 @@ app.MapGet("/revealsymmetrickey", (string authToken, Guid gigId, Guid replierId)
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
         return new Result<string>(Singlethon.Settler.RevealSymmetricKey(pubkey, gigId, replierId));
     }
     catch (Exception ex)
@@ -961,7 +889,7 @@ app.MapGet("/revealpreimage", (string authToken, string paymentHash) =>
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
         return new Result<string>(Singlethon.Settler.RevealPreimage(pubkey, paymentHash));
     }
     catch (Exception ex)
@@ -985,13 +913,13 @@ app.MapGet("/getgigstatus", (string authToken, Guid signedRequestPayloadId,Guid 
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
-        return new Result<string>(Singlethon.Settler.GetGigStatus(signedRequestPayloadId, repliperCertificateId));
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        return new Result<GigStatusKey>(Singlethon.Settler.GetGigStatus(signedRequestPayloadId, repliperCertificateId));
     }
     catch (Exception ex)
     {
         TraceEx.TraceException(ex);
-        return new Result<string>(ex);
+        return new Result<GigStatusKey>(ex);
     }
 })
 .WithName("GetGigStatus")
@@ -1010,8 +938,9 @@ app.MapPost("/generaterequestpayload", async ([FromForm] string authToken, [From
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
-        var st = Singlethon.Settler.GenerateRequestPayload(pubkey, properties.Split(","), await serialisedTopic.ToBytes());
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        var rideShareTopic = Crypto.BinaryDeserializeObject<RideShareTopic>(await serialisedTopic.ToBytes());
+        var st = Singlethon.Settler.GenerateRequestPayload(pubkey, properties.Split(","), rideShareTopic);
         return new Result<string>(Convert.ToBase64String(Crypto.BinarySerializeObject(st)));
     }
     catch (Exception ex)
@@ -1030,9 +959,10 @@ app.MapPost("/generatesettlementtrust", async ([FromForm] string authToken, [Fro
 {
     try
     {
-        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
-        var signedRequestPayload = Crypto.BinaryDeserializeObject<Certificate<RequestPayloadValue>>(await signedRequestPayloadSerialized.ToBytes());
-        var st = await Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, properties.Split(","), await message.ToBytes(), replyinvoice, signedRequestPayload);
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        var signedRequestPayload = Crypto.BinaryDeserializeObject<JobRequest>(await signedRequestPayloadSerialized.ToBytes());
+        var reply = Crypto.BinaryDeserializeObject<Reply>(await message.ToBytes());
+        var st = await Singlethon.Settler.GenerateSettlementTrustAsync(pubkey, properties.Split(","), reply, replyinvoice, signedRequestPayload);
         return new Result<string>(Convert.ToBase64String(Crypto.BinarySerializeObject(st)));
     }
     catch (Exception ex)
@@ -1046,15 +976,14 @@ app.MapPost("/generatesettlementtrust", async ([FromForm] string authToken, [Fro
 .WithDescription("Genertes Settlement Trust used by the gig-worker to estabilish trusted primise with the custmer.")
 .DisableAntiforgery();
 
-app.MapPost("/encryptobjectforcertificateid", async ([FromForm] Guid certificateId, IFormFile objectSerialized) =>
+app.MapPost("/encryptjobreplyforcertificateid", async ([FromForm] Guid certificateId, IFormFile objectSerialized) =>
 {
     try
     {
         var pubkey = Singlethon.Settler.GetPubkeyFromCertificateId(certificateId);
 
-        if(!Singlethon.Settler.HasAccessRights(pubkey, AccessRights.Valid))
-            throw new AccessDeniedException();
-        byte[] encryptedReplyPayload = Singlethon.Settler.EncryptObjectForPubkey(pubkey, await objectSerialized.ToBytes());
+        var jobReply = Crypto.BinaryDeserializeObject<JobReply>(await objectSerialized.ToBytes());
+        byte[] encryptedReplyPayload = Singlethon.Settler.EncryptJobReplyForPubkey(pubkey, jobReply).Value.ToArray();
         return new Result<string>(Convert.ToBase64String(encryptedReplyPayload));
     }
     catch (Exception ex)
@@ -1063,7 +992,7 @@ app.MapPost("/encryptobjectforcertificateid", async ([FromForm] Guid certificate
         return new Result<string>(ex);
     }
 })
-.WithName("EncryptObjectForCertificateId")
+.WithName("EncryptJobReplyForCertificateId")
 .WithSummary("Encrypts the object using public key related to the specific certioficate id.")
 .WithDescription("Encrypts the object using public key related to the specific certioficate id.")
 .DisableAntiforgery();
@@ -1072,7 +1001,7 @@ app.MapGet("/managedispute", async (string authToken, Guid gigId, Guid repliperC
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken, open?AccessRights.Valid : AccessRights.Disputes);
+        Singlethon.Settler.ValidateAuthToken(authToken, open?false : true);
         await Singlethon.Settler.ManageDisputeAsync(gigId, repliperCertificateId, open);
         return new Result();
     }
@@ -1099,7 +1028,7 @@ app.MapGet("/cancelgig", async (string authToken, Guid gigId, Guid repliperCerti
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken, AccessRights.Valid);
+        Singlethon.Settler.ValidateAuthToken(authToken);
         await Singlethon.Settler.CancelGigAsync(gigId, repliperCertificateId);
         return new Result();
     }
@@ -1223,5 +1152,164 @@ public sealed class DefaultRetryPolicy : IRetryPolicy
             return null;
 
         return this.backoffTimes[context.PreviousRetryCount];
+    }
+}
+
+
+public class CustomModelDocumentFilter<T> : IDocumentFilter where T : class
+{
+    public void Apply(OpenApiDocument openapiDoc, DocumentFilterContext context)
+    {
+        context.SchemaGenerator.GenerateSchema(typeof(T), context.SchemaRepository);
+    }
+}
+
+/// <summary>
+/// Add enum value descriptions to Swagger
+/// https://stackoverflow.com/a/49941775/1910735
+/// </summary>
+public class EnumDocumentFilter : IDocumentFilter
+{
+    /// <inheritdoc />
+    public void Apply(OpenApiDocument swaggerDoc, DocumentFilterContext context)
+    {
+        foreach (KeyValuePair<string, OpenApiPathItem> schemaDictionaryItem in swaggerDoc.Paths)
+        {
+            OpenApiPathItem schema = schemaDictionaryItem.Value;
+            foreach (OpenApiParameter property in schema.Parameters)
+            {
+                IList<IOpenApiAny> propertyEnums = property.Schema.Enum;
+                if (propertyEnums.Count > 0)
+                    property.Description += DescribeEnum(propertyEnums);
+            }
+        }
+
+        if (swaggerDoc.Paths.Count == 0)
+            return;
+
+        // add enum descriptions to input parameters
+        foreach (OpenApiPathItem pathItem in swaggerDoc.Paths.Values)
+        {
+            DescribeEnumParameters(pathItem.Parameters);
+
+            foreach (KeyValuePair<OperationType, OpenApiOperation> operation in pathItem.Operations)
+                DescribeEnumParameters(operation.Value.Parameters);
+        }
+    }
+
+    private static void DescribeEnumParameters(IList<OpenApiParameter> parameters)
+    {
+        if (parameters == null)
+            return;
+
+        foreach (OpenApiParameter param in parameters)
+        {
+            if (param.Schema.Enum?.Any() == true)
+            {
+                param.Description += DescribeEnum(param.Schema.Enum);
+            }
+            else if (param.Extensions.ContainsKey("enum") &&
+                     param.Extensions["enum"] is IList<object> paramEnums &&
+                     paramEnums.Count > 0)
+            {
+                param.Description += DescribeEnum(paramEnums);
+            }
+        }
+    }
+
+    private static string DescribeEnum(IEnumerable<object> enums)
+    {
+        List<string> enumDescriptions = new();
+        Type? type = null;
+        foreach (object enumOption in enums)
+        {
+            if (type == null)
+                type = enumOption.GetType();
+
+            enumDescriptions.Add($"{Convert.ChangeType(enumOption, type.GetEnumUnderlyingType())} = {Enum.GetName(type, enumOption)}");
+        }
+
+        return Environment.NewLine + string.Join(Environment.NewLine, enumDescriptions);
+    }
+}
+
+//https://stackoverflow.com/a/60276722/4390133
+public class EnumFilter : ISchemaFilter
+{
+    public void Apply(OpenApiSchema schema, SchemaFilterContext context)
+    {
+        if (schema is null)
+            throw new ArgumentNullException(nameof(schema));
+
+        if (context is null)
+            throw new ArgumentNullException(nameof(context));
+
+        if (context.Type.IsEnum is false)
+            return;
+
+        schema.Extensions.Add("x-ms-enum", new EnumFilterOpenApiExtension(context));
+    }
+}
+
+public class EnumFilterOpenApiExtension : IOpenApiExtension
+{
+    private readonly SchemaFilterContext _context;
+    public EnumFilterOpenApiExtension(SchemaFilterContext context)
+    {
+        _context = context;
+    }
+
+    public void Write(IOpenApiWriter writer, OpenApiSpecVersion specVersion)
+    {
+        JsonSerializerOptions options = new() { WriteIndented = true };
+
+        var obj = new
+        {
+            name = _context.Type.Name,
+            modelAsString = false,
+            values = _context.Type
+                            .GetEnumValues()
+                            .Cast<object>()
+                            .Distinct()
+                            .Select(value => new { value, name = value.ToString() })
+                            .ToArray()
+        };
+        writer.WriteRaw(JsonSerializer.Serialize(obj, options));
+    }
+}
+
+/// <summary>
+/// Adds extra schema details for an enum in the swagger.json i.e. x-enumNames (used by NSwag to generate Enums for C# client)
+/// https://github.com/RicoSuter/NSwag/issues/1234
+/// </summary>
+public class NSwagEnumExtensionSchemaFilter : ISchemaFilter
+{
+    public void Apply(OpenApiSchema schema, SchemaFilterContext context)
+    {
+        if (schema is null)
+            throw new ArgumentNullException(nameof(schema));
+
+        if (context is null)
+            throw new ArgumentNullException(nameof(context));
+
+        if (context.Type.IsEnum)
+            schema.Extensions.Add("x-enumNames", new NSwagEnumOpenApiExtension(context));
+    }
+}
+
+public class NSwagEnumOpenApiExtension : IOpenApiExtension
+{
+    private readonly SchemaFilterContext _context;
+    public NSwagEnumOpenApiExtension(SchemaFilterContext context)
+    {
+        _context = context;
+    }
+
+    public void Write(IOpenApiWriter writer, OpenApiSpecVersion specVersion)
+    {
+        string[] enums = Enum.GetNames(_context.Type);
+        JsonSerializerOptions options = new() { WriteIndented = true };
+        string value = JsonSerializer.Serialize(enums, options);
+        writer.WriteRaw(value);
     }
 }

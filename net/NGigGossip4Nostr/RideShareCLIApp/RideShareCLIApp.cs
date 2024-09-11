@@ -11,8 +11,8 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Timers;
-using CryptoToolkit;
-using GigGossipFrames;
+
+using GigGossip;
 using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -26,8 +26,6 @@ using NBitcoin.RPC;
 using NBitcoin.Secp256k1;
 using NGeoHash;
 using NGigGossip4Nostr;
-using ProtoBuf.Serializers;
-using RideShareFrames;
 using Sharprompt;
 using Spectre;
 using Spectre.Console;
@@ -260,7 +258,6 @@ public partial class RideShareCLIApp
             AnsiConsole.WriteLine("privkey:" + privateKey.AsHex());
             AnsiConsole.WriteLine("pubkey :" + gigGossipNode.PublicKey);
 
-            gigGossipNode.RegisterFrameType<LocationFrame>();
             gigGossipNode.OnDirectMessage += DirectCom_OnDirectMessage;
             directTimer = new System.Timers.Timer(1000);
             directTimer.Elapsed += DirectTimer_Elapsed;
@@ -368,7 +365,7 @@ public partial class RideShareCLIApp
                                 {
                                     var keys = new List<string>(MockData.FakeAddresses.Keys);
                                     var myAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
-                                    var myStartLocation = new GeoLocation(MockData.FakeAddresses[myAddress].Latitude, MockData.FakeAddresses[myAddress].Longitude);
+                                    var myStartLocation = new GeoLocation { Latitude = MockData.FakeAddresses[myAddress].Latitude, Longitude = MockData.FakeAddresses[myAddress].Longitude };
 
                                     await AcceptRideAsync(me.SelectedRowIdx, myStartLocation,"Hello from Driver!");
                                     me.UpdateCell(me.SelectedRowIdx, 0, "sent");
@@ -428,8 +425,8 @@ public partial class RideShareCLIApp
                                 break;
                         }
                         
-                        fromLocation = new GeoLocation(MockData.FakeAddresses[fromAddress].Latitude, MockData.FakeAddresses[fromAddress].Longitude);
-                        toLocation = new GeoLocation(MockData.FakeAddresses[toAddress].Latitude, MockData.FakeAddresses[toAddress].Longitude);
+                        fromLocation = new GeoLocation { Latitude = MockData.FakeAddresses[fromAddress].Latitude, Longitude = MockData.FakeAddresses[fromAddress].Longitude };
+                        toLocation = new GeoLocation { Latitude = MockData.FakeAddresses[toAddress].Latitude, Longitude = MockData.FakeAddresses[toAddress].Longitude };
                     }
                     else
                     {
@@ -530,7 +527,7 @@ public partial class RideShareCLIApp
     {
         var r = SettlerAPIResult.Get<GeolocationRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
             .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au", CancellationTokenSource.Token));
-        return new GeoLocation(r.Lat, r.Lon);
+        return new GeoLocation { Latitude = r.Lat, Longitude = r.Lon };
     }
 
     private async Task<string> GetLocationGeocodeAsync(double lat, double lon)
@@ -541,7 +538,7 @@ public partial class RideShareCLIApp
 
     private async Task WriteBalance()
     {
-        var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token));
+        var ballanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token)).AvailableAmount;
         AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
     }
 
@@ -549,7 +546,7 @@ public partial class RideShareCLIApp
     {
         AnsiConsole.WriteLine("Network Invoice Accepted");
         var paymentResult = await e.GigGossipNode.PayInvoiceAsync(e.InvoiceData.Invoice, e.InvoiceData.PaymentHash, settings.NodeSettings.FeeLimitSat, CancellationTokenSource.Token);
-        if (paymentResult != GigLNDWalletAPIErrorCode.Ok)
+        if (paymentResult != LNDWalletErrorCode.Ok)
         {
             Console.WriteLine(paymentResult);
         }
@@ -579,7 +576,7 @@ public partial class RideShareCLIApp
             settings.NodeSettings.GigWalletOpenApi,
             settings.NodeSettings.SettlerOpenApi);
 
-        var ballanceOfCustomer = WalletAPIResult.Get<long>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token));
+        var ballanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token)).AvailableAmount;
         AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
 
         gigGossipNode.LoadContactList();
@@ -609,10 +606,10 @@ public partial class RideShareCLIApp
         else
         {
             if (requestedRide != null)
-                if (directPubkeys.ContainsKey(requestedRide.SignedRequestPayload.Id))
+                if (directPubkeys.ContainsKey(requestedRide.JobRequest.Header.JobRequestId.AsGuid()))
                 {
-                    pubkey = directPubkeys[requestedRide.SignedRequestPayload.Id];
-                    requestPayloadId = requestedRide.SignedRequestPayload.Id;
+                    pubkey = directPubkeys[requestedRide.JobRequest.Header.JobRequestId.AsGuid()];
+                    requestPayloadId = requestedRide.JobRequest.Header.JobRequestId.AsGuid();
                     lastSeen = lastDriverSeenAt;
                 }
         }
@@ -624,20 +621,17 @@ public partial class RideShareCLIApp
                 AnsiConsole.MarkupLine($"{pubkey} last seen {(DateTime.UtcNow - lastSeen).Seconds} seconds ago");
 
                 await gigGossipNode.SendMessageAsync(pubkey,
-                    myLastLocationFrame, true);
+                    new Frame { Location = myLastLocationFrame }, true);
             }
         }
     }
 
     private async void DirectCom_OnDirectMessage(object? sender, DirectMessageEventArgs e)
     {
-        if (e.Frame is LocationFrame locationFrame)
-        {
-            if (inDriverMode)
-                await OnRiderLocation(e.SenderPublicKey, locationFrame);
-            else
-                await OnDriverLocation(e.SenderPublicKey, locationFrame);
-        }
+        if (inDriverMode)
+            await OnRiderLocation(e.SenderPublicKey, e.LocationFrame);
+        else
+            await OnDriverLocation(e.SenderPublicKey, e.LocationFrame);
     }
 
     async Task<bool> IsPhoneNumberValidated(string phoneNumber)

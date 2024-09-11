@@ -94,57 +94,6 @@
         }
       }
     },
-    "/grantaccessrights": {
-      "get": {
-        "tags": [
-          "GigGossipSettlerAPI"
-        ],
-        "summary": "Grants access rights to the subject.",
-        "description": "Grants access rights to the subject. Only authorised users can grant the rights.",
-        "operationId": "GrantAccessRights",
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "query",
-            "description": "Public key of the subject.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "accessRights",
-            "in": "query",
-            "description": "Access rights to be granted.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Result"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/deletemypersonaluserdata": {
       "get": {
         "tags": [
@@ -171,99 +120,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Result"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/revokeaccessrights": {
-      "get": {
-        "tags": [
-          "GigGossipSettlerAPI"
-        ],
-        "summary": "Revokes access rights from the subject.",
-        "description": "Revokes access rights from the subject. Only authorised users can revoke the rights.",
-        "operationId": "RevokeAccessRights",
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "query",
-            "description": "Public key of the subject.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "accessRights",
-            "in": "query",
-            "description": "Access rights to be revoked.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Result"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/getaccessrights": {
-      "get": {
-        "tags": [
-          "GigGossipSettlerAPI"
-        ],
-        "summary": "Gets access rights to the subject.",
-        "description": "Gets access rights to the subject. Only authorised users can grant the rights.",
-        "operationId": "GetAccessRights",
-        "parameters": [
-          {
-            "name": "authToken",
-            "in": "query",
-            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pubkey",
-            "in": "query",
-            "description": "Public key of the subject.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StringResult"
                 }
               }
             }
@@ -1542,7 +1398,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StringResult"
+                  "$ref": "#/components/schemas/GigStatusKeyResult"
                 }
               }
             }
@@ -1683,14 +1539,14 @@
         }
       }
     },
-    "/encryptobjectforcertificateid": {
+    "/encryptjobreplyforcertificateid": {
       "post": {
         "tags": [
           "GigGossipSettlerAPI"
         ],
         "summary": "Encrypts the object using public key related to the specific certioficate id.",
         "description": "Encrypts the object using public key related to the specific certioficate id.",
-        "operationId": "EncryptObjectForCertificateId",
+        "operationId": "EncryptJobReplyForCertificateId",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -1861,7 +1717,64 @@
             "type": "boolean"
           },
           "errorCode": {
-            "$ref": "#/components/schemas/SettlerErrorCode"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SettlerErrorCode"
+              }
+            ],
+            "x-enumNames": [
+              "Ok",
+              "InvalidToken",
+              "PropertyNotGranted",
+              "UnknownCertificate",
+              "UnknownPreimage",
+              "OperationFailed",
+              "AccessDenied",
+              "NotFound",
+              "InvoiceProblem"
+            ],
+            "x-ms-enum": {
+              "name": "SettlerErrorCode",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Ok"
+                },
+                {
+                  "value": 1,
+                  "name": "InvalidToken"
+                },
+                {
+                  "value": 2,
+                  "name": "PropertyNotGranted"
+                },
+                {
+                  "value": 3,
+                  "name": "UnknownCertificate"
+                },
+                {
+                  "value": 4,
+                  "name": "UnknownPreimage"
+                },
+                {
+                  "value": 5,
+                  "name": "OperationFailed"
+                },
+                {
+                  "value": 6,
+                  "name": "AccessDenied"
+                },
+                {
+                  "value": 7,
+                  "name": "NotFound"
+                },
+                {
+                  "value": 8,
+                  "name": "InvoiceProblem"
+                }
+              ]
+            }
           },
           "errorMessage": {
             "type": "string",
@@ -1888,10 +1801,257 @@
         "type": "object",
         "properties": {
           "value": {
-            "$ref": "#/components/schemas/GeolocationRet"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GeolocationRet"
+              }
+            ]
           },
           "errorCode": {
-            "$ref": "#/components/schemas/SettlerErrorCode"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SettlerErrorCode"
+              }
+            ],
+            "x-enumNames": [
+              "Ok",
+              "InvalidToken",
+              "PropertyNotGranted",
+              "UnknownCertificate",
+              "UnknownPreimage",
+              "OperationFailed",
+              "AccessDenied",
+              "NotFound",
+              "InvoiceProblem"
+            ],
+            "x-ms-enum": {
+              "name": "SettlerErrorCode",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Ok"
+                },
+                {
+                  "value": 1,
+                  "name": "InvalidToken"
+                },
+                {
+                  "value": 2,
+                  "name": "PropertyNotGranted"
+                },
+                {
+                  "value": 3,
+                  "name": "UnknownCertificate"
+                },
+                {
+                  "value": 4,
+                  "name": "UnknownPreimage"
+                },
+                {
+                  "value": 5,
+                  "name": "OperationFailed"
+                },
+                {
+                  "value": 6,
+                  "name": "AccessDenied"
+                },
+                {
+                  "value": 7,
+                  "name": "NotFound"
+                },
+                {
+                  "value": 8,
+                  "name": "InvoiceProblem"
+                }
+              ]
+            }
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GigStatus": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enumNames": [
+          "Open",
+          "Accepted",
+          "Cancelled",
+          "Disuputed",
+          "Completed"
+        ],
+        "x-ms-enum": {
+          "name": "GigStatus",
+          "modelAsString": false,
+          "values": [
+            {
+              "value": 0,
+              "name": "Open"
+            },
+            {
+              "value": 1,
+              "name": "Accepted"
+            },
+            {
+              "value": 2,
+              "name": "Cancelled"
+            },
+            {
+              "value": 3,
+              "name": "Disuputed"
+            },
+            {
+              "value": 4,
+              "name": "Completed"
+            }
+          ]
+        }
+      },
+      "GigStatusKey": {
+        "required": [
+          "jobReplyId",
+          "jobRequestId",
+          "status",
+          "symmetricKey"
+        ],
+        "type": "object",
+        "properties": {
+          "jobRequestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "jobReplyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GigStatus"
+              }
+            ],
+            "x-enumNames": [
+              "Open",
+              "Accepted",
+              "Cancelled",
+              "Disuputed",
+              "Completed"
+            ],
+            "x-ms-enum": {
+              "name": "GigStatus",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Open"
+                },
+                {
+                  "value": 1,
+                  "name": "Accepted"
+                },
+                {
+                  "value": 2,
+                  "name": "Cancelled"
+                },
+                {
+                  "value": 3,
+                  "name": "Disuputed"
+                },
+                {
+                  "value": 4,
+                  "name": "Completed"
+                }
+              ]
+            }
+          },
+          "symmetricKey": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GigStatusKeyResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GigStatusKey"
+              }
+            ],
+            "nullable": true
+          },
+          "errorCode": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SettlerErrorCode"
+              }
+            ],
+            "x-enumNames": [
+              "Ok",
+              "InvalidToken",
+              "PropertyNotGranted",
+              "UnknownCertificate",
+              "UnknownPreimage",
+              "OperationFailed",
+              "AccessDenied",
+              "NotFound",
+              "InvoiceProblem"
+            ],
+            "x-ms-enum": {
+              "name": "SettlerErrorCode",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Ok"
+                },
+                {
+                  "value": 1,
+                  "name": "InvalidToken"
+                },
+                {
+                  "value": 2,
+                  "name": "PropertyNotGranted"
+                },
+                {
+                  "value": 3,
+                  "name": "UnknownCertificate"
+                },
+                {
+                  "value": 4,
+                  "name": "UnknownPreimage"
+                },
+                {
+                  "value": 5,
+                  "name": "OperationFailed"
+                },
+                {
+                  "value": 6,
+                  "name": "AccessDenied"
+                },
+                {
+                  "value": 7,
+                  "name": "NotFound"
+                },
+                {
+                  "value": 8,
+                  "name": "InvoiceProblem"
+                }
+              ]
+            }
           },
           "errorMessage": {
             "type": "string",
@@ -1908,7 +2068,64 @@
             "format": "uuid"
           },
           "errorCode": {
-            "$ref": "#/components/schemas/SettlerErrorCode"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SettlerErrorCode"
+              }
+            ],
+            "x-enumNames": [
+              "Ok",
+              "InvalidToken",
+              "PropertyNotGranted",
+              "UnknownCertificate",
+              "UnknownPreimage",
+              "OperationFailed",
+              "AccessDenied",
+              "NotFound",
+              "InvoiceProblem"
+            ],
+            "x-ms-enum": {
+              "name": "SettlerErrorCode",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Ok"
+                },
+                {
+                  "value": 1,
+                  "name": "InvalidToken"
+                },
+                {
+                  "value": 2,
+                  "name": "PropertyNotGranted"
+                },
+                {
+                  "value": 3,
+                  "name": "UnknownCertificate"
+                },
+                {
+                  "value": 4,
+                  "name": "UnknownPreimage"
+                },
+                {
+                  "value": 5,
+                  "name": "OperationFailed"
+                },
+                {
+                  "value": 6,
+                  "name": "AccessDenied"
+                },
+                {
+                  "value": 7,
+                  "name": "NotFound"
+                },
+                {
+                  "value": 8,
+                  "name": "InvoiceProblem"
+                }
+              ]
+            }
           },
           "errorMessage": {
             "type": "string",
@@ -1925,9 +2142,84 @@
             "format": "int32"
           },
           "errorCode": {
-            "$ref": "#/components/schemas/SettlerErrorCode"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SettlerErrorCode"
+              }
+            ],
+            "x-enumNames": [
+              "Ok",
+              "InvalidToken",
+              "PropertyNotGranted",
+              "UnknownCertificate",
+              "UnknownPreimage",
+              "OperationFailed",
+              "AccessDenied",
+              "NotFound",
+              "InvoiceProblem"
+            ],
+            "x-ms-enum": {
+              "name": "SettlerErrorCode",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Ok"
+                },
+                {
+                  "value": 1,
+                  "name": "InvalidToken"
+                },
+                {
+                  "value": 2,
+                  "name": "PropertyNotGranted"
+                },
+                {
+                  "value": 3,
+                  "name": "UnknownCertificate"
+                },
+                {
+                  "value": 4,
+                  "name": "UnknownPreimage"
+                },
+                {
+                  "value": 5,
+                  "name": "OperationFailed"
+                },
+                {
+                  "value": 6,
+                  "name": "AccessDenied"
+                },
+                {
+                  "value": 7,
+                  "name": "NotFound"
+                },
+                {
+                  "value": 8,
+                  "name": "InvoiceProblem"
+                }
+              ]
+            }
           },
           "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PreimageReveal": {
+        "required": [
+          "paymentHash",
+          "preimage"
+        ],
+        "type": "object",
+        "properties": {
+          "paymentHash": {
+            "type": "string",
+            "nullable": true
+          },
+          "preimage": {
             "type": "string",
             "nullable": true
           }
@@ -1938,7 +2230,64 @@
         "type": "object",
         "properties": {
           "errorCode": {
-            "$ref": "#/components/schemas/SettlerErrorCode"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SettlerErrorCode"
+              }
+            ],
+            "x-enumNames": [
+              "Ok",
+              "InvalidToken",
+              "PropertyNotGranted",
+              "UnknownCertificate",
+              "UnknownPreimage",
+              "OperationFailed",
+              "AccessDenied",
+              "NotFound",
+              "InvoiceProblem"
+            ],
+            "x-ms-enum": {
+              "name": "SettlerErrorCode",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Ok"
+                },
+                {
+                  "value": 1,
+                  "name": "InvalidToken"
+                },
+                {
+                  "value": 2,
+                  "name": "PropertyNotGranted"
+                },
+                {
+                  "value": 3,
+                  "name": "UnknownCertificate"
+                },
+                {
+                  "value": 4,
+                  "name": "UnknownPreimage"
+                },
+                {
+                  "value": 5,
+                  "name": "OperationFailed"
+                },
+                {
+                  "value": 6,
+                  "name": "AccessDenied"
+                },
+                {
+                  "value": 7,
+                  "name": "NotFound"
+                },
+                {
+                  "value": 8,
+                  "name": "InvoiceProblem"
+                }
+              ]
+            }
           },
           "errorMessage": {
             "type": "string",
@@ -1972,10 +2321,71 @@
         "type": "object",
         "properties": {
           "value": {
-            "$ref": "#/components/schemas/RouteRet"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RouteRet"
+              }
+            ]
           },
           "errorCode": {
-            "$ref": "#/components/schemas/SettlerErrorCode"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SettlerErrorCode"
+              }
+            ],
+            "x-enumNames": [
+              "Ok",
+              "InvalidToken",
+              "PropertyNotGranted",
+              "UnknownCertificate",
+              "UnknownPreimage",
+              "OperationFailed",
+              "AccessDenied",
+              "NotFound",
+              "InvoiceProblem"
+            ],
+            "x-ms-enum": {
+              "name": "SettlerErrorCode",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Ok"
+                },
+                {
+                  "value": 1,
+                  "name": "InvalidToken"
+                },
+                {
+                  "value": 2,
+                  "name": "PropertyNotGranted"
+                },
+                {
+                  "value": 3,
+                  "name": "UnknownCertificate"
+                },
+                {
+                  "value": 4,
+                  "name": "UnknownPreimage"
+                },
+                {
+                  "value": 5,
+                  "name": "OperationFailed"
+                },
+                {
+                  "value": 6,
+                  "name": "AccessDenied"
+                },
+                {
+                  "value": 7,
+                  "name": "NotFound"
+                },
+                {
+                  "value": 8,
+                  "name": "InvoiceProblem"
+                }
+              ]
+            }
           },
           "errorMessage": {
             "type": "string",
@@ -1993,10 +2403,64 @@
           4,
           5,
           6,
-          7
+          7,
+          8
         ],
         "type": "integer",
-        "format": "int32"
+        "format": "int32",
+        "x-enumNames": [
+          "Ok",
+          "InvalidToken",
+          "PropertyNotGranted",
+          "UnknownCertificate",
+          "UnknownPreimage",
+          "OperationFailed",
+          "AccessDenied",
+          "NotFound",
+          "InvoiceProblem"
+        ],
+        "x-ms-enum": {
+          "name": "SettlerErrorCode",
+          "modelAsString": false,
+          "values": [
+            {
+              "value": 0,
+              "name": "Ok"
+            },
+            {
+              "value": 1,
+              "name": "InvalidToken"
+            },
+            {
+              "value": 2,
+              "name": "PropertyNotGranted"
+            },
+            {
+              "value": 3,
+              "name": "UnknownCertificate"
+            },
+            {
+              "value": 4,
+              "name": "UnknownPreimage"
+            },
+            {
+              "value": 5,
+              "name": "OperationFailed"
+            },
+            {
+              "value": 6,
+              "name": "AccessDenied"
+            },
+            {
+              "value": 7,
+              "name": "NotFound"
+            },
+            {
+              "value": 8,
+              "name": "InvoiceProblem"
+            }
+          ]
+        }
       },
       "StringArrayResult": {
         "type": "object",
@@ -2009,7 +2473,64 @@
             "nullable": true
           },
           "errorCode": {
-            "$ref": "#/components/schemas/SettlerErrorCode"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SettlerErrorCode"
+              }
+            ],
+            "x-enumNames": [
+              "Ok",
+              "InvalidToken",
+              "PropertyNotGranted",
+              "UnknownCertificate",
+              "UnknownPreimage",
+              "OperationFailed",
+              "AccessDenied",
+              "NotFound",
+              "InvoiceProblem"
+            ],
+            "x-ms-enum": {
+              "name": "SettlerErrorCode",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Ok"
+                },
+                {
+                  "value": 1,
+                  "name": "InvalidToken"
+                },
+                {
+                  "value": 2,
+                  "name": "PropertyNotGranted"
+                },
+                {
+                  "value": 3,
+                  "name": "UnknownCertificate"
+                },
+                {
+                  "value": 4,
+                  "name": "UnknownPreimage"
+                },
+                {
+                  "value": 5,
+                  "name": "OperationFailed"
+                },
+                {
+                  "value": 6,
+                  "name": "AccessDenied"
+                },
+                {
+                  "value": 7,
+                  "name": "NotFound"
+                },
+                {
+                  "value": 8,
+                  "name": "InvoiceProblem"
+                }
+              ]
+            }
           },
           "errorMessage": {
             "type": "string",
@@ -2026,7 +2547,64 @@
             "nullable": true
           },
           "errorCode": {
-            "$ref": "#/components/schemas/SettlerErrorCode"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SettlerErrorCode"
+              }
+            ],
+            "x-enumNames": [
+              "Ok",
+              "InvalidToken",
+              "PropertyNotGranted",
+              "UnknownCertificate",
+              "UnknownPreimage",
+              "OperationFailed",
+              "AccessDenied",
+              "NotFound",
+              "InvoiceProblem"
+            ],
+            "x-ms-enum": {
+              "name": "SettlerErrorCode",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Ok"
+                },
+                {
+                  "value": 1,
+                  "name": "InvalidToken"
+                },
+                {
+                  "value": 2,
+                  "name": "PropertyNotGranted"
+                },
+                {
+                  "value": 3,
+                  "name": "UnknownCertificate"
+                },
+                {
+                  "value": 4,
+                  "name": "UnknownPreimage"
+                },
+                {
+                  "value": 5,
+                  "name": "OperationFailed"
+                },
+                {
+                  "value": 6,
+                  "name": "AccessDenied"
+                },
+                {
+                  "value": 7,
+                  "name": "NotFound"
+                },
+                {
+                  "value": 8,
+                  "name": "InvoiceProblem"
+                }
+              ]
+            }
           },
           "errorMessage": {
             "type": "string",

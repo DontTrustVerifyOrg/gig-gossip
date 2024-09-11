@@ -5,10 +5,10 @@ namespace GigGossipSettler.Exceptions
 {
 	public class InvoiceProblemException : SettlerException
     {
-        GigLNDWalletAPIErrorCode gigLNDWalletAPIErrorCode;
-        public InvoiceProblemException(GigLNDWalletAPIErrorCode gigLNDWalletAPIErrorCode) : base(SettlerErrorCode.InvoiceProblem)
+        LNDWalletErrorCode LNDWalletErrorCode;
+        public InvoiceProblemException(LNDWalletErrorCode LNDWalletErrorCode) : base(SettlerErrorCode.InvoiceProblem)
         {
-            this.gigLNDWalletAPIErrorCode = gigLNDWalletAPIErrorCode;
+            this.LNDWalletErrorCode = LNDWalletErrorCode;
         }
 	}
 }

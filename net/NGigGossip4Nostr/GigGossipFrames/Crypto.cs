@@ -8,112 +8,15 @@ using NBitcoin.JsonConverters;
 using System.IO;
 using System.IO.Compression;
 using System.Text.Json;
-using Snappier;
-using ProtoBuf;
 using System.Runtime.ConstrainedExecution;
 
-namespace CryptoToolkit;
-
-public interface IProtoFrame
-{
-}
-
-/// <summary>
-/// This static class contains extension methods for working with hexadecimal values.
-/// </summary>
-public static class HexExtensions
-{
-    public static string AsHex(this ECPrivKey key)
-    {
-        Span<byte> span = stackalloc byte[32];
-        key.WriteToSpan(span);
-        return span.AsHex();
-    }
-    public static string AsHex(this Span<byte> bytes)
-    {
-        return Convert.ToHexString(bytes).ToLowerInvariant();
-    }
-    public static string AsHex(this byte[] bytes)
-    {
-        return Convert.ToHexString(bytes).ToLowerInvariant();
-    }
-    public static string AsHex(this ECXOnlyPubKey key)
-    {
-        return key.ToBytes().AsSpan().AsHex();
-    }
-    public static ECPrivKey AsECPrivKey(this string key)
-    {
-        return Context.Instance.CreateECPrivKey(Convert.FromHexString(key));
-    }
-    public static async Task<ECPrivKey> AsECPrivKeyAsync(this string key)
-    {
-        ECPrivKey? result = null;
-        await Task.Run(() =>
-        {
-            result = Context.Instance.CreateECPrivKey(Convert.FromHexString(key));
-        });
-        return result!;
-    }
-    public static ECXOnlyPubKey AsECXOnlyPubKey(this string key)
-    {
-        return Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(key));
-    }
-    public static byte[] AsBytes(this string data)
-    {
-        return Convert.FromHexString(data);
-    }
-}
+namespace GigGossip;
 
 /// <summary>
 /// The Crypto class provides utilities for cryptographic operations such as signing objects, verifying signatures, encryption and decryption.
 /// </summary>
 public static class Crypto
 {
-    /// <summary>
-    /// A struct to represent a timed GUID token with its signature. Used in API calls.
-    /// </summary>
-    [ProtoContract]
-    public struct TimedGuidToken : IProtoFrame
-    {
-        [ProtoMember(1)]
-        public string PublicKey { get; set; }
-        [ProtoMember(2)]
-        public DateTime DateTime { get; set; }
-        [ProtoMember(3)]
-        public Guid Guid { get; set; }
-        [ProtoMember(4)]
-        public byte[]? Signature { get; set; }
-    }
-
-    /// <summary>
-    /// Creates a signed timed token using a provided private key, date time and guid.
-    /// </summary>
-    public static string MakeSignedTimedToken(ECPrivKey ecpriv, DateTime dateTime, Guid guid)
-    {
-        var tt = new TimedGuidToken();
-        tt.PublicKey = ecpriv.CreateXOnlyPubKey().AsHex();
-        tt.DateTime = dateTime;
-        tt.Guid = guid;
-        tt.Signature = SignObject(tt, ecpriv);
-        return Convert.ToBase64String(BinarySerializeObject(tt));
-    }
-
-    /// <summary>
-    /// Verifies the validity of a signed timed token. Returns the timed token if it is valid within a given period of seconds. Returns null otherwise.
-    /// </summary>
-    public static TimedGuidToken? VerifySignedTimedToken(string TimedTokenBase64, double seconds)
-    {
-        var serialized = Convert.FromBase64String(TimedTokenBase64);
-        TimedGuidToken timedToken = BinaryDeserializeObject<TimedGuidToken>(serialized);
-        var ecpub = Context.Instance.CreateXOnlyPubKey(Convert.FromHexString(timedToken.PublicKey));
-        if ((DateTime.UtcNow - timedToken.DateTime).TotalSeconds > seconds)
-            return null;
-        var signature = timedToken.Signature;
-        timedToken.Signature = null;
-        if (!VerifyObject(timedToken, signature!, ecpub))
-            return null;
-        return timedToken;
-    }
 
     /// <summary>
     /// Computes a SHA256 hash of an array of bytes representing a preimage for a payment. Used in Lightning Network HODL invoices for manual settlement.
@@ -178,7 +81,7 @@ public static class Crypto
     /// <summary>
     /// Encrypts an object using an ECDSA XOnly public key and a possible ECDSA private key by first computing shared key, and later performing AES Symmetric encryption using shared key.
     /// </summary>
-    public static byte[] EncryptObject<T>(T obj, ECXOnlyPubKey theirXPublicKey, ECPrivKey? myPrivKey) where T: IProtoFrame
+    public static byte[] EncryptObject<T>(T obj, ECXOnlyPubKey theirXPublicKey, ECPrivKey? myPrivKey) where T: Google.Protobuf.IMessage<T>
     {
         byte[]? attachpubKey = null;
         if (myPrivKey == null)
@@ -202,7 +105,7 @@ public static class Crypto
     /// <summary>
     /// Decrypts an object using an ECDSA XOnly public key and a possible ECDSA private key by first computing shared key, and later performing AES Symmetric decryption using shared key.
     /// </summary>
-    public static T DecryptObject<T>(byte[] encryptedData, ECPrivKey myPrivKey, ECXOnlyPubKey? theirXPublicKey) where T:IProtoFrame
+    public static T DecryptObject<T>(byte[] encryptedData, ECPrivKey myPrivKey, ECXOnlyPubKey? theirXPublicKey) where T: Google.Protobuf.IMessage<T>, new()
     {
         byte[] encryptedX = encryptedData;
         if (theirXPublicKey == null)
@@ -228,7 +131,7 @@ public static class Crypto
     /// <summary>
     /// Generates Schnorr signature of the SHA256 of serialized object.
     /// </summary>
-    public static byte[] SignObject<T>(T obj, ECPrivKey myPrivKey) where T : IProtoFrame
+    public static byte[] SignObject<T>(T obj, ECPrivKey myPrivKey) where T : Google.Protobuf.IMessage<T>
     {
         byte[] serializedObj = BinarySerializeObject<T>(obj);
 
@@ -243,7 +146,7 @@ public static class Crypto
     /// <summary>
     /// Verifies Schnorr signature of the SHA256 of serialized object. Returns true if the signature is valid.
     /// </summary>
-    public static bool VerifyObject<T>(T obj, byte[] signature, ECXOnlyPubKey theirKey) where T : IProtoFrame
+    public static bool VerifyObject<T>(T obj, byte[] signature, ECXOnlyPubKey theirKey) where T : Google.Protobuf.IMessage<T>
     {
         SecpSchnorrSignature sign;
         if (!SecpSchnorrSignature.TryCreate(signature, out sign))
@@ -320,7 +223,7 @@ public static class Crypto
     /// <summary>
     /// Performs AES symmetric encryption on an object using a symmetric key.
     /// </summary>
-    public static byte[] SymmetricObjectEncrypt<T>(byte[] key, T obj) where T : IProtoFrame
+    public static byte[] SymmetricObjectEncrypt<T>(byte[] key, T obj) where T : Google.Protobuf.IMessage<T>
     {
         return SymmetricBytesEncrypt(key, BinarySerializeObject(obj));
     }
@@ -351,7 +254,7 @@ public static class Crypto
     /// <summary>
     /// Performs AES symmetric decryption on an encrypted object using a symmetric key.
     /// </summary>
-    public static T SymmetricObjectDecrypt<T>(byte[] key, byte[] encryptedObj) where T: IProtoFrame
+    public static T SymmetricObjectDecrypt<T>(byte[] key, byte[] encryptedObj) where T: Google.Protobuf.IMessage<T>, new()
     {
         return BinaryDeserializeObject<T>(SymmetricBytesDecrypt(key, encryptedObj));
     }
@@ -383,36 +286,23 @@ public static class Crypto
         }
     }
 
-    public const byte SERIALIZATION_VERSION_BINARY = 0x2;
-
-    public static byte[] BinarySerializeObject<T>(T obj) where T : IProtoFrame
+    public static byte[] BinarySerializeObject<T>(T obj) where T : Google.Protobuf.IMessage<T>
     {
         using var memStream = new MemoryStream();
-        memStream.WriteByte(SERIALIZATION_VERSION_BINARY);
-        ProtoBuf.Serializer.Serialize(memStream, obj);
+        using (var gstr = new Google.Protobuf.CodedOutputStream(memStream))
+        {
+            obj.WriteTo(gstr);
+        }
         return memStream.ToArray();
-    }
-
-    public static object? BinaryDeserializeObject(byte[] data, Type returnType)
-    {
-        if (data.Length == 0)
-            return null;
-
-        using var memStream = new MemoryStream(data);
-        var ver = memStream.ReadByte();
-
-        if ( ver != SERIALIZATION_VERSION_BINARY)
-            return null;
-
-        return ProtoBuf.Serializer.Deserialize(returnType, memStream);
     }
 
     /// <summary>
     /// Deserializes a byte array into an object of type T using GZipped Json serialization
     /// </summary>
-    public static T? BinaryDeserializeObject<T>(byte[] data) where T : IProtoFrame
+    public static T BinaryDeserializeObject<T>(byte[] data) where T : Google.Protobuf.IMessage<T>, new()
     {
-        return (T)BinaryDeserializeObject(data, typeof(T));
+        var parser = new Google.Protobuf.MessageParser<T>(() => new T());
+        return parser.ParseFrom(data);
     }
 
     public static bool TryParseBitcoinAddress(string text, Network network, out BitcoinAddress? address)

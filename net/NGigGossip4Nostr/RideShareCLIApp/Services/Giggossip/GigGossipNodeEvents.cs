@@ -1,9 +1,9 @@
-﻿using CryptoToolkit;
+﻿
+using GigGossip;
 using GigLNDWalletAPIClient;
 using NBitcoin;
 using NetworkClientToolkit;
 using NGigGossip4Nostr;
-using RideShareFrames;
 
 namespace RideShareCLIApp;
 
@@ -46,7 +46,7 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
         });
     }
 
-    public void OnNewResponse(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayloadCert, string replyInvoice, PayReqRet decodedReplyInvoice, string networkInvoice, PayReqRet decodedNetworkInvoice)
+    public void OnNewResponse(GigGossipNode me, JobReply replyPayloadCert, string replyInvoice, PaymentRequestRecord decodedReplyInvoice, string networkInvoice, PaymentRequestRecord decodedNetworkInvoice)
     {
         _gigGossipNodeEventSource.FireOnNewResponse(new NewResponseEventArgs()
         {
@@ -54,39 +54,36 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
             ReplyPayloadCert = replyPayloadCert,
             ReplyInvoice = replyInvoice,
             DecodedReplyInvoice = decodedReplyInvoice,
-            NetworkInvoice = networkInvoice,
+            NetworkPaymentRequest = networkInvoice,
             DecodedNetworkInvoice = decodedNetworkInvoice,
         });
     }
 
-    public void OnResponseReady(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload, string key)
+    public void OnResponseReady(GigGossipNode me, JobReply replyPayload, string key)
     {
-        var connectionReply = Crypto.BinaryDeserializeObject<ConnectionReply>(
-                                    Crypto.SymmetricBytesDecrypt(
-                                        key.AsBytes(),
-                                        replyPayload.Value.EncryptedReplyMessage));
+        var reply = replyPayload.Header.EncryptedReply.Decrypt<Reply>(key.AsBytes());
 
         _gigGossipNodeEventSource.FireOnResponseReady(new ResponseReadyEventArgs()
         {
             GigGossipNode = me,
-            ReplierCertificateId = replyPayload.Id,
-            RequestPayloadId = replyPayload.Value.SignedRequestPayload.Id,
-            Reply = connectionReply
+            ReplierCertificateId = replyPayload.Header.JobReplyId.AsGuid(),
+            RequestPayloadId = replyPayload.Header.JobRequest.Header.JobRequestId.AsGuid(),
+            Reply = reply
         });
     }
 
 
-    public void OnResponseCancelled(GigGossipNode me, Certificate<ReplyPayloadValue> replyPayload)
+    public void OnResponseCancelled(GigGossipNode me, JobReply replyPayload)
     {
         _gigGossipNodeEventSource.FireOnResponseCancelled(new ResponseCancelledEventArgs()
         {
             GigGossipNode = me,
-            ReplierCertificateId = replyPayload.Id,
-            RequestPayloadId = replyPayload.Value.SignedRequestPayload.Id,
+            ReplierCertificateId = replyPayload.Header.JobReplyId.AsGuid(),
+            RequestPayloadId = replyPayload.Header.JobRequest.Header.JobRequestId.AsGuid(),
         });
     }
 
-    public void OnPaymentStatusChange(GigGossipNode me, string status, PaymentData paydata)
+    public void OnPaymentStatusChange(GigGossipNode me, PaymentStatus status, PaymentData paydata)
     {
         _gigGossipNodeEventSource.FireOnPaymentStatusChange(new PaymentStatusChangeEventArgs()
         {

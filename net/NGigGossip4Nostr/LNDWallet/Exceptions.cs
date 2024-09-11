@@ -47,6 +47,11 @@ public enum LNDWalletErrorCode
     OperationFailed = 12,
 
     AccessDenied = 13,
+
+    /// <summary>
+    /// Fee limit is smaller than our fee
+    /// </summary>
+    FeeLimitTooSmall = 14,
 }
 
 /// <summary>

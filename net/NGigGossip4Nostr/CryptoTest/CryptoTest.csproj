@@ -12,7 +12,6 @@
     <NoWarn>1701;1702;1998;8600;8601;8602;8603;8604;8618;8625</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CryptoToolkit\CryptoToolkit.csproj" />
-    <ProjectReference Include="..\NGigGossip4Nostr\NGigGossip4Nostr.csproj" />
+    <ProjectReference Include="..\GigGossipFrames\GigGossipFrames.csproj" />
   </ItemGroup>
 </Project>

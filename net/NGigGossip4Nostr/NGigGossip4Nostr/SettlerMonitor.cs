@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.WebSockets;
 using System.Text;
-using CryptoToolkit;
 using GigGossipSettlerAPIClient;
 using Microsoft.EntityFrameworkCore;
 using static NBitcoin.Protocol.Behaviors.ChainBehavior;
@@ -100,7 +99,7 @@ public class SettlerMonitor
                 ServiceUri = serviceUri,
                 SignedRequestPayloadId = signedRequestPayloadId,
                 Data = data,
-                Status = "",
+                Status =  GigStatus.Open,
                 SymmetricKey = null
             };
             gigGossipNode.nodeContext.Value.AddObject(obj);
@@ -158,7 +157,7 @@ public class SettlerMonitor
         {
             var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
                           where i.PublicKey == this.gigGossipNode.PublicKey
-                          && (i.SymmetricKey == null || (i.Status != "Cancelled" && i.Status != "Completed"))
+                          && (i.SymmetricKey == null || (i.Status !=  GigStatus.Cancelled && i.Status !=  GigStatus.Completed))
                           select i).ToList();
 
             foreach (var kv in kToMon)
@@ -168,13 +167,12 @@ public class SettlerMonitor
                 {
                     var serviceUri = kv.ServiceUri;
                     var signedReqestPayloadId = kv.SignedRequestPayloadId;
-                    var stat = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedReqestPayloadId, kv.ReplierCertificateId, CancellationTokenSource.Token));
-                    if (!string.IsNullOrWhiteSpace(stat))
+                    var stat = SettlerAPIResult.Get<GigStatusKey>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedReqestPayloadId, kv.ReplierCertificateId, CancellationTokenSource.Token));
+                    if (!string.IsNullOrWhiteSpace(stat.SymmetricKey))
                     {
-                        var prts = stat.Split('|');
-                        var status = prts[0];
-                        var key = prts[1];
-                        if (status == "Accepted" || status == "Completed" || status == "Disputed")
+                        var status = stat.Status;
+                        var key = stat.SymmetricKey;
+                        if (status ==  GigStatus.Accepted|| status == GigStatus.Completed || status == GigStatus.Disuputed)
                         {
                             TL.Info("OnSymmetricKeyRevealed");
                             gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
@@ -182,7 +180,7 @@ public class SettlerMonitor
                             kv.Status = status;
                             gigGossipNode.nodeContext.Value.SaveObject(kv);
                         }
-                        else if (status == "Cancelled")
+                        else if (status == GigStatus.Cancelled)
                         {
                             TL.Info("OnGigCancelled");
                             gigGossipNode.OnGigCancelled(kv.Data);
@@ -251,9 +249,8 @@ public class SettlerMonitor
                     await foreach (var preimupd in (await this.gigGossipNode.GetPreimageRevealClientAsync(serviceUri)).StreamAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), CancellationTokenSource.Token))
                     {
                         TL.Iteration(preimupd);
-                        var pp = preimupd.Split('|');
-                        var payhash = pp[0];
-                        var preimage = pp[1];
+                        var payhash = preimupd.PaymentHash;
+                        var preimage = preimupd.Preimage;
 
                         var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
                                       where i.PublicKey == this.gigGossipNode.PublicKey
@@ -321,20 +318,19 @@ public class SettlerMonitor
                     {
                         TL.Iteration(kv);
                         var signedRequestPayloadId = kv.SignedRequestPayloadId;
-                        var stat = SettlerAPIResult.Get<string>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedRequestPayloadId, kv.ReplierCertificateId, CancellationTokenSource.Token));
-                        if (!string.IsNullOrWhiteSpace(stat))
+                        var stat = SettlerAPIResult.Get<GigStatusKey>(await gigGossipNode.SettlerSelector.GetSettlerClient(serviceUri).GetGigStatusAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedRequestPayloadId, kv.ReplierCertificateId, CancellationTokenSource.Token));
+                        if (!string.IsNullOrWhiteSpace(stat.SymmetricKey))
                         {
-                            var prts = stat.Split('|');
-                            var status = prts[0];
-                            var key = prts[1];
-                            if (status == "Accepted")
+                            var status = stat.Status;
+                            var key = stat.SymmetricKey;
+                            if (status ==  GigStatus.Accepted)
                             {
                                 TL.Info("OnSymmetricKeyRevealed");
                                 gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
                                 kv.SymmetricKey = key;
                                 gigGossipNode.nodeContext.Value.SaveObject(kv);
                             }
-                            else if (status == "Cancelled")
+                            else if (status ==  GigStatus.Cancelled)
                             {
                                 TL.Info("OnGigCancelled");
                                 gigGossipNode.OnGigCancelled(kv.Data);
@@ -348,13 +344,12 @@ public class SettlerMonitor
                 await foreach (var symkeyupd in (await this.gigGossipNode.GetGigStatusClientAsync(serviceUri)).StreamAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), CancellationTokenSource.Token))
                 {
                     TL.Iteration(symkeyupd);
-                    var pp = symkeyupd.Split('|');
-                    var gigId = Guid.Parse(pp[0]);
-                    var repliercertificateid = Guid.Parse(pp[1]);
-                    var status = pp[2];
-                    if (status == "Accepted")
+                    var gigId = symkeyupd.JobRequestId;
+                    var repliercertificateid = symkeyupd.JobReplyId;
+                    var status = symkeyupd.Status;
+                    if (status == GigStatus.Accepted)
                     {
-                        var symkey = pp[3];
+                        var symkey = symkeyupd.SymmetricKey;
                         var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
                                       where i.PublicKey == this.gigGossipNode.PublicKey
                                       && i.SignedRequestPayloadId == gigId
@@ -373,13 +368,13 @@ public class SettlerMonitor
                         else
                             TL.Warning("Accepted GigStatus not monitored");
                     }
-                    else if (status == "Cancelled")
+                    else if (status ==  GigStatus.Cancelled)
                     {
                         var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
                                       where i.PublicKey == this.gigGossipNode.PublicKey
                                       && i.SignedRequestPayloadId == gigId
                                       && i.ReplierCertificateId == repliercertificateid
-                                      && i.Status != "Cancelled"
+                                      && i.Status !=  GigStatus.Cancelled
                                       select i).FirstOrDefault();
 
                         if (kToMon != null)
