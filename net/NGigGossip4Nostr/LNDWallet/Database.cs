@@ -273,6 +273,14 @@ public class WaletContext : DbContext
         this.connectionString = connectionString;
     }
 
+    public Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction BEGIN_TRANSACTION(System.Data.IsolationLevel isolationLevel= System.Data.IsolationLevel.ReadCommitted)
+    {
+        if (provider == DBProvider.Sqlite)
+            return new NullTransaction();
+        else
+            return this.Database.BeginTransaction(isolationLevel);
+    }
+
     public DbSet<TrackingIndex> TrackingIndexes { get; set; }
 
     /// <summary>
@@ -372,4 +380,34 @@ public class WaletContext : DbContext
         this.ChangeTracker.Clear();
     }
 
+}
+
+
+public class NullTransaction : Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction
+{
+    public Guid TransactionId => Guid.NewGuid();
+
+    public void Commit()
+    {
+    }
+
+    public async Task CommitAsync(CancellationToken cancellationToken = default)
+    {
+    }
+
+    public void Dispose()
+    {
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+    }
+
+    public void Rollback()
+    {
+    }
+
+    public async Task RollbackAsync(CancellationToken cancellationToken = default)
+    {
+    }
 }

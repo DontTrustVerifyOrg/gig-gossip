@@ -264,7 +264,7 @@ public class LNDEventSource
 
         public Guid RegisterNewPayoutForExecution(long satoshis, string btcAddress, long payoutfee)
         {
-            using var TX = walletContext.Value.Database.BeginTransaction(IsolationLevel.Serializable);
+            using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
             var availableAmount = GetAccountBallance().AvailableAmount;
             if (availableAmount < satoshis + payoutfee)
@@ -314,7 +314,7 @@ public class LNDEventSource
 
         public (long all, long allTxFee, long confirmed, long confirmedTxFee) GetExecutedPayoutTotalAmount(int minConf)
         {
-            using var TX = walletContext.Value.Database.BeginTransaction(IsolationLevel.Serializable);
+            using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
             Dictionary<string, LNDWallet.Payout> mypayouts;
             mypayouts = new Dictionary<string, LNDWallet.Payout>(
@@ -405,7 +405,7 @@ public class LNDEventSource
         else if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)
             throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadyAccepted);
 
-        using var TX = walletContext.Value.Database.BeginTransaction(IsolationLevel.Serializable);
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
         HodlInvoice? selfHodlInvoice = (from inv in walletContext.Value.HodlInvoices
                                         where inv.PaymentHash == decinv.PaymentHash
                                         select inv).FirstOrDefault();
@@ -485,7 +485,7 @@ public class LNDEventSource
         var decinv = LND.DecodeInvoice(lndConf, paymentRequest);
         var invoice = LND.LookupInvoiceV2(lndConf, decinv.PaymentHash.AsBytes());
 
-        using var TX = walletContext.Value.Database.BeginTransaction(IsolationLevel.Serializable);
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
         if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Settled)
             return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadySettled);
@@ -636,7 +636,7 @@ public class LNDEventSource
 
     public void SettleInvoice(byte[] preimage)
     {
-        using var TX = walletContext.Value.Database.BeginTransaction(IsolationLevel.Serializable);
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
         var paymentHashBytes = Crypto.ComputePaymentHash(preimage);
         var paymentHash = paymentHashBytes.AsHex();
@@ -678,7 +678,7 @@ public class LNDEventSource
 
     public void CancelInvoice(string paymentHash)
     {
-        using var TX = walletContext.Value.Database.BeginTransaction(IsolationLevel.Serializable);
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
         var invoice = LND.LookupInvoiceV2(lndConf, paymentHash.AsBytes());
 
@@ -886,7 +886,7 @@ public class LNDEventSource
 
     public async Task<InvoiceRecord> GetInvoiceAsync(string paymentHash)
     {
-        using var TX = walletContext.Value.Database.BeginTransaction(IsolationLevel.Serializable);
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
         HodlInvoice? selfHodlInvoice = (from inv in walletContext.Value.HodlInvoices
                                         where inv.PaymentHash == paymentHash
                                         select inv).FirstOrDefault();
@@ -948,7 +948,7 @@ public class LNDEventSource
 
     public AccountBalanceDetails GetBallance()
     {
-        using var TX = walletContext.Value.Database.BeginTransaction(IsolationLevel.Serializable);
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
         var bal= GetAccountBallance();
         TX.Commit();
         return bal;
@@ -1319,7 +1319,7 @@ public class LNDWalletManager : LNDEventSource
 
     internal void MarkPayoutAsSent(Guid id, string tx)
     {
-        using var TX = walletContext.Value.Database.BeginTransaction();
+        using var TX = walletContext.Value.BEGIN_TRANSACTION();
 
         if ((from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po)
         .ExecuteUpdate(po => po

@@ -18,7 +18,7 @@ public partial class SettlementPromise
     public async Task<bool> VerifyAsync(byte[] encryptedSignedReplyPayload, ICertificationAuthorityAccessor caAccessor, Signature signature, CancellationToken cancellationToken)
     {
         var caPubKey = await caAccessor.GetPubKeyAsync(this.Header.MySecurityCenterUri.AsUri(), cancellationToken);
-        if (Crypto.VerifyObject(this, signature.Value.ToArray(), caPubKey))
+        if (Crypto.VerifyObject(this.Header, signature.Value.ToArray(), caPubKey))
             if (Crypto.ComputeSha256(encryptedSignedReplyPayload).SequenceEqual(this.Header.HashOfEncryptedJobReply.Value))
                 return true;
         return false;

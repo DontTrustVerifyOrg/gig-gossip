@@ -112,7 +112,7 @@ public partial class RideShareCLIApp
                 var tim = "(" + taxiTopic.PickupAfter.AsUtcDateTime().ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore.AsUtcDateTime() - taxiTopic.PickupAfter.AsUtcDateTime()).TotalMinutes).ToString() + ")";
                 var to = taxiTopic.ToGeohash;
 
-                receivedResponsesTable.AddRow(new string[] { paymentHash, e.ReplyPayloadCert.Header.JobReplyId.ToString(), "1", from, tim, to, fee.ToString(), netfee.ToString() });
+                receivedResponsesTable.AddRow(new string[] { paymentHash, e.ReplyPayloadCert.Header.JobReplyId.AsGuid().ToString(), "1", from, tim, to, fee.ToString(), netfee.ToString() });
 
             }
             else
@@ -133,7 +133,7 @@ public partial class RideShareCLIApp
             AnsiConsole.WriteLine("requestedRide is empty 2");
             return;
         }
-        if (e.RequestPayloadId.AsUUID() == requestedRide.JobRequest.Header.JobRequestId)
+        if (e.RequestPayloadId == requestedRide.JobRequest.Header.JobRequestId.AsGuid())
         {
             await e.GigGossipNode.CancelBroadcastAsync(requestedRide.CancelJobRequest);
             await gigGossipNode.AddTempRelaysAsync((from u in e.Reply.RideShare.Relays select u.AsUri().AbsoluteUri).ToArray());

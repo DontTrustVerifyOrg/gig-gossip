@@ -173,7 +173,7 @@ public class Settler : CertificationAuthority
         {
             var code = GenerateRandomString(length);
             {
-                using var TX = settlerContext.Value.Database.BeginTransaction();
+                using var TX = settlerContext.Value.BEGIN_TRANSACTION();
                 if (settlerContext.Value.AccessCodes.Where(a => a.Code == code).Count() == 0)
                 {
                     settlerContext.Value
@@ -198,7 +198,7 @@ public class Settler : CertificationAuthority
 
     public bool ValidateAccessCode(string code)
     {
-        using var TX = settlerContext.Value.Database.BeginTransaction();
+        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
 
         var ac = (from a in settlerContext.Value.AccessCodes where a.Code == code && !a.IsRevoked && a.ValidTill >= DateTime.UtcNow select a).FirstOrDefault();
         if (ac == null)
@@ -243,14 +243,15 @@ public class Settler : CertificationAuthority
     public string ValidateAuthToken(string authTokenBase64, bool admin = false)
     {
         var pubkey = ValidateAuthToken(authTokenBase64);
-        if (!HasAdminRights(pubkey))
-            throw new AccessDeniedException();
+        if (admin)
+            if (!HasAdminRights(pubkey))
+                throw new AccessDeniedException();
         return pubkey;
     }
 
     public void SaveUserTraceProperty(string pubkey, string name, byte[] value)
     {
-        using var TX = settlerContext.Value.Database.BeginTransaction();
+        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
         var query = (from u in settlerContext.Value.UserTraceProperties
                      where u.Name == name && u.PublicKey == pubkey
                      select u);
@@ -272,7 +273,7 @@ public class Settler : CertificationAuthority
 
     public void GiveUserProperty(string pubkey, string name, byte[] value, byte[] secret, DateTime validTill)
     {
-        using var TX = settlerContext.Value.Database.BeginTransaction();
+        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
 
         var query = (from u in settlerContext.Value.UserProperties
                      where u.Name == name && u.PublicKey == pubkey
@@ -370,7 +371,7 @@ public class Settler : CertificationAuthority
 
     public string GenerateRelatedPreimage(string pubkey, string paymentHash)
     {
-        using var TX = settlerContext.Value.Database.BeginTransaction();
+        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
 
         var pix = (from pi in settlerContext.Value.Preimages where pi.PaymentHash == paymentHash select pi).FirstOrDefault();
         if (pix == null)
@@ -437,7 +438,7 @@ public class Settler : CertificationAuthority
 
         byte[] symmetrickey = Crypto.GenerateSymmetricKey();
 
-        using var TX = settlerContext.Value.Database.BeginTransaction();
+        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
 
         var guid = Guid.NewGuid();
         var certHeader = this.CreateCertificateHeader(
@@ -529,7 +530,7 @@ public class Settler : CertificationAuthority
 
     public BroadcastRequest GenerateRequestPayload(string senderspubkey, string[] sendersproperties, RideShareTopic topic)
     {
-        using var TX = settlerContext.Value.Database.BeginTransaction();
+        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
 
         var guid = Guid.NewGuid();
         var jobRequestHeader = new JobRequestHeader
@@ -573,7 +574,7 @@ public class Settler : CertificationAuthority
 
     public async Task ManageDisputeAsync(Guid tid, Guid repliercertificateId, bool open)
     {
-        using var TX = settlerContext.Value.Database.BeginTransaction();
+        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
 
         var gig = (from g in settlerContext.Value.Gigs where g.SignedRequestPayloadId == tid && g.ReplierCertificateId == repliercertificateId && g.Status == GigStatus.Accepted select g).FirstOrDefault();
         if (gig != null)
@@ -593,7 +594,7 @@ public class Settler : CertificationAuthority
 
     public async Task CancelGigAsync(Guid tid, Guid repliercertificateId)
     {
-        using var TX = settlerContext.Value.Database.BeginTransaction();
+        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
 
         var gig = (from g in settlerContext.Value.Gigs
                    where g.SignedRequestPayloadId == tid && g.ReplierCertificateId == repliercertificateId && (g.Status == GigStatus.Open || g.Status != GigStatus.Accepted)
@@ -640,7 +641,7 @@ public class Settler : CertificationAuthority
 
     public async Task SettleGigAsync(Gig gig)
     {
-        using var TX = settlerContext.Value.Database.BeginTransaction();
+        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
 
         var replierpubkey = (from cert in this.settlerContext.Value.UserCertificates where cert.CertificateId == gig.ReplierCertificateId && !cert.IsRevoked select cert.PublicKey).FirstOrDefault();
         if (replierpubkey == null)
@@ -695,7 +696,7 @@ public class Settler : CertificationAuthority
 
     public void DeletePersonalUserData(string pubkey)
     {
-        using var TX = settlerContext.Value.Database.BeginTransaction();
+        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
 
         var certids = (from c in (from u in settlerContext.Value.UserCertificates where u.PublicKey == pubkey select u) select c.CertificateId).ToHashSet();
         if (certids.Count > 0)
