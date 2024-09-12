@@ -393,14 +393,14 @@ public static class LND
     public static ListInvoiceResponse ListInvoices(NodeSettings conf, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         return LightningClient(conf).ListInvoices(
-            new ListInvoiceRequest() { },
+            new ListInvoiceRequest() { PendingOnly = true, NumMaxInvoices = 10000 },
             Metadata(conf), deadline, cancellationToken);
     }
 
     public static ListPaymentsResponse ListPayments(NodeSettings conf, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         return LightningClient(conf).ListPayments(
-            new ListPaymentsRequest() { },
+            new ListPaymentsRequest() { MaxPayments = 10000, IncludeIncomplete = true },
             Metadata(conf), deadline, cancellationToken);
     }
 
