@@ -5,6 +5,7 @@ using LNDClient;
 using Lnrpc;
 using Walletrpc;
 using TraceExColor;
+using GigGossip;
 
 namespace LNDWallet;
 
@@ -41,6 +42,7 @@ public class LNDChannelManager
                 bool again = false;
                 try
                 {
+					walletManager.GoForCancellingInternalInvoices();
 					GoForConnectingToNodes();
                     foreach (var friend in nearbyNodes)
 						again = again | await GoForOpeningNewChannelsForNodeAsync(friend.Split("@")[0], maxSatoshisPerChannel, estimatedTxFee);
@@ -64,7 +66,9 @@ public class LNDChannelManager
         mainThread.Join();
 	}
 
-	public void GoForConnectingToNodes()
+
+
+    public void GoForConnectingToNodes()
 	{
         var peersof2 = new HashSet<string>(from p in walletManager.ListPeers().Peers select p.PubKey);
 
