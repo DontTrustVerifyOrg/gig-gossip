@@ -134,16 +134,17 @@ public static class LND
     //-1 means send all
     public static string SendCoins(NodeSettings conf, string address, string memo, long satoshis, ulong satspervbyte, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        var req = new SendCoinsRequest() { Addr = address, TargetConf = 6, Label = memo, SatPerVbyte = satspervbyte };
-        if (satoshis > -1)
-            req.Amount = satoshis;
-        else
-            req.SendAll = true;
-
+        var req = new SendCoinsRequest() { Addr = address, TargetConf = 6, Label = memo, SatPerVbyte = satspervbyte, Amount = satoshis, };
         var response = LightningClient(conf,false).SendCoins(req, Metadata(conf), deadline, cancellationToken);
         return response.Txid;
     }
 
+    public static string SendAll(NodeSettings conf, string address, string memo, ulong satspervbyte, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    {
+        var req = new SendCoinsRequest() { Addr = address, TargetConf = 6, Label = memo, SatPerVbyte = satspervbyte, SendAll=true, };
+        var response = LightningClient(conf, false).SendCoins(req, Metadata(conf), deadline, cancellationToken);
+        return response.Txid;
+    }
 
     public static AddInvoiceResponse AddInvoice(NodeSettings conf, long satoshis, string memo, long expiry = 86400, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
