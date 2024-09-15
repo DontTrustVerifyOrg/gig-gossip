@@ -53,7 +53,7 @@ public class LNDChannelManager
 					TraceEx.TraceException(ex);
 				}
 				if(!again)
-					Thread.Sleep(60000);
+					Thread.Sleep(10000);
 			}
 		});
 		mainThread.Start();

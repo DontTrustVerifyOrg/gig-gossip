@@ -458,13 +458,15 @@ public class LNDEventSource
 
         if (delete)
         {
-            (from pay in walletContext.Value.InternalPayments
-             where pay.PaymentHash == payReq.PaymentHash
-             select pay).ExecuteDelete();
-
-            (from pay in walletContext.Value.ExternalPayments
-             where pay.PaymentHash == payReq.PaymentHash
-             select pay).ExecuteDelete();
+            walletContext.Value
+                .DELETE_IF_EXISTS(from pay in walletContext.Value.InternalPayments
+                                  where pay.PaymentHash == payReq.PaymentHash
+                                  select pay)
+                .DELETE_IF_EXISTS(
+                                from pay in walletContext.Value.ExternalPayments
+                                where pay.PaymentHash == payReq.PaymentHash
+                                select pay)
+                .SAVE();
         }
     }
 
@@ -628,10 +630,16 @@ public class LNDEventSource
                 if (cur == null)
                     return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.EmptyReturnStream,true);
 
-                (from pay in walletContext.Value.ExternalPayments
-                 where pay.PaymentHash == decinv.PaymentHash && pay.PublicKey == PublicKey
-                 select pay)
-                 .ExecuteUpdate(i => i.SetProperty(a => a.Status, (ExternalPaymentStatus)cur.Status));
+                var payment = (from pay in walletContext.Value.ExternalPayments
+                               where pay.PaymentHash == decinv.PaymentHash && pay.PublicKey == PublicKey
+                               select pay).FirstOrDefault();
+
+                if(payment!=null)
+                {
+                    payment.Status = (ExternalPaymentStatus)cur.Status;
+                    walletContext.Value.UPDATE(payment);
+                    walletContext.Value.SAVE();
+                }
 
                 TX.Commit();
                 return new PaymentRecord
@@ -674,10 +682,16 @@ public class LNDEventSource
             else if (internalPayment.Status != InternalPaymentStatus.InFlight) //this should be always true
                 throw new LNDWalletException(LNDWalletErrorCode.InvoiceNotAccepted);
 
-            (from pay in walletContext.Value.InternalPayments
-             where pay.PaymentHash == paymentHash
-             select pay)
-             .ExecuteUpdate(i => i.SetProperty(a => a.Status, a => InternalPaymentStatus.Succeeded));
+            var payment = (from pay in walletContext.Value.InternalPayments
+                           where pay.PaymentHash == paymentHash
+                           select pay).FirstOrDefault();
+            if(payment!=null)
+            {
+                payment.Status = InternalPaymentStatus.Succeeded;
+                walletContext.Value
+                    .UPDATE(payment)
+                    .SAVE();
+            }
 
             eventSource.FireOnInvoiceStateChanged(paymentHash, InvoiceState.Settled);
             eventSource.FireOnPaymentStatusChanged(paymentHash, PaymentStatus.Succeeded, PaymentFailureReason.None);
@@ -719,11 +733,10 @@ public class LNDEventSource
             else if (internalPayment.Status != InternalPaymentStatus.InFlight) // this should be always true
                 throw new LNDWalletException(LNDWalletErrorCode.InvoiceNotAccepted);
 
-            (from pay in walletContext.Value.InternalPayments
-             where pay.PaymentHash == paymentHash
-             select pay).ExecuteDelete();
-
             walletContext.Value
+                .DELETE_IF_EXISTS(from pay in walletContext.Value.InternalPayments
+                                  where pay.PaymentHash == paymentHash
+                                  select pay)
                 .INSERT(new FailedPayment
                 {
                     Id = Guid.NewGuid(),
@@ -1307,34 +1320,49 @@ public class LNDWalletManager : LNDEventSource
 
     public void CloseReserve(Guid id)
     {
-        (from po in walletContext.Value.Reserves where po.ReserveId == id select po).ExecuteDelete();
+        walletContext.Value
+            .DELETE_IF_EXISTS(from po in walletContext.Value.Reserves where po.ReserveId == id select po)
+            .SAVE();
     }
 
     internal bool MarkPayoutAsSending(Guid id)
     {
-        return ((from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po)
-        .ExecuteUpdate(po => po
-        .SetProperty(a => a.State, a => PayoutState.Sending)) == 1);
+        var payout = (from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po).FirstOrDefault();
+        if (payout == null)
+            return false;
+        payout.State = PayoutState.Sending;
+        walletContext.Value
+            .UPDATE(payout)
+            .SAVE();
+        return true;
     }
 
     internal bool MarkPayoutAsFailure(Guid id, string tx)
     {
-        return ((from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po)
-        .ExecuteUpdate(po => po
-        .SetProperty(a => a.State, a => PayoutState.Failure)
-        .SetProperty(a => a.Tx, a => tx)
-        ) == 1);
+        var payout = (from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po).FirstOrDefault();
+        if (payout == null)
+            return false;
+        payout.State = PayoutState.Failure;
+        payout.Tx = tx;
+        walletContext.Value
+            .UPDATE(payout)
+            .SAVE();
+        return true;
     }
 
     internal void MarkPayoutAsSent(Guid id, string tx)
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION();
 
-        if ((from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po)
-        .ExecuteUpdate(po => po
-        .SetProperty(a => a.State, PayoutState.Sent)
-        .SetProperty(a => a.Tx, a => tx)) == 0)
+        var payout = (from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po).FirstOrDefault();
+        if (payout == null)
             throw new LNDWalletException(LNDWalletErrorCode.PayoutAlreadySent);
+        payout.State = PayoutState.Sent;
+        payout.Tx = tx;
+        walletContext.Value
+            .UPDATE(payout)
+            .SAVE();
+
         CloseReserve(id);
 
         TX.Commit();
@@ -1393,17 +1421,17 @@ public class LNDWalletManager : LNDEventSource
 
     public long GetRequestedReserveAmount()
     {
-        return (from r in this.walletContext.Value.Reserves select r.Satoshis).Sum();
+        return (from r in this.walletContext.Value.Reserves select r.Satoshis).FromCache(this.walletContext.Value.Reserves).Sum();
     }
 
     public List<Reserve> GetRequestedReserves()
     {
-        return (from r in this.walletContext.Value.Reserves select r).ToList();
+        return (from r in this.walletContext.Value.Reserves select r).FromCache(this.walletContext.Value.Reserves).ToList();
     }
 
     public List<Payout> GetPendingPayouts(List<Guid> payoutIds)
     {
-        return (from p in this.walletContext.Value.Payouts where payoutIds.Contains(p.PayoutId) select p).ToList();
+        return (from p in this.walletContext.Value.Payouts where payoutIds.Contains(p.PayoutId) select p).FromCache(this.walletContext.Value.Payouts).ToList();
     }
 
     public AsyncServerStreamingCall<OpenStatusUpdate> OpenChannel(string nodePubKey, long fundingSatoshis)
@@ -1468,7 +1496,7 @@ public class LNDWalletManager : LNDEventSource
 
         {
             var internalPayments = (from pay in walletContext.Value.InternalPayments
-                                    select pay);
+                                    select pay).FromCache(walletContext.Value.InternalPayments);
             foreach (var pay in internalPayments)
             {
                 try
@@ -1482,11 +1510,10 @@ public class LNDWalletManager : LNDEventSource
                             {
                                 using var TX = walletContext.Value.BEGIN_TRANSACTION();
 
-                                (from p in walletContext.Value.InternalPayments
-                                 where p.PaymentHash == pay.PaymentHash
-                                 select p).ExecuteDelete();
-
                                 walletContext.Value
+                                    .DELETE_IF_EXISTS(from p in walletContext.Value.InternalPayments
+                                                     where p.PaymentHash == pay.PaymentHash
+                                                     select p)
                                     .INSERT(new FailedPayment
                                     {
                                         Id = Guid.NewGuid(),
@@ -1495,7 +1522,7 @@ public class LNDWalletManager : LNDEventSource
                                         PublicKey = pay.PublicKey,
                                         FailureReason = PaymentFailureReason.Canceled,
                                     })
-                                .SAVE();
+                                    .SAVE();
 
                                 this.CancelSingleInvoiceTracking(pay.PaymentHash);
                                 this.FireOnPaymentStatusChanged(pay.PaymentHash, PaymentStatus.Failed, PaymentFailureReason.Canceled);

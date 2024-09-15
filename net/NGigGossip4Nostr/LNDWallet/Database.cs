@@ -6,6 +6,7 @@ using System.Data.Common;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using static Google.Protobuf.WellKnownTypes.Field.Types;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Collections.Concurrent;
 
 namespace LNDWallet;
 
@@ -332,45 +333,46 @@ public class WaletContext : DbContext
         optionsBuilder.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
     }
 
-
-    dynamic Type2DbSet(object obj)
+    public WaletContext UPDATE<T>(T obj) where T : class
     {
-        if (obj == null)
-            throw new ArgumentNullException();
-
-        if (obj is TopupAddress)
-            return this.TopupAddresses;
-        else if (obj is Payout)
-            return this.Payouts;
-        else if (obj is Reserve)
-            return this.Reserves;
-        else if (obj is ClassicInvoice)
-            return this.ClassicInvoices;
-        else if (obj is HodlInvoice)
-            return this.HodlInvoices;
-        else if (obj is InternalPayment)
-            return this.InternalPayments;
-        else if (obj is ExternalPayment)
-            return this.ExternalPayments;
-        else if (obj is FailedPayment)
-            return this.FailedPayments;
-        else if (obj is TrackingIndex)
-            return this.TrackingIndexes;
-        else if (obj is Token)
-            return this.Tokens;
-
-        throw new InvalidOperationException();
-    }
-
-    public WaletContext UPDATE<T>(T obj)
-    {
-        this.Type2DbSet(obj!).Update(obj);
+        var set = this.Set<T>();
+        QueryCacheExtensions.ClearCache<T>(set);
+        set.Update(obj);
         return this;
     }
 
-    public WaletContext INSERT<T>(T obj)
+    public WaletContext UPDATE_IF_EXISTS<T>(IQueryable<T> qs, Func<T, T> update) where T : class
     {
-        this.Type2DbSet(obj!).Add(obj);
+        var e = qs.FirstOrDefault();
+        if (e != null)
+        {
+            var obj = update(e);
+            UPDATE(obj);
+        }
+        return this;
+    }
+
+    public WaletContext INSERT<T>(T obj) where T:class
+    {
+        var set = this.Set<T>();
+        QueryCacheExtensions.ClearCache<T>(set);
+        set.Add(obj);
+        return this;
+    }
+
+    public WaletContext DELETE<T>(T obj) where T : class
+    {
+        var set = this.Set<T>();
+        QueryCacheExtensions.ClearCache<T>(set);
+        set.Remove(obj);
+        return this;
+    }
+
+    public WaletContext DELETE_IF_EXISTS<T>(IQueryable<T> qs) where T : class
+    {
+        var e = qs.FirstOrDefault();
+        if (e != null)
+            DELETE(e);
         return this;
     }
 
