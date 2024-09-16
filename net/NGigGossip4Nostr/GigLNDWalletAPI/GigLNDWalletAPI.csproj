@@ -38,6 +38,9 @@
     <ProjectReference Include="..\NetworkToolkit\NetworkToolkit.csproj">
       <GlobalPropertiesToRemove></GlobalPropertiesToRemove>
     </ProjectReference>
+    <ProjectReference Include="..\GigDebugLoggerAPIClient\GigDebugLoggerAPIClient.csproj">
+      <GlobalPropertiesToRemove></GlobalPropertiesToRemove>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Content Update="Properties\launchSettings.json">

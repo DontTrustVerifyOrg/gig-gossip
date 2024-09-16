@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using GigDebugLoggerAPIClient;
 using GigGossip;
 using GigLNDWalletAPI;
 using Google.Protobuf.WellKnownTypes;
@@ -20,6 +21,8 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 using TraceExColor;
 using Enum = System.Enum;
 using Type = System.Type;
+
+ConsoleLoggerFactory.Initialize(true);
 
 TraceEx.TraceInformation("[[lime]]Starting[[/]] ...");
 
@@ -332,7 +335,8 @@ app.MapGet("/openreserve", (string authToken, long satoshis) =>
 .WithDescription("Opens reserve")
 .WithOpenApi(g =>
 {
-    g.Parameters[0].Description = "number of satoshis";
+    g.Parameters[0].Description = "authorisation token for the communication";
+    g.Parameters[1].Description = "number of satoshis";
     return g;
 });
 
@@ -355,7 +359,30 @@ app.MapGet("/closereserve", (string authToken, Guid reserveId) =>
 .WithDescription("Closes Reserve")
 .WithOpenApi(g =>
 {
-    g.Parameters[0].Description = "reserve id";
+    g.Parameters[0].Description = "authorisation token for the communication";
+    g.Parameters[1].Description = "reserve id";
+    return g;
+});
+
+app.MapGet("/listorphanedreserves", (string authToken) =>
+{
+    try
+    {
+        Singlethon.LNDWalletManager.ValidateAuthToken(authToken, true);
+        return new Result<Guid[]>(Singlethon.LNDWalletManager.ListOrphanedReserves().ToArray());
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<Guid[]>(ex);
+    }
+})
+.WithName("ListOrphanedReserves")
+.WithSummary("List Orphaned Reserves")
+.WithDescription("List Orphaned Reserves")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "authorisation token for the communication";
     return g;
 });
 
@@ -383,8 +410,9 @@ app.MapGet("/estimatefee", (string authToken, string address, long satoshis) =>
 .WithDescription("Gives Fee Estimate")
 .WithOpenApi(g =>
 {
-    g.Parameters[0].Description = "bitcoin address";
-    g.Parameters[1].Description = "number of satoshis";
+    g.Parameters[0].Description = "authorisation token for the communication";
+    g.Parameters[1].Description = "bitcoin address";
+    g.Parameters[2].Description = "number of satoshis";
     return g;
 });
 
@@ -546,7 +574,8 @@ app.MapGet("/sendpayment", async (string authToken, string paymentrequest, int t
 {
     g.Parameters[0].Description = "Authorisation token for the communication";
     g.Parameters[1].Description = "A bare-bones invoice for a payment within the Lightning Network. With the details of the invoice, the sender has all the data necessary to send a payment to the recipient.";
-    g.Parameters[2].Description = "An upper limit on the amount of time we should spend when attempting to fulfill the payment. This is expressed in seconds.";
+    g.Parameters[2].Description = "Routing timeout.";
+    g.Parameters[3].Description = "An upper limit on the amount of time we should spend when attempting to fulfill the payment. This is expressed in seconds.";
     return g;
 })
 .DisableAntiforgery();

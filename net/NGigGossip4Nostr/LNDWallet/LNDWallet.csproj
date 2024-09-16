@@ -14,6 +14,7 @@
     <ProjectReference Include="..\LNDClient\LNDClient.csproj" />
     <ProjectReference Include="..\Tracer\TraceEx.csproj" />
     <ProjectReference Include="..\GigGossipFrames\GigGossipFrames.csproj" />
+    <ProjectReference Include="..\GigDebugLoggerAPIClient\GigDebugLoggerAPIClient.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.8" />
