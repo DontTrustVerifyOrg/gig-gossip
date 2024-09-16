@@ -27,13 +27,15 @@ public static class LND
     {
         var httpClientHandler = new HttpClientHandler
         {
-            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
         };
 
         var clientCert = new X509Certificate2(tlsCertFile);
         httpClientHandler.ClientCertificates.Add(clientCert);
 
-        return new HttpClient(httpClientHandler);
+        var client = new HttpClient(httpClientHandler);
+        client.Timeout = Timeout.InfiniteTimeSpan;
+        return client;
     }
 
     static Invoicesrpc.Invoices.InvoicesClient InvoicesClient(NodeSettings conf)
@@ -131,17 +133,24 @@ public static class LND
         return response.Address;
     }
 
-    //-1 means send all
-    public static string SendCoins(NodeSettings conf, string address, string memo, long satoshis, ulong satspervbyte, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static string SendCoins(NodeSettings conf, string address, string memo, long satoshis,DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        var req = new SendCoinsRequest() { Addr = address, TargetConf = 6, Label = memo, SatPerVbyte = satspervbyte, Amount = satoshis, };
+        var req = new SendCoinsRequest() {
+            Addr = address,
+            TargetConf = 6,
+            Label = memo,
+            Amount = satoshis, };
         var response = LightningClient(conf,false).SendCoins(req, Metadata(conf), deadline, cancellationToken);
         return response.Txid;
     }
 
-    public static string SendAll(NodeSettings conf, string address, string memo, ulong satspervbyte, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static string SendAll(NodeSettings conf, string address, string memo, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
-        var req = new SendCoinsRequest() { Addr = address, TargetConf = 6, Label = memo, SatPerVbyte = satspervbyte, SendAll=true, };
+        var req = new SendCoinsRequest() {
+            Addr = address,
+            TargetConf = 6,
+            Label = memo,
+            SendAll=true, };
         var response = LightningClient(conf, false).SendCoins(req, Metadata(conf), deadline, cancellationToken);
         return response.Txid;
     }
@@ -359,7 +368,17 @@ public static class LND
     {
         return LightningClient(conf).GetTransactions(
             new GetTransactionsRequest()
-            { },
+            {   },
+            Metadata(conf), deadline, cancellationToken);
+    }
+
+    public static Transaction GetTransaction(NodeSettings conf, string txid, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    {
+        return WalletKit(conf).GetTransaction(
+            new Walletrpc.GetTransactionRequest()
+            {
+                 Txid = txid
+            },
             Metadata(conf), deadline, cancellationToken);
     }
 
