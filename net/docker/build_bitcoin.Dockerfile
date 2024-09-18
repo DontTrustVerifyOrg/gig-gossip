@@ -1,4 +1,4 @@
-FROM debian:12.7
+FROM debian:12.7 AS build
 
 ENV VERSION=27.1
 
@@ -8,7 +8,10 @@ WORKDIR /app
 RUN curl -O https://bitcoincore.org/bin/bitcoin-core-${VERSION}/bitcoin-${VERSION}-x86_64-linux-gnu.tar.gz
 RUN tar -xvf bitcoin-${VERSION}-x86_64-linux-gnu.tar.gz
 RUN mv ./bitcoin-${VERSION}/* .
-RUN rmdir ./bitcoin-${VERSION} && bitcoin-${VERSION}-x86_64-linux-gnu.tar.gz
 
-WORKDIR /app/bin
+
+FROM debian:12.7
+
+WORKDIR /app
+COPY --from=build /app/bin .
 
