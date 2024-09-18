@@ -1095,9 +1095,9 @@ public class LNDAccountManager
 
         return new AccountBalanceDetails
         {
-            AvailableAmount = channelfunds - payedout - payedoutfee + earnedFromSettledInvoices - sendOrLockedPayments - sendOrLockedPaymentFeesMsat / 1000,
+            AvailableAmount = channelfunds - payedout + earnedFromSettledInvoices - sendOrLockedPayments - sendOrLockedPaymentFeesMsat / 1000,
 
-            TotalAmount = channelfundsAndNotConfirmed - payedout - payedoutfee + earnedFromSettledInvoices + earnedFromAcceptedInvoices - sendOrLockedPayments - sendOrLockedPaymentFeesMsat / 1000,
+            TotalAmount = channelfundsAndNotConfirmed - payedout + earnedFromSettledInvoices + earnedFromAcceptedInvoices - sendOrLockedPayments - sendOrLockedPaymentFeesMsat / 1000,
 
             TotalTopups = channelfundsAndNotConfirmed,
             NotConfirmedTopups = channelfundsAndNotConfirmed - channelfunds,

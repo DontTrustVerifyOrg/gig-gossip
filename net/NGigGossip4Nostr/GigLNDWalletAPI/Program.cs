@@ -186,12 +186,8 @@ app.MapGet("/sendtoaddress", (string authToken, string bitcoinAddr, long satoshi
 {
     try
     {
-        Singlethon.LNDWalletManager.ValidateAuthToken(authToken);
-        if (Singlethon.LNDWalletManager.BitcoinNode.IsRegTest)
-            Singlethon.LNDWalletManager.BitcoinNode.SendToAddress(bitcoinAddr, satoshis);
-        else
-            throw new InvalidOperationException("Bitcoin node is not in RegTest");
-
+        Singlethon.LNDWalletManager.ValidateAuthToken(authToken, !Singlethon.LNDWalletManager.BitcoinNode.IsRegTest);
+        Singlethon.LNDWalletManager.BitcoinNode.SendToAddress(bitcoinAddr, satoshis);
         return new Result();
     }
     catch (Exception ex)
