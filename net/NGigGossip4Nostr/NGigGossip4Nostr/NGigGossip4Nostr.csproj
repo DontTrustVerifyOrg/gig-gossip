@@ -19,7 +19,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NBitcoin.Secp256k1" Version="3.1.5" />
-    <PackageReference Include="NBitcoin" Version="7.0.38" />
+    <PackageReference Include="NBitcoin" Version="7.0.39" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.8" />

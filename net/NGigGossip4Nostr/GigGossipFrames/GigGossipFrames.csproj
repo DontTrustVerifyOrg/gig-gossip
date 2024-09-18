@@ -21,7 +21,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="NBitcoin" Version="7.0.38" />
+    <PackageReference Include="NBitcoin" Version="7.0.39" />
   </ItemGroup>
   <ItemGroup>
     <Protobuf Include="giggossipframes.proto" GrpcServices="Client" />
