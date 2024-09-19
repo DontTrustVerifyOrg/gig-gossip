@@ -110,10 +110,10 @@ public class GigLNDWalletCLI
         SendToAddress,
         [Display(Name = "Generate Blocks")]
         GenerateBlocks,
-        [Display(Name = "Bitcoin Wallet Ballance")]
-        BitcoinWalletBallance,
-        [Display(Name = "Lnd Node Wallet Ballance")]
-        LndWalletBallance,
+        [Display(Name = "Bitcoin Wallet Balance")]
+        BitcoinWalletBalance,
+        [Display(Name = "Lnd Node Wallet Balance")]
+        LndWalletBalance,
         [Display(Name = "Add Invoice")]
         AddInvoice,
         [Display(Name = "Add Hodl Invoice")]
@@ -152,9 +152,9 @@ public class GigLNDWalletCLI
 
     private async Task WriteBalance()
     {
-        var ballanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await walletClient.GetBalanceAsync(await MakeToken(), CancellationToken.None));
+        var balanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await walletClient.GetBalanceAsync(await MakeToken(), CancellationToken.None));
         AnsiConsole.WriteLine("Current amout in satoshis:");
-        PrintObjectAsTree (ballanceOfCustomer);
+        PrintObjectAsTree (balanceOfCustomer);
     }
 
 
@@ -276,16 +276,16 @@ public class GigLNDWalletCLI
                         WalletAPIResult.Check(await walletClient.GenerateBlocksAsync(await MakeToken(), numblocks, CancellationToken.None));
                     }
                 }
-                else if (cmd == CommandEnum.BitcoinWalletBallance)
+                else if (cmd == CommandEnum.BitcoinWalletBalance)
                 {
                     var minconf = Prompt.Input<int>("How many confirtmations", 6);
-                    var ballance = WalletAPIResult.Get<long>(await walletClient.GetBitcoinWalletBallanceAsync(await MakeToken(), minconf, CancellationToken.None));
-                    AnsiConsole.WriteLine($"Ballance={ballance}");
+                    var balance = WalletAPIResult.Get<long>(await walletClient.GetBitcoinWalletBalanceAsync(await MakeToken(), minconf, CancellationToken.None));
+                    AnsiConsole.WriteLine($"Balance={balance}");
                 }
-                else if (cmd == CommandEnum.LndWalletBallance)
+                else if (cmd == CommandEnum.LndWalletBalance)
                 {
-                    var ballance = WalletAPIResult.Get<LndWalletBallanceRet>(await walletClient.GetLndWalletBallanceAsync(await MakeToken(), CancellationToken.None));
-                    PrintObjectAsTree(ballance);
+                    var balance = WalletAPIResult.Get<LndWalletBalanceRet>(await walletClient.GetLndWalletBalanceAsync(await MakeToken(), CancellationToken.None));
+                    PrintObjectAsTree(balance);
                 }
                 else if (cmd == CommandEnum.EstimateFee)
                 {
@@ -300,10 +300,9 @@ public class GigLNDWalletCLI
                 else if (cmd == CommandEnum.Payout)
                 {
                     var payoutAmount = Prompt.Input<int>("How much to payout");
-                    var txFee = Prompt.Input<int>("TxFee");
                     if (payoutAmount > 0)
                     {
-                        var payoutId = WalletAPIResult.Get<Guid>(await walletClient.RegisterPayoutAsync(await MakeToken(), payoutAmount, FromClipboard(ClipType.BitcoinAddr), txFee, CancellationToken.None));
+                        var payoutId = WalletAPIResult.Get<Guid>(await walletClient.RegisterPayoutAsync(await MakeToken(), payoutAmount, FromClipboard(ClipType.BitcoinAddr),  CancellationToken.None));
                         AnsiConsole.WriteLine(payoutId.ToString());
                     }
                 }

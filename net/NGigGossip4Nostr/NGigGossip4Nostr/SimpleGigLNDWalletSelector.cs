@@ -164,12 +164,12 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<Int64Result> GetBitcoinWalletBallanceAsync(string authToken, int minConf, CancellationToken cancellationToken)
+    public async Task<Int64Result> GetBitcoinWalletBalanceAsync(string authToken, int minConf, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(minConf);
         try
         {
-            return TL.Ret(await API.GetBitcoinWalletBallanceAsync(authToken, minConf, cancellationToken));
+            return TL.Ret(await API.GetBitcoinWalletBalanceAsync(authToken, minConf, cancellationToken));
         }
         catch (Exception ex)
         {
@@ -192,12 +192,12 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<LndWalletBallanceRetResult> GetLndWalletBallanceAsync(string authToken, CancellationToken cancellationToken)
+    public async Task<LndWalletBalanceRetResult> GetLndWalletBalanceAsync(string authToken, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log();
         try
         {
-            return TL.Ret(await API.GetLndWalletBallanceAsync(authToken, cancellationToken));
+            return TL.Ret(await API.GetLndWalletBalanceAsync(authToken, cancellationToken));
         }
         catch (Exception ex)
         {
@@ -360,12 +360,12 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<GuidResult> RegisterPayoutAsync(string authToken, long satoshis, string btcAddress, long txfee, CancellationToken cancellationToken)
+    public async Task<GuidResult> RegisterPayoutAsync(string authToken, long satoshis, string btcAddress, CancellationToken cancellationToken)
     {
-        using var TL = TRACE.Log().Args(satoshis, btcAddress, txfee);
+        using var TL = TRACE.Log().Args(satoshis, btcAddress);
         try
         {
-            return TL.Ret(await API.RegisterPayoutAsync(authToken, satoshis, btcAddress, txfee, cancellationToken));
+            return TL.Ret(await API.RegisterPayoutAsync(authToken, satoshis, btcAddress, cancellationToken));
         }
         catch (Exception ex)
         {

@@ -117,7 +117,7 @@ public static class LND
         return new Metadata() { new Metadata.Entry("macaroon", GetMacaroon(conf)) };
     }
 
-    public static WalletBalanceResponse WalletBallance(NodeSettings conf)
+    public static WalletBalanceResponse WalletBalance(NodeSettings conf)
     {
         return LightningClient(conf).WalletBalance(new WalletBalanceRequest() {  },
             Metadata(conf));
@@ -323,6 +323,15 @@ public static class LND
             new ListChannelsRequest()
             {
                 ActiveOnly = activeOnly,
+            },
+            Metadata(conf), deadline, cancellationToken);
+    }
+
+    public static ClosedChannelsResponse ClosedChannels(NodeSettings conf, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    {
+        return LightningClient(conf).ClosedChannels(
+            new ClosedChannelsRequest()
+            {
             },
             Metadata(conf), deadline, cancellationToken);
     }

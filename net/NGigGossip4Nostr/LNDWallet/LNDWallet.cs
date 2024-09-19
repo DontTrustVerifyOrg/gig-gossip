@@ -298,12 +298,12 @@ public class LNDAccountManager
         return newaddress;
     }
 
-    public Guid RegisterNewPayoutForExecution(long satoshis, string btcAddress, long payoutfee)
+    public Guid RegisterNewPayoutForExecution(long satoshis, string btcAddress)
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
-        var availableAmount = GetAccountBallance().AvailableAmount;
-        if (availableAmount < satoshis + payoutfee)
+        var availableAmount = GetAccountBalance().AvailableAmount;
+        if (availableAmount < satoshis)
             throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds); ;
 
         var myid = Guid.NewGuid();
@@ -314,8 +314,8 @@ public class LNDAccountManager
                 PayoutId = myid,
                 BitcoinAddress = btcAddress,
                 PublicKey = PublicKey,
-                PayoutFee = payoutfee,
                 State = PayoutState.Open,
+                PayoutFee = 0,
                 Satoshis = satoshis
             })
             .INSERT(new Reserve()
@@ -554,7 +554,7 @@ public class LNDAccountManager
             return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadyAccepted, false);
 
 
-        var availableAmount = GetAccountBallance().AvailableAmount;
+        var availableAmount = GetAccountBalance().AvailableAmount;
 
         HodlInvoice? selfHodlInvoice = (from inv in walletContext.Value.HodlInvoices
                                         where inv.PaymentHash == decinv.PaymentHash
@@ -1012,15 +1012,15 @@ public class LNDAccountManager
         throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
     }
 
-    public AccountBalanceDetails GetBallance()
+    public AccountBalanceDetails GetBalance()
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
-        var bal = GetAccountBallance();
+        var bal = GetAccountBalance();
         TX.Commit();
         return bal;
     }
 
-    private AccountBalanceDetails GetAccountBallance()
+    private AccountBalanceDetails GetAccountBalance()
     {
 
         var channelfunds = GetExecutedTopupTotalAmount(6);
@@ -1439,12 +1439,13 @@ public class LNDWalletManager : LNDEventSource
         return allReserves.ToList();
     }
 
-    internal bool MarkPayoutAsSending(Guid id)
+    internal bool MarkPayoutAsSending(Guid id, long fee)
     {
         var payout = (from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po).FirstOrDefault();
         if (payout == null)
             return false;
         payout.State = PayoutState.Sending;
+        payout.PayoutFee = fee;
         walletContext.Value
             .UPDATE(payout)
             .SAVE();
@@ -1530,7 +1531,7 @@ public class LNDWalletManager : LNDEventSource
 
     public WalletBalanceResponse GetWalletBalance()
     {
-        return LND.WalletBallance(lndConf);
+        return LND.WalletBalance(lndConf);
     }
 
     public long GetRequiredReserve(uint additionalChannelsNum)
@@ -1621,6 +1622,20 @@ public class LNDWalletManager : LNDEventSource
     public AsyncServerStreamingCall<CloseStatusUpdate> CloseChannel(string chanpoint, ulong maxFeePerVByte)
     {
         return LND.CloseChannel(lndConf, chanpoint, maxFeePerVByte);
+    }
+
+    public long EstimateChannelClosingFee()
+    {
+        var chans = LND.ClosedChannels(lndConf);
+        if (chans.Channels.Count == 0)
+        {
+            return (long)(EstimateFeeSatoshiPerByte() * 1024);
+        }
+        else
+        {
+            var sum = (from chan in chans.Channels select LND.GetTransaction(lndConf, chan.ClosingTxHash).TotalFees).Sum();
+            return sum / chans.Channels.Count;
+        }
     }
 
     public decimal EstimateFeeSatoshiPerByte()

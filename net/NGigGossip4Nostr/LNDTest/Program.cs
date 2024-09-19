@@ -61,8 +61,8 @@ foreach (var conf in confs)
     Console.WriteLine(conf.ListenHost + " Pubkey: " + LND.GetNodeInfo(conf).IdentityPubkey);
 
 //Top up the node
-var ballanceOfCustomer = LND.WalletBallance(confs[1]).ConfirmedBalance;
-if (ballanceOfCustomer == 0)
+var balanceOfCustomer = LND.WalletBalance(confs[1]).ConfirmedBalance;
+if (balanceOfCustomer == 0)
 {
     var newBitcoinAddressOfCustomer = LND.NewAddress(confs[1]);
     Console.WriteLine(newBitcoinAddressOfCustomer);
@@ -73,12 +73,12 @@ if (ballanceOfCustomer == 0)
 
     do
     {
-        if (LND.WalletBallance(confs[1]).ConfirmedBalance > 0)
+        if (LND.WalletBalance(confs[1]).ConfirmedBalance > 0)
             break;
         Thread.Sleep(1000);
     } while (true);
 
-    ballanceOfCustomer = LND.WalletBallance(confs[1]).ConfirmedBalance;
+    balanceOfCustomer = LND.WalletBalance(confs[1]).ConfirmedBalance;
 }
 
 

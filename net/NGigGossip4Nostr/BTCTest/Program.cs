@@ -64,7 +64,7 @@ catch (RPCException exception)
 }
 
 // Display the current balance in the wallet
-Console.WriteLine("Wallet ballance: " + wallet.GetBalance(6, true).ToString());
+Console.WriteLine("Wallet balance: " + wallet.GetBalance(6, true).ToString());
 
 public class BitcoinSettings
 {
