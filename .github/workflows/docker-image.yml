@@ -30,7 +30,6 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       # Create the NuGet package in the folder from the environment variable NuGetDirectory
-      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/CryptoToolkit && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
       - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/NGigGossip4Nostr && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
       - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/GigDebugLoggerAPIClient && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
       - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/GigGossipSettlerAPIClient && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
