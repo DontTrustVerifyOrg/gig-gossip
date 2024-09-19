@@ -124,9 +124,9 @@ public class BasicTest
                 customerSettings.GigWalletOpenApi,
                 customerSettings.SettlerOpenApi);
 
-            var ballanceOfCustomer = WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken(), CancellationToken.None));
+            var balanceOfCustomer = WalletAPIResult.Get<long>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken(), CancellationToken.None));
 
-            while (ballanceOfCustomer == 0)
+            while (balanceOfCustomer == 0)
             {
                 var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await customer.GetWalletClient().NewAddressAsync(await customer.MakeWalletAuthToken(), CancellationToken.None));
                 Console.WriteLine(newBitcoinAddressOfCustomer);
@@ -142,7 +142,7 @@ public class BasicTest
                     Thread.Sleep(1000);
                 } while (true);
 
-                ballanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken(), CancellationToken.None)).AvailableAmount;
+                balanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await customer.GetWalletClient().GetBalanceAsync(await customer.MakeWalletAuthToken(), CancellationToken.None)).AvailableAmount;
             }
 
 

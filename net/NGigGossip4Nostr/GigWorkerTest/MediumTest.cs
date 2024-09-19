@@ -161,8 +161,8 @@ public class MediumTest
 
             async Task TopupNode(GigGossipNode node, long minAmout,long topUpAmount)
             {
-                var ballanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await node.GetWalletClient().GetBalanceAsync(await node.MakeWalletAuthToken(), CancellationToken.None)).AvailableAmount;
-                if (ballanceOfCustomer < minAmout)
+                var balanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await node.GetWalletClient().GetBalanceAsync(await node.MakeWalletAuthToken(), CancellationToken.None)).AvailableAmount;
+                if (balanceOfCustomer < minAmout)
                 {
                     var newBitcoinAddressOfCustomer = WalletAPIResult.Get<string>(await node.GetWalletClient().NewAddressAsync(await node.MakeWalletAuthToken(), CancellationToken.None));
                     bitcoinClient.SendToAddress(NBitcoin.BitcoinAddress.Create(newBitcoinAddressOfCustomer, bitcoinSettings.GetNetwork()), new NBitcoin.Money(topUpAmount));

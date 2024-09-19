@@ -538,8 +538,8 @@ public partial class RideShareCLIApp
 
     private async Task WriteBalance()
     {
-        var ballanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token)).AvailableAmount;
-        AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
+        var balanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token)).AvailableAmount;
+        AnsiConsole.WriteLine("Current amout in satoshis:" + balanceOfCustomer.ToString());
     }
 
     private async void GigGossipNodeEventSource_OnNetworkInvoiceAccepted(object? sender, NetworkInvoiceAcceptedEventArgs e)
@@ -576,8 +576,8 @@ public partial class RideShareCLIApp
             settings.NodeSettings.GigWalletOpenApi,
             settings.NodeSettings.SettlerOpenApi);
 
-        var ballanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token)).AvailableAmount;
-        AnsiConsole.WriteLine("Current amout in satoshis:" + ballanceOfCustomer.ToString());
+        var balanceOfCustomer = WalletAPIResult.Get<AccountBalanceDetails>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token)).AvailableAmount;
+        AnsiConsole.WriteLine("Current amout in satoshis:" + balanceOfCustomer.ToString());
 
         gigGossipNode.LoadContactList();
         var contactList = gigGossipNode.GetContactList(24);

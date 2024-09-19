@@ -69,7 +69,7 @@ public class BitcoinNode
         return WalletClient().GetNewAddress().ToString();
     }
 
-    public long WalletBallance(int minConfirmations)
+    public long WalletBalance(int minConfirmations)
     {
         return WalletClient().GetBalance(minConfirmations, false).Satoshi;
     }
