@@ -304,12 +304,12 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<RouteFeeRecordResult> EstimateRouteFeeAsync(string authToken, string paymentrequest, CancellationToken cancellationToken)
+    public async Task<RouteFeeRecordResult> EstimateRouteFeeAsync(string authToken, string paymentrequest, int timeout, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(paymentrequest);
         try
         {
-            return TL.Ret(await API.EstimateRouteFeeAsync(authToken, paymentrequest, cancellationToken));
+            return TL.Ret(await API.EstimateRouteFeeAsync(authToken, paymentrequest, timeout, cancellationToken));
         }
         catch (Exception ex)
         {

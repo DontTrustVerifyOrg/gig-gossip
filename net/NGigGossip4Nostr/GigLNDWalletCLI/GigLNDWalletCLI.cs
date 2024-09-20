@@ -400,8 +400,9 @@ public class GigLNDWalletCLI
                 else if (cmd == CommandEnum.EstimateRouteFee)
                 {
                     var paymentreq = Prompt.Input<string>("Payment Request", FromClipboard(ClipType.Invoice));
+                    var timeout = Prompt.Input<int>("Timeout", 1000);
                     AnsiConsole.WriteLine(paymentreq);
-                    var fee = WalletAPIResult.Get<RouteFeeRecord>(await walletClient.EstimateRouteFeeAsync(await MakeToken(), paymentreq, CancellationToken.None));
+                    var fee = WalletAPIResult.Get<RouteFeeRecord>(await walletClient.EstimateRouteFeeAsync(await MakeToken(), paymentreq, timeout, CancellationToken.None));
                     PrintObjectAsTree(fee);
                 }
                 else if (cmd == CommandEnum.ListInvoices)

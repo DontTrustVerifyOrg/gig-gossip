@@ -197,12 +197,13 @@ public static class LND
             Metadata(conf), deadline, cancellationToken);
     }
 
-    public static RouteFeeResponse EstimateRouteFee(NodeSettings conf, string paymentRequest, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    public static RouteFeeResponse EstimateRouteFee(NodeSettings conf, string paymentRequest, int timeout, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         return RouterClient(conf).EstimateRouteFee(
             new RouteFeeRequest
             {
-                PaymentRequest = paymentRequest
+                PaymentRequest = paymentRequest,
+                Timeout = (uint)timeout,
             },
             Metadata(conf), deadline, cancellationToken);
     }

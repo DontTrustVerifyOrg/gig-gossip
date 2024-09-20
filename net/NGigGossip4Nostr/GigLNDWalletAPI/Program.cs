@@ -51,7 +51,7 @@ var app = builder.Build();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseHsts();
@@ -614,11 +614,11 @@ app.MapGet("/sendpayment", async (string authToken, string paymentrequest, int t
 })
 .DisableAntiforgery();
 
-app.MapGet("/estimateroutefee", (string authToken, string paymentrequest) =>
+app.MapGet("/estimateroutefee", (string authToken, string paymentrequest, int timeout) =>
 {
     try
     {
-        return new Result<RouteFeeRecord>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).EstimateRouteFee(paymentrequest, walletSettings.SendPaymentFee));
+        return new Result<RouteFeeRecord>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).EstimateRouteFee(paymentrequest, walletSettings.SendPaymentFee, timeout));
     }
     catch (Exception ex)
     {
@@ -633,6 +633,7 @@ app.MapGet("/estimateroutefee", (string authToken, string paymentrequest) =>
 {
     g.Parameters[0].Description = "Authorization token for authentication and access control. This token, generated using Schnorr Signatures for secp256k1, encodes the user's public key and session identifier from the GetToken function.";
     g.Parameters[1].Description = "The Lightning Network payment request (invoice) for which the route fee is to be estimated. This encoded string contains necessary details such as the payment amount and recipient.";
+    g.Parameters[2].Description = "Maximum probing time (in seconds) allowed for finding a routing fee for the payment.";
     return g;
 })
 .DisableAntiforgery();
