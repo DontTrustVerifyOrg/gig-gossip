@@ -531,40 +531,51 @@ public class LNDAccountManager
 
     public async Task<PaymentRecord> SendPaymentAsync(string paymentRequest, int timeout, long ourRouteFeeSat, long feelimit)
     {
-
         var decinv = LND.DecodeInvoice(lndConf, paymentRequest);
-        var invoice = LND.LookupInvoiceV2(lndConf, decinv.PaymentHash.AsBytes());
 
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
-        if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Settled)
-            return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadySettled, false);
-        else if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Canceled)
-        {
-            var internalPayment = (from pay in walletContext.Value.InternalPayments
-                                   where pay.PaymentHash == decinv.PaymentHash
-                                   select pay).FirstOrDefault();
-
-            if (internalPayment != null)
-                return failedPaymentRecordAndCommit(TX, decinv, internalPayment.Status == InternalPaymentStatus.InFlight ? PaymentFailureReason.InvoiceAlreadyAccepted : PaymentFailureReason.InvoiceAlreadySettled, false);
-            else
-                return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadyCancelled, false);
-        }
-        else if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)
-            return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadyAccepted, false);
-
-
         var availableAmount = GetAccountBalance().AvailableAmount;
 
-        HodlInvoice? selfHodlInvoice = (from inv in walletContext.Value.HodlInvoices
-                                        where inv.PaymentHash == decinv.PaymentHash
-                                        select inv).FirstOrDefault();
-
+        Invoice invoice = null;
+        HodlInvoice? selfHodlInvoice = null;
         ClassicInvoice? selfClsInv = null;
-        if (selfHodlInvoice == null)
-            selfClsInv = (from inv in walletContext.Value.ClassicInvoices
-                          where inv.PaymentHash == decinv.PaymentHash
-                          select inv).FirstOrDefault();
+        try
+        {
+            invoice = LND.LookupInvoiceV2(lndConf, decinv.PaymentHash.AsBytes());
+        }
+        catch (Exception) {/* cannot locate */  }
+
+        if (invoice != null)
+        {
+
+            if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Settled)
+                return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadySettled, false);
+            else if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Canceled)
+            {
+                var internalPayment = (from pay in walletContext.Value.InternalPayments
+                                       where pay.PaymentHash == decinv.PaymentHash
+                                       select pay).FirstOrDefault();
+
+                if (internalPayment != null)
+                    return failedPaymentRecordAndCommit(TX, decinv, internalPayment.Status == InternalPaymentStatus.InFlight ? PaymentFailureReason.InvoiceAlreadyAccepted : PaymentFailureReason.InvoiceAlreadySettled, false);
+                else
+                    return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadyCancelled, false);
+            }
+            else if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)
+                return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadyAccepted, false);
+
+
+            selfHodlInvoice = (from inv in walletContext.Value.HodlInvoices
+                                            where inv.PaymentHash == decinv.PaymentHash
+                                            select inv).FirstOrDefault();
+
+            selfClsInv = null;
+            if (selfHodlInvoice == null)
+                selfClsInv = (from inv in walletContext.Value.ClassicInvoices
+                              where inv.PaymentHash == decinv.PaymentHash
+                              select inv).FirstOrDefault();
+        }
 
         if (selfHodlInvoice != null || selfClsInv != null) // selfpayment
         {
