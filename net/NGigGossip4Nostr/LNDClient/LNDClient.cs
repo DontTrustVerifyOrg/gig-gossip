@@ -322,7 +322,7 @@ public static class LND
         return LightningClient(conf).ListChannels(
             new ListChannelsRequest()
             {
-                ActiveOnly = activeOnly,
+                ActiveOnly = activeOnly,  
             },
             Metadata(conf), deadline, cancellationToken);
     }

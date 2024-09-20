@@ -378,6 +378,50 @@ app.MapGet("/listorphanedreserves", (string authToken) =>
     return g;
 });
 
+app.MapGet("/listchannels", (string authToken, bool activeOnly) =>
+{
+    try
+    {
+        Singlethon.LNDWalletManager.ValidateAuthToken(authToken, !Singlethon.LNDWalletManager.BitcoinNode.IsRegTest);
+        return new Result<Lnrpc.Channel[]>(Singlethon.LNDWalletManager.ListChannels(activeOnly).Channels.ToArray());
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<Lnrpc.Channel[]>(ex);
+    }
+})
+.WithName("ListChannels")
+.WithSummary("List Lightning Network Channels")
+.WithDescription("Retrieves a list of Lightning Network channels associated with the LND node. This endpoint provides detailed information about each channel, including its capacity, balance, and current state. It can be used to monitor the node's connectivity and liquidity within the Lightning Network. The response includes both active and inactive channels, depending on the 'activeOnly' parameter.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorization token for authentication. This token is generated using Schnorr Signatures for secp256k1 and encodes the user's public key and session identifier. Admin-level token required for TestNet and MainNet modes.";
+    g.Parameters[1].Description = "If true, returns only active channels. If false, returns all channels including inactive ones.";
+    return g;
+});
+app.MapGet("/listclosedchannels", (string authToken) =>
+{
+    try
+    {
+        Singlethon.LNDWalletManager.ValidateAuthToken(authToken, !Singlethon.LNDWalletManager.BitcoinNode.IsRegTest);
+        return new Result<Lnrpc.ChannelCloseSummary[]>(Singlethon.LNDWalletManager.ClosedChannels().Channels.ToArray());
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<Lnrpc.ChannelCloseSummary[]>(ex);
+    }
+})
+.WithName("ListClosedChannels")
+.WithSummary("List Closed Lightning Network Channels")
+.WithDescription("Retrieves a list of closed Lightning Network channels associated with the LND node. This endpoint provides detailed information about each closed channel, including its capacity, closing transaction, and settlement details. It can be used to review the history of closed channels and analyze past network connections.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorization token for authentication and access control. This token is generated using Schnorr Signatures for secp256k1 and encodes the user's public key along with the session identifier obtained from the GetToken function. For TestNet and MainNet modes, an admin-level token is required.";
+    return g;
+});
+
 app.MapGet("/estimatefee", (string authToken, string address, long satoshis) =>
 {
     bool isAdmin = false;

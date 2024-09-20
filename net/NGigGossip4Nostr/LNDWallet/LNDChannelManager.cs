@@ -113,22 +113,32 @@ public class LNDChannelManager
 	public async Task<bool> GoForOpeningNewChannelsForNodeAsync(string nodePubKey, long minSatoshisPerChannel, long maxSatoshisPerChannel)
 	{
 		using var TL = TRACE.Log().Args(nodePubKey, minSatoshisPerChannel, maxSatoshisPerChannel);
-		try
+
+        try
 		{
+            var openChans = walletManager.ListChannels(true).Channels;
+            foreach (var chan in openChans)
+                TL.Info($"openChannel ChanId = {chan.ChanId}, ChannelPoint = {chan.ChannelPoint}, Capacity= {chan.Capacity}, ChanStatusFlags= {chan.ChanStatusFlags}");
+
 			var walletBalance = walletManager.GetWalletBalance();
 			var confirmedWalletBalance = walletBalance.ConfirmedBalance;
-			var requiredReserve = walletManager.GetRequiredReserve(2);
-			var requestedReserve = walletManager.GetRequestedReserveAmount();
+            var requiredReserve = walletManager.GetRequiredReserve(0);
+            var requiredAdditionalReserveForChannelOpening = walletManager.GetRequiredReserve(1)- requiredReserve;
+            var requestedReserve = walletManager.GetRequestedReserveAmount();
 
-            var amount = confirmedWalletBalance - requiredReserve - requestedReserve;
-			if (amount > 0)
+			var availableAmount = confirmedWalletBalance - requestedReserve - requiredReserve;
+
+			if (availableAmount > 0)
 			{
                 TL.Info($"confirmedWalletBalance={confirmedWalletBalance}");
                 TL.Info($"requiredReserve={requiredReserve}");
+                TL.Info($"requiredAdditionalReserveForChannelOpening={requiredAdditionalReserveForChannelOpening}");
                 TL.Info($"requestedReserve={requestedReserve}");
                 TL.Info($"minSatoshisPerChannel={minSatoshisPerChannel}");
                 TL.Info($"maxSatoshisPerChannel={maxSatoshisPerChannel}");
-                TL.Info($"amount={amount}");
+                TL.Info($"availableAmount={availableAmount}");
+
+				var amount = availableAmount;
 
                 if (amount > maxSatoshisPerChannel)
 					amount = maxSatoshisPerChannel;
@@ -136,7 +146,10 @@ public class LNDChannelManager
 				if (amount < minSatoshisPerChannel)
 					amount = minSatoshisPerChannel;
 
-				if (confirmedWalletBalance >= amount)
+                if (amount < requiredAdditionalReserveForChannelOpening)
+                    amount = requiredAdditionalReserveForChannelOpening;
+
+                if (confirmedWalletBalance >= amount)
 					try
 					{
 						TL.Info($"Opening Channel to [{nodePubKey}] for {amount}");
@@ -154,7 +167,6 @@ public class LNDChannelManager
 					}
 				else
 					TL.Warning($"amount={amount} is below confirmedWalletBalance={confirmedWalletBalance}");
-
 			}
 			return false;
 		}

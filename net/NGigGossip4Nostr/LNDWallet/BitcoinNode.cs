@@ -76,7 +76,14 @@ public class BitcoinNode
 
     public decimal EstimateFeeSatoshiPerByte(int confirmationTarget)
     {
-        return WalletClient().EstimateSmartFee(confirmationTarget).FeeRate.SatoshiPerByte;
+        try
+        {
+            return WalletClient().EstimateSmartFee(confirmationTarget).FeeRate.SatoshiPerByte;
+        }
+        catch(NBitcoin.RPC.NoEstimationException)
+        {
+            return 20;
+        }
     }
 
 }
