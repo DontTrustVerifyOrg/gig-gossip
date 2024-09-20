@@ -172,8 +172,9 @@ public class LNDChannelManager
 			{
 				TL.Exception(ex);
 			}
-		}
-		catch (Exception ex)
+            return false;
+        }
+        catch (Exception ex)
 		{
 			TL.Exception(ex);
 			throw;
