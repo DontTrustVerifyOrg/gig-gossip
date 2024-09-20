@@ -413,6 +413,81 @@
         }
       }
     },
+    "/listchannels": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "List Lightning Network Channels",
+        "description": "Retrieves a list of Lightning Network channels associated with the LND node. This endpoint provides detailed information about each channel, including its capacity, balance, and current state. It can be used to monitor the node's connectivity and liquidity within the Lightning Network. The response includes both active and inactive channels, depending on the 'activeOnly' parameter.",
+        "operationId": "ListChannels",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorization token for authentication. This token is generated using Schnorr Signatures for secp256k1 and encodes the user's public key and session identifier. Admin-level token required for TestNet and MainNet modes.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "activeOnly",
+            "in": "query",
+            "description": "If true, returns only active channels. If false, returns all channels including inactive ones.",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelArrayResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/listclosedchannels": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "List Closed Lightning Network Channels",
+        "description": "Retrieves a list of closed Lightning Network channels associated with the LND node. This endpoint provides detailed information about each closed channel, including its capacity, closing transaction, and settlement details. It can be used to review the history of closed channels and analyze past network connections.",
+        "operationId": "ListClosedChannels",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorization token for authentication and access control. This token is generated using Schnorr Signatures for secp256k1 and encodes the user's public key along with the session identifier obtained from the GetToken function. For TestNet and MainNet modes, an admin-level token is required.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelCloseSummaryArrayResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/estimatefee": {
       "get": {
         "tags": [
@@ -1295,6 +1370,735 @@
         },
         "additionalProperties": false
       },
+      "Channel": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "remotePubkey": {
+            "type": "string",
+            "nullable": true
+          },
+          "channelPoint": {
+            "type": "string",
+            "nullable": true
+          },
+          "chanId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "localBalance": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "remoteBalance": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "commitFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "commitWeight": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "feePerKw": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unsettledBalance": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalSatoshisSent": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalSatoshisReceived": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "numUpdates": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pendingHtlcs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HTLC"
+            },
+            "nullable": true,
+            "readOnly": true
+          },
+          "csvDelay": {
+            "type": "integer",
+            "format": "int32",
+            "deprecated": true
+          },
+          "private": {
+            "type": "boolean"
+          },
+          "initiator": {
+            "type": "boolean"
+          },
+          "chanStatusFlags": {
+            "type": "string",
+            "nullable": true
+          },
+          "localChanReserveSat": {
+            "type": "integer",
+            "format": "int64",
+            "deprecated": true
+          },
+          "remoteChanReserveSat": {
+            "type": "integer",
+            "format": "int64",
+            "deprecated": true
+          },
+          "staticRemoteKey": {
+            "type": "boolean",
+            "deprecated": true
+          },
+          "commitmentType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CommitmentType"
+              }
+            ],
+            "x-enumNames": [
+              "UnknownCommitmentType",
+              "Legacy",
+              "StaticRemoteKey",
+              "Anchors",
+              "ScriptEnforcedLease",
+              "SimpleTaproot"
+            ],
+            "x-ms-enum": {
+              "name": "CommitmentType",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "UnknownCommitmentType"
+                },
+                {
+                  "value": 1,
+                  "name": "Legacy"
+                },
+                {
+                  "value": 2,
+                  "name": "StaticRemoteKey"
+                },
+                {
+                  "value": 3,
+                  "name": "Anchors"
+                },
+                {
+                  "value": 4,
+                  "name": "ScriptEnforcedLease"
+                },
+                {
+                  "value": 5,
+                  "name": "SimpleTaproot"
+                }
+              ]
+            }
+          },
+          "lifetime": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "uptime": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "closeAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "pushAmountSat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "thawHeight": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "localConstraints": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChannelConstraints"
+              }
+            ],
+            "nullable": true
+          },
+          "remoteConstraints": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChannelConstraints"
+              }
+            ],
+            "nullable": true
+          },
+          "aliasScids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "nullable": true,
+            "readOnly": true
+          },
+          "zeroConf": {
+            "type": "boolean"
+          },
+          "zeroConfConfirmedScid": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "peerAlias": {
+            "type": "string",
+            "nullable": true
+          },
+          "peerScidAlias": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "memo": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChannelArrayResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Channel"
+            },
+            "nullable": true
+          },
+          "errorCode": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LNDWalletErrorCode"
+              }
+            ],
+            "x-enumNames": [
+              "Ok",
+              "InvalidToken",
+              "NotEnoughFunds",
+              "UnknownPayment",
+              "UnknownInvoice",
+              "InvoiceAlreadyCancelled",
+              "InvoiceAlreadyAccepted",
+              "InvoiceAlreadySettled",
+              "InvoiceNotAccepted",
+              "AlreadyPayed",
+              "PayoutNotOpened",
+              "PayoutAlreadySent",
+              "OperationFailed",
+              "AccessDenied",
+              "FeeLimitTooSmall"
+            ],
+            "x-ms-enum": {
+              "name": "LNDWalletErrorCode",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Ok"
+                },
+                {
+                  "value": 1,
+                  "name": "InvalidToken"
+                },
+                {
+                  "value": 2,
+                  "name": "NotEnoughFunds"
+                },
+                {
+                  "value": 3,
+                  "name": "UnknownPayment"
+                },
+                {
+                  "value": 4,
+                  "name": "UnknownInvoice"
+                },
+                {
+                  "value": 5,
+                  "name": "InvoiceAlreadyCancelled"
+                },
+                {
+                  "value": 6,
+                  "name": "InvoiceAlreadyAccepted"
+                },
+                {
+                  "value": 7,
+                  "name": "InvoiceAlreadySettled"
+                },
+                {
+                  "value": 8,
+                  "name": "InvoiceNotAccepted"
+                },
+                {
+                  "value": 9,
+                  "name": "AlreadyPayed"
+                },
+                {
+                  "value": 10,
+                  "name": "PayoutNotOpened"
+                },
+                {
+                  "value": 11,
+                  "name": "PayoutAlreadySent"
+                },
+                {
+                  "value": 12,
+                  "name": "OperationFailed"
+                },
+                {
+                  "value": 13,
+                  "name": "AccessDenied"
+                },
+                {
+                  "value": 14,
+                  "name": "FeeLimitTooSmall"
+                }
+              ]
+            }
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChannelCloseSummary": {
+        "type": "object",
+        "properties": {
+          "channelPoint": {
+            "type": "string",
+            "nullable": true
+          },
+          "chanId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "chainHash": {
+            "type": "string",
+            "nullable": true
+          },
+          "closingTxHash": {
+            "type": "string",
+            "nullable": true
+          },
+          "remotePubkey": {
+            "type": "string",
+            "nullable": true
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "closeHeight": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "settledBalance": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timeLockedBalance": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "closeType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClosureType"
+              }
+            ],
+            "x-enumNames": [
+              "CooperativeClose",
+              "LocalForceClose",
+              "RemoteForceClose",
+              "BreachClose",
+              "FundingCanceled",
+              "Abandoned"
+            ],
+            "x-ms-enum": {
+              "name": "ClosureType",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "CooperativeClose"
+                },
+                {
+                  "value": 1,
+                  "name": "LocalForceClose"
+                },
+                {
+                  "value": 2,
+                  "name": "RemoteForceClose"
+                },
+                {
+                  "value": 3,
+                  "name": "BreachClose"
+                },
+                {
+                  "value": 4,
+                  "name": "FundingCanceled"
+                },
+                {
+                  "value": 5,
+                  "name": "Abandoned"
+                }
+              ]
+            }
+          },
+          "openInitiator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Initiator"
+              }
+            ],
+            "x-enumNames": [
+              "Unknown",
+              "Local",
+              "Remote",
+              "Both"
+            ],
+            "x-ms-enum": {
+              "name": "Initiator",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Unknown"
+                },
+                {
+                  "value": 1,
+                  "name": "Local"
+                },
+                {
+                  "value": 2,
+                  "name": "Remote"
+                },
+                {
+                  "value": 3,
+                  "name": "Both"
+                }
+              ]
+            }
+          },
+          "closeInitiator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Initiator"
+              }
+            ],
+            "x-enumNames": [
+              "Unknown",
+              "Local",
+              "Remote",
+              "Both"
+            ],
+            "x-ms-enum": {
+              "name": "Initiator",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Unknown"
+                },
+                {
+                  "value": 1,
+                  "name": "Local"
+                },
+                {
+                  "value": 2,
+                  "name": "Remote"
+                },
+                {
+                  "value": 3,
+                  "name": "Both"
+                }
+              ]
+            }
+          },
+          "resolutions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Resolution"
+            },
+            "nullable": true,
+            "readOnly": true
+          },
+          "aliasScids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "nullable": true,
+            "readOnly": true
+          },
+          "zeroConfConfirmedScid": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChannelCloseSummaryArrayResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChannelCloseSummary"
+            },
+            "nullable": true
+          },
+          "errorCode": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LNDWalletErrorCode"
+              }
+            ],
+            "x-enumNames": [
+              "Ok",
+              "InvalidToken",
+              "NotEnoughFunds",
+              "UnknownPayment",
+              "UnknownInvoice",
+              "InvoiceAlreadyCancelled",
+              "InvoiceAlreadyAccepted",
+              "InvoiceAlreadySettled",
+              "InvoiceNotAccepted",
+              "AlreadyPayed",
+              "PayoutNotOpened",
+              "PayoutAlreadySent",
+              "OperationFailed",
+              "AccessDenied",
+              "FeeLimitTooSmall"
+            ],
+            "x-ms-enum": {
+              "name": "LNDWalletErrorCode",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Ok"
+                },
+                {
+                  "value": 1,
+                  "name": "InvalidToken"
+                },
+                {
+                  "value": 2,
+                  "name": "NotEnoughFunds"
+                },
+                {
+                  "value": 3,
+                  "name": "UnknownPayment"
+                },
+                {
+                  "value": 4,
+                  "name": "UnknownInvoice"
+                },
+                {
+                  "value": 5,
+                  "name": "InvoiceAlreadyCancelled"
+                },
+                {
+                  "value": 6,
+                  "name": "InvoiceAlreadyAccepted"
+                },
+                {
+                  "value": 7,
+                  "name": "InvoiceAlreadySettled"
+                },
+                {
+                  "value": 8,
+                  "name": "InvoiceNotAccepted"
+                },
+                {
+                  "value": 9,
+                  "name": "AlreadyPayed"
+                },
+                {
+                  "value": 10,
+                  "name": "PayoutNotOpened"
+                },
+                {
+                  "value": 11,
+                  "name": "PayoutAlreadySent"
+                },
+                {
+                  "value": 12,
+                  "name": "OperationFailed"
+                },
+                {
+                  "value": 13,
+                  "name": "AccessDenied"
+                },
+                {
+                  "value": 14,
+                  "name": "FeeLimitTooSmall"
+                }
+              ]
+            }
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChannelConstraints": {
+        "type": "object",
+        "properties": {
+          "csvDelay": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "chanReserveSat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "dustLimitSat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "maxPendingAmtMsat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minHtlcMsat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "maxAcceptedHtlcs": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ClosureType": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enumNames": [
+          "CooperativeClose",
+          "LocalForceClose",
+          "RemoteForceClose",
+          "BreachClose",
+          "FundingCanceled",
+          "Abandoned"
+        ],
+        "x-ms-enum": {
+          "name": "ClosureType",
+          "modelAsString": false,
+          "values": [
+            {
+              "value": 0,
+              "name": "CooperativeClose"
+            },
+            {
+              "value": 1,
+              "name": "LocalForceClose"
+            },
+            {
+              "value": 2,
+              "name": "RemoteForceClose"
+            },
+            {
+              "value": 3,
+              "name": "BreachClose"
+            },
+            {
+              "value": 4,
+              "name": "FundingCanceled"
+            },
+            {
+              "value": 5,
+              "name": "Abandoned"
+            }
+          ]
+        }
+      },
+      "CommitmentType": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enumNames": [
+          "UnknownCommitmentType",
+          "Legacy",
+          "StaticRemoteKey",
+          "Anchors",
+          "ScriptEnforcedLease",
+          "SimpleTaproot"
+        ],
+        "x-ms-enum": {
+          "name": "CommitmentType",
+          "modelAsString": false,
+          "values": [
+            {
+              "value": 0,
+              "name": "UnknownCommitmentType"
+            },
+            {
+              "value": 1,
+              "name": "Legacy"
+            },
+            {
+              "value": 2,
+              "name": "StaticRemoteKey"
+            },
+            {
+              "value": 3,
+              "name": "Anchors"
+            },
+            {
+              "value": 4,
+              "name": "ScriptEnforcedLease"
+            },
+            {
+              "value": 5,
+              "name": "SimpleTaproot"
+            }
+          ]
+        }
+      },
       "FeeEstimateRet": {
         "type": "object",
         "properties": {
@@ -1631,6 +2435,81 @@
           }
         },
         "additionalProperties": false
+      },
+      "HTLC": {
+        "type": "object",
+        "properties": {
+          "incoming": {
+            "type": "boolean"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "hashLock": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          },
+          "expirationHeight": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "htlcIndex": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "forwardingChannel": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "forwardingHtlcIndex": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Initiator": {
+        "enum": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enumNames": [
+          "Unknown",
+          "Local",
+          "Remote",
+          "Both"
+        ],
+        "x-ms-enum": {
+          "name": "Initiator",
+          "modelAsString": false,
+          "values": [
+            {
+              "value": 0,
+              "name": "Unknown"
+            },
+            {
+              "value": 1,
+              "name": "Local"
+            },
+            {
+              "value": 2,
+              "name": "Remote"
+            },
+            {
+              "value": 3,
+              "name": "Both"
+            }
+          ]
+        }
       },
       "Int64Result": {
         "type": "object",
@@ -2359,6 +3238,28 @@
           "errorMessage": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "OutPoint": {
+        "type": "object",
+        "properties": {
+          "txidBytes": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          },
+          "txidStr": {
+            "type": "string",
+            "nullable": true
+          },
+          "outputIndex": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -3107,6 +4008,207 @@
           }
         },
         "additionalProperties": false
+      },
+      "Resolution": {
+        "type": "object",
+        "properties": {
+          "resolutionType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ResolutionType"
+              }
+            ],
+            "x-enumNames": [
+              "TypeUnknown",
+              "Anchor",
+              "IncomingHtlc",
+              "OutgoingHtlc",
+              "Commit"
+            ],
+            "x-ms-enum": {
+              "name": "ResolutionType",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "TypeUnknown"
+                },
+                {
+                  "value": 1,
+                  "name": "Anchor"
+                },
+                {
+                  "value": 2,
+                  "name": "IncomingHtlc"
+                },
+                {
+                  "value": 3,
+                  "name": "OutgoingHtlc"
+                },
+                {
+                  "value": 4,
+                  "name": "Commit"
+                }
+              ]
+            }
+          },
+          "outcome": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ResolutionOutcome"
+              }
+            ],
+            "x-enumNames": [
+              "OutcomeUnknown",
+              "Claimed",
+              "Unclaimed",
+              "Abandoned",
+              "FirstStage",
+              "Timeout"
+            ],
+            "x-ms-enum": {
+              "name": "ResolutionOutcome",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "OutcomeUnknown"
+                },
+                {
+                  "value": 1,
+                  "name": "Claimed"
+                },
+                {
+                  "value": 2,
+                  "name": "Unclaimed"
+                },
+                {
+                  "value": 3,
+                  "name": "Abandoned"
+                },
+                {
+                  "value": 4,
+                  "name": "FirstStage"
+                },
+                {
+                  "value": 5,
+                  "name": "Timeout"
+                }
+              ]
+            }
+          },
+          "outpoint": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OutPoint"
+              }
+            ],
+            "nullable": true
+          },
+          "amountSat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sweepTxid": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolutionOutcome": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enumNames": [
+          "OutcomeUnknown",
+          "Claimed",
+          "Unclaimed",
+          "Abandoned",
+          "FirstStage",
+          "Timeout"
+        ],
+        "x-ms-enum": {
+          "name": "ResolutionOutcome",
+          "modelAsString": false,
+          "values": [
+            {
+              "value": 0,
+              "name": "OutcomeUnknown"
+            },
+            {
+              "value": 1,
+              "name": "Claimed"
+            },
+            {
+              "value": 2,
+              "name": "Unclaimed"
+            },
+            {
+              "value": 3,
+              "name": "Abandoned"
+            },
+            {
+              "value": 4,
+              "name": "FirstStage"
+            },
+            {
+              "value": 5,
+              "name": "Timeout"
+            }
+          ]
+        }
+      },
+      "ResolutionType": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enumNames": [
+          "TypeUnknown",
+          "Anchor",
+          "IncomingHtlc",
+          "OutgoingHtlc",
+          "Commit"
+        ],
+        "x-ms-enum": {
+          "name": "ResolutionType",
+          "modelAsString": false,
+          "values": [
+            {
+              "value": 0,
+              "name": "TypeUnknown"
+            },
+            {
+              "value": 1,
+              "name": "Anchor"
+            },
+            {
+              "value": 2,
+              "name": "IncomingHtlc"
+            },
+            {
+              "value": 3,
+              "name": "OutgoingHtlc"
+            },
+            {
+              "value": 4,
+              "name": "Commit"
+            }
+          ]
+        }
       },
       "Result": {
         "type": "object",

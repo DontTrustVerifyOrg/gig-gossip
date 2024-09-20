@@ -1619,6 +1619,11 @@ public class LNDWalletManager : LNDEventSource
         return LND.ListChannels(lndConf, openOnly);
     }
 
+    public ClosedChannelsResponse ClosedChannels()
+    {
+        return LND.ClosedChannels(lndConf);
+    }
+
     public AsyncServerStreamingCall<CloseStatusUpdate> CloseChannel(string chanpoint, ulong maxFeePerVByte)
     {
         return LND.CloseChannel(lndConf, chanpoint, maxFeePerVByte);
