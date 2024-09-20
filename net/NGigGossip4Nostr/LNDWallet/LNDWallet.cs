@@ -442,24 +442,36 @@ public class LNDAccountManager
     public RouteFeeRecord EstimateRouteFee(string paymentRequest, long ourRouteFeeSat)
     {
         var decinv = LND.DecodeInvoice(lndConf, paymentRequest);
-        var invoice = LND.LookupInvoiceV2(lndConf, decinv.PaymentHash.AsBytes());
-        if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Settled)
-            throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadySettled);
-        else if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Canceled)
-            throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadyCancelled);
-        else if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)
-            throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadyAccepted);
+
+        Invoice invoice = null;
+        HodlInvoice? selfHodlInvoice = null;
+        ClassicInvoice? selfClsInv = null;
+        try
+        {
+            invoice = LND.LookupInvoiceV2(lndConf, decinv.PaymentHash.AsBytes());
+        }
+        catch (Exception) {/* cannot locate */  }
 
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
-        HodlInvoice? selfHodlInvoice = (from inv in walletContext.Value.HodlInvoices
-                                        where inv.PaymentHash == decinv.PaymentHash
-                                        select inv).FirstOrDefault();
 
-        ClassicInvoice? selfClsInv = null;
-        if (selfHodlInvoice == null)
-            selfClsInv = (from inv in walletContext.Value.ClassicInvoices
-                          where inv.PaymentHash == decinv.PaymentHash
-                          select inv).FirstOrDefault();
+        if (invoice != null)
+        {
+            if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Settled)
+                throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadySettled);
+            else if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Canceled)
+                throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadyCancelled);
+            else if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)
+                throw new LNDWalletException(LNDWalletErrorCode.InvoiceAlreadyAccepted);
+
+            selfHodlInvoice = (from inv in walletContext.Value.HodlInvoices
+                               where inv.PaymentHash == decinv.PaymentHash
+                               select inv).FirstOrDefault();
+
+            if (selfHodlInvoice == null)
+                selfClsInv = (from inv in walletContext.Value.ClassicInvoices
+                              where inv.PaymentHash == decinv.PaymentHash
+                              select inv).FirstOrDefault();
+        }
 
         if (selfHodlInvoice != null || selfClsInv != null) // selfpayment
         {
