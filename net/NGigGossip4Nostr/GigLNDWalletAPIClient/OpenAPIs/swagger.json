@@ -921,6 +921,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "timeout",
+            "in": "query",
+            "description": "Maximum probing time (in seconds) allowed for finding a routing fee for the payment.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
           }
         ],
         "responses": {

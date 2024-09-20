@@ -439,7 +439,7 @@ public class LNDAccountManager
         };
     }
 
-    public RouteFeeRecord EstimateRouteFee(string paymentRequest, long ourRouteFeeSat)
+    public RouteFeeRecord EstimateRouteFee(string paymentRequest, long ourRouteFeeSat, int timeout)
     {
         var decinv = LND.DecodeInvoice(lndConf, paymentRequest);
 
@@ -494,7 +494,7 @@ public class LNDAccountManager
         else
         {
             TX.Commit();
-            var rsp = LND.EstimateRouteFee(lndConf, paymentRequest);
+            var rsp = LND.EstimateRouteFee(lndConf, paymentRequest, timeout);
             return new RouteFeeRecord { RoutingFeeMsat = rsp.RoutingFeeMsat, TimeLockDelay = rsp.TimeLockDelay, FailureReason = (PaymentFailureReason)rsp.FailureReason };
         }
     }
