@@ -439,20 +439,6 @@ public class SettlerAPIWrapper : ISettlerAPI
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.Result> InformJobInvoiceAcceptedAsync(string authToken, string paymenthash, System.Threading.CancellationToken cancellationToken)
-    {
-        using var TL = TRACE.Log().Args(paymenthash);
-        try
-        {
-            return TL.Ret(await API.InformJobInvoiceAcceptedAsync(authToken, paymenthash, cancellationToken));
-        }
-        catch (Exception ex)
-        {
-            TL.Exception(ex);
-            throw;
-        }
-    }
-
     public async Task<GigGossipSettlerAPIClient.Result> DeleteMyPersonalUserDataAsync(string authToken, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log();
