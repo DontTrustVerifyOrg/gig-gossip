@@ -65,7 +65,7 @@ var app = builder.Build();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseHsts();
@@ -1020,6 +1020,31 @@ app.MapGet("/managedispute", async (string authToken, Guid gigId, Guid repliperC
     g.Parameters[1].Description = "Gig-job identifier.";
     g.Parameters[2].Description = "CertificateId of the replier.";
     g.Parameters[3].Description = "True to open/False to close dispute.";
+    return g;
+})
+.DisableAntiforgery();
+
+app.MapGet("/informjobinvoiceaccepted", async (string authToken, string paymenthash) =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken);
+        await Singlethon.Settler.InformJobInvoiceAcceptedAsync(paymenthash);
+        return new Result();
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result(ex);
+    }
+})
+.WithName("InformJobInvoiceAccepted")
+.WithSummary("Informs that job invoice was accepted")
+.WithDescription("Informs that job invoice was accepted.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.";
+    g.Parameters[1].Description = "Payment hash of the invoice";
     return g;
 })
 .DisableAntiforgery();

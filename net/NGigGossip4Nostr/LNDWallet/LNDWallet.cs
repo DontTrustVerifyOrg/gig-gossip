@@ -222,8 +222,18 @@ public class PaymentStatusChanged
     public required PaymentFailureReason FailureReason { get; set; }
 }
 
+[Serializable]
+public class NewTransactionFound
+{
+    public required string TxHash { get; set; }
+    public required int NumConfirmations { get; set; }
+    public required string Address { get; set; }
+    public required long AmountSat { get; set; }
+}
+
 public class InvoiceStateChangedEventArgs : EventArgs
 {
+    public required string PublicKey { get; set; }
     public required InvoiceStateChange InvoiceStateChange { get; set; }
 }
 
@@ -231,20 +241,30 @@ public delegate void InvoiceStateChangedEventHandler(object sender, InvoiceState
 
 public class PaymentStatusChangedEventArgs : EventArgs
 {
+    public required string PublicKey { get; set; }
     public required PaymentStatusChanged PaymentStatusChanged { get; set; }
 }
 
 public delegate void PaymentStatusChangedEventHandler(object sender, PaymentStatusChangedEventArgs e);
 
+public class NewTransactionFoundEventArgs : EventArgs
+{
+    public required string PublicKey { get; set; }
+    public required NewTransactionFound NewTransactionFound { get; set; }
+}
+
+public delegate void NewTransactionFoundEventHandler(object sender, NewTransactionFoundEventArgs e);
+
 public class LNDEventSource
 {
     public event InvoiceStateChangedEventHandler OnInvoiceStateChanged;
     public event PaymentStatusChangedEventHandler OnPaymentStatusChanged;
-
-    public void FireOnInvoiceStateChanged(string paymentHash, InvoiceState invstate)
+    public event NewTransactionFoundEventHandler OnNewTransactionFound;
+    public void FireOnInvoiceStateChanged(string pubkey, string paymentHash, InvoiceState invstate)
     {
         OnInvoiceStateChanged?.Invoke(this, new InvoiceStateChangedEventArgs()
         {
+            PublicKey = pubkey,
              InvoiceStateChange = new InvoiceStateChange
              {
                  PaymentHash = paymentHash,
@@ -253,10 +273,11 @@ public class LNDEventSource
         });
     }
 
-    public void FireOnPaymentStatusChanged(string paymentHash, PaymentStatus paystatus, PaymentFailureReason failureReason)
+    public void FireOnPaymentStatusChanged(string pubkey, string paymentHash, PaymentStatus paystatus, PaymentFailureReason failureReason)
     {
         OnPaymentStatusChanged?.Invoke(this, new PaymentStatusChangedEventArgs()
         {
+                PublicKey = pubkey,
              PaymentStatusChanged= new PaymentStatusChanged
              {
                  PaymentHash = paymentHash,
@@ -264,6 +285,22 @@ public class LNDEventSource
                  FailureReason = failureReason,
              }
         });
+    }
+
+    public void FireOnNewTransactionFound(string pubkey, string txHash, int numConfirmations, string address, long amountSat)
+    {
+        OnNewTransactionFound?.Invoke(this, new NewTransactionFoundEventArgs()
+        {
+            PublicKey = pubkey,
+            NewTransactionFound = new NewTransactionFound
+            {
+                TxHash = txHash,
+                NumConfirmations = numConfirmations,
+                Address = address,
+                AmountSat = amountSat
+            }
+        });
+
     }
 
     public virtual void CancelSingleInvoiceTracking(string paymentHash) { }
@@ -622,12 +659,14 @@ public class LNDAccountManager
 
             eventSource.CancelSingleInvoiceTracking(decinv.PaymentHash);
 
-            eventSource.FireOnInvoiceStateChanged(decinv.PaymentHash, InvoiceState.Accepted);
+            var pubkey = selfHodlInvoice != null ? selfHodlInvoice.PublicKey : selfClsInv.PublicKey;
+
+            eventSource.FireOnInvoiceStateChanged(pubkey, decinv.PaymentHash, InvoiceState.Accepted);
 
             if (selfClsInv != null)
-                eventSource.FireOnInvoiceStateChanged(decinv.PaymentHash, InvoiceState.Settled);
+                eventSource.FireOnInvoiceStateChanged(pubkey, decinv.PaymentHash, InvoiceState.Settled);
 
-            eventSource.FireOnPaymentStatusChanged(decinv.PaymentHash,
+            eventSource.FireOnPaymentStatusChanged(PublicKey, decinv.PaymentHash,
                 selfHodlInvoice != null ? PaymentStatus.InFlight : PaymentStatus.Succeeded,
                 PaymentFailureReason.None);
 
@@ -760,8 +799,8 @@ public class LNDAccountManager
                     .SAVE();
             }
 
-            eventSource.FireOnInvoiceStateChanged(paymentHash, InvoiceState.Settled);
-            eventSource.FireOnPaymentStatusChanged(paymentHash, PaymentStatus.Succeeded, PaymentFailureReason.None);
+            eventSource.FireOnInvoiceStateChanged(selfHodlInvoice.PublicKey, paymentHash, InvoiceState.Settled);
+            eventSource.FireOnPaymentStatusChanged(payment.PublicKey, paymentHash, PaymentStatus.Succeeded, PaymentFailureReason.None);
         }
         else
         {
@@ -815,7 +854,7 @@ public class LNDAccountManager
                 .SAVE();
 
             eventSource.CancelSingleInvoiceTracking(paymentHash);
-            eventSource.FireOnPaymentStatusChanged(paymentHash, PaymentStatus.Failed, PaymentFailureReason.Canceled);
+            eventSource.FireOnPaymentStatusChanged(internalPayment.PublicKey, paymentHash, PaymentStatus.Failed, PaymentFailureReason.Canceled);
         }
         LND.CancelInvoice(lndConf, paymentHash.AsBytes());
         TX.Commit();
@@ -1160,6 +1199,8 @@ public class LNDWalletManager : LNDEventSource
     private Thread subscribeInvoicesThread;
     private CancellationTokenSource trackPaymentsCancallationTokenSource;
     private Thread trackPaymentsThread;
+    private CancellationTokenSource subscribeTransactionsCancallationTokenSource;
+    private Thread subscribeTransactionsThread;
     private ConcurrentDictionary<string, bool> alreadySubscribedSingleInvoices = new();
     private ConcurrentDictionary<string, CancellationTokenSource> alreadySubscribedSingleInvoicesTokenSources = new();
 
@@ -1185,7 +1226,7 @@ public class LNDWalletManager : LNDEventSource
         LND.Connect(lndConf, pr[1], pr[0]);
     }
 
-    private void SubscribeSingleInvoiceTracking(string paymentHash)
+    private void SubscribeSingleInvoiceTracking(string pubkey, string paymentHash)
     {
         alreadySubscribedSingleInvoices.GetOrAdd(paymentHash, (paymentHash) =>
         {
@@ -1203,7 +1244,7 @@ public class LNDWalletManager : LNDEventSource
                             while (await stream.ResponseStream.MoveNext(alreadySubscribedSingleInvoicesTokenSources[paymentHash].Token))
                             {
                                 var inv = stream.ResponseStream.Current;
-                                this.FireOnInvoiceStateChanged(inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
+                                this.FireOnInvoiceStateChanged(pubkey, inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
                                 if (inv.State == Invoice.Types.InvoiceState.Settled || inv.State == Invoice.Types.InvoiceState.Canceled)
                                 {
                                     alreadySubscribedSingleInvoicesTokenSources.TryRemove(paymentHash, out _);
@@ -1240,9 +1281,9 @@ public class LNDWalletManager : LNDEventSource
     public void Start()
     {
         alreadySubscribedSingleInvoicesTokenSources = new();
-        subscribeInvoicesCancallationTokenSource = new CancellationTokenSource();
         try
         {
+            walletContext.Value.INSERT(new TrackingIndex { Id = TackingIndexId.StartTransactions, Value = 0 }).SAVE();
             walletContext.Value.INSERT(new TrackingIndex { Id = TackingIndexId.AddInvoice, Value = 0 }).SAVE();
             walletContext.Value.INSERT(new TrackingIndex { Id = TackingIndexId.SettleInvoice, Value = 0 }).SAVE();
         }
@@ -1250,6 +1291,8 @@ public class LNDWalletManager : LNDEventSource
         {
             //Ignore already inserted
         }
+
+        subscribeInvoicesCancallationTokenSource = new CancellationTokenSource();
         subscribeInvoicesThread = new Thread(async () =>
         {
             TraceEx.TraceInformation("SubscribeInvoices Thread Starting");
@@ -1278,7 +1321,18 @@ public class LNDWalletManager : LNDEventSource
             foreach (var inv in allInvs.Values)
             {
                 if (!internalPayments.Contains(inv.PaymentHash) && inv.State == InvoiceState.Accepted)
-                    SubscribeSingleInvoiceTracking(inv.PaymentHash);
+                {
+                    var pubkey = (from i in walletContext.Value.HodlInvoices
+                                  where i.PaymentHash == inv.PaymentHash
+                                  select i.PublicKey).FirstOrDefault();
+                    if (pubkey == null)
+                        pubkey = (from i in walletContext.Value.ClassicInvoices
+                                  where i.PaymentHash == inv.PaymentHash
+                                  select i.PublicKey).FirstOrDefault();
+                    if (pubkey == null)
+                        continue;
+                    SubscribeSingleInvoiceTracking(pubkey, inv.PaymentHash);
+                }
             }
 
             while (!Stopping)
@@ -1295,9 +1349,21 @@ public class LNDWalletManager : LNDEventSource
                     while (await stream.ResponseStream.MoveNext(subscribeInvoicesCancallationTokenSource.Token))
                     {
                         var inv = stream.ResponseStream.Current;
-                        this.FireOnInvoiceStateChanged(inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
+
+                        var pubkey = (from i in walletContext.Value.HodlInvoices
+                                where i.PaymentHash == inv.RHash.ToArray().AsHex()
+                                select i.PublicKey).FirstOrDefault();
+                        if (pubkey == null)
+                            pubkey = (from i in walletContext.Value.ClassicInvoices
+                                        where i.PaymentHash == inv.RHash.ToArray().AsHex()
+                                        select i.PublicKey).FirstOrDefault();
+
+                        if(pubkey==null)
+                            continue;
+
+                        this.FireOnInvoiceStateChanged(pubkey, inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
                         if (inv.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)
-                            SubscribeSingleInvoiceTracking(inv.RHash.ToArray().AsHex());
+                            SubscribeSingleInvoiceTracking(pubkey, inv.RHash.ToArray().AsHex());
 
                         walletContext.Value.UPDATE(new TrackingIndex { Id = TackingIndexId.AddInvoice, Value = inv.AddIndex }).SAVE();
                         walletContext.Value.UPDATE(new TrackingIndex { Id = TackingIndexId.SettleInvoice, Value = inv.SettleIndex }).SAVE();
@@ -1331,7 +1397,14 @@ public class LNDWalletManager : LNDEventSource
                     while (await stream.ResponseStream.MoveNext(trackPaymentsCancallationTokenSource.Token))
                     {
                         var pm = stream.ResponseStream.Current;
-                        this.FireOnPaymentStatusChanged(pm.PaymentHash, (PaymentStatus)pm.Status, (PaymentFailureReason)pm.FailureReason);
+                        var pubkey = (from i in walletContext.Value.InternalPayments
+                            where i.PaymentHash == pm.PaymentHash
+                            select i.PublicKey).FirstOrDefault();
+
+                        if (pubkey == null)
+                            continue;
+
+                        this.FireOnPaymentStatusChanged(pubkey, pm.PaymentHash, (PaymentStatus)pm.Status, (PaymentFailureReason)pm.FailureReason);
                     }
                 }
                 catch (RpcException e)
@@ -1347,8 +1420,48 @@ public class LNDWalletManager : LNDEventSource
             TraceEx.TraceInformation("TrackPayments Thread Joining");
         });
 
+        subscribeTransactionsCancallationTokenSource = new CancellationTokenSource();
+        subscribeTransactionsThread = new Thread(async () =>
+        {
+            TraceEx.TraceInformation("SubscribeTransactions Thread Starting");
+            while (!Stopping)
+            {
+                var trackIdxes = new Dictionary<TackingIndexId, ulong>(from idx in walletContext.Value.TrackingIndexes
+                                                                       select KeyValuePair.Create(idx.Id, idx.Value));
+                TraceEx.TraceInformation("SubscribeTransactions Loop Starting");
+                try
+                {
+                    var stream = LND.SubscribeTransactions(lndConf, (int)trackIdxes[TackingIndexId.StartTransactions], cancellationToken: subscribeTransactionsCancallationTokenSource.Token);
+                    while (await stream.ResponseStream.MoveNext(subscribeTransactionsCancallationTokenSource.Token))
+                    {
+                        var transation = stream.ResponseStream.Current;
+                        foreach (var outp in transation.OutputDetails)
+                            if (outp.IsOurAddress)
+                            {
+                                var pubkey = (from a in walletContext.Value.TopupAddresses where a.BitcoinAddress == outp.Address select a.PublicKey).FirstOrDefault();
+                                if (pubkey != null)
+                                    this.FireOnNewTransactionFound(pubkey, transation.TxHash, transation.NumConfirmations, outp.Address, outp.Amount);
+                            }
+                        walletContext.Value.UPDATE(new TrackingIndex { Id = TackingIndexId.StartTransactions, Value = (ulong)transation.BlockHeight}).SAVE();
+                    }
+                }
+                catch (RpcException e)
+                {
+                    TraceEx.TraceInformation($"SubscribeTransactions streaming was {e.Status.StatusCode.ToString()} from the client!");
+                    TraceEx.TraceException(e);
+                }
+                catch (Exception ex)
+                {
+                    TraceEx.TraceException(ex);
+                }
+            }
+            TraceEx.TraceInformation("SubscribeTransactions Thread Joining");
+
+        });
+
         subscribeInvoicesThread.Start();
         trackPaymentsThread.Start();
+        subscribeTransactionsThread.Start();
 
     }
 
@@ -1362,6 +1475,7 @@ public class LNDWalletManager : LNDEventSource
         foreach (var s in alreadySubscribedSingleInvoicesTokenSources)
             s.Value.Cancel();
 
+        subscribeTransactionsCancallationTokenSource.Cancel();
         subscribeInvoicesCancallationTokenSource.Cancel();
         trackPaymentsCancallationTokenSource.Cancel();
         subscribeInvoicesThread.Join();
@@ -1727,7 +1841,7 @@ public class LNDWalletManager : LNDEventSource
                                         .SAVE();
 
                                     this.CancelSingleInvoiceTracking(pay.PaymentHash);
-                                    this.FireOnPaymentStatusChanged(pay.PaymentHash, PaymentStatus.Failed, PaymentFailureReason.Canceled);
+                                    this.FireOnPaymentStatusChanged(pay.PublicKey, pay.PaymentHash, PaymentStatus.Failed, PaymentFailureReason.Canceled);
 
                                     TX.Commit();
                                 }

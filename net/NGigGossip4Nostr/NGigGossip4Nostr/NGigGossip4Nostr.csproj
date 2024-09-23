@@ -3,7 +3,7 @@
   <PropertyGroup>
 
     <PackageId>GigGossip.Core</PackageId>
-    <Version>2.0.5</Version>
+    <Version>2.0.6</Version>
     <Authors>TheHyperlabs</Authors>
     <Company>TheHyperlabs</Company>
 
@@ -18,7 +18,7 @@
     <NoWarn>1701;1702;1998;8600;8601;8602;8603;8604;8618;8625</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="NBitcoin.Secp256k1" Version="3.1.5" />
+    <PackageReference Include="NBitcoin.Secp256k1" Version="3.1.6" />
     <PackageReference Include="NBitcoin" Version="7.0.39" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.8" />

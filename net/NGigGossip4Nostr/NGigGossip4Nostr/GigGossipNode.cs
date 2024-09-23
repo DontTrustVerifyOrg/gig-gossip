@@ -1022,7 +1022,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public void OnInvoiceStateChange(InvoiceState state, byte[] data)
+    public async Task OnInvoiceStateChangeAsync(InvoiceState state, byte[] data)
     {
         using var TL = TRACE.Log().Args(state, data);
         try
@@ -1038,10 +1038,18 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             }
             else
             {
-                if (state ==  InvoiceState.Accepted)
+                if (state == InvoiceState.Accepted)
+                {
+                    var settler = SettlerSelector.GetSettlerClient(mySettlerUri);
+                    var token = await MakeSettlerAuthTokenAsync(mySettlerUri);
+                    await settler.InformJobInvoiceAcceptedAsync(token, iac.PaymentHash, CancellationToken.None);
+
                     this.gigGossipNodeEvents.OnInvoiceAccepted(this, iac);
-                else if (state ==  InvoiceState.Cancelled)
+                }
+                else if (state == InvoiceState.Cancelled)
+                {
                     this.gigGossipNodeEvents.OnInvoiceCancelled(this, iac);
+                }
             }
         }
         catch(Exception ex)

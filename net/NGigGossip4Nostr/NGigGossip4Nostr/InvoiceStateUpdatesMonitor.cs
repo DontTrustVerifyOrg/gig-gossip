@@ -15,7 +15,7 @@ namespace NGigGossip4Nostr
 {
 	public interface IInvoiceStateUpdatesMonitorEvents
 	{
-        public void OnInvoiceStateChange(InvoiceState state, byte[] data);
+        public Task OnInvoiceStateChangeAsync(InvoiceState state, byte[] data);
     }
 
     public class InvoiceStateUpdatesMonitor : HubMonitor
@@ -53,15 +53,6 @@ namespace NGigGossip4Nostr
                     Data = data,
                 };
                 gigGossipNode.nodeContext.Value.AddObject(obj);
-                try
-                {
-                    await this.InvoiceStateUpdatesClient.MonitorAsync(await gigGossipNode.MakeWalletAuthToken(), phash, CancellationTokenSource.Token);
-                }
-                catch
-                {
-                    gigGossipNode.nodeContext.Value.RemoveObject(obj);
-                    throw;
-                }
             }
             catch (Exception ex)
             {
@@ -108,7 +99,7 @@ namespace NGigGossip4Nostr
                             if (state != inv.InvoiceState)
                             {
                                 TL.Info("OnInvoiceStateChange");
-                                gigGossipNode.OnInvoiceStateChange(state, inv.Data);
+                                await gigGossipNode.OnInvoiceStateChangeAsync(state, inv.Data);
                                 inv.InvoiceState = state;
                                 gigGossipNode.nodeContext.Value.SaveObject(inv);
                             }
@@ -130,7 +121,7 @@ namespace NGigGossip4Nostr
                             if (state != inv.InvoiceState)
                             {
                                 TL.Info("OnInvoiceStateChange");
-                                gigGossipNode.OnInvoiceStateChange(state, inv.Data);
+                                await gigGossipNode.OnInvoiceStateChangeAsync(state, inv.Data);
                                 inv.InvoiceState = state;
                                 gigGossipNode.nodeContext.Value.SaveObject(inv);
                             }

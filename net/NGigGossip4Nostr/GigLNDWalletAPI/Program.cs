@@ -37,6 +37,7 @@ builder.Services.AddSwaggerGen(c =>
     c.UseAllOfToExtendReferenceSchemas();
     c.DocumentFilter<CustomModelDocumentFilter<PaymentStatusChanged>>();
     c.DocumentFilter<CustomModelDocumentFilter<InvoiceStateChange>>();
+    c.DocumentFilter<CustomModelDocumentFilter<NewTransactionFound>>();
     c.SchemaFilter<NSwagEnumExtensionSchemaFilter>();
     c.SchemaFilter<EnumFilter>();
 });
@@ -790,6 +791,11 @@ app.MapHub<InvoiceStateUpdatesHub>("/invoicestateupdates")
 app.MapHub<PaymentStatusUpdatesHub>("/paymentstatusupdates")
 .WithSummary("Real-time payment status update hub")
 .WithDescription("This endpoint establishes a WebSocket connection for real-time updates on payment status changes. Clients can subscribe to receive immediate notifications when the status of a payment changes, such as when it becomes successful, fails, or is in progress.")
+.DisableAntiforgery();
+
+app.MapHub<TransactionUpdatesHub>("/transactionupdates")
+.WithSummary("Real-time transaction status update hub")
+.WithDescription("This endpoint establishes a WebSocket connection for real-time updates on transaction status changes. Clients can subscribe to receive immediate notifications when the status of a payment changes, such as when it becomes successful, fails, or is in progress.")
 .DisableAntiforgery();
 
 app.Run(walletSettings.ListenHost.AbsoluteUri);

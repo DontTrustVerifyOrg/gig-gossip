@@ -65,15 +65,6 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
             };
             gigGossipNode.nodeContext.Value.AddObject(obj);
 
-            try
-            {
-                await this.PaymentStatusUpdatesClient.MonitorAsync(await gigGossipNode.MakeWalletAuthToken(), phash, CancellationTokenSource.Token);
-            }
-            catch
-            {
-                gigGossipNode.nodeContext.Value.RemoveObject(obj);
-                throw;
-            }
         }
         catch (Exception ex)
         {
@@ -96,7 +87,6 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
                 return;
             }
 
-            await this.PaymentStatusUpdatesClient.StopMonitoringAsync(await gigGossipNode.MakeWalletAuthToken(), phash, CancellationTokenSource.Token);
             gigGossipNode.nodeContext.Value.RemoveObject(o);
         }
         catch (Exception ex)

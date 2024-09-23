@@ -3252,6 +3252,34 @@
         },
         "additionalProperties": false
       },
+      "NewTransactionFound": {
+        "required": [
+          "address",
+          "amountSat",
+          "numConfirmations",
+          "txHash"
+        ],
+        "type": "object",
+        "properties": {
+          "txHash": {
+            "type": "string",
+            "nullable": true
+          },
+          "numConfirmations": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "amountSat": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
       "OutPoint": {
         "type": "object",
         "properties": {

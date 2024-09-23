@@ -51,6 +51,7 @@ public enum TackingIndexId
 {
     AddInvoice,
     SettleInvoice,
+    StartTransactions,
 }
 
 public class TrackingIndex

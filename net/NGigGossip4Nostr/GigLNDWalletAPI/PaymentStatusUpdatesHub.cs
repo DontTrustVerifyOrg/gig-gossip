@@ -25,22 +25,6 @@ public class PaymentStatusUpdatesHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public void Monitor(string authToken, string paymentHash)
-    {
-        LNDAccountManager account;
-        lock (Singlethon.LNDWalletManager)
-            account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
-        Singlethon.PaymentHashes4PublicKey.AddItem(account.PublicKey, paymentHash);
-    }
-
-    public void StopMonitoring(string authToken, string paymentHash)
-    {
-        LNDAccountManager account;
-        lock (Singlethon.LNDWalletManager)
-            account = Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken);
-        Singlethon.PaymentHashes4PublicKey.RemoveItem(account.PublicKey, paymentHash);
-    }
-
     public async IAsyncEnumerable<PaymentStatusChanged> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         LNDAccountManager account;
@@ -52,9 +36,9 @@ public class PaymentStatusUpdatesHub : Hub
         {
             await foreach (var ic in asyncCom.DequeueAsync(cancellationToken))
             {
-                if (Singlethon.PaymentHashes4PublicKey.ContainsItem(account.PublicKey, ic.PaymentStatusChanged.PaymentHash))
+                if (ic.PublicKey == account.PublicKey)
                 {
-                    Trace.TraceInformation(ic.PaymentStatusChanged.PaymentHash + "|" + ic.PaymentStatusChanged.NewStatus.ToString() + "|" + ic.PaymentStatusChanged.FailureReason.ToString());
+                    Trace.TraceInformation(ic.PublicKey + "|" +ic.PaymentStatusChanged.PaymentHash + "|" + ic.PaymentStatusChanged.NewStatus.ToString() + "|" + ic.PaymentStatusChanged.FailureReason.ToString());
                     yield return ic.PaymentStatusChanged;
                 }
             }
