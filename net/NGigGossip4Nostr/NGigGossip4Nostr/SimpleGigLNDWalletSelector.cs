@@ -398,6 +398,10 @@ public class WalletAPILoggingWrapper : IWalletAPI
         return new PaymentStatusUpdatesClientWrapper(API.CreatePaymentStatusUpdatesClient());
     }
 
+    public ITransactionUpdatesClient CreateTransactionUpdatesClient()
+    {
+        return new TransactionUpdatesClientWrapper(API.CreateTransactionUpdatesClient());
+    }
 }
 
 internal class InvoiceStateUpdatesClientWrapper : IInvoiceStateUpdatesClient
@@ -419,35 +423,6 @@ internal class InvoiceStateUpdatesClientWrapper : IInvoiceStateUpdatesClient
         try
         {
             await API.ConnectAsync(authToken, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            TL.Exception(ex);
-            throw;
-        }
-    }
-
-    public async Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
-    {
-        using var TL = TRACE.Log().Args(paymentHash);
-        try
-        {
-            await API.MonitorAsync(authToken, paymentHash, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            TL.Exception(ex);
-            throw;
-        }
-
-    }
-
-    public async Task StopMonitoringAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
-    {
-        using var TL = TRACE.Log().Args(paymentHash);
-        try
-        {
-           await API.StopMonitoringAsync(authToken, paymentHash, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -493,34 +468,6 @@ internal class PaymentStatusUpdatesClientWrapper : IPaymentStatusUpdatesClient
         }
     }
 
-    public async Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
-    {
-        using var TL = TRACE.Log().Args(paymentHash);
-        try
-        {
-            await API.MonitorAsync(authToken, paymentHash, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            TL.Exception(ex);
-            throw;
-        }
-    }
-
-    public async Task StopMonitoringAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
-    {
-        using var TL = TRACE.Log().Args(paymentHash);
-        try
-        {
-            await API.StopMonitoringAsync(authToken, paymentHash, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            TL.Exception(ex);
-            throw;
-        }
-    }
-
     public async IAsyncEnumerable<PaymentStatusChanged> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log();
@@ -530,4 +477,42 @@ internal class PaymentStatusUpdatesClientWrapper : IPaymentStatusUpdatesClient
             yield return row;
         }
    }
+}
+
+
+internal class TransactionUpdatesClientWrapper : ITransactionUpdatesClient
+{
+    ITransactionUpdatesClient API;
+    GigDebugLoggerAPIClient.LogWrapper<ITransactionUpdatesClient> TRACE = GigDebugLoggerAPIClient.FlowLoggerFactory.Trace<ITransactionUpdatesClient>();
+
+    public TransactionUpdatesClientWrapper(ITransactionUpdatesClient api)
+    {
+        API = api;
+    }
+
+    public Uri Uri => API.Uri;
+
+    public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log();
+        try
+        {
+            await API.ConnectAsync(authToken, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async IAsyncEnumerable<NewTransactionFound> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log();
+        await foreach (var row in API.StreamAsync(authToken, cancellationToken))
+        {
+            TL.Iteration(row);
+            yield return row;
+        }
+    }
 }

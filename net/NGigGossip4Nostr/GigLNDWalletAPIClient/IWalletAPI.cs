@@ -37,6 +37,7 @@ public interface IWalletAPI
 
     IInvoiceStateUpdatesClient CreateInvoiceStateUpdatesClient();
     IPaymentStatusUpdatesClient CreatePaymentStatusUpdatesClient();
+    ITransactionUpdatesClient CreateTransactionUpdatesClient();
 }
 
 public partial class swaggerClient : IWalletAPI
@@ -56,6 +57,11 @@ public partial class swaggerClient : IWalletAPI
     public IPaymentStatusUpdatesClient CreatePaymentStatusUpdatesClient()
     {
         return new PaymentStatusUpdatesClient(this);
+    }
+
+    public ITransactionUpdatesClient CreateTransactionUpdatesClient()
+    {
+        return new TransactionUpdatesClient(this);
     }
 }
 
@@ -80,6 +86,10 @@ public class WalletAPIRetryWrapper : IWalletAPI
         return api.CreatePaymentStatusUpdatesClient();
     }
 
+    public ITransactionUpdatesClient CreateTransactionUpdatesClient()
+    {
+        return api.CreateTransactionUpdatesClient();
+    }
 
     public async Task<InvoiceRecordResult> AddHodlInvoiceAsync(string authToken, long satoshis, string hash, string memo, long expiry, CancellationToken cancellationToken)
     {

@@ -330,7 +330,6 @@ public class GigLNDWalletCLI
                     ToClipboard(ClipType.Invoice, inv.PaymentRequest);
                     ToClipboard(ClipType.PaymentHash, inv.PaymentHash);
                     PrintObjectAsTree(inv);
-                    await invoiceStateUpdatesClient.MonitorAsync(await MakeToken(), inv.PaymentHash, CancellationTokenSource.Token);
                 }
                 else if (cmd == CommandEnum.AddHodlInvoice)
                 {
@@ -345,7 +344,6 @@ public class GigLNDWalletCLI
                     ToClipboard(ClipType.Invoice, inv.PaymentRequest);
                     ToClipboard(ClipType.PaymentHash, inv.PaymentHash);
                     PrintObjectAsTree(inv);
-                    await invoiceStateUpdatesClient.MonitorAsync(await MakeToken(), inv.PaymentHash, CancellationTokenSource.Token);
                 }
                 else if (cmd == CommandEnum.AcceptInvoice)
                 {
@@ -360,7 +358,6 @@ public class GigLNDWalletCLI
                     ToClipboard(ClipType.PaymentHash, pay.PaymentHash);
                     var timeout = Prompt.Input<int>("Timeout", 1000);
                     var feeLimit = Prompt.Input<int>("FeeLimit", 10000);
-                    await paymentStatusUpdatesClient.MonitorAsync(await MakeToken(), pay.PaymentHash, CancellationTokenSource.Token);
                     var payment = WalletAPIResult.Get<PaymentRecord>(await walletClient.SendPaymentAsync(await MakeToken(), paymentreq, timeout, feeLimit, CancellationToken.None));
                     PrintObjectAsTree(payment);
                 }

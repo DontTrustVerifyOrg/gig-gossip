@@ -476,6 +476,18 @@ public static class LND
         return stream;
     }
 
+    public static AsyncServerStreamingCall<Transaction> SubscribeTransactions(NodeSettings conf, int startHeight, DateTime? deadline = null, CancellationToken cancellationToken = default)
+    {
+        var stream = LightningClient(conf).SubscribeTransactions(
+            new GetTransactionsRequest()
+            {
+                EndHeight = -1,
+                StartHeight = startHeight,
+            }, Metadata(conf), deadline, cancellationToken);
+
+        return stream;
+    }
+
     public static EstimateFeeResponse FeeEstimate(NodeSettings conf, List<(string, long)> trans, int minConfs, int targetConf, bool spendUnconfirmed = false, DateTime? deadline = null, CancellationToken cancellationToken = default)
     {
         var efr = new EstimateFeeRequest()

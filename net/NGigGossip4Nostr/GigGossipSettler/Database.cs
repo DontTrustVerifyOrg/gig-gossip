@@ -10,7 +10,6 @@ namespace GigGossipSettler;
 
 public enum DBProvider
 {
-    Sqlite = 1,
     SQLServer,
 }
 
@@ -318,10 +317,7 @@ public class SettlerContext : DbContext
 
     public Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction BEGIN_TRANSACTION(System.Data.IsolationLevel isolationLevel= System.Data.IsolationLevel.ReadCommitted)
     {
-        if (provider == DBProvider.Sqlite)
-            return new NullTransaction();
-        else
-            return this.Database.BeginTransaction(isolationLevel);
+        return this.Database.BeginTransaction(isolationLevel);
     }
 
 
@@ -367,9 +363,7 @@ public class SettlerContext : DbContext
     /// <param name="optionsBuilder"></param>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        if (provider == DBProvider.Sqlite)
-            optionsBuilder.UseSqlite(connectionString);
-        else if (provider == DBProvider.SQLServer)
+        if (provider == DBProvider.SQLServer)
             optionsBuilder.UseSqlServer(connectionString);
         else
             throw new NotImplementedException();
@@ -424,31 +418,4 @@ public class SettlerContext : DbContext
 
 
 
-public class NullTransaction : Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction
-{
-    public Guid TransactionId => Guid.NewGuid();
 
-    public void Commit()
-    {
-    }
-
-    public async Task CommitAsync(CancellationToken cancellationToken = default)
-    {
-    }
-
-    public void Dispose()
-    {
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-    }
-
-    public void Rollback()
-    {
-    }
-
-    public async Task RollbackAsync(CancellationToken cancellationToken = default)
-    {
-    }
-}

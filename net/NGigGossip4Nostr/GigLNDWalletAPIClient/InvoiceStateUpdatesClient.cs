@@ -6,8 +6,6 @@ namespace GigLNDWalletAPIClient
     {
         Uri Uri { get; }
         Task ConnectAsync(string authToken, CancellationToken cancellationToken);
-        Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken);
-        Task StopMonitoringAsync(string authToken, string paymentHash, CancellationToken cancellationToken);
         IAsyncEnumerable<InvoiceStateChange> StreamAsync(string authToken, CancellationToken cancellationToken);
     }
 
@@ -35,32 +33,6 @@ namespace GigLNDWalletAPIClient
                     builder.WithAutomaticReconnect(swaggerClient.RetryPolicy);
                 connection = builder.Build();
                 await connection.StartAsync(cancellationToken);
-            }
-            finally
-            {
-                slimLock.Release();
-            }
-        }
-
-        public async Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
-        {
-            await slimLock.WaitAsync();
-            try
-            {
-                await connection.SendAsync("Monitor", authToken, paymentHash, cancellationToken);
-            }
-            finally
-            {
-                slimLock.Release();
-            }
-        }
-
-        public async Task StopMonitoringAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
-        {
-            await slimLock.WaitAsync();
-            try
-            {
-                await connection.SendAsync("StopMonitoring", authToken, paymentHash, cancellationToken);
             }
             finally
             {

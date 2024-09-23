@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Threading;
 using GoogleApi.Entities.Translate.Translate.Request.Enums;
+using GoogleApi.Interfaces;
 using Microsoft.AspNetCore.SignalR.Client;
 using NetworkClientToolkit;
 using Newtonsoft.Json.Linq;
@@ -43,6 +45,7 @@ public interface ISettlerAPI
     Task<StringResult> EncryptJobReplyForCertificateIdAsync(System.Guid? certificateId, FileParameter objectSerialized, CancellationToken cancellationToken);
     Task<Result> ManageDisputeAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, bool open, CancellationToken cancellationToken);
     Task<Result> CancelGigAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, CancellationToken cancellationToken);
+    Task<Result> InformJobInvoiceAcceptedAsync(string authToken, string paymenthash, System.Threading.CancellationToken cancellationToken);
 
     Task<Result> DeleteMyPersonalUserDataAsync(string authToken, System.Threading.CancellationToken cancellationToken);
 
@@ -213,6 +216,11 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
     public async Task<Result> CancelGigAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, CancellationToken cancellationToken)
     {
         return await RetryPolicy.WithRetryPolicy(() => api.CancelGigAsync(authToken, gigId, repliperCertificateId, cancellationToken));
+    }
+
+    public async Task<Result> InformJobInvoiceAcceptedAsync(string authToken, string paymenthash, System.Threading.CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.InformJobInvoiceAcceptedAsync(authToken, paymenthash, cancellationToken));
     }
 
     public async Task<RouteRetResult> GetRouteAsync(string authToken, double fromLat, double fromLon, double toLat, double toLon, CancellationToken cancellationToken)

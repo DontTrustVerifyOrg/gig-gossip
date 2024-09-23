@@ -502,8 +502,6 @@ public class Settler : CertificationAuthority
             Signature = signedSettlementPromiseHeader.Sign(_CaPrivateKey)
         };
 
-        await _invoiceStateUpdatesMonitor.MonitorInvoicesAsync(networkInvoicePaymentHash, decodedInv.PaymentHash);
-
         TX.Commit();
 
         return new SettlementTrust()
@@ -570,6 +568,46 @@ public class Settler : CertificationAuthority
 
         TX.Commit();
         return new BroadcastRequest { JobRequest = cert1, CancelJobRequest = cert2 };
+    }
+
+    public async Task InformJobInvoiceAcceptedAsync(string paymentHash)
+    {
+        using var TX = settlerContext.Value.BEGIN_TRANSACTION( System.Data.IsolationLevel.Serializable);
+
+        var gig = (from g in settlerContext.Value.Gigs where g.PaymentHash == paymentHash select g).FirstOrDefault();
+
+        if (gig == null)
+            throw new NotFoundException();
+
+        if (gig.Status == GigStatus.Open)
+        {
+            var network_state_result = await lndWalletClient.GetInvoiceAsync(MakeAuthToken(), gig.NetworkPaymentHash, CancellationTokenSource.Token);
+
+            InvoiceState network_invoice_state;
+            if (WalletAPIResult.Status(network_state_result) == LNDWalletErrorCode.UnknownInvoice)
+                network_invoice_state = InvoiceState.Cancelled;
+            else
+                network_invoice_state = WalletAPIResult.Get<InvoiceRecord>(network_state_result).State;
+
+            if (gig.SubStatus == GigSubStatus.AcceptedByNetwork)
+            {
+                gig.Status = GigStatus.Accepted;
+                gig.SubStatus = GigSubStatus.None;
+                gig.DisputeDeadline = DateTime.UtcNow + disputeTimeout;
+                settlerContext.Value
+                    .UPDATE(gig)
+                    .SAVE();
+                await ScheduleGigAsync(gig);
+            }
+            else
+            {
+                gig.SubStatus = GigSubStatus.AcceptedByReply;
+                settlerContext.Value
+                    .UPDATE(gig)
+                    .SAVE();
+            }
+        }
+        TX.Commit();
     }
 
     public async Task ManageDisputeAsync(Guid tid, Guid repliercertificateId, bool open)

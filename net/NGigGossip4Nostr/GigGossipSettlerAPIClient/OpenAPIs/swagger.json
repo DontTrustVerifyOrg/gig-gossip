@@ -1654,6 +1654,48 @@
         }
       }
     },
+    "/informjobinvoiceaccepted": {
+      "get": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "summary": "Informs that job invoice was accepted",
+        "description": "Informs that job invoice was accepted.",
+        "operationId": "InformJobInvoiceAccepted",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "paymenthash",
+            "in": "query",
+            "description": "Payment hash of the invoice",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cancelgig": {
       "get": {
         "tags": [
