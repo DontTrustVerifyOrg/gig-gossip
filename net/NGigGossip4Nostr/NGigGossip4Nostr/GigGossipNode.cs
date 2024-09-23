@@ -1040,10 +1040,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             {
                 if (state == InvoiceState.Accepted)
                 {
-                    var settler = SettlerSelector.GetSettlerClient(mySettlerUri);
-                    var token = await MakeSettlerAuthTokenAsync(mySettlerUri);
-                    await settler.InformJobInvoiceAcceptedAsync(token, iac.PaymentHash, CancellationToken.None);
-
                     this.gigGossipNodeEvents.OnInvoiceAccepted(this, iac);
                 }
                 else if (state == InvoiceState.Cancelled)

@@ -431,6 +431,34 @@ internal class InvoiceStateUpdatesClientWrapper : IInvoiceStateUpdatesClient
         }
     }
 
+    public async Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(paymentHash);
+        try
+        {
+            await API.MonitorAsync(authToken, paymentHash, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task StopMonitoringAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(paymentHash);
+        try
+        {
+            await API.StopMonitoringAsync(authToken, paymentHash, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
     public async IAsyncEnumerable<InvoiceStateChange> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log();
