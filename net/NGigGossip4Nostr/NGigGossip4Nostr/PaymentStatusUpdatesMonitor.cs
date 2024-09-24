@@ -160,10 +160,7 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
                                 gigGossipNode.nodeContext.Value.SaveObject(pay);
                             }
                         }
-                        else
-                        {
-                            TL.Warning("Payment not monitored");
-                        }
+                        gigGossipNode.OnLNDPaymentStatusChanged(paystateupd);
                     }
                 },
                 PaymentStatusUpdatesClient.Uri,

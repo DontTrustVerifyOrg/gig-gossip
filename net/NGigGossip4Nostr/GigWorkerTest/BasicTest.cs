@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using NetworkClientToolkit;
 using GigDebugLoggerAPIClient;
 using GigGossip;
+using GoogleApi.Entities.Maps.StreetView.Request.Enums;
 
 namespace GigWorkerBasicTest;
 
@@ -238,17 +239,26 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
+    public async void OnJobInvoiceSettled(GigGossipNode me, InvoiceData iac)
     {
-        using var TL = TRACE.Log().Args(me, serviceUri, paymentHash, preimage);
+        using var TL = TRACE.Log().Args(me, iac);
         try
         {
-            TL.NewNote(me.PublicKey, "InvoiceSettled");
-            lock (MainThreadControl.Ctrl)
-            {
-                MainThreadControl.IsRunning = false;
-                Monitor.PulseAll(MainThreadControl.Ctrl);
-            }
+
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async void OnNetworkInvoiceSettled(GigGossipNode me, InvoiceData iac)
+    {
+        using var TL = TRACE.Log().Args(me, iac);
+        try
+        {
+
         }
         catch (Exception ex)
         {
@@ -333,7 +343,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnInvoiceAccepted(GigGossipNode me, InvoiceData iac)
+    public void OnJobInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
         using var TL = TRACE.Log().Args(me, iac);
         try
@@ -346,7 +356,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnInvoiceCancelled(GigGossipNode me, InvoiceData iac)
+    public void OnJobInvoiceCancelled(GigGossipNode me, InvoiceData iac)
     {
         using var TL = TRACE.Log().Args(me, iac);
         try
@@ -411,6 +421,44 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
+    public void OnLNDInvoiceStateChanged(GigGossipNode me, InvoiceStateChange invoice)
+    {
+        using var TL = TRACE.Log().Args(me, invoice);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public void OnLNDPaymentStatusChanged(GigGossipNode me, PaymentStatusChanged payment)
+    {
+        using var TL = TRACE.Log().Args(me, payment);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public void OnLNDNewTransaction(GigGossipNode me, NewTransactionFound newTransaction)
+    {
+        using var TL = TRACE.Log().Args(me, newTransaction);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
 }
 
 public class CustomerGossipNodeEvents : IGigGossipNodeEvents
@@ -448,9 +496,23 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
+    public async void OnJobInvoiceSettled(GigGossipNode me, InvoiceData iac)
     {
-        using var TL = TRACE.Log().Args(me, serviceUri, paymentHash, preimage);
+        using var TL = TRACE.Log().Args(me, iac);
+        try
+        {
+
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async void OnNetworkInvoiceSettled(GigGossipNode me, InvoiceData iac)
+    {
+        using var TL = TRACE.Log().Args(me, iac);
         try
         {
         }
@@ -567,7 +629,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnInvoiceAccepted(GigGossipNode me, InvoiceData iac)
+    public void OnJobInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
         using var TL = TRACE.Log().Args(me, iac);
         try
@@ -580,7 +642,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
         }
     }
 
-    public void OnInvoiceCancelled(GigGossipNode me, InvoiceData iac)
+    public void OnJobInvoiceCancelled(GigGossipNode me, InvoiceData iac)
     {
         using var TL = TRACE.Log().Args(me, iac);
         try
@@ -636,6 +698,45 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     public void OnServerConnectionState(GigGossipNode me, ServerConnectionSource source, ServerConnectionState state, Uri uri)
     {
         using var TL = TRACE.Log().Args(me, source, state, uri);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public void OnLNDInvoiceStateChanged(GigGossipNode me, InvoiceStateChange invoice)
+    {
+        using var TL = TRACE.Log().Args(me, invoice);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public void OnLNDPaymentStatusChanged(GigGossipNode me, PaymentStatusChanged payment)
+    {
+        using var TL = TRACE.Log().Args(me, payment);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public void OnLNDNewTransaction(GigGossipNode me, NewTransactionFound newTransaction)
+    {
+        using var TL = TRACE.Log().Args(me, newTransaction);
         try
         {
         }

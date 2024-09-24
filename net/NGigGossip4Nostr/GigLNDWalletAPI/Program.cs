@@ -120,6 +120,12 @@ Singlethon.LNDWalletManager.OnPaymentStatusChanged += (sender, e) =>
         asyncCom.Enqueue(e);
 };
 
+Singlethon.LNDWalletManager.OnNewTransactionFound += (sender, e) =>
+{
+    foreach (var asyncCom in Singlethon.TransactionAsyncComQueue4ConnectionId.Values)
+        asyncCom.Enqueue(e);
+};
+
 Singlethon.LNDWalletManager.Start();
 
 LNDChannelManager channelManager = new LNDChannelManager(
@@ -495,6 +501,7 @@ app.MapGet("/newaddress", (string authToken) =>
     g.Parameters[0].Description = "Authorization token for authentication and access control. This token, generated using Schnorr Signatures for secp256k1, encodes the user's public key and session identifier from the GetToken function.";
     return g;
 });
+
 app.MapGet("/registerpayout", (string authToken, long satoshis, string btcAddress) =>
 {
     try

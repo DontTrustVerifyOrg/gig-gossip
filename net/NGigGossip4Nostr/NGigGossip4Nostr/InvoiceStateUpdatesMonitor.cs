@@ -126,8 +126,7 @@ namespace NGigGossip4Nostr
                                 gigGossipNode.nodeContext.Value.SaveObject(inv);
                             }
                         }
-                        else
-                            TL.Warning("Invoice not found");
+                        gigGossipNode.OnLNDInvoiceStateChanged(invstateupd);
                     }
                 },
                 InvoiceStateUpdatesClient.Uri,

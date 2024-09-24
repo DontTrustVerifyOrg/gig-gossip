@@ -26,6 +26,7 @@ using NetworkClientToolkit;
 using GoogleApi;
 using System.Text.Json;
 using Nostr.Client.Messages;
+using GoogleApi.Entities.Common.Enums;
 
 [Serializable]
 public class InvoiceData
@@ -59,10 +60,15 @@ public interface IGigGossipNodeEvents
     public void OnCancelBroadcast(GigGossipNode me, string peerPublicKey, CancelBroadcastFrame broadcastFrame);
     public void OnNetworkInvoiceAccepted(GigGossipNode me, InvoiceData iac);
     public void OnNetworkInvoiceCancelled(GigGossipNode me, InvoiceData iac);
-    public void OnInvoiceAccepted(GigGossipNode me, InvoiceData iac);
-    public void OnInvoiceCancelled(GigGossipNode me, InvoiceData iac);
-    public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage);
+    public void OnNetworkInvoiceSettled(GigGossipNode me, InvoiceData iac);
+    public void OnJobInvoiceAccepted(GigGossipNode me, InvoiceData iac);
+    public void OnJobInvoiceCancelled(GigGossipNode me, InvoiceData iac);
+    public void OnJobInvoiceSettled(GigGossipNode me, InvoiceData iac);
     public void OnPaymentStatusChange(GigGossipNode me, PaymentStatus status, PaymentData paydata);
+
+    public void OnLNDInvoiceStateChanged(GigGossipNode me, InvoiceStateChange invoice);
+    public void OnLNDPaymentStatusChanged(GigGossipNode me, PaymentStatusChanged payment);
+    public void OnLNDNewTransaction(GigGossipNode me, NewTransactionFound newTransaction);
 
     public void OnServerConnectionState(GigGossipNode me, ServerConnectionSource source, ServerConnectionState state, Uri uri);
 }
@@ -110,6 +116,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     protected InvoiceStateUpdatesMonitor _invoiceStateUpdatesMonitor;
     protected PaymentStatusUpdatesMonitor _paymentStatusUpdatesMonitor;
+    protected TransactionUpdatesMonitor _transactionUpdatesMonitor;
     protected SettlerMonitor _settlerMonitor;
 
     Dictionary<string, NostrContact> _contactList ;
@@ -181,6 +188,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
             _invoiceStateUpdatesMonitor = new InvoiceStateUpdatesMonitor(this);
             _paymentStatusUpdatesMonitor = new PaymentStatusUpdatesMonitor(this);
+            _transactionUpdatesMonitor = new TransactionUpdatesMonitor(this);
 
             _settlerMonitor = new SettlerMonitor(this);
 
@@ -190,6 +198,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
             await _invoiceStateUpdatesMonitor.StartAsync();
             await _paymentStatusUpdatesMonitor.StartAsync();
+            await _transactionUpdatesMonitor.StartAsync();
             await _settlerMonitor.StartAsync();
 
             await SayHelloAsync();
@@ -224,7 +233,9 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 this._invoiceStateUpdatesMonitor.Stop();
             if (this._paymentStatusUpdatesMonitor != null)
                 this._paymentStatusUpdatesMonitor.Stop();
-            if(this._settlerMonitor!=null)
+            if (this._transactionUpdatesMonitor != null)
+                this._transactionUpdatesMonitor.Stop();
+            if (this._settlerMonitor!=null)
                 this._settlerMonitor.Stop();
         }
         catch(Exception ex)
@@ -1031,24 +1042,24 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             TL.NewNote(iac.PaymentHash, state.ToString());
             if (iac.IsNetworkInvoice)
             {
-                if (state ==  InvoiceState.Accepted)
+                if (state == InvoiceState.Accepted)
                     this.gigGossipNodeEvents.OnNetworkInvoiceAccepted(this, iac);
-                else if (state ==  InvoiceState.Cancelled)
+                else if (state == InvoiceState.Cancelled)
                     this.gigGossipNodeEvents.OnNetworkInvoiceCancelled(this, iac);
+                else if(state == InvoiceState.Settled)
+                    gigGossipNodeEvents.OnNetworkInvoiceSettled(this, iac);
             }
             else
             {
                 if (state == InvoiceState.Accepted)
-                {
-                    this.gigGossipNodeEvents.OnInvoiceAccepted(this, iac);
-                }
+                    this.gigGossipNodeEvents.OnJobInvoiceAccepted(this, iac);
                 else if (state == InvoiceState.Cancelled)
-                {
-                    this.gigGossipNodeEvents.OnInvoiceCancelled(this, iac);
-                }
+                    this.gigGossipNodeEvents.OnJobInvoiceCancelled(this, iac);
+                else if (state == InvoiceState.Settled)
+                    gigGossipNodeEvents.OnJobInvoiceSettled(this, iac);
             }
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             TL.Exception(ex);
             throw;
@@ -1073,6 +1084,48 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
+    public async void OnLNDNewTransaction(NewTransactionFound newtrans)
+    {
+        using var TL = TRACE.Log().Args(newtrans);
+        try
+        {
+            this.gigGossipNodeEvents.OnLNDNewTransaction(this, newtrans);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async void OnLNDInvoiceStateChanged(InvoiceStateChange invoice)
+    {
+        using var TL = TRACE.Log().Args(invoice);
+        try
+        {
+            this.gigGossipNodeEvents.OnLNDInvoiceStateChanged(this, invoice);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async void OnLNDPaymentStatusChanged(PaymentStatusChanged payment)
+    {
+        using var TL = TRACE.Log().Args(payment);
+        try
+        {
+            this.gigGossipNodeEvents.OnLNDPaymentStatusChanged(this, payment);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
     public async Task<bool> OnPreimageRevealedAsync(Uri serviceUri, string phash, string preimage,CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(serviceUri, phash, preimage);
@@ -1084,8 +1137,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 cancellationToken
                 ));
             TL.NewMessage(Encoding.Default.GetBytes(serviceUri.AbsoluteUri).AsHex(), phash, "revealed");
-            TL.NewMessage(this.PublicKey, phash, "settled");
-            gigGossipNodeEvents.OnInvoiceSettled(this, serviceUri, phash, preimage);
             return TL.Ret(true); 
         }
         catch (Exception ex)

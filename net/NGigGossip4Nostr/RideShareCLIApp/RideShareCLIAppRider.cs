@@ -145,7 +145,7 @@ public partial class RideShareCLIApp
             AnsiConsole.WriteLine("SignedRequestPayloadId mismatch 2");
     }
 
-    private void GigGossipNodeEventSource_OnInvoiceCancelled(object? sender, InvoiceCancelledEventArgs e)
+    private void GigGossipNodeEventSource_OnInvoiceCancelled(object? sender, JobInvoiceCancelledEventArgs e)
     {
         if (e.InvoiceData.IsNetworkInvoice)
             return;
@@ -221,7 +221,7 @@ public partial class RideShareCLIApp
                         ToLocation = toLocation,
                     }
                 }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-                Thread.Sleep(5000);
+                Thread.Sleep(SIMULT_STEP_TIME);
             }
             while (!riderDroppedOff)
             {
@@ -243,7 +243,7 @@ public partial class RideShareCLIApp
                         ToLocation = toLocation,
                     }
                 }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-                Thread.Sleep(5000);
+                Thread.Sleep(SIMULT_STEP_TIME);
             }
             AnsiConsole.MarkupLine("I have reached the [orange1]destination[/]");
             requestedRide = null;

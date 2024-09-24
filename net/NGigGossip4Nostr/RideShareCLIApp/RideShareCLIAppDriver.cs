@@ -128,7 +128,7 @@ public partial class RideShareCLIApp
     }
 
 
-    private async void GigGossipNodeEventSource_OnInvoiceAccepted(object? sender, InvoiceAcceptedEventArgs e)
+    private async void GigGossipNodeEventSource_OnInvoiceAccepted(object? sender, JobInvoiceAcceptedEventArgs e)
     {
         using var TL = TRACE.Log();
         try
@@ -262,7 +262,7 @@ public partial class RideShareCLIApp
                             SecurityCenterUri = locationFrame.SecurityCenterUri,
                         }
                     }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-                    Thread.Sleep(5000);
+                    Thread.Sleep(SIMULT_STEP_TIME);
                 }
             }
             AnsiConsole.MarkupLine("I have [orange1]arrived[/]");
@@ -287,7 +287,7 @@ public partial class RideShareCLIApp
                         SecurityCenterUri = locationFrame.SecurityCenterUri,
                     }
                 }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-                Thread.Sleep(5000);
+                Thread.Sleep(SIMULT_STEP_TIME);
             }
 
             AnsiConsole.MarkupLine("Rider [orange1]in the car[/]");
@@ -319,7 +319,7 @@ public partial class RideShareCLIApp
                             SecurityCenterUri = locationFrame.SecurityCenterUri,
                         }
                     }, false, DateTime.UtcNow + this.gigGossipNode.InvoicePaymentTimeout);
-                    Thread.Sleep(5000);
+                    Thread.Sleep(SIMULT_STEP_TIME);
                 }
             }
             AnsiConsole.MarkupLine("We have [orange1]reached[/] the destination");
