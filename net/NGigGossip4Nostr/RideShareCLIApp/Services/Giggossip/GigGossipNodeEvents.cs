@@ -1,6 +1,9 @@
 ﻿
+using System;
+using System.Diagnostics;
 using GigGossip;
 using GigLNDWalletAPIClient;
+using GoogleApi.Entities.Maps.StreetView.Request.Enums;
 using NBitcoin;
 using NetworkClientToolkit;
 using NGigGossip4Nostr;
@@ -35,14 +38,21 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
         });
     }
 
-    public void OnInvoiceSettled(GigGossipNode me, Uri serviceUri, string paymentHash, string preimage)
+    public void OnNetworkInvoiceSettled(GigGossipNode me, InvoiceData iac)
     {
-        _gigGossipNodeEventSource.FireOnInvoiceSettled(new InvoiceSettledEventArgs()
+        _gigGossipNodeEventSource.FireOnNetworkInvoiceSettled(new NetworkInvoiceSettledEventArgs()
         {
             GigGossipNode = me,
-            PaymentHash = paymentHash,
-            Preimage = preimage,
-            ServiceUri = serviceUri
+            InvoiceData = iac
+        });
+    }
+
+    public void OnJobInvoiceSettled(GigGossipNode me, InvoiceData iac)
+    {
+        _gigGossipNodeEventSource.FireOnJobInvoiceSettled(new JobInvoiceSettledEventArgs()
+        {
+            GigGossipNode = me,
+            InvoiceData = iac
         });
     }
 
@@ -112,18 +122,18 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
         });
     }
 
-    public void OnInvoiceAccepted(GigGossipNode me, InvoiceData iac)
+    public void OnJobInvoiceAccepted(GigGossipNode me, InvoiceData iac)
     {
-        _gigGossipNodeEventSource.FireOnInvoiceAccepted(new InvoiceAcceptedEventArgs
+        _gigGossipNodeEventSource.FireOnJobInvoiceAccepted(new JobInvoiceAcceptedEventArgs
         {
             GigGossipNode = me,
             InvoiceData = iac
         });
     }
 
-    public void OnInvoiceCancelled(GigGossipNode me, InvoiceData iac)
+    public void OnJobInvoiceCancelled(GigGossipNode me, InvoiceData iac)
     {
-        _gigGossipNodeEventSource.FireOnInvoiceCancelled(new InvoiceCancelledEventArgs
+        _gigGossipNodeEventSource.FireOnJobInvoiceCancelled(new JobInvoiceCancelledEventArgs
         {
             GigGossipNode = me,
             InvoiceData = iac
@@ -155,6 +165,33 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
             Source = source,
             State = state,
             Uri = uri
+        });
+    }
+
+    public void OnLNDInvoiceStateChanged(GigGossipNode me, InvoiceStateChange invoice)
+    {
+        _gigGossipNodeEventSource.FireOnLNDInvoiceStateChanged(new LNDInvoiceStateChangedEventArgs
+        {
+            GigGossipNode = me,
+            InvoiceStateChange = invoice,
+        });
+    }
+
+    public void OnLNDPaymentStatusChanged(GigGossipNode me, PaymentStatusChanged payment)
+    {
+        _gigGossipNodeEventSource.FireOnLNDPaymentStatusChanged(new LNDPaymentStatusChangedEventArgs
+        {
+            GigGossipNode = me,
+            PaymentStatusChanged = payment,
+        });
+    }
+
+    public void OnLNDNewTransaction(GigGossipNode me, NewTransactionFound newTransaction)
+    {
+        _gigGossipNodeEventSource.FireOnLNDNewTransaction(new LNDNewTransactionEventArgs
+        {
+            GigGossipNode = me,
+            NewTransactionFound = newTransaction,
         });
     }
 }

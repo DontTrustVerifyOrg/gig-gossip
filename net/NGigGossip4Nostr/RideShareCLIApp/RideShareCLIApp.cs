@@ -69,6 +69,9 @@ public sealed class DefaultRetryPolicy : IRetryPolicy
 
 public partial class RideShareCLIApp
 {
+
+    const int SIMULT_STEP_TIME = 500;
+
     GigDebugLoggerAPIClient.LogWrapper<RideShareCLIApp> TRACE = GigDebugLoggerAPIClient.FlowLoggerFactory.Trace<RideShareCLIApp>();
     Settings settings;
     GigGossipNode gigGossipNode;
@@ -127,15 +130,36 @@ public partial class RideShareCLIApp
         gigGossipNodeEventSource.OnNewResponse += GigGossipNodeEventSource_OnNewResponse;
         gigGossipNodeEventSource.OnResponseReady += GigGossipNodeEventSource_OnResponseReady;
         gigGossipNodeEventSource.OnResponseCancelled += GigGossipNodeEventSource_OnResponseCancelled;
-        gigGossipNodeEventSource.OnInvoiceAccepted += GigGossipNodeEventSource_OnInvoiceAccepted;
-        gigGossipNodeEventSource.OnInvoiceCancelled += GigGossipNodeEventSource_OnInvoiceCancelled;
+        gigGossipNodeEventSource.OnJobInvoiceAccepted += GigGossipNodeEventSource_OnInvoiceAccepted;
+        gigGossipNodeEventSource.OnJobInvoiceCancelled += GigGossipNodeEventSource_OnInvoiceCancelled;
         gigGossipNodeEventSource.OnCancelBroadcast += GigGossipNodeEventSource_OnCancelBroadcast;
         gigGossipNodeEventSource.OnNetworkInvoiceCancelled += GigGossipNodeEventSource_OnNetworkInvoiceCancelled;
         gigGossipNodeEventSource.OnPaymentStatusChange += GigGossipNodeEventSource_OnPaymentStatusChange;
-        gigGossipNodeEventSource.OnInvoiceSettled += GigGossipNodeEventSource_OnInvoiceSettled;
+        gigGossipNodeEventSource.OnJobInvoiceSettled += GigGossipNodeEventSource_OnJobInvoiceSettled;
+        gigGossipNodeEventSource.OnNetworkInvoiceSettled += GigGossipNodeEventSource_OnNetworkInvoiceSettled;
         gigGossipNodeEventSource.OnNewContact += GigGossipNodeEventSource_OnNewContact;
         gigGossipNodeEventSource.OnServerConnectionState += GigGossipNodeEventSource_OnServerConnectionState;
+        gigGossipNodeEventSource.OnLNDInvoiceStateChanged += GigGossipNodeEventSource_OnLNDInvoiceStateChanged;
+        gigGossipNodeEventSource.OnLNDPaymentStatusChanged += GigGossipNodeEventSource_OnLNDPaymentStatusChanged;
+        gigGossipNodeEventSource.OnLNDNewTransaction += GigGossipNodeEventSource_OnLNDNewTransaction;
+    }
 
+    private async void GigGossipNodeEventSource_OnLNDNewTransaction(object? sender, LNDNewTransactionEventArgs e)
+    {
+        AnsiConsole.WriteLine("LNDNewTransaction " + e.NewTransactionFound.AmountSat + " " + e.NewTransactionFound.TxHash+ " " +e.NewTransactionFound.NumConfirmations.ToString());
+        await WriteBalance();
+    }
+
+    private async void GigGossipNodeEventSource_OnLNDPaymentStatusChanged(object? sender, LNDPaymentStatusChangedEventArgs e)
+    {
+        AnsiConsole.WriteLine("LNDPaymentStatusChanged " + e.PaymentStatusChanged.PaymentHash + " " + e.PaymentStatusChanged.NewStatus.ToString());
+        await WriteBalance();
+    }
+
+    private async void GigGossipNodeEventSource_OnLNDInvoiceStateChanged(object? sender, LNDInvoiceStateChangedEventArgs e)
+    {
+        AnsiConsole.WriteLine("LNDInvoiceStateChanged " + e.InvoiceStateChange.PaymentHash + " " + e.InvoiceStateChange.NewState.ToString());
+        await WriteBalance();
     }
 
     private void GigGossipNodeEventSource_OnServerConnectionState(object? sender, ServerConnectionSourceStateEventArgs e)
@@ -143,9 +167,15 @@ public partial class RideShareCLIApp
         AnsiConsole.WriteLine("ServerConnectionState " + e.Source.ToString() + " " + e.State.ToString() + " " + e.Uri?.AbsoluteUri);
     }
 
-    private async void GigGossipNodeEventSource_OnInvoiceSettled(object? sender, InvoiceSettledEventArgs e)
+    private async void GigGossipNodeEventSource_OnJobInvoiceSettled(object? sender, JobInvoiceSettledEventArgs e)
     {
-        AnsiConsole.WriteLine("Invoice settled");
+        AnsiConsole.WriteLine("Job Invoice settled");
+        await WriteBalance();
+    }
+
+    private async void GigGossipNodeEventSource_OnNetworkInvoiceSettled(object? sender, NetworkInvoiceSettledEventArgs e)
+    {
+        AnsiConsole.WriteLine("Network Invoice settled");
         await WriteBalance();
     }
 

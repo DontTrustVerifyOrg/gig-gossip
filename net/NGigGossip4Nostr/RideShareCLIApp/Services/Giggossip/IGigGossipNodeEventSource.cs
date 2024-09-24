@@ -16,16 +16,21 @@ public interface IGigGossipNodeEventSource
     public event EventHandler<CancelBroadcastEventArgs> OnCancelBroadcast;
 
     public event EventHandler<NetworkInvoiceAcceptedEventArgs> OnNetworkInvoiceAccepted;
+    public event EventHandler<NetworkInvoiceSettledEventArgs> OnNetworkInvoiceSettled;
     public event EventHandler<NetworkInvoiceCancelledEventArgs> OnNetworkInvoiceCancelled;
 
-    public event EventHandler<InvoiceAcceptedEventArgs> OnInvoiceAccepted;
-    public event EventHandler<InvoiceSettledEventArgs> OnInvoiceSettled;
-    public event EventHandler<InvoiceCancelledEventArgs> OnInvoiceCancelled;
+    public event EventHandler<JobInvoiceAcceptedEventArgs> OnJobInvoiceAccepted;
+    public event EventHandler<JobInvoiceSettledEventArgs> OnJobInvoiceSettled;
+    public event EventHandler<JobInvoiceCancelledEventArgs> OnJobInvoiceCancelled;
 
     public event EventHandler<PaymentStatusChangeEventArgs> OnPaymentStatusChange;
     public event EventHandler<NewContactEventArgs> OnNewContact;
 
     public event EventHandler<ServerConnectionSourceStateEventArgs> OnServerConnectionState;
+
+    public event EventHandler<LNDInvoiceStateChangedEventArgs> OnLNDInvoiceStateChanged;
+    public event EventHandler<LNDPaymentStatusChangedEventArgs> OnLNDPaymentStatusChanged;
+    public event EventHandler<LNDNewTransactionEventArgs> OnLNDNewTransaction;
 }
 
 public class AcceptBroadcastEventArgs : EventArgs
@@ -64,12 +69,17 @@ public class ResponseCancelledEventArgs : EventArgs
     public required Guid ReplierCertificateId;
 }
 
-public class InvoiceSettledEventArgs : EventArgs
+public class NetworkInvoiceSettledEventArgs : EventArgs
 {
     public required GigGossipNode GigGossipNode;
-    public required Uri ServiceUri;
-    public required string PaymentHash;
-    public required string Preimage;
+    public required InvoiceData InvoiceData;
+}
+
+
+public class JobInvoiceSettledEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required InvoiceData InvoiceData;
 }
 
 public class PaymentStatusChangeEventArgs : EventArgs
@@ -92,13 +102,13 @@ public class NetworkInvoiceCancelledEventArgs : EventArgs
     public required InvoiceData InvoiceData;
 }
 
-public class InvoiceAcceptedEventArgs : EventArgs
+public class JobInvoiceAcceptedEventArgs : EventArgs
 {
     public required GigGossipNode GigGossipNode;
     public required InvoiceData InvoiceData;
 }
 
-public class InvoiceCancelledEventArgs : EventArgs
+public class JobInvoiceCancelledEventArgs : EventArgs
 {
     public required GigGossipNode GigGossipNode;
     public required InvoiceData InvoiceData;
@@ -117,3 +127,22 @@ public class ServerConnectionSourceStateEventArgs : EventArgs
     public required ServerConnectionState State;
     public required Uri Uri;
 }
+
+public class LNDInvoiceStateChangedEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required InvoiceStateChange InvoiceStateChange;
+}
+
+public class LNDNewTransactionEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required NewTransactionFound NewTransactionFound;
+}
+
+public class LNDPaymentStatusChangedEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required PaymentStatusChanged PaymentStatusChanged;
+}
+
