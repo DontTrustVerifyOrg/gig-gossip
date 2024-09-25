@@ -36,6 +36,7 @@ jobs:
       - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/GigLNDWalletAPIClient && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
       - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/NetworkClientToolkit && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
       - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/GigGossipFrames && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
+      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/KeyPairGen && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
 
       - name: Publish NuGet package
         run: |
