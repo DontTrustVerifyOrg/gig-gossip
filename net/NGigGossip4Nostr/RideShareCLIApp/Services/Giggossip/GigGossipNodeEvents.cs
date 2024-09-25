@@ -194,5 +194,14 @@ public class GigGossipNodeEvents : IGigGossipNodeEvents
             NewTransactionFound = newTransaction,
         });
     }
+
+    public void OnLNDPayoutStateChanged(GigGossipNode me, PayoutStateChanged payout)
+    {
+        _gigGossipNodeEventSource.FireOnLNDPayoutStateChanged(new LNDPayoutStateChangedEventArgs
+        {
+            GigGossipNode = me,
+            PayoutStateChanged = payout,
+        });
+    }
 }
 

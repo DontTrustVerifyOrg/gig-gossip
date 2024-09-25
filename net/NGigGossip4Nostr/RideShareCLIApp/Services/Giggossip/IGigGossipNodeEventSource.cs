@@ -31,6 +31,7 @@ public interface IGigGossipNodeEventSource
     public event EventHandler<LNDInvoiceStateChangedEventArgs> OnLNDInvoiceStateChanged;
     public event EventHandler<LNDPaymentStatusChangedEventArgs> OnLNDPaymentStatusChanged;
     public event EventHandler<LNDNewTransactionEventArgs> OnLNDNewTransaction;
+    public event EventHandler<LNDPayoutStateChangedEventArgs> OnLNDPayoutStateChanged;
 }
 
 public class AcceptBroadcastEventArgs : EventArgs
@@ -144,5 +145,11 @@ public class LNDPaymentStatusChangedEventArgs : EventArgs
 {
     public required GigGossipNode GigGossipNode;
     public required PaymentStatusChanged PaymentStatusChanged;
+}
+
+public class LNDPayoutStateChangedEventArgs : EventArgs
+{
+    public required GigGossipNode GigGossipNode;
+    public required PayoutStateChanged PayoutStateChanged;
 }
 

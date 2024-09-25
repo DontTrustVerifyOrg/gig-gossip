@@ -32,6 +32,8 @@ public class GigGossipNodeEventSource : IGigGossipNodeEventSource
     public event EventHandler<LNDInvoiceStateChangedEventArgs> OnLNDInvoiceStateChanged;
     public event EventHandler<LNDPaymentStatusChangedEventArgs> OnLNDPaymentStatusChanged;
     public event EventHandler<LNDNewTransactionEventArgs> OnLNDNewTransaction;
+    public event EventHandler<LNDPayoutStateChangedEventArgs> OnLNDPayoutStateChanged;
+
 
     public readonly GigGossipNodeEvents GigGossipNodeEvents;
 
@@ -59,5 +61,8 @@ public class GigGossipNodeEventSource : IGigGossipNodeEventSource
     public void FireOnLNDInvoiceStateChanged(LNDInvoiceStateChangedEventArgs args) => OnLNDInvoiceStateChanged?.Invoke(this, args);
     public void FireOnLNDPaymentStatusChanged(LNDPaymentStatusChangedEventArgs args) => OnLNDPaymentStatusChanged?.Invoke(this, args);
     public void FireOnLNDNewTransaction(LNDNewTransactionEventArgs args) => OnLNDNewTransaction?.Invoke(this, args);
+    public void FireOnLNDPayoutStateChanged(LNDPayoutStateChangedEventArgs args) => OnLNDPayoutStateChanged?.Invoke(this, args);
+
+
 
 }

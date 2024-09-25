@@ -38,6 +38,7 @@ builder.Services.AddSwaggerGen(c =>
     c.DocumentFilter<CustomModelDocumentFilter<PaymentStatusChanged>>();
     c.DocumentFilter<CustomModelDocumentFilter<InvoiceStateChange>>();
     c.DocumentFilter<CustomModelDocumentFilter<NewTransactionFound>>();
+    c.DocumentFilter<CustomModelDocumentFilter<PayoutStateChanged>>();
     c.SchemaFilter<NSwagEnumExtensionSchemaFilter>();
     c.SchemaFilter<EnumFilter>();
 });
@@ -123,6 +124,12 @@ Singlethon.LNDWalletManager.OnPaymentStatusChanged += (sender, e) =>
 Singlethon.LNDWalletManager.OnNewTransactionFound += (sender, e) =>
 {
     foreach (var asyncCom in Singlethon.TransactionAsyncComQueue4ConnectionId.Values)
+        asyncCom.Enqueue(e);
+};
+
+Singlethon.LNDWalletManager.OnPayoutStateChanged += (sender, e) =>
+{
+    foreach (var asyncCom in Singlethon.PayoutAsyncComQueue4ConnectionId.Values)
         asyncCom.Enqueue(e);
 };
 
@@ -407,6 +414,7 @@ app.MapGet("/listchannels", (string authToken, bool activeOnly) =>
     g.Parameters[1].Description = "If true, returns only active channels. If false, returns all channels including inactive ones.";
     return g;
 });
+
 app.MapGet("/listclosedchannels", (string authToken) =>
 {
     try
@@ -502,6 +510,27 @@ app.MapGet("/newaddress", (string authToken) =>
     return g;
 });
 
+app.MapGet("/listtransactions", (string authToken) =>
+{
+    try
+    {
+        return new Result<TransactionRecord[]>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).ListTransactions().ToArray());
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<TransactionRecord[]>(ex);
+    }
+})
+.WithName("ListTransactions")
+.WithSummary("List Topup transaction")
+.WithDescription("List Topup transaction")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorization token for authentication and access control. This token is generated using Schnorr Signatures for secp256k1 and encodes the user's public key along with the session identifier obtained from the GetToken function. For TestNet and MainNet modes, an admin-level token is required.";
+    return g;
+});
+
 app.MapGet("/registerpayout", (string authToken, long satoshis, string btcAddress) =>
 {
     try
@@ -524,6 +553,50 @@ app.MapGet("/registerpayout", (string authToken, long satoshis, string btcAddres
     g.Parameters[2].Description = "The destination Bitcoin address where the payout will be sent. This should be a valid Bitcoin address on the blockchain.";
     return g;
 });
+
+app.MapGet("/listpayouts", (string authToken) =>
+{
+    try
+    {
+        return new Result<PayoutRecord[]>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).ListPayouts().ToArray());
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<PayoutRecord[]>(ex);
+    }
+})
+.WithName("ListPayouts")
+.WithSummary("List registered payouts")
+.WithDescription("List registered payouts")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorization token for authentication and access control. This token is generated using Schnorr Signatures for secp256k1 and encodes the user's public key along with the session identifier obtained from the GetToken function. For TestNet and MainNet modes, an admin-level token is required.";
+    return g;
+});
+
+app.MapGet("/getpayout", (string authToken, Guid payoutId) =>
+{
+    try
+    {
+        return new Result<PayoutRecord>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetPayout(payoutId));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<PayoutRecord>(ex);
+    }
+})
+.WithName("GetPayout")
+.WithSummary("Get registered payouts")
+.WithDescription("Get registered payouts")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorization token for authentication and access control. This token is generated using Schnorr Signatures for secp256k1 and encodes the user's public key along with the session identifier obtained from the GetToken function. For TestNet and MainNet modes, an admin-level token is required.";
+    g.Parameters[1].Description = "Payout id";
+    return g;
+});
+
 
 app.MapGet("/addinvoice", (string authToken, long satoshis, string memo, long expiry) =>
 {
@@ -803,6 +876,11 @@ app.MapHub<PaymentStatusUpdatesHub>("/paymentstatusupdates")
 app.MapHub<TransactionUpdatesHub>("/transactionupdates")
 .WithSummary("Real-time transaction status update hub")
 .WithDescription("This endpoint establishes a WebSocket connection for real-time updates on transaction status changes. Clients can subscribe to receive immediate notifications when the status of a payment changes, such as when it becomes successful, fails, or is in progress.")
+.DisableAntiforgery();
+
+app.MapHub<PayoutStateUpdatesHub>("/payoutstateupdates")
+.WithSummary("Real-time payout state update hub")
+.WithDescription("This endpoint establishes a WebSocket connection for real-time updates on payout state changes. Clients can subscribe to receive immediate notifications when the status of a payment changes, such as when it becomes successful, fails, or is in progress.")
 .DisableAntiforgery();
 
 app.Run(walletSettings.ListenHost.AbsoluteUri);
