@@ -535,6 +535,19 @@ public class NetworkEarnerNodeEvents : IGigGossipNodeEvents
         }
     }
 
+    public void OnLNDPayoutStateChanged(GigGossipNode me, PayoutStateChanged payout)
+    {
+        using var TL = TRACE.Log().Args(me, payout);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
 }
 
 public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
@@ -819,6 +832,19 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
     public void OnLNDNewTransaction(GigGossipNode me, NewTransactionFound newTransaction)
     {
         using var TL = TRACE.Log().Args(me, newTransaction);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public void OnLNDPayoutStateChanged(GigGossipNode me, PayoutStateChanged payout)
+    {
+        using var TL = TRACE.Log().Args(me, payout);
         try
         {
         }
@@ -1119,6 +1145,19 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
     public void OnLNDNewTransaction(GigGossipNode me, NewTransactionFound newTransaction)
     {
         using var TL = TRACE.Log().Args(me, newTransaction);
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public void OnLNDPayoutStateChanged(GigGossipNode me, PayoutStateChanged payout)
+    {
+        using var TL = TRACE.Log().Args(me, payout);
         try
         {
         }

@@ -69,6 +69,7 @@ public interface IGigGossipNodeEvents
     public void OnLNDInvoiceStateChanged(GigGossipNode me, InvoiceStateChange invoice);
     public void OnLNDPaymentStatusChanged(GigGossipNode me, PaymentStatusChanged payment);
     public void OnLNDNewTransaction(GigGossipNode me, NewTransactionFound newTransaction);
+    public void OnLNDPayoutStateChanged(GigGossipNode me, PayoutStateChanged payout);
 
     public void OnServerConnectionState(GigGossipNode me, ServerConnectionSource source, ServerConnectionState state, Uri uri);
 }
@@ -117,6 +118,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     protected InvoiceStateUpdatesMonitor _invoiceStateUpdatesMonitor;
     protected PaymentStatusUpdatesMonitor _paymentStatusUpdatesMonitor;
     protected TransactionUpdatesMonitor _transactionUpdatesMonitor;
+    protected PayoutStateUpdatesMonitor _payoutStateUpdatesMonitor;
     protected SettlerMonitor _settlerMonitor;
 
     Dictionary<string, NostrContact> _contactList ;
@@ -189,6 +191,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             _invoiceStateUpdatesMonitor = new InvoiceStateUpdatesMonitor(this);
             _paymentStatusUpdatesMonitor = new PaymentStatusUpdatesMonitor(this);
             _transactionUpdatesMonitor = new TransactionUpdatesMonitor(this);
+            _payoutStateUpdatesMonitor = new PayoutStateUpdatesMonitor(this);
 
             _settlerMonitor = new SettlerMonitor(this);
 
@@ -199,6 +202,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             await _invoiceStateUpdatesMonitor.StartAsync();
             await _paymentStatusUpdatesMonitor.StartAsync();
             await _transactionUpdatesMonitor.StartAsync();
+            await _payoutStateUpdatesMonitor.StartAsync();
             await _settlerMonitor.StartAsync();
 
             await SayHelloAsync();
@@ -235,6 +239,8 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 this._paymentStatusUpdatesMonitor.Stop();
             if (this._transactionUpdatesMonitor != null)
                 this._transactionUpdatesMonitor.Stop();
+            if (this._payoutStateUpdatesMonitor != null)
+                _payoutStateUpdatesMonitor.Stop();
             if (this._settlerMonitor!=null)
                 this._settlerMonitor.Stop();
         }
@@ -1118,6 +1124,20 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         try
         {
             this.gigGossipNodeEvents.OnLNDPaymentStatusChanged(this, payment);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async void OnLNDPayoutStateChanged(PayoutStateChanged payout)
+    {
+        using var TL = TRACE.Log().Args(payout);
+        try
+        {
+            this.gigGossipNodeEvents.OnLNDPayoutStateChanged(this, payout);
         }
         catch (Exception ex)
         {

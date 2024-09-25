@@ -1,5 +1,4 @@
 ﻿using NBitcoin.Secp256k1;
-
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin;
@@ -8,14 +7,8 @@ using Grpc.Core;
 using Lnrpc;
 using System.Collections.Concurrent;
 using TraceExColor;
-using Routerrpc;
-using Invoicesrpc;
-using System.Security.Cryptography.X509Certificates;
 using Spectre.Console;
-using Walletrpc;
-using System.Runtime.ConstrainedExecution;
 using GigGossip;
-using System.Diagnostics.Tracing;
 
 namespace LNDWallet;
 
@@ -121,6 +114,26 @@ public class PaymentRecord
     public required long FeeMsat { get; set; }
 }
 
+[Serializable]
+public class PayoutRecord
+{
+    public required Guid PayoutId { get; set; }
+    public required string BitcoinAddress { get; set; }
+    public required PayoutState State { get; set; }
+    public required long Satoshis { get; set; }
+    public required long PayoutFee { get; set; }
+    public required string Tx { get; set; }
+    public required int NumConfirmations { get; set; }
+}
+
+[Serializable]
+public class TransactionRecord
+{
+    public required string BitcoinAddress { get; set; }
+    public required long Satoshis { get; set; }
+    public required string Tx { get; set; }
+    public required int NumConfirmations { get; set; }
+}
 
 [Serializable]
 public class AccountBalanceDetails
@@ -231,6 +244,15 @@ public class NewTransactionFound
     public required long AmountSat { get; set; }
 }
 
+[Serializable]
+public class PayoutStateChanged
+{
+    public required Guid PayoutId { get; set; }
+    public required PayoutState NewState { get; set; }
+    public required long PayoutFee { get; set; }
+    public string? Tx { get; set; }
+}
+
 public class InvoiceStateChangedEventArgs : EventArgs
 {
     public required string PublicKey { get; set; }
@@ -255,11 +277,21 @@ public class NewTransactionFoundEventArgs : EventArgs
 
 public delegate void NewTransactionFoundEventHandler(object sender, NewTransactionFoundEventArgs e);
 
+public class PayoutStateChangedEventArgs : EventArgs
+{
+    public required string PublicKey { get; set; }
+    public required PayoutStateChanged PayoutStateChanged { get; set; }
+}
+
+public delegate void PayoutStatusChangedEventHandler(object sender, PayoutStateChangedEventArgs e);
+
 public class LNDEventSource
 {
     public event InvoiceStateChangedEventHandler OnInvoiceStateChanged;
     public event PaymentStatusChangedEventHandler OnPaymentStatusChanged;
     public event NewTransactionFoundEventHandler OnNewTransactionFound;
+    public event PayoutStatusChangedEventHandler OnPayoutStateChanged;
+
     public void FireOnInvoiceStateChanged(string pubkey, string paymentHash, InvoiceState invstate)
     {
         OnInvoiceStateChanged?.Invoke(this, new InvoiceStateChangedEventArgs()
@@ -303,6 +335,21 @@ public class LNDEventSource
 
     }
 
+    public void FireOnPayoutStateChanged(string pubkey, Guid payoutId, PayoutState paystatus, long payoutFee, string tx)
+    {
+        OnPayoutStateChanged?.Invoke(this, new PayoutStateChangedEventArgs()
+        {
+            PublicKey = pubkey,
+            PayoutStateChanged = new PayoutStateChanged
+            {
+                PayoutId = payoutId,
+                NewState = paystatus,
+                PayoutFee = payoutFee,
+                Tx = tx,
+            }
+        });
+    }
+
     public virtual void CancelSingleInvoiceTracking(string paymentHash) { }
 }
 
@@ -311,15 +358,13 @@ public class LNDAccountManager
     public GigDebugLoggerAPIClient.LogWrapper<LNDAccountManager> TRACE = GigDebugLoggerAPIClient.ConsoleLoggerFactory.Trace<LNDAccountManager>();
 
     private LND.NodeSettings lndConf;
-    private BitcoinNode bitcoinNode;
     private ThreadLocal<WaletContext> walletContext;
     public string PublicKey;
     private LNDEventSource eventSource;
     private CancellationTokenSource trackPaymentsCancallationTokenSource = new();
 
-    internal LNDAccountManager(BitcoinNode nd, LND.NodeSettings conf, DBProvider provider, string connectionString, ECXOnlyPubKey pubKey, LNDEventSource eventSource)
+    internal LNDAccountManager(LND.NodeSettings conf, DBProvider provider, string connectionString, ECXOnlyPubKey pubKey, LNDEventSource eventSource)
     {
-        this.bitcoinNode = nd;
         this.lndConf = conf;
         this.PublicKey = pubKey.AsHex();
         this.walletContext = new ThreadLocal<WaletContext>(() => new WaletContext(provider, connectionString));
@@ -385,6 +430,100 @@ public class LNDAccountManager
         return balance;
     }
 
+    public PayoutRecord GetPayout(Guid payoutId)
+    {
+        var payout = (
+            from a in walletContext.Value.Payouts
+            where a.PublicKey == PublicKey
+            && a.PayoutId == payoutId
+            select a).FirstOrDefault();
+        if (payout == null)
+            throw new LNDWalletException(LNDWalletErrorCode.PayoutNotOpened);
+
+        return new PayoutRecord
+        {
+            BitcoinAddress = payout.BitcoinAddress,
+            PayoutFee = payout.PayoutFee,
+            PayoutId = payout.PayoutId,
+            Satoshis = payout.Satoshis,
+            State = payout.State,
+            Tx = payout.Tx == null ? "" : payout.Tx,
+            NumConfirmations = payout.Tx == null ? 0 : LND.GetTransaction(lndConf, payout.Tx).NumConfirmations,
+        };
+    }
+
+    public List<PayoutRecord> ListPayouts()
+    {
+        var ret = new List<PayoutRecord>();
+
+        var mypayouts = (
+            from a in walletContext.Value.Payouts
+            where a.PublicKey == PublicKey
+            select a);
+
+        var runningtransactions = new Dictionary<string, Lnrpc.Transaction>(
+            from a in LND.GetTransactions(lndConf).Transactions
+            select new KeyValuePair<string, Lnrpc.Transaction>(a.TxHash, a));
+
+        foreach (var payout in mypayouts)
+        {
+            if (payout.Tx != null && runningtransactions.ContainsKey(payout.Tx))
+            {
+                ret.Add(new PayoutRecord
+                {
+                    BitcoinAddress = payout.BitcoinAddress,
+                    PayoutFee = payout.PayoutFee,
+                    PayoutId = payout.PayoutId,
+                    Satoshis = payout.Satoshis,
+                    State = payout.State,
+                    Tx = payout.Tx,
+                    NumConfirmations = runningtransactions[payout.Tx].NumConfirmations,
+                });
+            }
+            else
+            {
+                ret.Add(new PayoutRecord
+                {
+                    BitcoinAddress = payout.BitcoinAddress,
+                    PayoutFee = payout.PayoutFee,
+                    PayoutId = payout.PayoutId,
+                    Satoshis = payout.Satoshis,
+                    State = payout.State,
+                    Tx = payout.Tx == null ? "" : payout.Tx,
+                    NumConfirmations = 0,
+                });
+            }
+        }
+        return ret;
+    }
+
+    public List<TransactionRecord> ListTransactions()
+    {
+        var ret = new List<TransactionRecord>();
+
+        var myaddrs = new HashSet<string>(
+            from a in walletContext.Value.TopupAddresses
+            where a.PublicKey == PublicKey
+            select a.BitcoinAddress);
+
+        var transactuinsResp = LND.GetTransactions(lndConf);
+        foreach (var transation in transactuinsResp.Transactions)
+            foreach (var outp in transation.OutputDetails)
+                if (outp.IsOurAddress)
+                    if (myaddrs.Contains(outp.Address))
+                    {
+                        ret.Add(new TransactionRecord
+                        {
+                            BitcoinAddress = outp.Address,
+                            Satoshis = outp.Amount,
+                            Tx = transation.TxHash,
+                            NumConfirmations = transation.NumConfirmations,
+                        });
+                    }
+        return ret;
+    }
+
+    /*
     public (long all, long allTxFee, long confirmed, long confirmedTxFee) GetExecutedPayoutTotalAmount(int minConf)
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
@@ -392,8 +531,8 @@ public class LNDAccountManager
         Dictionary<string, LNDWallet.Payout> mypayouts;
         mypayouts = new Dictionary<string, LNDWallet.Payout>(
             from a in walletContext.Value.Payouts
-            where a.PublicKey == PublicKey
-            select new KeyValuePair<string, LNDWallet.Payout>(a.BitcoinAddress, a));
+            where a.PublicKey == PublicKey && a.Tx != null
+            select new KeyValuePair<string, LNDWallet.Payout>(a.Tx, a));
 
         var transactuinsResp = LND.GetTransactions(lndConf);
         long confirmed = 0;
@@ -401,9 +540,12 @@ public class LNDAccountManager
         long all = 0;
         long allTxFee = 0;
         foreach (var transation in transactuinsResp.Transactions)
-            foreach (var outp in transation.OutputDetails)
-                if (!outp.IsOurAddress)
-                    if (mypayouts.ContainsKey(outp.Address))
+        {
+            if (mypayouts.ContainsKey(transation.TxHash))
+            {
+                foreach (var outp in transation.OutputDetails)
+                {
+                    if (!outp.IsOurAddress)
                     {
                         if (transation.NumConfirmations >= minConf)
                         {
@@ -413,11 +555,15 @@ public class LNDAccountManager
                         all += outp.Amount;
                         allTxFee += (long)mypayouts[outp.Address].PayoutFee;
                     }
+                }
+            }
+        }
 
         TX.Commit();
 
         return (all, allTxFee, confirmed, confirmedTxFee);
     }
+    */
 
     public InvoiceRecord CreateNewHodlInvoice(long satoshis, string memo, byte[] hash, long expiry)
     {
@@ -1516,7 +1662,7 @@ public class LNDWalletManager : LNDEventSource
 
     public LNDAccountManager GetAccount(ECXOnlyPubKey pubkey)
     {
-        return new LNDAccountManager(BitcoinNode, lndConf, this.provider, this.connectionString, pubkey, this);
+        return new LNDAccountManager(lndConf, this.provider, this.connectionString, pubkey, this);
     }
 
     public bool HasAdminRights(string pubkey)
@@ -1542,10 +1688,12 @@ public class LNDWalletManager : LNDEventSource
         return LND.SendCoins(lndConf, address, memo, satoshis);
     }
 
+    /*
     public Lnrpc.Transaction GetTransaction(string txid)
     {
         return LND.GetTransaction(lndConf, txid);
     }
+    */
 
     public Guid OpenReserve(long satoshis)
     {
@@ -1586,6 +1734,7 @@ public class LNDWalletManager : LNDEventSource
         walletContext.Value
             .UPDATE(payout)
             .SAVE();
+        FireOnPayoutStateChanged(payout.PublicKey, payout.PayoutId, payout.State, payout.PayoutFee, payout.Tx);
         return true;
     }
 
@@ -1603,6 +1752,7 @@ public class LNDWalletManager : LNDEventSource
             .SAVE();
 
         CloseReserve(id);
+        FireOnPayoutStateChanged(payout.PublicKey, payout.PayoutId, payout.State, payout.PayoutFee, payout.Tx);
 
         return true;
     }
@@ -1621,6 +1771,7 @@ public class LNDWalletManager : LNDEventSource
             .SAVE();
 
         CloseReserve(id);
+        FireOnPayoutStateChanged(payout.PublicKey, payout.PayoutId, payout.State, payout.PayoutFee, payout.Tx);
 
         TX.Commit();
     }
@@ -1661,10 +1812,12 @@ public class LNDWalletManager : LNDEventSource
     }
     */
 
+    /*
     public long GetChannelFundingBalance(int minconf)
     {
         return (from utxo in LND.ListUnspent(lndConf, minconf).Utxos select utxo.AmountSat).Sum();
     }
+    */
 
     public WalletBalanceResponse GetWalletBalance()
     {
@@ -1732,11 +1885,11 @@ public class LNDWalletManager : LNDEventSource
         return LND.OpenChannel(lndConf, nodePubKey, fundingSatoshis);
     }
 
+    /*
     public BatchOpenChannelResponse BatchOpenChannel(List<(string, long)> amountsPerNode)
     {
         return LND.BatchOpenChannel(lndConf, amountsPerNode);
     }
-
     public string OpenChannelSync(string nodePubKey, long fundingSatoshis)
     {
         var channelpoint = LND.OpenChannelSync(lndConf, nodePubKey, fundingSatoshis);
@@ -1750,6 +1903,8 @@ public class LNDWalletManager : LNDEventSource
 
         return chanpoint;
     }
+    */
+
 
     public ListChannelsResponse ListChannels(bool openOnly)
     {

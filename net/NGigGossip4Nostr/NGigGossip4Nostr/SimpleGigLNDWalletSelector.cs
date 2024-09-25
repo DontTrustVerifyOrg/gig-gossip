@@ -1,13 +1,6 @@
-﻿using System;
-using GigLNDWalletAPIClient;
-using NBitcoin.Secp256k1;
-using System.Threading.Tasks;
+﻿using GigLNDWalletAPIClient;
 using System.Collections.Concurrent;
-using System.Dynamic;
-using System.Reflection;
 using System.Runtime.CompilerServices;
-using static NBitcoin.Scripting.OutputDescriptor.TapTree;
-using System.Threading;
 using Microsoft.AspNetCore.SignalR.Client;
 
 namespace NGigGossip4Nostr;
@@ -37,7 +30,6 @@ public class SimpleGigLNDWalletSelector : IGigLNDWalletSelector
     }
 
 }
-
 
 public class WalletAPILoggingWrapper : IWalletAPI
 {
@@ -388,6 +380,48 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
+    public async Task<PayoutRecordArrayResult> ListPayoutsAsync(string authToken, System.Threading.CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log();
+        try
+        {
+            return TL.Ret(await API.ListPayoutsAsync(authToken, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task<PayoutRecordResult> GetPayoutAsync(string authToken, System.Guid payoutId, System.Threading.CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(payoutId);
+        try
+        {
+            return TL.Ret(await API.GetPayoutAsync(authToken, payoutId, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task<TransactionRecordArrayResult> ListTransactionsAsync(string authToken, System.Threading.CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log();
+        try
+        {
+            return TL.Ret(await API.ListTransactionsAsync(authToken, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
     public IInvoiceStateUpdatesClient CreateInvoiceStateUpdatesClient()
     {
         return new InvoiceStateUpdatesClientWrapper(API.CreateInvoiceStateUpdatesClient());
@@ -401,6 +435,11 @@ public class WalletAPILoggingWrapper : IWalletAPI
     public ITransactionUpdatesClient CreateTransactionUpdatesClient()
     {
         return new TransactionUpdatesClientWrapper(API.CreateTransactionUpdatesClient());
+    }
+
+    public IPayoutStateUpdatesClient CreatePayoutStateUpdatesClient()
+    {
+        return new PayoutStateUpdatesClientWrapper(API.CreatePayoutStateUpdatesClient());
     }
 }
 
@@ -535,6 +574,43 @@ internal class TransactionUpdatesClientWrapper : ITransactionUpdatesClient
     }
 
     public async IAsyncEnumerable<NewTransactionFound> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log();
+        await foreach (var row in API.StreamAsync(authToken, cancellationToken))
+        {
+            TL.Iteration(row);
+            yield return row;
+        }
+    }
+}
+
+internal class PayoutStateUpdatesClientWrapper : IPayoutStateUpdatesClient
+{
+    IPayoutStateUpdatesClient API;
+    GigDebugLoggerAPIClient.LogWrapper<IPayoutStateUpdatesClient> TRACE = GigDebugLoggerAPIClient.FlowLoggerFactory.Trace<IPayoutStateUpdatesClient>();
+
+    public PayoutStateUpdatesClientWrapper(IPayoutStateUpdatesClient api)
+    {
+        API = api;
+    }
+
+    public Uri Uri => API.Uri;
+
+    public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log();
+        try
+        {
+            await API.ConnectAsync(authToken, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async IAsyncEnumerable<PayoutStateChanged> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log();
         await foreach (var row in API.StreamAsync(authToken, cancellationToken))

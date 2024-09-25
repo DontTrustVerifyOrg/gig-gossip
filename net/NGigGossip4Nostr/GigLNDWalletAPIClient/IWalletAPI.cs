@@ -34,10 +34,14 @@ public interface IWalletAPI
     Task<PaymentRecordResult> GetPaymentAsync(string authToken, string paymenthash, System.Threading.CancellationToken cancellationToken);
     Task<InvoiceRecordArrayResult> ListInvoicesAsync(string authToken, System.Threading.CancellationToken cancellationToken);
     Task<PaymentRecordArrayResult> ListPaymentsAsync(string authToken, System.Threading.CancellationToken cancellationToken);
+    Task<PayoutRecordArrayResult> ListPayoutsAsync(string authToken, System.Threading.CancellationToken cancellationToken);
+    Task<PayoutRecordResult> GetPayoutAsync(string authToken, System.Guid payoutId, System.Threading.CancellationToken cancellationToken);
+    Task<TransactionRecordArrayResult> ListTransactionsAsync(string authToken, System.Threading.CancellationToken cancellationToken);
 
     IInvoiceStateUpdatesClient CreateInvoiceStateUpdatesClient();
     IPaymentStatusUpdatesClient CreatePaymentStatusUpdatesClient();
     ITransactionUpdatesClient CreateTransactionUpdatesClient();
+    IPayoutStateUpdatesClient CreatePayoutStateUpdatesClient();
 }
 
 public partial class swaggerClient : IWalletAPI
@@ -62,6 +66,11 @@ public partial class swaggerClient : IWalletAPI
     public ITransactionUpdatesClient CreateTransactionUpdatesClient()
     {
         return new TransactionUpdatesClient(this);
+    }
+
+    public IPayoutStateUpdatesClient CreatePayoutStateUpdatesClient()
+    {
+        return new PayoutStateUpdatesClient(this);
     }
 }
 
@@ -89,6 +98,11 @@ public class WalletAPIRetryWrapper : IWalletAPI
     public ITransactionUpdatesClient CreateTransactionUpdatesClient()
     {
         return api.CreateTransactionUpdatesClient();
+    }
+
+    public IPayoutStateUpdatesClient CreatePayoutStateUpdatesClient()
+    {
+        return api.CreatePayoutStateUpdatesClient();
     }
 
     public async Task<InvoiceRecordResult> AddHodlInvoiceAsync(string authToken, long satoshis, string hash, string memo, long expiry, CancellationToken cancellationToken)
@@ -211,4 +225,20 @@ public class WalletAPIRetryWrapper : IWalletAPI
     {
         return await RetryPolicy.WithRetryPolicy(() => api.EstimateRouteFeeAsync(authToken, paymentrequest,timeout, cancellationToken));
     }
+
+    public async Task<PayoutRecordArrayResult> ListPayoutsAsync(string authToken, System.Threading.CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.ListPayoutsAsync(authToken, cancellationToken));
+    }
+
+    public async Task<PayoutRecordResult> GetPayoutAsync(string authToken, System.Guid payoutId, System.Threading.CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.GetPayoutAsync(authToken, payoutId, cancellationToken));
+    }
+
+    public async Task<TransactionRecordArrayResult> ListTransactionsAsync(string authToken, System.Threading.CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.ListTransactionsAsync(authToken, cancellationToken));
+    }
+
 }

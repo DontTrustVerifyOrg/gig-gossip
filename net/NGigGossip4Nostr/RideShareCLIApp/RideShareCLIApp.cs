@@ -142,6 +142,13 @@ public partial class RideShareCLIApp
         gigGossipNodeEventSource.OnLNDInvoiceStateChanged += GigGossipNodeEventSource_OnLNDInvoiceStateChanged;
         gigGossipNodeEventSource.OnLNDPaymentStatusChanged += GigGossipNodeEventSource_OnLNDPaymentStatusChanged;
         gigGossipNodeEventSource.OnLNDNewTransaction += GigGossipNodeEventSource_OnLNDNewTransaction;
+        gigGossipNodeEventSource.OnLNDPayoutStateChanged += GigGossipNodeEventSource_OnLNDPayoutStateChanged;
+    }
+
+    private async void GigGossipNodeEventSource_OnLNDPayoutStateChanged(object? sender, LNDPayoutStateChangedEventArgs e)
+    {
+        AnsiConsole.WriteLine("LNDPayoutStateChanged " + e.PayoutStateChanged.PayoutId.ToString() + " " + e.PayoutStateChanged.PayoutFee.ToString() + " " + e.PayoutStateChanged.NewState.ToString() +" "+ e.PayoutStateChanged.Tx);
+        await WriteBalance();
     }
 
     private async void GigGossipNodeEventSource_OnLNDNewTransaction(object? sender, LNDNewTransactionEventArgs e)
