@@ -13,6 +13,7 @@ public class BitcoinNode
     public NBitcoin.Network GetNetwork() => Network.ToLower() switch
     {
         "main" => NBitcoin.Network.Main,
+        "mainnet" => NBitcoin.Network.Main,
         "testnet" => NBitcoin.Network.TestNet,
         "regtest" => NBitcoin.Network.RegTest,
         _ => throw new NotImplementedException()

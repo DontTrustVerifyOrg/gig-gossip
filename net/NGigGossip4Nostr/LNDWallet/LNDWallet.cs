@@ -1726,6 +1726,8 @@ public class LNDWalletManager : LNDEventSource
 
     internal bool MarkPayoutAsSending(Guid id, long fee)
     {
+        using var TX = walletContext.Value.BEGIN_TRANSACTION();
+
         var payout = (from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po).FirstOrDefault();
         if (payout == null)
             return false;
@@ -1735,6 +1737,8 @@ public class LNDWalletManager : LNDEventSource
             .UPDATE(payout)
             .SAVE();
         FireOnPayoutStateChanged(payout.PublicKey, payout.PayoutId, payout.State, payout.PayoutFee, payout.Tx);
+
+        TX.Commit();
         return true;
     }
 
@@ -1753,6 +1757,8 @@ public class LNDWalletManager : LNDEventSource
 
         CloseReserve(id);
         FireOnPayoutStateChanged(payout.PublicKey, payout.PayoutId, payout.State, payout.PayoutFee, payout.Tx);
+
+        TX.Commit();
 
         return true;
     }
