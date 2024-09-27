@@ -7,7 +7,7 @@ RUN dotnet publish -c Release -o out ./GigLNDWalletAPI/GigLNDWalletAPI.csproj
 
 # Run
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
-RUN apt update && apt install -y gettext
+RUN apt update && apt install -y gettext jq curl
 WORKDIR /app
 RUN mkdir -p /app/data/
 COPY ./docker/entrypoint.sh .
