@@ -15,6 +15,9 @@ FROM debian:12.7
 RUN apt update && apt install -y gettext jq curl
 
 WORKDIR /app
+ENV PATH /app:${PATH}
+RUN echo "${PATH}" >> /etc/bash.bashrc
+
 COPY --from=build /app/bin .
 COPY ./docker/btc/bitcoin.conf.template /app/bitcoin.conf.template
 COPY ./docker/btc/entrypoint.sh /app/entrypoint.sh

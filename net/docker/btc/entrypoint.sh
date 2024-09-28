@@ -45,7 +45,8 @@ else
 fi
 
 
+
 echo
-echo "Starting: ./bitcoind -datadir=/app_data -printtoconsole"
+echo "Starting: bitcoind -datadir=/app_data -printtoconsole"
 echo
-./bitcoind -datadir=/app_data -printtoconsole
+bitcoind -datadir=/app_data -printtoconsole
