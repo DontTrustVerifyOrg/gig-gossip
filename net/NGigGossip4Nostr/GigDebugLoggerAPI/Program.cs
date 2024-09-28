@@ -104,6 +104,15 @@ app.MapPost("/logevent", async ([FromForm] string apikey, [FromForm] string pubk
 .WithDescription("Logs an event")
 .DisableAntiforgery();
 
+app.MapGet("/health", () =>
+{
+    return Results.Ok("ok");
+})
+.WithName("Health")
+.WithSummary("Health check endpoint")
+.WithDescription("This endpoint returns a status 200 and 'ok' to indicate that the service is running properly.")
+.DisableAntiforgery();
+
 app.Run(loggerSettings.ListenHost.AbsoluteUri);
 
 

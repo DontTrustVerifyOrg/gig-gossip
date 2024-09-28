@@ -857,6 +857,15 @@ app.MapGet("/getpayment", async (string authToken, string paymenthash) =>
 })
 .DisableAntiforgery();
 
+app.MapGet("/health", () =>
+{
+    return Results.Ok("ok");
+})
+.WithName("Health")
+.WithSummary("Health check endpoint")
+.WithDescription("This endpoint returns a status 200 and 'ok' to indicate that the service is running properly.")
+.DisableAntiforgery();
+
 // Map the InvoiceStateUpdatesHub to the "/invoicestateupdates" endpoint
 // This hub allows real-time updates on invoice state changes
 // Clients can connect to this hub to receive immediate notifications when an invoice's state changes
@@ -882,6 +891,7 @@ app.MapHub<PayoutStateUpdatesHub>("/payoutstateupdates")
 .WithSummary("Real-time payout state update hub")
 .WithDescription("This endpoint establishes a WebSocket connection for real-time updates on payout state changes. Clients can subscribe to receive immediate notifications when the status of a payment changes, such as when it becomes successful, fails, or is in progress.")
 .DisableAntiforgery();
+
 
 app.Run(walletSettings.ListenHost.AbsoluteUri);
 
