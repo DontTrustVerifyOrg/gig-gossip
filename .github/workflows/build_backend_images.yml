@@ -1,50 +1,15 @@
-name: Build Docker Image Backend
+name: Build Backend Docker Images 
 
 on:
   push:
     branches: [ "main" ]
 
-env:
-  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
-  DOTNET_VERSION: 8.0.x
-  XCODE_VERSION: 15.2
-  NuGetDirectory: ${{ github.workspace }}/nuget
-  RepoDirectory: ${{ github.workspace }}
 
 defaults:
   run:
     shell: pwsh
 
 jobs:
-  build-nuget-packages:
-    runs-on: ubuntu-latest
-    steps:
-      - # checkout to the repository on the build machine
-        name: Checkout
-        uses: actions/checkout@v3
-
-      # Install the .NET SDK
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      # Create the NuGet package in the folder from the environment variable NuGetDirectory
-      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/NGigGossip4Nostr && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
-      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/GigDebugLoggerAPIClient && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
-      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/GigGossipSettlerAPIClient && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
-      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/GigLNDWalletAPIClient && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
-      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/NetworkClientToolkit && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
-      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/GigGossipFrames && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
-      - run: cd ${{ env.RepoDirectory }}/net/NGigGossip4Nostr/KeyPairGen && dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
-
-      - name: Publish NuGet package
-        run: |
-          foreach($file in (Get-ChildItem "${{ env.NuGetDirectory }}" -Recurse -Include *.nupkg)) {
-              dotnet nuget push $file --api-key "${{ secrets.NUGET_APIKEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
-          }
-
-
 
   build-logger-api:
     runs-on: ubuntu-latest
@@ -63,7 +28,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./net
-          file: ./net/docker/build_logger_api.Dockerfile
+          file: ./net/docker/backend/build_logger_api.Dockerfile
           push: true
           tags: awazcognitum/logger_api:latest
 
@@ -85,7 +50,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./net
-          file: ./net/docker/build_wallet_api.Dockerfile
+          file: ./net/docker/backend/build_wallet_api.Dockerfile
           push: true
           tags: awazcognitum/wallet_api:latest
 
@@ -107,7 +72,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./net
-          file: ./net/docker/build_settler_api.Dockerfile
+          file: ./net/docker/backend/build_settler_api.Dockerfile
           push: true
           tags: awazcognitum/settler_api:latest
 
@@ -131,7 +96,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./net
-          file: ./net/docker/build_keypairgen.Dockerfile
+          file: ./net/docker/backend/build_keypairgen.Dockerfile
           push: true
           tags: awazcognitum/keypairgen:latest
 

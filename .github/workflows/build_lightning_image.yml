@@ -1,4 +1,4 @@
-name: Build Bitcoin Image
+name: Build Lightning Image
 on:
   workflow_dispatch:
 
@@ -13,7 +13,7 @@ defaults:
 
 
 jobs:
-  build-bitcoin-image:
+  build-lightning-image:
     runs-on: ubuntu-latest
     steps:
       - # checkout to the repository on the build machine
@@ -30,6 +30,6 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./net
-          file: ./net/docker/btc/build_bitcoin.Dockerfile
+          file: ./net/docker/lnd/build_lnd.Dockerfile
           push: true
-          tags: awazcognitum/bitcoin:latest
+          tags: awazcognitum/lnd:latest

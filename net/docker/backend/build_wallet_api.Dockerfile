@@ -10,9 +10,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0
 RUN apt update && apt install -y gettext jq curl
 WORKDIR /app
 RUN mkdir -p /app/data/
-COPY ./docker/entrypoint.sh .
+COPY ./docker/backend/entrypoint.sh .
 COPY --from=build /app/out .
-COPY ./docker/wallet.conf.template /app/wallet.conf.template
+COPY ./docker/backend/wallet.conf.template /app/wallet.conf.template
 
 ENV ListenHost=http://0.0.0.0:80/
 EXPOSE 80

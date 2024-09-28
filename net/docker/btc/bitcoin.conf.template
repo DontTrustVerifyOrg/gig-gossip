@@ -1,0 +1,17 @@
+server=${server}
+txindex=${txindex}
+fallbackfee=${fallbackfee}
+rpcuser=${rpcuser}
+rpcpassword=${rpcpassword}
+zmqpubrawblock=${zmqpubrawblock}
+zmqpubrawtx=${zmqpubrawtx}
+whitelist=${whitelist}
+rpcallowip=${rpcallowip}
+
+
+[main]
+rpcport=${rpcport}
+rpcbind=${rpcbind}
+rpcallowip=${rpcallowip}
+whitelist=${whitelist}
+

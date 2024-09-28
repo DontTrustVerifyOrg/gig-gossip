@@ -1,0 +1,19 @@
+[Application Options]
+listen=${listen}
+rpclisten=${rpclisten}
+restlisten=${restlisten}
+tlsextradomain=${tlsextradomain}
+
+[Bitcoin]
+
+bitcoin.active=${bitcoin_active}
+bitcoin.mainnet=${bitcoin_mainnet}
+bitcoin.node=${bitcoin_node}
+
+[Bitcoind]
+
+bitcoind.rpchost=${bitcoind_rpchost}
+bitcoind.rpcuser=${bitcoind_rpcuser}
+bitcoind.rpcpass=${bitcoind_rpcpass}
+bitcoind.zmqpubrawblock=${bitcoind_zmqpubrawblock}
+bitcoind.zmqpubrawtx=${bitcoind_zmqpubrawtx}
