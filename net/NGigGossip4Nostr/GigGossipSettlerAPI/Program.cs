@@ -572,6 +572,64 @@ app.MapGet("/getmypropertysecret", (string authToken, string name) =>
 })
 .DisableAntiforgery();
 
+app.MapGet("/getuserpropertyvalue", (string authToken, string pubkey, string name) =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken, true);
+        var prop = Singlethon.Settler.GetUserProperty(pubkey, name);
+        if(prop!=null)
+            return new Result<string>(Convert.ToBase64String(prop.Value));
+        else
+            return new Result<string>((string)null);
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
+    }
+})
+.WithName("GetUserPropertyValue")
+.WithSummary("Gets User Property Value")
+.WithDescription("Gets a property given to the subject. Only admin can read it.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Pubkey of the user";
+    g.Parameters[2].Description = "Name of the property.";
+    return g;
+})
+.DisableAntiforgery();
+
+app.MapGet("/getuserpropertysecret", (string authToken, string pubkey, string name) =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken, true);
+        var prop = Singlethon.Settler.GetUserProperty(pubkey, name);
+        if(prop!=null)
+            return new Result<string>(Convert.ToBase64String(prop.Secret));
+        else
+            return new Result<string>((string)null);
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
+    }
+})
+.WithName("GetUserPropertySecret")
+.WithSummary("Gets User Property Secret")
+.WithDescription("Gets a property secret given to the subject. Only admin can read this property.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
+    g.Parameters[1].Description = "Pubkey of the user.";
+    g.Parameters[2].Description = "Name of the property.";
+    return g;
+})
+.DisableAntiforgery();
+
 app.MapPost("/giveuserfile", async ([FromForm] string authToken, [FromForm] string pubkey, [FromForm] string name, [FromForm] long validHours, IFormFile value, IFormFile secret)
     =>
 {

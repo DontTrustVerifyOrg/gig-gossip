@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net.Sockets;
 using System.Threading;
 using GoogleApi.Entities.Translate.Translate.Request.Enums;
 using GoogleApi.Interfaces;
@@ -29,6 +30,8 @@ public interface ISettlerAPI
     Task<Result> GiveUserPropertyAsync(string authToken, string pubkey, string name, string value, string secret, long validHours, CancellationToken cancellationToken);
     Task<Result> GiveUserFileAsync(string authToken, string pubkey, string name, long? validHours, FileParameter value, FileParameter secret, CancellationToken cancellationToken);
     Task<Result> SaveUserTracePropertyAsync(string authToken, string pubkey, string name, string value, CancellationToken cancellationToken);
+    Task<StringResult> GetUserPropertyValueAsync(string authToken, string pubkey, string name, System.Threading.CancellationToken cancellationToken);
+    Task<StringResult> GetUserPropertySecretAsync(string authToken, string pubkey, string name, System.Threading.CancellationToken cancellationToken);
     Task<StringResult> GetMyPropertyValueAsync(string authToken, string name, CancellationToken cancellationToken);
     Task<StringResult> GetMyPropertySecretAsync(string authToken, string name, System.Threading.CancellationToken cancellationToken);
     Task<Result> VerifyChannelAsync(string authToken, string pubkey, string name, string method, string value, CancellationToken cancellationToken);
@@ -130,6 +133,16 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
     public async Task<Result> GiveUserFileAsync(string authToken, string pubkey, string name, long? validHours, FileParameter value, FileParameter secret, CancellationToken cancellationToken)
     {
         return await RetryPolicy.WithRetryPolicy(() => api.GiveUserFileAsync(authToken, pubkey, name, validHours, value, secret, cancellationToken));
+    }
+
+    public async Task<StringResult> GetUserPropertyValueAsync(string authToken, string pubkey, string name, CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.GetUserPropertyValueAsync(authToken, pubkey, name, cancellationToken));
+    }
+
+    public async Task<StringResult> GetUserPropertySecretAsync(string authToken, string pubkey, string name, CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.GetUserPropertySecretAsync(authToken, pubkey, name, cancellationToken));
     }
 
     public async Task<Result> SaveUserTracePropertyAsync(string authToken, string pubkey, string name, string value, CancellationToken cancellationToken)
@@ -247,4 +260,6 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
     {
         return await RetryPolicy.WithRetryPolicy(() => api.DeleteMyPersonalUserDataAsync(authToken, cancellationToken));
     }
+
+
 }

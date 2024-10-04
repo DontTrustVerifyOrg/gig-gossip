@@ -186,6 +186,33 @@ public class SettlerAPIWrapper : ISettlerAPI
         }
     }
 
+    public async Task<GigGossipSettlerAPIClient.StringResult> GetUserPropertyValueAsync(string authToken, string pubkey, string name, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(pubkey, name);
+        try
+        {
+            return TL.Ret(await API.GetUserPropertyValueAsync(authToken, pubkey, name, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task<GigGossipSettlerAPIClient.StringResult> GetUserPropertySecretAsync(string authToken, string pubkey, string name, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(pubkey, name);
+        try
+        {
+            return TL.Ret(await API.GetUserPropertySecretAsync(authToken, pubkey, name, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
 
     public async Task<GigGossipSettlerAPIClient.StringResult> GetMyPropertyValueAsync(string authToken, string name, CancellationToken cancellationToken)
     {
