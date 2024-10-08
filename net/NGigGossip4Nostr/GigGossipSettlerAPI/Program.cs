@@ -101,12 +101,13 @@ var retryPolicy = new DefaultRetryPolicy();
 var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.AbsoluteUri, httpClient, new DefaultRetryPolicy());
 
 Singlethon.Settler = new Settler(
-    settlerSettings.ServiceUri,
+    settlerSettings.ServiceUri, 
     new SimpleSettlerSelector(httpClient, retryPolicy),
     caPrivateKey, settlerSettings.PriceAmountForSettlement,
     TimeSpan.FromSeconds(settlerSettings.InvoicePaymentTimeoutSec),
     TimeSpan.FromSeconds(settlerSettings.DisputeTimeoutSec),
-            new DefaultRetryPolicy()
+    new DefaultRetryPolicy(),
+    settlerSettings.FirebaseAdminConfBase64
     );
 
 await Singlethon.Settler.InitAsync(
@@ -998,7 +999,7 @@ app.MapPost("/generaterequestpayload", async ([FromForm] string authToken, [From
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
         var rideShareTopic = Crypto.BinaryDeserializeObject<RideShareTopic>(await serialisedTopic.ToBytes());
-        var st = Singlethon.Settler.GenerateRequestPayload(pubkey, properties.Split(","), rideShareTopic);
+        var st = await Singlethon.Settler.GenerateRequestPayloadAsync(pubkey, properties.Split(","), rideShareTopic);
         return new Result<string>(Convert.ToBase64String(Crypto.BinarySerializeObject(st)));
     }
     catch (Exception ex)
@@ -1176,6 +1177,7 @@ public class SettlerSettings
     public required long InvoicePaymentTimeoutSec { get; set; }
     public required long DisputeTimeoutSec { get; set; }
     public required string GoogleMapsAPIKey { get; set; }
+    public required string FirebaseAdminConfBase64 { get; set; }
     public required string SMSGlobalAPIKeySecret { get; set; }
     public required int SMSCodeRetryNumber { get; set; }
     public required int SMSCodeTimeoutMin { get; set; }

@@ -1,16 +1,21 @@
 ﻿
+using FirebaseAdmin;
+using FirebaseAdmin.Messaging;
 using GigGossip;
 using GigGossipSettler.Exceptions;
 using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
+using NBitcoin.Protocol;
 using NBitcoin.Secp256k1;
 using Newtonsoft.Json;
 using Quartz;
 using Quartz.Impl;
 using System.Diagnostics;
 using System.Reflection.PortableExecutable;
+using System.Text;
 
 namespace GigGossipSettler;
 
@@ -47,6 +52,12 @@ public delegate void GigStatusEventHandler(object sender, GigStatusEventArgs e);
 
 public class Settler : CertificationAuthority
 {
+    public class LocaleStrings
+    {
+        public string NewRideRequestTitle { get; set; }
+        public string NewRideRequestBody { get; set; }
+    }
+
     public event PreimageRevealEventHandler OnPreimageReveal;
 
     public void FireOnPreimageReveal(string paymentHash, string preimage)
@@ -94,13 +105,18 @@ public class Settler : CertificationAuthority
 
     public IRetryPolicy RetryPolicy;
 
-    public Settler(Uri serviceUri, ISettlerSelector settlerSelector, ECPrivKey settlerPrivateKey, long priceAmountForSettlement, TimeSpan invoicePaymentTimeout, TimeSpan disputeTimeout, IRetryPolicy retryPolicy) : base(serviceUri, settlerPrivateKey)
+    public Settler(Uri serviceUri, ISettlerSelector settlerSelector, ECPrivKey settlerPrivateKey, long priceAmountForSettlement, TimeSpan invoicePaymentTimeout, TimeSpan disputeTimeout, IRetryPolicy retryPolicy, string firebaseAdminConfBase64) : base(serviceUri, settlerPrivateKey)
     {
+        var x = Localize.GetStrings<LocaleStrings, Settler>("EN");
         this.priceAmountForSettlement = priceAmountForSettlement;
         this.invoicePaymentTimeout = invoicePaymentTimeout;
         this.disputeTimeout = disputeTimeout;
         this.settlerSelector = settlerSelector;
         this.RetryPolicy = retryPolicy;
+        FirebaseApp.Create(new AppOptions()
+        {
+            Credential = GoogleCredential.FromJson(Encoding.Default.GetString(Convert.FromBase64String(firebaseAdminConfBase64)))
+        }); 
     }
 
     public async Task InitAsync(IWalletAPI lndWalletClient, DBProvider provider, string connectionString, string adminPubkey)
@@ -528,7 +544,7 @@ public class Settler : CertificationAuthority
         return jobReply.Encrypt(pubkey.AsECXOnlyPubKey(), this._CaPrivateKey);
     }
 
-    public BroadcastRequest GenerateRequestPayload(string senderspubkey, string[] sendersproperties, RideShareTopic topic)
+    public async Task<BroadcastRequest> GenerateRequestPayloadAsync(string senderspubkey, string[] sendersproperties, RideShareTopic topic)
     {
         using var TX = settlerContext.Value.BEGIN_TRANSACTION();
 
@@ -569,7 +585,36 @@ public class Settler : CertificationAuthority
         };
 
         TX.Commit();
+
+        await sendPushNotificationsAsync();
+
         return new BroadcastRequest { JobRequest = cert1, CancelJobRequest = cert2 };
+    }
+
+    private async Task sendPushNotificationsAsync()
+    {
+        var appModes = new Dictionary<string, string>((from g in settlerContext.Value.UserProperties where g.Name == "AppMode" select KeyValuePair.Create(g.PublicKey, Encoding.Default.GetString(g.Secret))));
+        var langs = new Dictionary<string, string>((from g in settlerContext.Value.UserProperties where g.Name == "Language" select KeyValuePair.Create(g.PublicKey, Encoding.Default.GetString(g.Secret))));
+        foreach (var pn in (from g in settlerContext.Value.UserProperties where g.Name == "PushNotificationsToken" select g))
+        {
+            if (appModes.ContainsKey(pn.PublicKey) && appModes[pn.PublicKey]!="Rider")
+            {
+                var lang = langs.ContainsKey(pn.PublicKey) ? langs[pn.PublicKey] : "EN";
+                var token = Encoding.Default.GetString(pn.Secret);
+                var message = new FirebaseAdmin.Messaging.Message()
+                {
+                    Notification = new Notification
+                    {
+                        Title = Localize.GetStrings<LocaleStrings, Settler>(lang).NewRideRequestTitle,
+                        Body = Localize.GetStrings<LocaleStrings, Settler>(lang).NewRideRequestBody,
+                    },
+                    Token = token
+                };
+
+                var messaging = FirebaseMessaging.DefaultInstance;
+                var result = await messaging.SendAsync(message);
+            }
+        }
     }
 
 
