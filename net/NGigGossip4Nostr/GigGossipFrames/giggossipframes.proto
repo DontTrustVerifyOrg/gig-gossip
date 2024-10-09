@@ -374,6 +374,7 @@ enum RideState
     Disputed = 6;
     Failed = 7;
     Cancelled = 8;
+    Scheduled = 9;
 }
 
 message LocationFrame
