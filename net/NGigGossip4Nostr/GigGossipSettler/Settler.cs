@@ -107,7 +107,6 @@ public class Settler : CertificationAuthority
 
     public Settler(Uri serviceUri, ISettlerSelector settlerSelector, ECPrivKey settlerPrivateKey, long priceAmountForSettlement, TimeSpan invoicePaymentTimeout, TimeSpan disputeTimeout, IRetryPolicy retryPolicy, string firebaseAdminConfBase64) : base(serviceUri, settlerPrivateKey)
     {
-        var x = Localize.GetStrings<LocaleStrings, Settler>("EN");
         this.priceAmountForSettlement = priceAmountForSettlement;
         this.invoicePaymentTimeout = invoicePaymentTimeout;
         this.disputeTimeout = disputeTimeout;
