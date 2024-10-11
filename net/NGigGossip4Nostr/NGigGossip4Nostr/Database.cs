@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using GigGossip;
 using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
 using Microsoft.EntityFrameworkCore;
@@ -94,6 +95,8 @@ public class AcceptedBroadcastRow
     public required byte[] DecodedReplyInvoice { get; set; }
 
     public required bool Cancelled { get; set; }
+
+    public required byte[] BroadcastFrame { get; set; }
 
 }
 
