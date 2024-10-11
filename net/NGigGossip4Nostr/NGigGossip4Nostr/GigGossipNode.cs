@@ -716,6 +716,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                     this.nodeContext.Value.AddObject(new AcceptedBroadcastRow()
                     {
                         PublicKey = this.PublicKey,
+                        BroadcastFrame = Crypto.BinarySerializeObject(broadcastFrame),
                         SignedRequestPayloadId = broadcastFrame.JobRequest.Header.JobRequestId.AsGuid(),
                         SettlerServiceUri = acceptBroadcastResponse.SettlerServiceUri,
                         EncryptedReplyPayload = encryptedReplyPayload,
