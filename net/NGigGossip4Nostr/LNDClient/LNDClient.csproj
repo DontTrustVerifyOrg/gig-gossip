@@ -10,7 +10,7 @@
     <NoWarn>1701;1702;1998;8600;8601;8602;8603;8604;8618;8625</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Grpc.Tools" Version="2.66.0">
+    <PackageReference Include="Grpc.Tools" Version="2.67.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
