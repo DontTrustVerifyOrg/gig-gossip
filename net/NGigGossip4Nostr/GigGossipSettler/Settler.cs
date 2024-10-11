@@ -596,22 +596,30 @@ public class Settler : CertificationAuthority
         var langs = new Dictionary<string, string>((from g in settlerContext.Value.UserProperties where g.Name == "Language" select KeyValuePair.Create(g.PublicKey, Encoding.Default.GetString(g.Secret))));
         foreach (var pn in (from g in settlerContext.Value.UserProperties where g.Name == "PushNotificationsToken" select g))
         {
-            if (appModes.ContainsKey(pn.PublicKey) && appModes[pn.PublicKey]!="Rider")
+            try
             {
-                var lang = langs.ContainsKey(pn.PublicKey) ? langs[pn.PublicKey] : "EN";
-                var token = Encoding.Default.GetString(pn.Secret);
-                var message = new FirebaseAdmin.Messaging.Message()
-                {
-                    Notification = new Notification
-                    {
-                        Title = Localize.GetStrings<LocaleStrings, Settler>(lang).NewRideRequestTitle,
-                        Body = Localize.GetStrings<LocaleStrings, Settler>(lang).NewRideRequestBody,
-                    },
-                    Token = token
-                };
 
-                var messaging = FirebaseMessaging.DefaultInstance;
-                var result = await messaging.SendAsync(message);
+                if (appModes.ContainsKey(pn.PublicKey) && appModes[pn.PublicKey] != "Rider")
+                {
+                    var lang = langs.ContainsKey(pn.PublicKey) ? langs[pn.PublicKey] : "EN";
+                    var token = Encoding.Default.GetString(pn.Secret);
+                    var message = new FirebaseAdmin.Messaging.Message()
+                    {
+                        Notification = new Notification
+                        {
+                            Title = Localize.GetStrings<LocaleStrings, Settler>(lang).NewRideRequestTitle,
+                            Body = Localize.GetStrings<LocaleStrings, Settler>(lang).NewRideRequestBody,
+                        },
+                        Token = token
+                    };
+
+                    var messaging = FirebaseMessaging.DefaultInstance;
+                    var result = await messaging.SendAsync(message);
+                }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine(ex.Message);
             }
         }
     }
