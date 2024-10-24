@@ -4,6 +4,7 @@ Minimal hardware requirements:
 
 - 2 CPU
 - 4 GB RAM
+- 64-bit system
 
 Software:
 
