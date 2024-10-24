@@ -60,7 +60,7 @@ docker exec -it bitcoin bitcoin-cli -datadir=/app_data -generate 10
 ```
 
 
-Run rest of the services
+Run rest of the services (if needed)
 
 ```bash
 docker compose up -d
