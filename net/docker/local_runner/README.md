@@ -1,9 +1,9 @@
 # Requiements for local runner
 
-Hardware:
+Minimal hardware requirements:
 
 - 2 CPU
-- 8 GB RAM
+- 4 GB RAM
 
 Software:
 
