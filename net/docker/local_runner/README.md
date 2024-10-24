@@ -4,10 +4,10 @@ Minimal hardware requirements:
 
 - 2 CPU
 - 4 GB RAM
+- x86_64 platform
 
 Software:
 
-- 64-bit OS
 - docker
 - docker compose
 
