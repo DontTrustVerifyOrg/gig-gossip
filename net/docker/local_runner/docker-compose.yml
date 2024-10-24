@@ -1,0 +1,117 @@
+version: "3"
+
+services:
+
+  bitcoin:
+    image: awazcognitum/bitcoin:latest
+
+    container_name: bitcoin
+    restart: on-failure
+    ports:
+      - 18332:18332
+      - 28332:28332
+      - 28333:28333
+    volumes:
+      - ./data/btc:/app_data:Z
+      - ./conf/btc/bitcoin.conf:/app_data/bitcoin.conf:ro
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
+
+
+  lightning_node:
+    image: lightninglabs/lnd:v0.18.3-beta
+
+    container_name: lightning_node
+    restart: on-failure
+    entrypoint: lnd --lnddir=/app_data --wallet-unlock-password-file=/secret/password.txt
+    ports:
+      - 9734:9734
+      - 11009:11009
+      - 8180:8180
+    volumes:
+      - ./data/lnd:/app_data:Z
+      - ./conf/lnd/lnd.conf:/app_data/lnd.conf:ro
+      - ./conf/lnd/password.txt:/secret/password.txt:ro
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
+
+
+
+  nostr:
+    image: python:3.9.17-slim-bookworm
+
+    container_name: nostr
+    restart: on-failure
+    working_dir: /app/
+    command: sh -c "pip install nostr-relay && pip install SQLAlchemy==2.0.27 && nostr-relay -c config.yaml serve"
+    ports:
+      - 6969:6969
+    volumes:
+      - ./data/nostr/:/app/:Z
+      - ./conf/nostr/config.yaml:/app/config.yaml:ro
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
+
+
+
+
+  logger_api:
+    image: awazcognitum/logger_api:latest
+
+    container_name: logger_api
+    restart: on-failure
+    ports:
+      - 7187:80
+    volumes:
+      - ./data/logger/:/app/data/:Z
+      - ./conf/logger/giglog.conf:/app/data/giglog.conf:ro
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
+
+
+  wallet_api:
+    image: awazcognitum/wallet_api:latest
+
+    container_name: wallet_api
+    restart: on-failure
+    ports:
+      - 7101:80
+    volumes:
+      - ./data/wallet/:/app/data/:Z
+      - ./conf/wallet/wallet.conf:/app/data/wallet.conf:ro
+      - ./data/lnd/:/lnd/:Z
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
+
+
+  settler_api:
+    image: awazcognitum/settler_api:latest
+
+    container_name: settler_api
+    restart: on-failure
+    ports:
+      - 7189:80
+    volumes:
+      - ./data/settler/:/app/data/:Z
+      - ./conf/settler/settler.conf:/app/data/settler.conf:ro
+    logging:
+      driver: local
+      options:
+        max-size: "100m"
+
+
+
+networks:
+  default:
+    name: giggossip
+    driver: bridge

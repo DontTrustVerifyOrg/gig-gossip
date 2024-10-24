@@ -1,2 +1,0 @@
-docker build -f ./docker_services_build/gigossip_cli_app.Dockerfile -t giggossip_cli_app ./..
-docker run -it -v ./work/locallnd/:/work/locallnd/:Z --rm --name cli_app giggossip_cli_app sh -c "dotnet ../gig-gossip-build/NGigGossip4Nostr/RideShareCLIApp/bin/Debug/net7.0/RideShareCLIApp.dll --basedir=/work/locallnd/.giggossip/"
