@@ -2,7 +2,7 @@
 
 Hardware:
 
-- 2 VPU
+- 2 CPU
 - 8 GB RAM
 
 Software:
