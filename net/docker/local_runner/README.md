@@ -10,9 +10,9 @@ Software:
 - docker
 - docker compose
 
-Setup tested on Linux, on Windows some of the commandline commands might need to be adjusted. Generally the services itself work the same on both platforms.
-
 # Environment setup on local machine
+
+Setup commands are based on Linux, on Windows some of the commandline commands might need to be adjusted. Generally the services itself work the same on both platforms.
 
 Run bitcoin node
 
