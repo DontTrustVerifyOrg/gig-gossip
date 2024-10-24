@@ -1,5 +1,12 @@
 # Requiements for local runner
 
+Hardware:
+
+- 2 VPU
+- 8 GB RAM
+
+Software:
+
 - docker
 - docker compose
 
