@@ -1,5 +1,11 @@
-# Environment setup on local machine
+# Requiements for local runner
 
+- docker
+- docker compose
+
+Setup tested on Linux, on Windows some of the commandline commands might need to be adjusted. Generally the services itself work the same on both platforms.
+
+# Environment setup on local machine
 
 Run bitcoin node
 
