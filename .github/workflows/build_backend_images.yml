@@ -129,5 +129,5 @@ jobs:
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.REGTEST_DEPLOY_TOKEN }}
-          repository: ${{ secrets.REGTEST_DEPLOY_REPO }}
+          repository: ${{ secrets.REGTEST_WALLET_DEPLOY_REPO }}
           event-type: deploy-backend
