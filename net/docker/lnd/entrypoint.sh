@@ -62,10 +62,18 @@ if [ -n "$AZURE_KEY_VAULT_URL" ] && [ -n "$AZURE_CLIENT_ID" ] && [ -n "$AZURE_CL
     fi
     echo "$SECRET_KEY" > /secret/password.txt
     echo "Secret key saved to /secret/password.txt"
+elif [ -n "$GITHUB_PASSWORD_URL" ] && [ -n "$GITHUB_USERNAME" ] && [ -n "$GITHUB_TOKEN" ]; then
+    echo "Fetching secret key from GitHub"
+    SECRET_KEY=$(curl -sS --fail -u $GITHUB_USERNAME:$GITHUB_TOKEN -o /secret/password.txt $GITHUB_PASSWORD_URL)
+    if [ $? -ne 0 ] || [ -z "$SECRET_KEY" ]; then
+        echo "Error: Failed to fetch secret key from GitHub"
+        exit 1
+    fi
+    echo "Secret key saved to /secret/password.txt"
 elif [ -e /secret/password.txt ]; then
     echo "Using existing secret key file in /secret/password.txt"
 else
-    echo "Error: Azure Key Vault variables not provided and secret key file does not exist"
+    echo "Error: Secret key not provided"
     exit 1
 fi
 
