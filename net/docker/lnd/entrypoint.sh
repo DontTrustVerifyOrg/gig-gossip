@@ -64,8 +64,8 @@ if [ -n "$AZURE_KEY_VAULT_URL" ] && [ -n "$AZURE_CLIENT_ID" ] && [ -n "$AZURE_CL
     echo "Secret key saved to /secret/password.txt"
 elif [ -n "$GITHUB_PASSWORD_URL" ] && [ -n "$GITHUB_USERNAME" ] && [ -n "$GITHUB_TOKEN" ]; then
     echo "Fetching secret key from GitHub"
-    SECRET_KEY=$(curl -sS --fail -u $GITHUB_USERNAME:$GITHUB_TOKEN -o /secret/password.txt $GITHUB_PASSWORD_URL)
-    if [ $? -ne 0 ] || [ -z "$SECRET_KEY" ]; then
+    curl -sS --fail -u $GITHUB_USERNAME:$GITHUB_TOKEN -o /secret/password.txt $GITHUB_PASSWORD_URL
+    if [ $? -ne 0 ]; then
         echo "Error: Failed to fetch secret key from GitHub"
         exit 1
     fi
