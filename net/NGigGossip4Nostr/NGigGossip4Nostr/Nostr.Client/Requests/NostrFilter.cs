@@ -39,6 +39,12 @@ namespace Nostr.Client.Requests
         public string[]? A { get; set; }
 
         /// <summary>
+        /// A list of hashtags
+        /// </summary>
+        [JsonProperty("#t")]
+        public string[]? T { get; set; }
+
+        /// <summary>
         /// Events must be newer than this to pass
         /// </summary>
         public DateTime? Since { get; set; }
