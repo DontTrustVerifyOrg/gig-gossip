@@ -9,6 +9,7 @@ namespace Nostr.Client.Messages.Metadata
         public string? About { get; init; }
 
         public string? Picture { get; init; }
+        public string? PictureB64 { get; init; } 
 
         public string? Nip05 { get; init; }
 

@@ -22,6 +22,29 @@ public static class Extensions
                 ex is NoTransportSupportedException;
     }
 
+    public static void WithRetryPolicy(this IRetryPolicy retryPolicy, Action func)
+    {
+        var retryContext = new RetryContext();
+        while (true)
+        {
+            try
+            {
+                func();
+                return;
+            }
+            catch (Exception ex) when (ex.CanRetry())
+            {
+                var ts = retryPolicy.NextRetryDelay(retryContext);
+                if (ts == null)
+                    throw;
+                retryContext.ElapsedTime += ts.Value;
+                retryContext.PreviousRetryCount++;
+                retryContext.RetryReason = ex;
+                Thread.Sleep(ts.Value);
+            }
+        }
+    }
+
     public static async Task WithRetryPolicy(this IRetryPolicy retryPolicy, Func<Task> func)
     {
         var retryContext = new RetryContext();
