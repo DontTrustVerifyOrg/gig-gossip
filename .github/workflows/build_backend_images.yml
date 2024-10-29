@@ -101,7 +101,7 @@ jobs:
           tags: awazcognitum/keypairgen:latest
 
 
-  trigger-deploy-services:
+  trigger-deploy-gohyper:
     runs-on: ubuntu-latest
     needs: [build-settler-api, build-wallet-api, build-logger-api]
     steps:
@@ -114,3 +114,20 @@ jobs:
           token: ${{ secrets.REGTEST_DEPLOY_TOKEN }}
           repository: ${{ secrets.REGTEST_DEPLOY_REPO }}
           event-type: deploy-giggossip-backend
+
+
+
+
+  trigger-deploy-wallet:
+    runs-on: ubuntu-latest
+    needs: [build-wallet-api, build-logger-api]
+    steps:
+      - uses: GuillaumeFalourd/wait-sleep-action@v1
+        with:
+          time: '60' # for x seconds
+      - name: Trigger deploy pipeline
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.REGTEST_DEPLOY_TOKEN }}
+          repository: ${{ secrets.REGTEST_DEPLOY_REPO }}
+          event-type: deploy-backend
