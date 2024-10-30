@@ -44,7 +44,7 @@ else
 fi
 
 
-if [ -n "$INIT" ]; then
+if [ -z "$INIT" ]; then
     if [ -n "$AZURE_KEY_VAULT_URL" ] && [ -n "$AZURE_CLIENT_ID" ] && [ -n "$AZURE_CLIENT_SECRET" ] && [ -n "$AZURE_TENANT_ID" ]; then
         echo "Fetching access token from Azure Key Vault"
         ACCESS_TOKEN=$(curl -sS --fail -X POST -H "Content-Type: application/x-www-form-urlencoded" -d "grant_type=client_credentials&client_id=$AZURE_CLIENT_ID&client_secret=$AZURE_CLIENT_SECRET&resource=https://vault.azure.net" https://login.microsoftonline.com/$AZURE_TENANT_ID/oauth2/token | jq -r .access_token)
