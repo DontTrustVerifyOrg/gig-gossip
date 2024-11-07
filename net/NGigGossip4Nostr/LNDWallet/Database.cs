@@ -14,6 +14,9 @@ public enum DBProvider
 {
     Sqlite=1,
     SQLServer,
+    PostgreSQL,
+    MySQL,
+    Oracle,
 }
 
 public enum InternalPaymentStatus
@@ -328,6 +331,12 @@ public class WaletContext : DbContext
             optionsBuilder.UseSqlite(connectionString);
         else if (provider == DBProvider.SQLServer)
             optionsBuilder.UseSqlServer(connectionString);
+        else if (provider == DBProvider.PostgreSQL)
+            optionsBuilder.UseNpgsql(connectionString);
+        else if (provider == DBProvider.MySQL)
+            optionsBuilder.UseMySql(connectionString,ServerVersion.AutoDetect(connectionString));
+        else if (provider == DBProvider.Oracle)
+            optionsBuilder.UseOracle(connectionString);
         else
             throw new NotImplementedException();
 

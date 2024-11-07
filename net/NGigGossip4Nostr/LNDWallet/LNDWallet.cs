@@ -1972,7 +1972,7 @@ public class LNDWalletManager : LNDEventSource
 
             {
                 var internalPayments = (from pay in walletContext.Value.InternalPayments
-                                        select pay);
+                                        select pay).ToList();
                 foreach (var pay in internalPayments)
                 {
                     try
