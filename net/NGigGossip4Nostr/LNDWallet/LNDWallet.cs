@@ -790,12 +790,14 @@ public class LNDAccountManager
                     return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadySettled, false);
             }
 
+            var invPubKey = selfHodlInvoice != null ? selfHodlInvoice.PublicKey : selfClsInv.PublicKey; 
+
             walletContext.Value
                 .INSERT(new InternalPayment()
                 {
                     PaymentHash = decinv.PaymentHash,
                     PublicKey = PublicKey,
-                    PaymentFee = ourRouteFeeSat,
+                    PaymentFee = invPubKey==PublicKey?0: ourRouteFeeSat,
                     Satoshis = decinv.NumSatoshis,
                     Status = selfHodlInvoice != null ? InternalPaymentStatus.InFlight : InternalPaymentStatus.Succeeded,
                 })
@@ -1019,6 +1021,14 @@ public class LNDAccountManager
     public async Task<PaymentRecord> CancelInvoiceSendPaymentAsync(string paymentHash, string paymentRequest, int timeout, long ourRouteFeeSat, long feelimit)
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
+
+        var internalPayment = (from pay in walletContext.Value.InternalPayments
+                        where pay.PaymentHash == paymentHash
+                        select pay).FirstOrDefault();
+
+        if (internalPayment == null)
+            throw new LNDWalletException(LNDWalletErrorCode.UnknownPayment);
+
         CancelInvoiceNoTx(paymentHash);
         return await SendPaymentAsyncTx(TX, paymentRequest, timeout, ourRouteFeeSat, feelimit);
     }
