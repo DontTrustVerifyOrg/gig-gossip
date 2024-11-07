@@ -724,11 +724,9 @@ public class LNDAccountManager
         };
     }
 
-    public async Task<PaymentRecord> SendPaymentAsync(string paymentRequest, int timeout, long ourRouteFeeSat, long feelimit)
+    private async Task<PaymentRecord> SendPaymentAsyncTx(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction TX, string paymentRequest, int timeout, long ourRouteFeeSat, long feelimit)
     {
         var decinv = LND.DecodeInvoice(lndConf, paymentRequest);
-
-        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
         var availableAmount = GetAccountBalance().AvailableAmount;
 
@@ -907,6 +905,12 @@ public class LNDAccountManager
 
     }
 
+    public async Task<PaymentRecord> SendPaymentAsync(string paymentRequest, int timeout, long ourRouteFeeSat, long feelimit)
+    {
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
+        return await SendPaymentAsyncTx(TX, paymentRequest, timeout, ourRouteFeeSat, feelimit);
+    }
+
     public void SettleInvoice(byte[] preimage)
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
@@ -955,10 +959,8 @@ public class LNDAccountManager
         TX.Commit();
     }
 
-    public void CancelInvoice(string paymentHash)
+    private void CancelInvoiceNoTx(string paymentHash)
     {
-        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
-
         var invoice = LND.LookupInvoiceV2(lndConf, paymentHash.AsBytes());
 
         HodlInvoice? selfHodlInvoice = (from inv in walletContext.Value.HodlInvoices
@@ -1003,8 +1005,24 @@ public class LNDAccountManager
             eventSource.FireOnPaymentStatusChanged(internalPayment.PublicKey, paymentHash, PaymentStatus.Failed, PaymentFailureReason.Canceled);
         }
         LND.CancelInvoice(lndConf, paymentHash.AsBytes());
+    }
+
+    public void CancelInvoice(string paymentHash)
+    {
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
+
+        CancelInvoiceNoTx(paymentHash);
+
         TX.Commit();
     }
+
+    public async Task<PaymentRecord> CancelInvoiceSendPaymentAsync(string paymentHash, string paymentRequest, int timeout, long ourRouteFeeSat, long feelimit)
+    {
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
+        CancelInvoiceNoTx(paymentHash);
+        return await SendPaymentAsyncTx(TX, paymentRequest, timeout, ourRouteFeeSat, feelimit);
+    }
+
 
     public InvoiceRecord[] ListInvoices(bool includeClassic, bool includeHodl)
     {

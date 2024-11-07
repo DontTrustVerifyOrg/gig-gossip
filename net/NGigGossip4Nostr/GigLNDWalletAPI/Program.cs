@@ -669,6 +669,31 @@ app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
 })
 .DisableAntiforgery();
 
+app.MapGet("/cancelinvoicesendpayment", async (string authToken, string paymenthash, string paymentrequest, int timeout, long feelimit) =>
+{
+    try
+    {
+        return new Result<PaymentRecord>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CancelInvoiceSendPaymentAsync(paymenthash, paymentrequest, timeout, walletSettings.SendPaymentFee, feelimit));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<PaymentRecord>(ex);
+    }
+})
+.WithName("CancelInvoiceSendPayment")
+.WithSummary("Cancels Invoice and Send a Lightning Network payment atomicallly")
+.WithDescription("Cancels ionvoice and Initiates a Lightning Network payment based on the provided payment request. This endpoint attempts to route the payment to its final destination, handling all necessary channel operations and routing decisions.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorization token for authentication and access control. This token, generated using Schnorr Signatures for secp256k1, encodes the user's public key and session identifier from the GetToken function.";
+    g.Parameters[1].Description = "The Lightning Network payment hash of the invoice to be cancelled";
+    g.Parameters[2].Description = "The Lightning Network payment request (invoice) to be paid. This encoded string contains all necessary details for the payment, including amount and recipient.";
+    g.Parameters[3].Description = "Maximum time (in seconds) allowed for finding a route for the payment. If a route isn't found within this time, the payment attempt will be aborted.";
+    g.Parameters[4].Description = "Maximum fee (in millisatoshis) that the user is willing to pay for this transaction. If the calculated fee exceeds this limit, the payment will not be sent.";
+    return g;
+})
+.DisableAntiforgery();
 
 app.MapGet("/sendpayment", async (string authToken, string paymentrequest, int timeout, long feelimit) =>
 {
