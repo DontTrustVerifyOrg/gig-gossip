@@ -336,8 +336,8 @@ public class Settler : CertificationAuthority
         var trp = (from p in tracs select KeyValuePair.Create(p.Name, p.Value)).ToList();
         prp.AddRange(trp);
 
-        if (!new HashSet<string>(properties).IsSubsetOf(new HashSet<string>(from p in prp select p.Key)))
-            throw new PropertyNotGrantedException();
+//        if (!new HashSet<string>(properties).IsSubsetOf(new HashSet<string>(from p in prp select p.Key)))
+//            throw new PropertyNotGrantedException();
         var minDate = (from p in props select p.ValidTill).Min();
         var header = new CertificateHeader {
             AuthorityUri = this.ServiceUri.AsURI(),
