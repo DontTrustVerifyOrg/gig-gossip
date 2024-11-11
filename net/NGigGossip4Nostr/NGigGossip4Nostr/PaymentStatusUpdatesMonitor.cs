@@ -30,11 +30,14 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
         using var TL = TRACE.Log().Args(phash);
         try
         {
-            return TL.Ret(
-                 (from i in gigGossipNode.nodeContext.Value.MonitoredPayments
-                    where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
-                    select i).FirstOrDefault() != null
-            );
+            lock (gigGossipNode.NodeDb.Context)
+            {
+                return TL.Ret(
+                     (from i in gigGossipNode.NodeDb.Context.MonitoredPayments
+                      where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
+                      select i).FirstOrDefault() != null
+                );
+            }
         }
         catch (Exception ex)
         {
@@ -48,12 +51,15 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
         using var TL = TRACE.Log().Args(phash,data);
         try
         {
-            if ((from i in gigGossipNode.nodeContext.Value.MonitoredPayments
-                where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
-                select i).FirstOrDefault() != null)
+            lock (gigGossipNode.NodeDb.Context)
             {
-                TL.Warning("Payment already monitored");
-                return;
+                if ((from i in gigGossipNode.NodeDb.Context.MonitoredPayments
+                     where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
+                     select i).FirstOrDefault() != null)
+                {
+                    TL.Warning("Payment already monitored");
+                    return;
+                }
             }
 
             var obj = new MonitoredPaymentRow()
@@ -63,7 +69,8 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
                 PaymentStatus =  PaymentStatus.Initiated,
                 Data = data,
             };
-            gigGossipNode.nodeContext.Value.AddObject(obj);
+            lock (gigGossipNode.NodeDb.Context)
+                gigGossipNode.NodeDb.Context.AddObject(obj);
 
         }
         catch (Exception ex)
@@ -78,16 +85,19 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
         using var TL = TRACE.Log().Args(phash);
         try
         {
-            var o = (from i in gigGossipNode.nodeContext.Value.MonitoredPayments
-                    where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
-                    select i).FirstOrDefault();
-            if (o == null)
+            lock (gigGossipNode.NodeDb.Context)
             {
-                TL.Warning("Payment not monitored");
-                return;
-            }
+                var o = (from i in gigGossipNode.NodeDb.Context.MonitoredPayments
+                         where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
+                         select i).FirstOrDefault();
+                if (o == null)
+                {
+                    TL.Warning("Payment not monitored");
+                    return;
+                }
 
-            gigGossipNode.nodeContext.Value.RemoveObject(o);
+                gigGossipNode.NodeDb.Context.RemoveObject(o);
+            }
         }
         catch (Exception ex)
         {
@@ -114,10 +124,14 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
                 async () =>
                 {
                     {
-                        var payToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPayments
-                                        where i.PublicKey == this.gigGossipNode.PublicKey
-                                        && i.PaymentStatus !=  PaymentStatus.Succeeded && i.PaymentStatus != PaymentStatus.Failed
-                                        select i).ToList();
+                        List<MonitoredPaymentRow> payToMon;
+                        lock (gigGossipNode.NodeDb.Context)
+                        {
+                            payToMon = (from i in gigGossipNode.NodeDb.Context.MonitoredPayments
+                                            where i.PublicKey == this.gigGossipNode.PublicKey
+                                            && i.PaymentStatus != PaymentStatus.Succeeded && i.PaymentStatus != PaymentStatus.Failed
+                                            select i).ToList();
+                        }
 
                         foreach (var pay in payToMon)
                         {
@@ -130,7 +144,8 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
                                     TL.Info("OnPaymentStatusChange");
                                     gigGossipNode.OnPaymentStatusChange(status, pay.Data);
                                     pay.PaymentStatus = status;
-                                    gigGossipNode.nodeContext.Value.SaveObject(pay);
+                                    lock (gigGossipNode.NodeDb.Context)
+                                        gigGossipNode.NodeDb.Context.SaveObject(pay);
                                 }
                             }
                             catch (GigLNDWalletAPIException ex)
@@ -145,19 +160,27 @@ public class PaymentStatusUpdatesMonitor : HubMonitor
                         TL.Iteration(paystateupd.PaymentHash+"|"+ paystateupd.NewStatus.ToString());
                         var payhash = paystateupd.PaymentHash;
                         var status = paystateupd.NewStatus;
-                        var pay = (from i in gigGossipNode.nodeContext.Value.MonitoredPayments
-                                where i.PublicKey == this.gigGossipNode.PublicKey
-                                && i.PaymentStatus != PaymentStatus.Succeeded && i.PaymentStatus != PaymentStatus.Failed
-                                && i.PaymentHash == payhash
-                                select i).FirstOrDefault();
-                        if (pay != null)
                         {
-                            if (status != pay.PaymentStatus)
+                            MonitoredPaymentRow? pay;
+                            lock (gigGossipNode.NodeDb.Context)
                             {
-                                TL.Info("OnPaymentStatusChange");
-                                gigGossipNode.OnPaymentStatusChange(status, pay.Data);
-                                pay.PaymentStatus = status;
-                                gigGossipNode.nodeContext.Value.SaveObject(pay);
+                                pay = (from i in gigGossipNode.NodeDb.Context.MonitoredPayments
+                                           where i.PublicKey == this.gigGossipNode.PublicKey
+                                           && i.PaymentStatus != PaymentStatus.Succeeded && i.PaymentStatus != PaymentStatus.Failed
+                                           && i.PaymentHash == payhash
+                                           select i).FirstOrDefault();
+                            }
+
+                            if (pay != null)
+                            {
+                                if (status != pay.PaymentStatus)
+                                {
+                                    TL.Info("OnPaymentStatusChange");
+                                    gigGossipNode.OnPaymentStatusChange(status, pay.Data);
+                                    pay.PaymentStatus = status;
+                                    lock (gigGossipNode.NodeDb.Context)
+                                        gigGossipNode.NodeDb.Context.SaveObject(pay);
+                                }
                             }
                         }
                         gigGossipNode.OnLNDPaymentStatusChanged(paystateupd);

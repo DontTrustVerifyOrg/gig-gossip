@@ -38,12 +38,15 @@ public class SettlerMonitor
         using var TL = TRACE.Log().Args(serviceUri, phash);
         try
         {
-            if ((from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
-                 where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
-                 select i).FirstOrDefault() != null)
+            lock (gigGossipNode.NodeDb.Context)
             {
-                TL.Warning("Preimage already monitored");
-                return TL.Ret(false);
+                if ((from i in gigGossipNode.NodeDb.Context.MonitoredPreimages
+                     where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
+                     select i).FirstOrDefault() != null)
+                {
+                    TL.Warning("Preimage already monitored");
+                    return TL.Ret(false);
+                }
             }
 
             await AttachMonitorPreimageAsync(serviceUri);
@@ -56,14 +59,18 @@ public class SettlerMonitor
                 Preimage = null
             };
 
-            gigGossipNode.nodeContext.Value.AddObject(obj);
+            lock (gigGossipNode.NodeDb.Context)
+                gigGossipNode.NodeDb.Context.AddObject(obj);
+
             try
             {
                 await (await this.gigGossipNode.GetPreimageRevealClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash, CancellationTokenSource.Token);
             }
             catch
             {
-                gigGossipNode.nodeContext.Value.RemoveObject(obj);
+                lock (gigGossipNode.NodeDb.Context)
+                    gigGossipNode.NodeDb.Context.RemoveObject(obj);
+
                 throw;
             }
             return TL.Ret(true);
@@ -80,14 +87,17 @@ public class SettlerMonitor
         using var TL = TRACE.Log().Args(serviceUri, signedRequestPayloadId, replierCertificateId, data);
         try
         {
-            if ((from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
-                 where i.SignedRequestPayloadId == signedRequestPayloadId
-                 && i.PublicKey == this.gigGossipNode.PublicKey
-                 && i.ReplierCertificateId == replierCertificateId
-                 select i).FirstOrDefault() != null)
+            lock (gigGossipNode.NodeDb.Context)
             {
-                TL.Warning("GigStatus already monitored");
-                return TL.Ret(false);
+                if ((from i in gigGossipNode.NodeDb.Context.MonitoredGigStatuses
+                     where i.SignedRequestPayloadId == signedRequestPayloadId
+                     && i.PublicKey == this.gigGossipNode.PublicKey
+                     && i.ReplierCertificateId == replierCertificateId
+                     select i).FirstOrDefault() != null)
+                {
+                    TL.Warning("GigStatus already monitored");
+                    return TL.Ret(false);
+                }
             }
 
             await AttachMonitorGigStatusAsync(serviceUri);
@@ -102,14 +112,19 @@ public class SettlerMonitor
                 Status =  GigStatus.Open,
                 SymmetricKey = null
             };
-            gigGossipNode.nodeContext.Value.AddObject(obj);
+
+            lock (gigGossipNode.NodeDb.Context)
+                gigGossipNode.NodeDb.Context.AddObject(obj);
+
             try
             {
                 await (await this.gigGossipNode.GetGigStatusClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedRequestPayloadId, replierCertificateId, CancellationTokenSource.Token);
             }
             catch
             {
-                gigGossipNode.nodeContext.Value.RemoveObject(obj);
+                lock (gigGossipNode.NodeDb.Context)
+                    gigGossipNode.NodeDb.Context.RemoveObject(obj);
+
                 throw;
             }
             return TL.Ret(true);
@@ -125,10 +140,14 @@ public class SettlerMonitor
     {
         using var TL = TRACE.Log();
         {
-            var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
-                          where i.PublicKey == this.gigGossipNode.PublicKey
-                          && i.Preimage == null
-                          select i).ToList();
+            List<MonitoredPreimageRow> pToMon;
+            lock (gigGossipNode.NodeDb.Context)
+            {
+                pToMon = (from i in gigGossipNode.NodeDb.Context.MonitoredPreimages
+                              where i.PublicKey == this.gigGossipNode.PublicKey
+                              && i.Preimage == null
+                              select i).ToList();
+            }
 
             foreach (var kv in pToMon)
             {
@@ -143,7 +162,8 @@ public class SettlerMonitor
                         TL.Info("OnPreimageRevealedAsync");
                         await gigGossipNode.OnPreimageRevealedAsync(serviceUri, phash, preimage, CancellationTokenSource.Token);
                         kv.Preimage = preimage;
-                        gigGossipNode.nodeContext.Value.SaveObject(kv);
+                        lock (gigGossipNode.NodeDb.Context)
+                            gigGossipNode.NodeDb.Context.SaveObject(kv);
                     }
                     else
                         await AttachMonitorPreimageAsync(serviceUri);
@@ -155,10 +175,14 @@ public class SettlerMonitor
             }
         }
         {
-            var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
-                          where i.PublicKey == this.gigGossipNode.PublicKey
-                          && (i.SymmetricKey == null || (i.Status !=  GigStatus.Cancelled && i.Status !=  GigStatus.Completed))
-                          select i).ToList();
+            List<MonitoredGigStatusRow> kToMon;
+            lock (gigGossipNode.NodeDb.Context)
+            {
+                kToMon = (from i in gigGossipNode.NodeDb.Context.MonitoredGigStatuses
+                              where i.PublicKey == this.gigGossipNode.PublicKey
+                              && (i.SymmetricKey == null || (i.Status != GigStatus.Cancelled && i.Status != GigStatus.Completed))
+                              select i).ToList();
+            }
 
             foreach (var kv in kToMon)
             {
@@ -178,14 +202,16 @@ public class SettlerMonitor
                             gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
                             kv.SymmetricKey = key;
                             kv.Status = status;
-                            gigGossipNode.nodeContext.Value.SaveObject(kv);
+                            lock (gigGossipNode.NodeDb.Context)
+                                gigGossipNode.NodeDb.Context.SaveObject(kv);
                         }
                         else if (status == GigStatus.Cancelled)
                         {
                             TL.Info("OnGigCancelled");
                             gigGossipNode.OnGigCancelled(kv.Data);
                             kv.Status = status;
-                            gigGossipNode.nodeContext.Value.SaveObject(kv);
+                            lock (gigGossipNode.NodeDb.Context)
+                                gigGossipNode.NodeDb.Context.SaveObject(kv);
                         }
                         else
                             await AttachMonitorGigStatusAsync(serviceUri);
@@ -225,12 +251,15 @@ public class SettlerMonitor
                 }, async () =>
                 {
                     {
-                        var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
-                                      where i.PublicKey == this.gigGossipNode.PublicKey
-                                      && i.Preimage == null
-                                      && i.ServiceUri == serviceUri
-                                      select i).ToList();
-
+                        List<MonitoredPreimageRow> pToMon;
+                        lock (gigGossipNode.NodeDb.Context)
+                        {
+                            pToMon = (from i in gigGossipNode.NodeDb.Context.MonitoredPreimages
+                                          where i.PublicKey == this.gigGossipNode.PublicKey
+                                          && i.Preimage == null
+                                          && i.ServiceUri == serviceUri
+                                          select i).ToList();
+                        }
                         foreach (var kv in pToMon)
                         {
                             TL.Iteration(kv);
@@ -241,7 +270,8 @@ public class SettlerMonitor
                                 TL.Info("OnPreimageRevealedAsync");
                                 await gigGossipNode.OnPreimageRevealedAsync(serviceUri, phash, preimage, CancellationTokenSource.Token);
                                 kv.Preimage = preimage;
-                                gigGossipNode.nodeContext.Value.SaveObject(kv);
+                                lock (gigGossipNode.NodeDb.Context)
+                                    gigGossipNode.NodeDb.Context.SaveObject(kv);
                             }
                         }
                     }
@@ -252,17 +282,22 @@ public class SettlerMonitor
                         var payhash = preimupd.PaymentHash;
                         var preimage = preimupd.Preimage;
 
-                        var pToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredPreimages
-                                      where i.PublicKey == this.gigGossipNode.PublicKey
-                                      && i.PaymentHash == payhash
-                                      && i.Preimage == null
-                                      select i).FirstOrDefault();
+                        MonitoredPreimageRow? pToMon;
+                        lock (gigGossipNode.NodeDb.Context)
+                        {
+                            pToMon = (from i in gigGossipNode.NodeDb.Context.MonitoredPreimages
+                                          where i.PublicKey == this.gigGossipNode.PublicKey
+                                          && i.PaymentHash == payhash
+                                          && i.Preimage == null
+                                          select i).FirstOrDefault();
+                        }
                         if (pToMon != null)
                         {
                             TL.Info("OnPreimageRevealedAsync");
                             await gigGossipNode.OnPreimageRevealedAsync(pToMon.ServiceUri, pToMon.PaymentHash, preimage, CancellationTokenSource.Token);
                             pToMon.Preimage = preimage;
-                            gigGossipNode.nodeContext.Value.SaveObject(pToMon);
+                            lock (gigGossipNode.NodeDb.Context)
+                                gigGossipNode.NodeDb.Context.SaveObject(pToMon);
                         }
                         else
                             TL.Warning("Preimage not monitored");
@@ -308,11 +343,15 @@ public class SettlerMonitor
             {
 
                 {
-                    var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
-                                  where i.PublicKey == this.gigGossipNode.PublicKey
-                                  && i.SymmetricKey == null
-                                  && i.ServiceUri == serviceUri
-                                  select i).ToList();
+                    List<MonitoredGigStatusRow> kToMon;
+                    lock (gigGossipNode.NodeDb.Context)
+                    {
+                        kToMon = (from i in gigGossipNode.NodeDb.Context.MonitoredGigStatuses
+                                      where i.PublicKey == this.gigGossipNode.PublicKey
+                                      && i.SymmetricKey == null
+                                      && i.ServiceUri == serviceUri
+                                      select i).ToList();
+                    }
 
                     foreach (var kv in kToMon)
                     {
@@ -328,14 +367,16 @@ public class SettlerMonitor
                                 TL.Info("OnSymmetricKeyRevealed");
                                 gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key);
                                 kv.SymmetricKey = key;
-                                gigGossipNode.nodeContext.Value.SaveObject(kv);
+                                lock (gigGossipNode.NodeDb.Context)
+                                    gigGossipNode.NodeDb.Context.SaveObject(kv);
                             }
                             else if (status ==  GigStatus.Cancelled)
                             {
                                 TL.Info("OnGigCancelled");
                                 gigGossipNode.OnGigCancelled(kv.Data);
                                 kv.Status = status;
-                                gigGossipNode.nodeContext.Value.SaveObject(kv);
+                                lock (gigGossipNode.NodeDb.Context)
+                                    gigGossipNode.NodeDb.Context.SaveObject(kv);
                             }
                         }
                     }
@@ -350,12 +391,16 @@ public class SettlerMonitor
                     if (status == GigStatus.Accepted)
                     {
                         var symkey = symkeyupd.SymmetricKey;
-                        var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
-                                      where i.PublicKey == this.gigGossipNode.PublicKey
-                                      && i.SignedRequestPayloadId == gigId
-                                      && i.ReplierCertificateId == repliercertificateid
-                                      && i.SymmetricKey == null
-                                      select i).FirstOrDefault();
+                        MonitoredGigStatusRow? kToMon;
+                        lock (gigGossipNode.NodeDb.Context)
+                        {
+                            kToMon = (from i in gigGossipNode.NodeDb.Context.MonitoredGigStatuses
+                                          where i.PublicKey == this.gigGossipNode.PublicKey
+                                          && i.SignedRequestPayloadId == gigId
+                                          && i.ReplierCertificateId == repliercertificateid
+                                          && i.SymmetricKey == null
+                                          select i).FirstOrDefault();
+                        }
 
                         if (kToMon != null)
                         {
@@ -363,26 +408,33 @@ public class SettlerMonitor
                             gigGossipNode.OnSymmetricKeyRevealed(kToMon.Data, symkey);
                             kToMon.SymmetricKey = symkey;
                             kToMon.Status = status;
-                            gigGossipNode.nodeContext.Value.SaveObject(kToMon);
+                            lock (gigGossipNode.NodeDb.Context)
+                                gigGossipNode.NodeDb.Context.SaveObject(kToMon);
                         }
                         else
                             TL.Warning("Accepted GigStatus not monitored");
                     }
                     else if (status ==  GigStatus.Cancelled)
                     {
-                        var kToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredGigStatuses
+                        MonitoredGigStatusRow? kToMon;
+                        lock (gigGossipNode.NodeDb.Context)
+                        {
+
+                            kToMon = (from i in gigGossipNode.NodeDb.Context.MonitoredGigStatuses
                                       where i.PublicKey == this.gigGossipNode.PublicKey
                                       && i.SignedRequestPayloadId == gigId
                                       && i.ReplierCertificateId == repliercertificateid
-                                      && i.Status !=  GigStatus.Cancelled
+                                      && i.Status != GigStatus.Cancelled
                                       select i).FirstOrDefault();
+                        }
 
                         if (kToMon != null)
                         {
                             TL.Info("OnGigCancelled");
                             gigGossipNode.OnGigCancelled(kToMon.Data);
                             kToMon.Status = status;
-                            gigGossipNode.nodeContext.Value.SaveObject(kToMon);
+                            lock (gigGossipNode.NodeDb.Context)
+                                gigGossipNode.NodeDb.Context.SaveObject(kToMon);
                         }
                         else
                             TL.Warning("Cancelled GigStatus not monitored");

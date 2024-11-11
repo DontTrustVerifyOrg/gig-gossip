@@ -10,6 +10,7 @@ using Newtonsoft.Json.Linq;
 using static System.Net.WebRequestMethods;
 using NetworkClientToolkit;
 using System.Reflection;
+using NBitcoin.Protocol;
 
 namespace NGigGossip4Nostr
 {
@@ -36,14 +37,16 @@ namespace NGigGossip4Nostr
             using var TL = TRACE.Log().Args(phash, data);
             try
             {
-
-                if ((from i in gigGossipNode.nodeContext.Value.MonitoredInvoices
-                     where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
-                     select i).FirstOrDefault() != null)
+                lock (gigGossipNode.NodeDb.Context)
+                {
+                    if ((from i in gigGossipNode.NodeDb.Context.MonitoredInvoices
+                         where i.PaymentHash == phash && i.PublicKey == this.gigGossipNode.PublicKey
+                         select i).FirstOrDefault() != null)
                     {
                         TL.Warning("Invoice already monitored");
                         return;
                     }
+                }
 
                 var obj = new MonitoredInvoiceRow()
                 {
@@ -52,7 +55,8 @@ namespace NGigGossip4Nostr
                     InvoiceState =  InvoiceState.Open,
                     Data = data,
                 };
-                gigGossipNode.nodeContext.Value.AddObject(obj);
+                lock (gigGossipNode.NodeDb.Context)
+                    gigGossipNode.NodeDb.Context.AddObject(obj);
             }
             catch (Exception ex)
             {
@@ -77,10 +81,14 @@ namespace NGigGossip4Nostr
                 async () =>
                 {
                     {
-                        var invToMon = (from i in gigGossipNode.nodeContext.Value.MonitoredInvoices
-                                        where i.PublicKey == this.gigGossipNode.PublicKey
-                                        && i.InvoiceState != InvoiceState.Settled && i.InvoiceState !=  InvoiceState.Cancelled
-                                        select i).ToList();
+                        List<MonitoredInvoiceRow> invToMon;
+                        lock (gigGossipNode.NodeDb.Context)
+                        {
+                            invToMon = (from i in gigGossipNode.NodeDb.Context.MonitoredInvoices
+                                            where i.PublicKey == this.gigGossipNode.PublicKey
+                                            && i.InvoiceState != InvoiceState.Settled && i.InvoiceState != InvoiceState.Cancelled
+                                            select i).ToList();
+                        }
 
                         foreach (var inv in invToMon)
                         {
@@ -101,7 +109,10 @@ namespace NGigGossip4Nostr
                                 TL.Info("OnInvoiceStateChange");
                                 await gigGossipNode.OnInvoiceStateChangeAsync(state, inv.Data);
                                 inv.InvoiceState = state;
-                                gigGossipNode.nodeContext.Value.SaveObject(inv);
+                                lock (gigGossipNode.NodeDb.Context)
+                                {
+                                    gigGossipNode.NodeDb.Context.SaveObject(inv);
+                                }
                             }
                         }
                     }
@@ -111,19 +122,26 @@ namespace NGigGossip4Nostr
                         TL.Iteration(invstateupd);
                         var payhash = invstateupd.PaymentHash;
                         var state = invstateupd.NewState;
-                        var inv = (from i in gigGossipNode.nodeContext.Value.MonitoredInvoices
-                                   where i.PublicKey == this.gigGossipNode.PublicKey
-                                   && i.InvoiceState !=  InvoiceState.Settled && i.InvoiceState != InvoiceState.Cancelled
-                                   && i.PaymentHash == payhash
-                                   select i).FirstOrDefault();
-                        if (inv != null)
                         {
-                            if (state != inv.InvoiceState)
+                            MonitoredInvoiceRow? inv;
+                            lock (gigGossipNode.NodeDb.Context)
                             {
-                                TL.Info("OnInvoiceStateChange");
-                                await gigGossipNode.OnInvoiceStateChangeAsync(state, inv.Data);
-                                inv.InvoiceState = state;
-                                gigGossipNode.nodeContext.Value.SaveObject(inv);
+                                inv = (from i in gigGossipNode.NodeDb.Context.MonitoredInvoices
+                                           where i.PublicKey == this.gigGossipNode.PublicKey
+                                           && i.InvoiceState != InvoiceState.Settled && i.InvoiceState != InvoiceState.Cancelled
+                                           && i.PaymentHash == payhash
+                                           select i).FirstOrDefault();
+                            }
+                            if (inv != null)
+                            {
+                                if (state != inv.InvoiceState)
+                                {
+                                    TL.Info("OnInvoiceStateChange");
+                                    await gigGossipNode.OnInvoiceStateChangeAsync(state, inv.Data);
+                                    inv.InvoiceState = state;
+                                    lock (gigGossipNode.NodeDb.Context)
+                                        gigGossipNode.NodeDb.Context.SaveObject(inv);
+                                }
                             }
                         }
                         gigGossipNode.OnLNDInvoiceStateChanged(invstateupd);
