@@ -282,6 +282,20 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
+    public async Task<PaymentRecordResult> CancelInvoiceSendPaymentAsync(string authToken, string paymenthash, string paymentrequest, int timeout, long feelimit, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(paymentrequest, timeout, feelimit);
+        try
+        {
+            return TL.Ret(await API.CancelInvoiceSendPaymentAsync(authToken, paymenthash, paymentrequest, timeout, feelimit, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
     public async Task<Result> SendToAddressAsync(string authToken, string bitcoinAddr, long satoshis, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(bitcoinAddr, satoshis);
@@ -441,6 +455,8 @@ public class WalletAPILoggingWrapper : IWalletAPI
     {
         return new PayoutStateUpdatesClientWrapper(API.CreatePayoutStateUpdatesClient());
     }
+
+
 }
 
 internal class InvoiceStateUpdatesClientWrapper : IInvoiceStateUpdatesClient
