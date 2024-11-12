@@ -30,6 +30,7 @@ public interface IWalletAPI
     Task<PaymentRecordResult> SendPaymentAsync(string authToken, string paymentrequest, int timeout, long feelimit, System.Threading.CancellationToken cancellationToken);
     Task<Result> SettleInvoiceAsync(string authToken, string preimage, System.Threading.CancellationToken cancellationToken);
     Task<Result> CancelInvoiceAsync(string authToken, string paymenthash, System.Threading.CancellationToken cancellationToken);
+    Task<PaymentRecordResult> CancelInvoiceSendPaymentAsync(string authToken, string paymenthash, string paymentrequest, int timeout, long feelimit, System.Threading.CancellationToken cancellationToken);
     Task<InvoiceRecordResult> GetInvoiceAsync(string authToken, string paymenthash, System.Threading.CancellationToken cancellationToken);
     Task<PaymentRecordResult> GetPaymentAsync(string authToken, string paymenthash, System.Threading.CancellationToken cancellationToken);
     Task<InvoiceRecordArrayResult> ListInvoicesAsync(string authToken, System.Threading.CancellationToken cancellationToken);
@@ -241,4 +242,8 @@ public class WalletAPIRetryWrapper : IWalletAPI
         return await RetryPolicy.WithRetryPolicy(() => api.ListTransactionsAsync(authToken, cancellationToken));
     }
 
+    public async Task<PaymentRecordResult> CancelInvoiceSendPaymentAsync(string authToken, string paymenthash, string paymentrequest, int timeout, long feelimit, CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.CancelInvoiceSendPaymentAsync(authToken, paymenthash, paymentrequest, timeout, feelimit, cancellationToken));
+    }
 }
