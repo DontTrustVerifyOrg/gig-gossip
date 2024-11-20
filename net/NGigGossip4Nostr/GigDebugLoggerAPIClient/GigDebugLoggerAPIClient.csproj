@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>GigGossip.DebugLogApi.Client</PackageId>
-    <Version>2.0.16</Version>
+    <Version>2.0.17</Version>
     <Authors>TheHyperlabs</Authors>
     <Company>TheHyperlabs</Company>
     <TargetFramework>net8.0</TargetFramework>
@@ -11,11 +11,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NSwag.ApiDescription.Client" Version="14.1.0">
+    <PackageReference Include="NSwag.ApiDescription.Client" Version="14.2.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.ApiDescription.Client" Version="8.0.10">
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Client" Version="9.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
