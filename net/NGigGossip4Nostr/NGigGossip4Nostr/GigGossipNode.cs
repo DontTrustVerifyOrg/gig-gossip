@@ -1233,6 +1233,45 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
+    public async Task<LNDWalletErrorCode> MonitorInvoiceAsync(string invoice, string paymentHash, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(invoice, paymentHash);
+        try
+        {
+            if (_paymentStatusUpdatesMonitor.IsPaymentMonitored(paymentHash))
+                return TL.Ret(LNDWalletErrorCode.AlreadyPayed);
+
+            await _paymentStatusUpdatesMonitor.MonitorPaymentAsync(paymentHash, JsonSerializer.SerializeToUtf8Bytes(
+            new PaymentData()
+            {
+                Invoice = invoice,
+                PaymentHash = paymentHash
+            }));
+            return TL.Ret(LNDWalletErrorCode.Ok);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+
+    public async Task StopMonitoringInvoiceAsync(string paymentHash, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(paymentHash);
+        try
+        {
+            await _paymentStatusUpdatesMonitor.StopPaymentMonitoringAsync(paymentHash);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+
     public async Task<LNDWalletErrorCode> PayInvoiceAsync(string invoice, string paymentHash, long feelimit, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(invoice, paymentHash, feelimit);
