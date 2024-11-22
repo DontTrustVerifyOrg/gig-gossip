@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package frames;
+option csharp_namespace = "GigGossip";
+
+message UUID
+{
+  bytes Value = 1;
+}
+
+message Timestamp
+{
+  int64 Value = 1;
+}
+
+message URI
+{
+    string Value = 1;
+}
+
+message Signature
+{
+    bytes Value = 1;
+}
+
+message PublicKey
+{
+    bytes Value = 1;
+}
+
+message PaymentRequest
+{
+    string Value = 1;
+}
+
+message PaymentHash
+{
+    bytes Value = 1;
+}
+
+message Satoshis
+{
+    int64 Value = 1;
+}
+
+message EncryptedData
+{
+    bytes Value = 1;
+}
+
+message CryptographicHash
+{
+    bytes Value = 1;
+}
+
+message AuthTokenHeader
+{
+  UUID TokenId = 1;
+  PublicKey PublicKey = 2;
+  Timestamp Timestamp = 3;
+}
+
+/// <summary>
+/// A struct to represent a timed GUID token with its signature. Used in API calls.
+/// </summary>
+message AuthToken
+{
+    AuthTokenHeader Header = 1;
+    Signature Signature = 2;
+}

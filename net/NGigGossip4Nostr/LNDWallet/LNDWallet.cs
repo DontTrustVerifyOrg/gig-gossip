@@ -772,11 +772,18 @@ public class LNDAccountManager
 
         if (selfHodlInvoice != null || selfClsInv != null) // selfpayment
         {
-            if (feelimit < ourRouteFeeSat)
-                return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.FeeLimitTooSmall, false);
+            var invPubKey = selfHodlInvoice != null ? selfHodlInvoice.PublicKey : selfClsInv.PublicKey;
 
-            if (availableAmount < decinv.NumSatoshis + ourRouteFeeSat)
-                return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InsufficientBalance, false);
+            var noFees = (decinv.NumSatoshis == 0) || (invPubKey == PublicKey);
+
+            if (!noFees)
+            {
+                if (feelimit < ourRouteFeeSat)
+                    return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.FeeLimitTooSmall, false);
+
+                if (availableAmount < decinv.NumSatoshis + ourRouteFeeSat)
+                    return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InsufficientBalance, false);
+            }
 
             var internalPayment = (from pay in walletContext.Value.InternalPayments
                                    where pay.PaymentHash == decinv.PaymentHash
@@ -790,14 +797,13 @@ public class LNDAccountManager
                     return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadySettled, false);
             }
 
-            var invPubKey = selfHodlInvoice != null ? selfHodlInvoice.PublicKey : selfClsInv.PublicKey; 
 
             walletContext.Value
                 .INSERT(new InternalPayment()
                 {
                     PaymentHash = decinv.PaymentHash,
                     PublicKey = PublicKey,
-                    PaymentFee = invPubKey==PublicKey?0: ourRouteFeeSat,
+                    PaymentFee = noFees ? 0: ourRouteFeeSat,
                     Satoshis = decinv.NumSatoshis,
                     Status = selfHodlInvoice != null ? InternalPaymentStatus.InFlight : InternalPaymentStatus.Succeeded,
                 })
@@ -823,13 +829,13 @@ public class LNDAccountManager
                 PaymentHash = decinv.PaymentHash,
                 Satoshis = decinv.NumSatoshis,
                 FailureReason = PaymentFailureReason.None,
-                FeeMsat = ourRouteFeeSat * 1000,
+                FeeMsat = noFees ? 0:ourRouteFeeSat * 1000,
                 Status = selfHodlInvoice != null ? PaymentStatus.InFlight : PaymentStatus.Succeeded
             };
         }
         else
         {
-            if (availableAmount < decinv.NumSatoshis + feelimit + ourRouteFeeSat)
+            if (availableAmount < decinv.NumSatoshis + feelimit)
                 return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InsufficientBalance, false);
 
             var externalPayment = (from pay in walletContext.Value.ExternalPayments
