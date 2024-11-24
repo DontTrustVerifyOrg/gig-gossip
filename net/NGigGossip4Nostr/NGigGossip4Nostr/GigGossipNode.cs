@@ -881,7 +881,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
                         var networkInvoice = WalletAPIResult.Get<InvoiceRecord>(await GetWalletClient().AddHodlInvoiceAsync(
                             await this.MakeWalletAuthToken(),
-                            decodedNetworkInvoice.Satoshis + this.priceAmountForRouting,
+                            decodedNetworkInvoice.Amount + this.priceAmountForRouting,
                             relatedNetworkPaymentHash, "", (long)InvoicePaymentTimeout.TotalSeconds, cancellationToken));
                         TL.NewMessage(this.PublicKey, relatedNetworkPaymentHash, "create");
                         await this._invoiceStateUpdatesMonitor.MonitorInvoiceAsync(

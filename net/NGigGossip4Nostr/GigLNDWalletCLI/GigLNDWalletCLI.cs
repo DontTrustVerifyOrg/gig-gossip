@@ -350,7 +350,8 @@ public class GigLNDWalletCLI
                     var paymentreq = Prompt.Input<string>("Payment Request", FromClipboard(ClipType.Invoice));
                     AnsiConsole.WriteLine(paymentreq);
                     var pay = WalletAPIResult.Get<PaymentRequestRecord>(await walletClient.DecodeInvoiceAsync(await MakeToken(), paymentreq, CancellationToken.None));
-                    AnsiConsole.WriteLine($"Satoshis:{pay.Satoshis}");
+                    AnsiConsole.WriteLine($"Amount:{pay.Amount}");
+                    AnsiConsole.WriteLine($"Currency:{pay.Currency}");
                     AnsiConsole.WriteLine($"Memo:{pay.Memo}");
                     AnsiConsole.WriteLine($"Creation:{pay.CreationTime}");
                     AnsiConsole.WriteLine($"Expiry:{pay.ExpiryTime}");
@@ -407,7 +408,8 @@ public class GigLNDWalletCLI
                     string[] columns = {
                         "Payment Hash",
                         "State",
-                        "Satoshis",
+                        "Amount",
+                        "Currency",
                         "Memo",
                         "Expiry"
                     };
@@ -416,7 +418,8 @@ public class GigLNDWalletCLI
                                 select new string[] {
                         inv.PaymentHash,
                         inv.State.ToString(),
-                        inv.Satoshis.ToString(),
+                        inv.Amount.ToString(),
+                        inv.Currency,
                         inv.Memo,
                         inv.ExpiryTime.ToString(),
                     }).ToArray();
@@ -427,7 +430,8 @@ public class GigLNDWalletCLI
                     string[] columns = {
                         "Payment Hash",
                         "Status",
-                        "Satoshis",
+                        "Amount",
+                        "Currency",
                         "Fee"
                     };
                     var payments = WalletAPIResult.Get< List<PaymentRecord>>(await walletClient.ListPaymentsAsync(await MakeToken(), CancellationToken.None));
@@ -435,7 +439,8 @@ public class GigLNDWalletCLI
                                 select new string[] {
                         pay.PaymentHash,
                         pay.Status.ToString(),
-                        pay.Satoshis.ToString(),
+                        pay.Amount.ToString(),
+                        pay.Currency,
                         (pay.FeeMsat/1000).ToString(),
                     }).ToArray();
                     DrawTable(columns, rows);

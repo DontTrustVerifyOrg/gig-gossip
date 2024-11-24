@@ -410,3 +410,5 @@ ASALocalRun/
 
 
 launchSettings.json
+
+*.secret

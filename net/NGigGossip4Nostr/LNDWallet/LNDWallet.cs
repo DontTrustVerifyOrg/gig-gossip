@@ -1299,7 +1299,7 @@ public class LNDAccountManager
                  FeeMsat = pay.FeeMsat,
                  Status = (PaymentStatus)pay.Status,
                  FailureReason = (PaymentFailureReason)pay.FailureReason,
-                 CreationTime = DateTimeOffset.FromUnixTimeMilliseconds(pay.CreationTimeNs / 1000).UtcDateTime
+                 CreationTime = DateTimeOffset.FromUnixTimeMilliseconds(pay.CreationTimeNs / 1000000).UtcDateTime
              })));
 
         var ret = new Dictionary<string, PaymentRecord>();
@@ -1377,7 +1377,7 @@ public class LNDAccountManager
                     FeeMsat = cur.FeeMsat,
                     Status = (PaymentStatus)cur.Status,
                     FailureReason = (PaymentFailureReason)cur.FailureReason,
-                    CreationTime = DateTimeOffset.FromUnixTimeMilliseconds(cur.CreationTimeNs / 1000).UtcDateTime
+                    CreationTime = DateTimeOffset.FromUnixTimeMilliseconds(cur.CreationTimeNs / 1000000).UtcDateTime
                 };
             }
             return new PaymentRecord

@@ -546,7 +546,7 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
 
             LNDWalletErrorCode paymentResult = LNDWalletErrorCode.Ok;
 
-            if (balance < decodedReplyInvoice.Satoshis + decodedNetworkInvoice.Satoshis + FeeLimit * 2)
+            if (balance < decodedReplyInvoice.Amount + decodedNetworkInvoice.Amount + FeeLimit * 2)
             {
                 paymentResult = LNDWalletErrorCode.NotEnoughFunds;
             }
