@@ -883,14 +883,14 @@ public class CustomerGossipNodeEvents : IGigGossipNodeEvents
                         var resps = me.GetReplyPayloads(replyPayload.Header.JobRequest.Header.JobRequestId.AsGuid());
                         if (resps.Count == old_cnt)
                         {
-                            resps.Sort((a, b) => (int)(JsonSerializer.Deserialize<PaymentRequestRecord>(new MemoryStream(a.DecodedNetworkInvoice)).Satoshis - JsonSerializer.Deserialize<PaymentRequestRecord>(new MemoryStream(b.DecodedNetworkInvoice)).Satoshis));
+                            resps.Sort((a, b) => (int)(JsonSerializer.Deserialize<PaymentRequestRecord>(new MemoryStream(a.DecodedNetworkInvoice)).Amount - JsonSerializer.Deserialize<PaymentRequestRecord>(new MemoryStream(b.DecodedNetworkInvoice)).Amount));
                             var win = resps[0];
 
                             var balance = WalletAPIResult.Get<AccountBalanceDetails>(await me.GetWalletClient().GetBalanceAsync(await me.MakeWalletAuthToken(), CancellationToken.None)).AvailableAmount;
 
                             LNDWalletErrorCode paymentResult = LNDWalletErrorCode.Ok;
 
-                            if (balance < decodedReplyInvoice.Satoshis + decodedNetworkInvoice.Satoshis + FeeLimit * 2)
+                            if (balance < decodedReplyInvoice.Amount + decodedNetworkInvoice.Amount + FeeLimit * 2)
                             {
                                 paymentResult = LNDWalletErrorCode.NotEnoughFunds;
                             }

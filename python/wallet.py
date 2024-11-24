@@ -268,6 +268,7 @@ class Wallet:
         """
         api_url = f"{self.base_url}/getbalance"
         response = requests.get(url=api_url, params={"authToken": self._create_authtoken()})
+        print(response.json())
         response.raise_for_status()
         return self.parse_response(response.json())
     

@@ -353,3 +353,5 @@ TSWLatexianTemp*
 
 *.vscode/
 .fake
+
+*.secret

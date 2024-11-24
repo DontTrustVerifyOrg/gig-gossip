@@ -900,6 +900,157 @@
         }
       }
     },
+    "/addfiatinvoice": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Generate a new Fiat over Lightning Network invoice",
+        "description": "Creates and returns a new Fiat over Lightning Network invoice for receiving payments. This endpoint allows users to generate payment requests with customizable amount, memo, and expiration time. The created invoice can be shared with payers to facilitate Lightning Network transactions.",
+        "operationId": "AddFiatInvoice",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorization token for authentication and access control. This token, generated using Schnorr Signatures for secp256k1, encodes the user's public key and session identifier from the GetToken function.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cents",
+            "in": "query",
+            "description": "The amount of the invoice in fiat currency cents. Must be a positive integer representing the exact payment amount requested.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "description": "The fiat currency code.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "memo",
+            "in": "query",
+            "description": "An optional memo or description for the invoice. This can be used to provide additional context or details about the payment to the payer. The memo will be included in the encoded payment request.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "expiry",
+            "in": "query",
+            "description": "The expiration time for the payment request, in seconds. After this duration, the invoice will no longer be valid for payment.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceRecordResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/addfiathodlinvoice": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Generate a new Fiat over Lightning Network HODL invoice for escrow-like functionality",
+        "description": "Creates and returns a new Fiat over Lightning Network HODL invoice. HODL invoices enable escrow-like functionalities by allowing the recipient to claim the payment only when a specific preimage is revealed using the SettleInvoice method. This preimage must be provided by the payer or a trusted third party. This mechanism provides an additional layer of security and enables conditional payments in the Lightning Network, making it suitable for implementing escrow accounts and other advanced payment scenarios.",
+        "operationId": "AddFiatHodlInvoice",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorization token for authentication and access control. This token, generated using Schnorr Signatures for secp256k1, encodes the user's public key and session identifier from the GetToken function.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cents",
+            "in": "query",
+            "description": "The amount of the invoice in fiat currency cents. Must be a positive integer representing the exact payment amount requested.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "description": "The fiat currency code.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hash",
+            "in": "query",
+            "description": "The SHA-256 hash of the preimage. The payer or a trusted third party must provide the corresponding preimage, which will be used with the SettleInvoice method to claim the payment, enabling escrow-like functionality.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "memo",
+            "in": "query",
+            "description": "An optional memo or description for the invoice. This can be used to provide additional context or details about the payment or escrow conditions to the payer. The memo will be included in the encoded payment request.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "expiry",
+            "in": "query",
+            "description": "The expiration time for the payment request, in seconds. After this duration, the HODL invoice will no longer be valid for payment. Consider setting an appropriate duration based on the expected escrow period.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceRecordResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/decodeinvoice": {
       "get": {
         "tags": [
@@ -2822,14 +2973,15 @@
       },
       "InvoiceRecord": {
         "required": [
+          "amount",
           "creationTime",
+          "currency",
           "expiryTime",
           "isHodl",
           "memo",
           "paymentAddr",
           "paymentHash",
           "paymentRequest",
-          "satoshis",
           "state"
         ],
         "type": "object",
@@ -2838,9 +2990,13 @@
             "type": "string",
             "nullable": true
           },
-          "satoshis": {
+          "amount": {
             "type": "integer",
             "format": "int64"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
           },
           "paymentAddr": {
             "type": "string",
@@ -3585,10 +3741,12 @@
       },
       "PaymentRecord": {
         "required": [
+          "amount",
+          "creationTime",
+          "currency",
           "failureReason",
           "feeMsat",
           "paymentHash",
-          "satoshis",
           "status"
         ],
         "type": "object",
@@ -3707,13 +3865,21 @@
               ]
             }
           },
-          "satoshis": {
+          "amount": {
             "type": "integer",
             "format": "int64"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
           },
           "feeMsat": {
             "type": "integer",
             "format": "int64"
+          },
+          "creationTime": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "additionalProperties": false
@@ -3935,12 +4101,13 @@
       },
       "PaymentRequestRecord": {
         "required": [
+          "amount",
           "creationTime",
+          "currency",
           "expiryTime",
           "memo",
           "paymentAddr",
-          "paymentHash",
-          "satoshis"
+          "paymentHash"
         ],
         "type": "object",
         "properties": {
@@ -3948,9 +4115,13 @@
             "type": "string",
             "nullable": true
           },
-          "satoshis": {
+          "amount": {
             "type": "integer",
             "format": "int64"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
           },
           "paymentAddr": {
             "type": "string",
@@ -4245,6 +4416,7 @@
       "PayoutRecord": {
         "required": [
           "bitcoinAddress",
+          "creationTime",
           "numConfirmations",
           "payoutFee",
           "payoutId",
@@ -4312,6 +4484,10 @@
           "numConfirmations": {
             "type": "integer",
             "format": "int32"
+          },
+          "creationTime": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "additionalProperties": false
@@ -5237,6 +5413,7 @@
       "TransactionRecord": {
         "required": [
           "bitcoinAddress",
+          "creationTime",
           "numConfirmations",
           "satoshis",
           "tx"
@@ -5258,6 +5435,10 @@
           "numConfirmations": {
             "type": "integer",
             "format": "int32"
+          },
+          "creationTime": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "additionalProperties": false

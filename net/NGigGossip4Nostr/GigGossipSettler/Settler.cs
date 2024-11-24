@@ -480,7 +480,7 @@ public class Settler : CertificationAuthority
 
         var networkInvoicePaymentHash = GenerateReplyPaymentPreimage(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.Header.JobRequestId.AsGuid(), replierpubkey);
         var networkInvoice = WalletAPIResult.Get<InvoiceRecord>(await lndWalletClient.AddHodlInvoiceAsync(
-             MakeAuthToken(), priceAmountForSettlement, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds, CancellationTokenSource.Token));
+             MakeAuthToken(), decodedInv.Currency == "BTC" ? priceAmountForSettlement:0, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds, CancellationTokenSource.Token));
 
         settlerContext.Value
             .INSERT(new Gig()
@@ -507,7 +507,7 @@ public class Settler : CertificationAuthority
             MySecurityCenterUri = this.ServiceUri.AsURI(),
             TheirSecurityCenterUri = signedRequestPayload.Header.Header.AuthorityUri.Clone(),
             HashOfEncryptedJobReply = new CryptographicHash { Value = hashOfEncryptedReplyPayload.AsByteString() },
-            ReplyPaymentAmount = new Satoshis { Value = decodedInv.Satoshis },
+            ReplyPaymentAmount = new Satoshis { Value = decodedInv.Currency=="BTC"? decodedInv.Amount:0 },
             NetworkPaymentHash = new PaymentHash { Value = networkInvoicePaymentHash.AsBytes().AsByteString() },
         };
 

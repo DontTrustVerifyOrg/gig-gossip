@@ -53,14 +53,14 @@ public partial class RideShareCLIApp
         var paymentHash = receivedResponsesTable.GetCell(idx, 0);
 
         var evs = receivedResponsesForPaymentHashes[paymentHash];
-        var e = evs.Aggregate((curMin, x) => (curMin == null || x.DecodedNetworkInvoice.Satoshis < curMin.DecodedNetworkInvoice.Satoshis) ? x : curMin);
+        var e = evs.Aggregate((curMin, x) => (curMin == null || x.DecodedNetworkInvoice.Amount < curMin.DecodedNetworkInvoice.Amount) ? x : curMin);
 
         var balance = WalletAPIResult.Get<AccountBalanceDetails>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token)).AvailableAmount;
 
 
         LNDWalletErrorCode paymentResult = LNDWalletErrorCode.Ok;
 
-        if (balance < e.DecodedReplyInvoice.Satoshis + e.DecodedNetworkInvoice.Satoshis + settings.NodeSettings.FeeLimitSat * 2)
+        if (balance < e.DecodedReplyInvoice.Amount + e.DecodedNetworkInvoice.Amount + settings.NodeSettings.FeeLimitSat * 2)
         {
             paymentResult = LNDWalletErrorCode.NotEnoughFunds;
         }
@@ -105,8 +105,8 @@ public partial class RideShareCLIApp
                 receivedResponsesForPaymentHashes[paymentHash] = new List<NewResponseEventArgs> { e };
                 receivedResponseIdxesForReplyPayloadId[e.ReplyPayloadCert.Header.JobReplyId.AsGuid()] = receivedResponsesForPaymentHashes.Count - 1;
                 receivedResponseIdxesForPaymentHashes[paymentHash] = receivedResponsesForPaymentHashes.Count - 1;
-                var fee = e.DecodedReplyInvoice.Satoshis;
-                var netfee = e.DecodedNetworkInvoice.Satoshis;
+                var fee = e.DecodedReplyInvoice.Amount;
+                var netfee = e.DecodedNetworkInvoice.Amount;
                 var taxiTopic = e.ReplyPayloadCert.Header.JobRequest.Header.RideShare;
                 var from = taxiTopic.FromGeohash;
                 var tim = "(" + taxiTopic.PickupAfter.AsUtcDateTime().ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore.AsUtcDateTime() - taxiTopic.PickupAfter.AsUtcDateTime()).TotalMinutes).ToString() + ")";
@@ -119,7 +119,7 @@ public partial class RideShareCLIApp
             {
                 receivedResponsesForPaymentHashes[paymentHash].Add(e);
                 receivedResponsesTable.UpdateCell(receivedResponseIdxesForPaymentHashes[paymentHash], 2, receivedResponsesForPaymentHashes[paymentHash].Count.ToString());
-                var minNetPr = (from ev in receivedResponsesForPaymentHashes[paymentHash] select ev.DecodedNetworkInvoice.Satoshis).Min();
+                var minNetPr = (from ev in receivedResponsesForPaymentHashes[paymentHash] select ev.DecodedNetworkInvoice.Amount).Min();
                 receivedResponsesTable.UpdateCell(receivedResponseIdxesForPaymentHashes[paymentHash], 7, minNetPr.ToString());
             }
         }
