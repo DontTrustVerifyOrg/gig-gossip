@@ -9,6 +9,11 @@ using System.Collections.Concurrent;
 using TraceExColor;
 using Spectre.Console;
 using GigGossip;
+using Newtonsoft.Json.Linq;
+using Walletrpc;
+using System.Text;
+using Invoicesrpc;
+using System.Runtime.ConstrainedExecution;
 
 namespace LNDWallet;
 
@@ -68,7 +73,8 @@ public class RouteFeeRecord
 public class PaymentRequestRecord
 {
     public required string PaymentHash { get; set; }
-    public required long Satoshis { get; set; }
+    public required long Amount { get; set; }
+    public required string Currency { get; set; }
 
     public required string PaymentAddr { get; set; }
     public required string Memo { get; set; }
@@ -91,7 +97,8 @@ public class InvoiceRecord : PaymentRequestRecord
         return new InvoiceRecord
         {
             PaymentHash = payreq.PaymentHash,
-            Satoshis = payreq.Satoshis,
+            Amount = payreq.Amount,
+            Currency = payreq.Currency,
             PaymentAddr = payreq.PaymentAddr,
             Memo = payreq.Memo,
             CreationTime = payreq.CreationTime,
@@ -110,8 +117,24 @@ public class PaymentRecord
     public required string PaymentHash { get; set; }
     public required PaymentStatus Status { get; set; }
     public required PaymentFailureReason FailureReason { get; set; }
-    public required long Satoshis { get; set; }
+    public required long Amount { get; set; }
+    public required string Currency { get; set; }
     public required long FeeMsat { get; set; }
+    public required DateTime CreationTime { get; set; }
+
+    public static PaymentRecord FromPaymentRequestRecord(PaymentRequestRecord payreq, PaymentStatus status, PaymentFailureReason failureReason, long feeMsat)
+    {
+        return new PaymentRecord
+        {
+            PaymentHash = payreq.PaymentHash,
+            Amount = payreq.Amount,
+            Currency = payreq.Currency,
+            CreationTime = payreq.CreationTime,
+            Status = status,
+            FailureReason = failureReason,
+            FeeMsat = feeMsat,
+        };
+    }
 }
 
 [Serializable]
@@ -124,6 +147,7 @@ public class PayoutRecord
     public required long PayoutFee { get; set; }
     public required string Tx { get; set; }
     public required int NumConfirmations { get; set; }
+    public required DateTime CreationTime { get; set; }
 }
 
 [Serializable]
@@ -133,6 +157,7 @@ public class TransactionRecord
     public required long Satoshis { get; set; }
     public required string Tx { get; set; }
     public required int NumConfirmations { get; set; }
+    public required DateTime CreationTime { get; set; }
 }
 
 [Serializable]
@@ -353,22 +378,30 @@ public class LNDEventSource
     public virtual void CancelSingleInvoiceTracking(string paymentHash) { }
 }
 
+public class StripeSettings
+{
+    public required string StripeApiUri { get; set; }
+    public required string StripeApiKey { get; set; }
+}
+
 public class LNDAccountManager
 {
     public GigDebugLoggerAPIClient.LogWrapper<LNDAccountManager> TRACE = GigDebugLoggerAPIClient.ConsoleLoggerFactory.Trace<LNDAccountManager>();
 
     private LND.NodeSettings lndConf;
+    private StripeSettings stripeConf;
     private ThreadLocal<WaletContext> walletContext;
     public string PublicKey;
     private LNDEventSource eventSource;
     private CancellationTokenSource trackPaymentsCancallationTokenSource = new();
 
-    internal LNDAccountManager(LND.NodeSettings conf, DBProvider provider, string connectionString, ECXOnlyPubKey pubKey, LNDEventSource eventSource)
+    internal LNDAccountManager(LND.NodeSettings conf, StripeSettings stripeConf, DBProvider provider, string connectionString, ECXOnlyPubKey pubKey, LNDEventSource eventSource)
     {
         this.lndConf = conf;
         this.PublicKey = pubKey.AsHex();
         this.walletContext = new ThreadLocal<WaletContext>(() => new WaletContext(provider, connectionString));
         this.eventSource = eventSource;
+        this.stripeConf = stripeConf;
     }
 
     public string CreateNewTopupAddress()
@@ -384,7 +417,7 @@ public class LNDAccountManager
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
-        var availableAmount = GetAccountBalance().AvailableAmount;
+        var availableAmount = GetAccountBalance("BTC").AvailableAmount;
         if (availableAmount < satoshis)
             throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds); ;
 
@@ -398,7 +431,8 @@ public class LNDAccountManager
                 PublicKey = PublicKey,
                 State = PayoutState.Open,
                 PayoutFee = 0,
-                Satoshis = satoshis
+                Satoshis = satoshis,
+                CreationTime = DateTime.UtcNow,
             })
             .INSERT(new Reserve()
             {
@@ -449,6 +483,7 @@ public class LNDAccountManager
             State = payout.State,
             Tx = payout.Tx == null ? "" : payout.Tx,
             NumConfirmations = payout.Tx == null ? 0 : LND.GetTransaction(lndConf, payout.Tx).NumConfirmations,
+            CreationTime = payout.CreationTime,
         };
     }
 
@@ -478,6 +513,7 @@ public class LNDAccountManager
                     State = payout.State,
                     Tx = payout.Tx,
                     NumConfirmations = runningtransactions[payout.Tx].NumConfirmations,
+                    CreationTime = payout.CreationTime,
                 });
             }
             else
@@ -491,6 +527,7 @@ public class LNDAccountManager
                     State = payout.State,
                     Tx = payout.Tx == null ? "" : payout.Tx,
                     NumConfirmations = 0,
+                    CreationTime = payout.CreationTime,
                 });
             }
         }
@@ -518,6 +555,7 @@ public class LNDAccountManager
                             Satoshis = outp.Amount,
                             Tx = transation.TxHash,
                             NumConfirmations = transation.NumConfirmations,
+                            CreationTime = DateTimeOffset.FromUnixTimeSeconds(transation.TimeStamp).UtcDateTime,
                         });
                     }
         return ret;
@@ -591,6 +629,14 @@ public class LNDAccountManager
         }
     }
 
+    public async Task<InvoiceRecord> CreateNewHodlStripeInvoiceAsync(long totalCents, string currency, string memo, byte[] hash, long expiry)
+    {
+        var pi = await CreateStripePaymentIntentAsync(totalCents, currency);
+        var strMemo = JArray.FromObject(new string[] { memo, pi.Value.PaymentIntentId, pi.Value.ClientSecret }).ToString();
+        return CreateNewHodlInvoice(0, strMemo, hash, expiry);
+    }
+
+
     public InvoiceRecord CreateNewClassicInvoice(long satoshis, string memo, long expiry)
     {
         var inv = LND.AddInvoice(lndConf, satoshis, memo, expiry);
@@ -608,18 +654,65 @@ public class LNDAccountManager
             isHodl: false);
     }
 
+    public struct PaymentIntentResponse
+    {
+        public string PaymentIntentId { get; set; }
+        public string ClientSecret { get; set; }
+    }
+
+    public async Task<PaymentIntentResponse?> CreateStripePaymentIntentAsync(long cents, string currencyCode)
+    {
+        using var TL = TRACE.Log().Args(cents, currencyCode);
+        try
+        {
+            var client = new HttpClient();
+
+            var requestData = new
+            {
+                totalCents = cents,
+                currencyCode = currencyCode,
+                driverPubKey = this.PublicKey,
+            };
+
+            var requestContent = new StringContent(
+                Newtonsoft.Json.JsonConvert.SerializeObject(requestData),
+                System.Text.Encoding.UTF8,
+                "application/json"
+            );
+
+            client.DefaultRequestHeaders.Add("X-Api-Key", stripeConf.StripeApiKey);
+
+
+            HttpResponseMessage response = await client.PostAsync(stripeConf.StripeApiUri+ "payment-intent", requestContent);
+            response.EnsureSuccessStatusCode();
+            string responseBody = await response.Content.ReadAsStringAsync();
+
+            JObject responseJson = JObject.Parse(responseBody);
+            PaymentIntentResponse paymentIntentResponse = new PaymentIntentResponse
+            {
+                PaymentIntentId = (string)responseJson["paymentIntentId"],
+                ClientSecret = (string)responseJson["clientSecret"]
+            };
+            return paymentIntentResponse;
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task<InvoiceRecord> CreateNewClassicStripeInvoiceAsync(long totalCents, string currency, string memo, long expiry)
+    {
+        var pi = await CreateStripePaymentIntentAsync(totalCents, currency);
+        var strMemo = JArray.FromObject(new string[] { memo, pi.Value.PaymentIntentId, pi.Value.ClientSecret }).ToString();
+        return CreateNewClassicInvoice(0, strMemo, expiry);
+    }
+
     public PaymentRequestRecord DecodeInvoice(string paymentRequest)
     {
         var dec = LND.DecodeInvoice(lndConf, paymentRequest);
-        return new PaymentRequestRecord
-        {
-            PaymentHash = dec.PaymentHash,
-            PaymentAddr = dec.PaymentAddr.ToArray().AsHex(),
-            Satoshis = dec.NumSatoshis,
-            CreationTime = DateTimeOffset.FromUnixTimeSeconds(dec.Timestamp).UtcDateTime,
-            ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(dec.Timestamp).UtcDateTime.AddSeconds(dec.Expiry),
-            Memo = dec.Description,
-        };
+        return ParsePayReqToPaymentRequestRecord(dec);
     }
 
     public RouteFeeRecord EstimateRouteFee(string paymentRequest, long ourRouteFeeSat, int timeout)
@@ -682,7 +775,7 @@ public class LNDAccountManager
         }
     }
 
-    private void failedPaymentRecordStore(PayReq payReq, PaymentFailureReason reason, bool delete)
+    private void failedPaymentRecordStore(PaymentRequestRecord payReq, PaymentFailureReason reason, bool delete)
     {
         walletContext.Value
             .INSERT(new FailedPayment
@@ -709,26 +802,20 @@ public class LNDAccountManager
         }
     }
 
-    private PaymentRecord failedPaymentRecordAndCommit(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction TX, PayReq payReq, PaymentFailureReason reason, bool delete)
+    private PaymentRecord failedPaymentRecordAndCommit(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction TX, PaymentRequestRecord payReq, PaymentFailureReason reason, bool delete)
     {
         failedPaymentRecordStore(payReq, reason, delete);
 
         TX.Commit();
-        return new PaymentRecord
-        {
-            FeeMsat = 0,
-            PaymentHash = payReq.PaymentHash,
-            Satoshis = payReq.NumSatoshis,
-            Status = PaymentStatus.Failed,
-            FailureReason = reason,
-        };
+        return PaymentRecord.FromPaymentRequestRecord(payReq, PaymentStatus.Failed, reason, 0);
     }
 
     private async Task<PaymentRecord> SendPaymentAsyncTx(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction TX, string paymentRequest, int timeout, long ourRouteFeeSat, long feelimit)
     {
         var decinv = LND.DecodeInvoice(lndConf, paymentRequest);
+        var paymentRequestRecord = ParsePayReqToPaymentRequestRecord(decinv);
 
-        var availableAmount = GetAccountBalance().AvailableAmount;
+        var availableAmount = GetAccountBalance("BTC").AvailableAmount;
 
         Invoice invoice = null;
         HodlInvoice? selfHodlInvoice = null;
@@ -743,7 +830,7 @@ public class LNDAccountManager
         {
 
             if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Settled)
-                return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadySettled, false);
+                return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.InvoiceAlreadySettled, false);
             else if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Canceled)
             {
                 var internalPayment = (from pay in walletContext.Value.InternalPayments
@@ -751,12 +838,12 @@ public class LNDAccountManager
                                        select pay).FirstOrDefault();
 
                 if (internalPayment != null)
-                    return failedPaymentRecordAndCommit(TX, decinv, internalPayment.Status == InternalPaymentStatus.InFlight ? PaymentFailureReason.InvoiceAlreadyAccepted : PaymentFailureReason.InvoiceAlreadySettled, false);
+                    return failedPaymentRecordAndCommit(TX, paymentRequestRecord, internalPayment.Status == InternalPaymentStatus.InFlight ? PaymentFailureReason.InvoiceAlreadyAccepted : PaymentFailureReason.InvoiceAlreadySettled, false);
                 else
-                    return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadyCancelled, false);
+                    return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.InvoiceAlreadyCancelled, false);
             }
             else if (invoice.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)
-                return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadyAccepted, false);
+                return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.InvoiceAlreadyAccepted, false);
 
 
             selfHodlInvoice = (from inv in walletContext.Value.HodlInvoices
@@ -774,15 +861,15 @@ public class LNDAccountManager
         {
             var invPubKey = selfHodlInvoice != null ? selfHodlInvoice.PublicKey : selfClsInv.PublicKey;
 
-            var noFees = (decinv.NumSatoshis == 0) || (invPubKey == PublicKey);
+            var noFees = (paymentRequestRecord.Currency != "BTC") || (invPubKey == PublicKey);
 
             if (!noFees)
             {
                 if (feelimit < ourRouteFeeSat)
-                    return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.FeeLimitTooSmall, false);
+                    return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.FeeLimitTooSmall, false);
 
                 if (availableAmount < decinv.NumSatoshis + ourRouteFeeSat)
-                    return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InsufficientBalance, false);
+                    return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.InsufficientBalance, false);
             }
 
             var internalPayment = (from pay in walletContext.Value.InternalPayments
@@ -792,9 +879,9 @@ public class LNDAccountManager
             if (internalPayment != null)
             {
                 if (internalPayment.Status == InternalPaymentStatus.InFlight)
-                    return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadyAccepted, false);
+                    return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.InvoiceAlreadyAccepted, false);
                 else //if (internalPayment.Status == InternalPaymentStatus.Succeeded)
-                    return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadySettled, false);
+                    return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.InvoiceAlreadySettled, false);
             }
 
 
@@ -806,6 +893,9 @@ public class LNDAccountManager
                     PaymentFee = noFees ? 0: ourRouteFeeSat,
                     Satoshis = decinv.NumSatoshis,
                     Status = selfHodlInvoice != null ? InternalPaymentStatus.InFlight : InternalPaymentStatus.Succeeded,
+                    Amount = paymentRequestRecord.Amount,
+                    Currency = paymentRequestRecord.Currency,
+                    CreationTime = DateTime.UtcNow,
                 })
                 .SAVE();
 
@@ -824,19 +914,15 @@ public class LNDAccountManager
 
             TX.Commit();
 
-            return new PaymentRecord
-            {
-                PaymentHash = decinv.PaymentHash,
-                Satoshis = decinv.NumSatoshis,
-                FailureReason = PaymentFailureReason.None,
-                FeeMsat = noFees ? 0:ourRouteFeeSat * 1000,
-                Status = selfHodlInvoice != null ? PaymentStatus.InFlight : PaymentStatus.Succeeded
-            };
+            return ParsePayReqToPaymentRecord(decinv, 
+                selfHodlInvoice != null ? PaymentStatus.InFlight : PaymentStatus.Succeeded, 
+                PaymentFailureReason.None, 
+                noFees ? 0 : ourRouteFeeSat * 1000);
         }
         else
         {
             if (availableAmount < decinv.NumSatoshis + feelimit)
-                return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InsufficientBalance, false);
+                return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.InsufficientBalance, false);
 
             var externalPayment = (from pay in walletContext.Value.ExternalPayments
                                    where pay.PaymentHash == decinv.PaymentHash
@@ -850,17 +936,17 @@ public class LNDAccountManager
                 {
                     cur = stream.ResponseStream.Current;
                     if (cur.Status == Payment.Types.PaymentStatus.InFlight)
-                        return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadyAccepted, false);
+                        return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.InvoiceAlreadyAccepted, false);
                     else if (cur.Status == Payment.Types.PaymentStatus.Initiated)
-                        return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadyAccepted, false);
+                        return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.InvoiceAlreadyAccepted, false);
                     else if (cur.Status == Payment.Types.PaymentStatus.Succeeded)
-                        return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.InvoiceAlreadySettled, false);
+                        return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.InvoiceAlreadySettled, false);
                     else
                         break;
                 }
 
                 // previously failed - retrying with my publickey
-                failedPaymentRecordStore(decinv, cur == null ? PaymentFailureReason.EmptyReturnStream : (PaymentFailureReason)cur.FailureReason, false);
+                failedPaymentRecordStore(paymentRequestRecord, cur == null ? PaymentFailureReason.EmptyReturnStream : (PaymentFailureReason)cur.FailureReason, false);
             }
             {
                 walletContext.Value
@@ -882,11 +968,11 @@ public class LNDAccountManager
                         || cur.Status == Payment.Types.PaymentStatus.Succeeded)
                         break;
                     else if (cur.Status == Payment.Types.PaymentStatus.Failed)
-                        return failedPaymentRecordAndCommit(TX, decinv, (PaymentFailureReason)cur.FailureReason, true);
+                        return failedPaymentRecordAndCommit(TX, paymentRequestRecord, (PaymentFailureReason)cur.FailureReason, true);
                 }
 
                 if (cur == null)
-                    return failedPaymentRecordAndCommit(TX, decinv, PaymentFailureReason.EmptyReturnStream, true);
+                    return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.EmptyReturnStream, true);
 
                 var payment = (from pay in walletContext.Value.ExternalPayments
                                where pay.PaymentHash == decinv.PaymentHash && pay.PublicKey == PublicKey
@@ -900,14 +986,7 @@ public class LNDAccountManager
                 }
 
                 TX.Commit();
-                return new PaymentRecord
-                {
-                    PaymentHash = decinv.PaymentHash,
-                    Satoshis = decinv.NumSatoshis,
-                    FailureReason = PaymentFailureReason.None,
-                    FeeMsat = cur.FeeMsat,
-                    Status = (PaymentStatus)cur.Status
-                };
+                return ParsePayReqToPaymentRecord( decinv, (PaymentStatus)cur.Status, PaymentFailureReason.None, cur.FeeMsat);
             }
         }
 
@@ -1039,25 +1118,134 @@ public class LNDAccountManager
         return await SendPaymentAsyncTx(TX, paymentRequest, timeout, ourRouteFeeSat, feelimit);
     }
 
+    public static InvoiceRecord ParseInvoiceToInvoiceRecord(Invoice invoice, bool isHodl)
+    {
+        if (invoice.Value == 0)
+        {
+            try
+            {
+                var memofields = JArray.Parse(invoice.Memo).ToObject<object[]>();
+                if (memofields.Length == 5 && ((long?)memofields[0]) != null && memofields.Skip(1).All(x => (string)x != null))
+                    return new InvoiceRecord
+                    {
+                        PaymentHash = invoice.RHash.ToArray().AsHex(),
+                        IsHodl = isHodl,
+                        PaymentRequest = invoice.PaymentRequest,
+                        Amount = (long)memofields[0],
+                        Currency = (string)memofields[1],
+                        State = (InvoiceState)invoice.State,
+                        Memo = (string)memofields[2],
+                        PaymentAddr = invoice.PaymentAddr.ToArray().AsHex(),
+                        CreationTime = DateTimeOffset.FromUnixTimeSeconds(invoice.CreationDate).UtcDateTime,
+                        ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(invoice.CreationDate).UtcDateTime.AddSeconds(invoice.Expiry),
+                        SettleTime = DateTimeOffset.FromUnixTimeSeconds(invoice.SettleDate).UtcDateTime,
+                    };
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        return new InvoiceRecord
+        {
+            PaymentHash = invoice.RHash.ToArray().AsHex(),
+            IsHodl = isHodl,
+            PaymentRequest = invoice.PaymentRequest,
+            Amount = invoice.Value,
+            Currency = "BTC",
+            State = (InvoiceState)invoice.State,
+            Memo = invoice.Memo,
+            PaymentAddr = invoice.PaymentAddr.ToArray().AsHex(),
+            CreationTime = DateTimeOffset.FromUnixTimeSeconds(invoice.CreationDate).UtcDateTime,
+            ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(invoice.CreationDate).UtcDateTime.AddSeconds(invoice.Expiry),
+            SettleTime = DateTimeOffset.FromUnixTimeSeconds(invoice.SettleDate).UtcDateTime,
+        };
+
+    }
+
+    public static PaymentRequestRecord ParsePayReqToPaymentRequestRecord(PayReq payReq)
+    {
+        if (payReq.NumSatoshis == 0)
+        {
+            try
+            {
+                var memofields = JArray.Parse(payReq.Description).ToObject<object[]>();
+                if (memofields.Length == 5 && ((long?)memofields[0]) != null && memofields.Skip(1).All(x => (string)x != null))
+                    return new PaymentRequestRecord
+                    {
+                        PaymentHash = payReq.PaymentHash,
+                        Amount = (long)memofields[0],
+                        Currency = (string)memofields[1],
+                        Memo = (string)memofields[2],
+                        PaymentAddr = payReq.PaymentAddr.ToArray().AsHex(),
+                        CreationTime = DateTimeOffset.FromUnixTimeSeconds(payReq.Timestamp).UtcDateTime,
+                        ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(payReq.Expiry).UtcDateTime.AddSeconds(payReq.Expiry),
+                    };
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        return new PaymentRequestRecord
+        {
+            PaymentHash = payReq.PaymentHash,
+            Amount = payReq.NumSatoshis,
+            Currency = "BTC",
+            Memo = payReq.Description,
+            PaymentAddr = payReq.PaymentAddr.ToArray().AsHex(),
+            CreationTime = DateTimeOffset.FromUnixTimeSeconds(payReq.Timestamp).UtcDateTime,
+            ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(payReq.Expiry).UtcDateTime.AddSeconds(payReq.Expiry),
+        };
+
+    }
+
+    public static PaymentRecord ParsePayReqToPaymentRecord(PayReq payReq, PaymentStatus status, PaymentFailureReason reason, long feeMsat)
+    {
+        if (payReq.NumSatoshis == 0)
+        {
+            try
+            {
+                var memofields = JArray.Parse(payReq.Description).ToObject<object[]>();
+                if (memofields.Length == 5 && ((long?)memofields[0]) != null && memofields.Skip(1).All(x => (string)x != null))
+                    return new PaymentRecord
+                    {
+                        PaymentHash = payReq.PaymentHash,
+                        Amount = (long)memofields[0],
+                        Currency = (string)memofields[1],
+                        FailureReason = reason,
+                        FeeMsat = feeMsat,
+                        Status = status,
+                        CreationTime = DateTimeOffset.FromUnixTimeSeconds(payReq.Timestamp).UtcDateTime,
+                    };
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        return new PaymentRecord
+        {
+            PaymentHash = payReq.PaymentHash,
+            Amount = payReq.NumSatoshis,
+            Currency = "BTC",
+            FailureReason = reason,
+            FeeMsat = feeMsat,
+            Status = status,
+            CreationTime = DateTimeOffset.FromUnixTimeSeconds(payReq.Timestamp).UtcDateTime,
+        };
+
+    }
 
     public InvoiceRecord[] ListInvoices(bool includeClassic, bool includeHodl)
     {
         var allInvs = new Dictionary<string, InvoiceRecord>(
             (from inv in LND.ListInvoices(lndConf).Invoices
              select KeyValuePair.Create(inv.RHash.ToArray().AsHex(),
-             new InvoiceRecord
-             {
-                 PaymentHash = inv.RHash.ToArray().AsHex(),
-                 IsHodl = false,
-                 PaymentRequest = inv.PaymentRequest,
-                 Satoshis = inv.Value,
-                 State = (InvoiceState)inv.State,
-                 Memo = inv.Memo,
-                 PaymentAddr = inv.PaymentAddr.ToArray().AsHex(),
-                 CreationTime = DateTimeOffset.FromUnixTimeSeconds(inv.CreationDate).UtcDateTime,
-                 ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(inv.CreationDate).UtcDateTime.AddSeconds(inv.Expiry),
-                 SettleTime = DateTimeOffset.FromUnixTimeSeconds(inv.SettleDate).UtcDateTime,
-             })));
+             ParseInvoiceToInvoiceRecord(invoice: inv, isHodl: false))));
 
         var ret = new Dictionary<string, InvoiceRecord>();
 
@@ -1106,10 +1294,12 @@ public class LNDAccountManager
              select KeyValuePair.Create(pay.PaymentHash, new PaymentRecord
              {
                  PaymentHash = pay.PaymentHash,
-                 Satoshis = pay.ValueSat,
+                 Amount = pay.ValueSat,
+                 Currency = "BTC",
                  FeeMsat = pay.FeeMsat,
                  Status = (PaymentStatus)pay.Status,
                  FailureReason = (PaymentFailureReason)pay.FailureReason,
+                 CreationTime = DateTimeOffset.FromUnixTimeMilliseconds(pay.CreationTimeNs / 1000).UtcDateTime
              })));
 
         var ret = new Dictionary<string, PaymentRecord>();
@@ -1130,10 +1320,12 @@ public class LNDAccountManager
                 ret.Add(pay.PaymentHash, new PaymentRecord
                 {
                     PaymentHash = pay.PaymentHash,
-                    Satoshis = pay.Satoshis,
+                    Amount = pay.Amount,
+                    Currency = pay.Currency,
                     FeeMsat = pay.PaymentFee * 1000,
                     Status = (PaymentStatus)pay.Status,
                     FailureReason = PaymentFailureReason.None,
+                    CreationTime = pay.CreationTime,
                 });
             }
         }
@@ -1155,10 +1347,12 @@ public class LNDAccountManager
             return new PaymentRecord
             {
                 PaymentHash = internalPayment.PaymentHash,
-                Satoshis = internalPayment.Satoshis,
+                Amount = internalPayment.Amount,
+                Currency = internalPayment.Currency,
                 FeeMsat = internalPayment.PaymentFee * 1000,
                 Status = (PaymentStatus)internalPayment.Status,
                 FailureReason = PaymentFailureReason.None,
+                CreationTime = internalPayment.CreationTime,
             };
         }
         else
@@ -1178,19 +1372,23 @@ public class LNDAccountManager
                 return new PaymentRecord
                 {
                     PaymentHash = cur.PaymentHash,
-                    Satoshis = cur.ValueSat,
+                    Amount = cur.ValueSat,
+                    Currency = "BTC",
                     FeeMsat = cur.FeeMsat,
                     Status = (PaymentStatus)cur.Status,
                     FailureReason = (PaymentFailureReason)cur.FailureReason,
+                    CreationTime = DateTimeOffset.FromUnixTimeMilliseconds(cur.CreationTimeNs / 1000).UtcDateTime
                 };
             }
             return new PaymentRecord
             {
                 PaymentHash = paymentHash,
-                Satoshis = 0,
+                Amount = 0,
+                Currency = "BTC",
                 FeeMsat = 0,
                 Status = PaymentStatus.Failed,
                 FailureReason = PaymentFailureReason.EmptyReturnStream,
+                CreationTime = DateTime.UtcNow,
             };
         }
     }
@@ -1206,19 +1404,7 @@ public class LNDAccountManager
         if ((invoice.State != Lnrpc.Invoice.Types.InvoiceState.Open) && (invoice.State != Lnrpc.Invoice.Types.InvoiceState.Canceled))
         {
             TX.Commit();
-            return new InvoiceRecord
-            {
-                PaymentHash = invoice.RHash.ToArray().AsHex(),
-                IsHodl = selfHodlInvoice != null,
-                PaymentRequest = invoice.PaymentRequest,
-                Satoshis = invoice.Value,
-                State = (InvoiceState)invoice.State,
-                Memo = invoice.Memo,
-                PaymentAddr = invoice.PaymentAddr.ToArray().AsHex(),
-                CreationTime = DateTimeOffset.FromUnixTimeSeconds(invoice.CreationDate).UtcDateTime,
-                ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(invoice.CreationDate).UtcDateTime.AddSeconds(invoice.Expiry),
-                SettleTime = DateTimeOffset.FromUnixTimeSeconds(invoice.SettleDate).UtcDateTime,
-            };
+            return ParseInvoiceToInvoiceRecord(invoice, selfHodlInvoice != null);
         }
 
         // if InvoiceState is Open or Cancelled
@@ -1237,130 +1423,129 @@ public class LNDAccountManager
                            select pay).FirstOrDefault();
 
             TX.Commit();
-            return new InvoiceRecord
-            {
-                PaymentHash = invoice.RHash.ToArray().AsHex(),
-                IsHodl = selfHodlInvoice != null,
-                PaymentRequest = invoice.PaymentRequest,
-                Satoshis = invoice.Value,
-                State = payment == null ? (InvoiceState)invoice.State : (payment.Status == InternalPaymentStatus.InFlight ? InvoiceState.Accepted : InvoiceState.Settled),
-                Memo = invoice.Memo,
-                PaymentAddr = invoice.PaymentAddr.ToArray().AsHex(),
-                CreationTime = DateTimeOffset.FromUnixTimeSeconds(invoice.CreationDate).UtcDateTime,
-                ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(invoice.CreationDate).UtcDateTime.AddSeconds(invoice.Expiry),
-                SettleTime = DateTimeOffset.FromUnixTimeSeconds(invoice.SettleDate).UtcDateTime,
-            };
+            var ret = ParseInvoiceToInvoiceRecord(invoice, selfHodlInvoice != null);
+            ret.State = payment == null ? (InvoiceState)invoice.State : (payment.Status == InternalPaymentStatus.InFlight ? InvoiceState.Accepted : InvoiceState.Settled);
+            return ret;
         }
         throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
     }
 
-    public AccountBalanceDetails GetBalance()
+    public AccountBalanceDetails GetBalance(string currency)
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
-        var bal = GetAccountBalance();
+        var bal = GetAccountBalance(currency);
         TX.Commit();
         return bal;
     }
 
-    private AccountBalanceDetails GetAccountBalance()
+    private AccountBalanceDetails GetAccountBalance(string currency)
     {
-
-        var channelfunds = GetExecutedTopupTotalAmount(6);
-        var payedout = (from a in walletContext.Value.Payouts
-                        where a.PublicKey == PublicKey
-                        && a.State != PayoutState.Failure
-                        select a.Satoshis).Sum();
-
-        var payedoutfee = (from a in walletContext.Value.Payouts
-                           where a.PublicKey == PublicKey
-                           && a.State != PayoutState.Failure
-                           select a.PayoutFee).Sum();
-
-        var invoices = ListInvoices(true, true);
-        var payments = ListNotFailedPayments();
-
-        var earnedFromSettledInvoices = (from inv in invoices
-                                         where inv.State == InvoiceState.Settled
-                                         select inv.Satoshis).Sum();
-
-        var sendOrLockedPayments = (from pay in payments
-                                    select pay.Satoshis).Sum();
-
-        var sendOrLockedPaymentFeesMsat = (from pay in payments
-                                           select pay.FeeMsat).Sum();
-
-
-        var channelfundsAndNotConfirmed = GetExecutedTopupTotalAmount(0);
-
-        var earnedFromAcceptedInvoices = (from inv in invoices
-                                          where inv.State == InvoiceState.Accepted
-                                          select inv.Satoshis).Sum();
-
-        var lockedPayedout = (from a in walletContext.Value.Payouts
-                              where a.PublicKey == PublicKey
-                              && a.State != PayoutState.Sent
-                           && a.State != PayoutState.Failure
-                              select a.Satoshis).Sum();
-
-        var lockedPayedoutFee = (from a in walletContext.Value.Payouts
-                                 where a.PublicKey == PublicKey
-                                 && a.State != PayoutState.Sent
-                              && a.State != PayoutState.Failure
-                                 select a.PayoutFee).Sum();
-
-        var lockedPayments = (from pay in payments
-                              where pay.Status != PaymentStatus.Succeeded
-                              select pay.Satoshis).Sum();
-
-        var lockedPaymentFeesMsat = (from pay in payments
-                                     where pay.Status != PaymentStatus.Succeeded
-                                     select pay.FeeMsat).Sum();
-
-        var executedPayedous = (from a in walletContext.Value.Payouts
-                                where a.PublicKey == PublicKey
-                             && a.State != PayoutState.Failure
-                             && a.State != PayoutState.Open
-                                select a);
-
-        long totalTxFees = 0;
-        long sentTxFees = 0;
-        foreach (var pa in executedPayedous)
+        if (currency == "BTC")
         {
-            if (!string.IsNullOrEmpty(pa.Tx))
+            var channelfunds = GetExecutedTopupTotalAmount(6);
+            var payedout = (from a in walletContext.Value.Payouts
+                            where a.PublicKey == PublicKey
+                            && a.State != PayoutState.Failure
+                            select a.Satoshis).Sum();
+
+            var payedoutfee = (from a in walletContext.Value.Payouts
+                               where a.PublicKey == PublicKey
+                               && a.State != PayoutState.Failure
+                               select a.PayoutFee).Sum();
+
+            var invoices = ListInvoices(true, true);
+            var payments = ListNotFailedPayments();
+
+            var earnedFromSettledInvoices = (from inv in invoices
+                                             where inv.State == InvoiceState.Settled && inv.Currency == currency
+                                             select inv.Amount).Sum();
+
+            var sendOrLockedPayments = (from pay in payments 
+                                        where pay.Currency==currency
+                                        select pay.Amount).Sum();
+
+            var sendOrLockedPaymentFeesMsat = (from pay in payments
+                                               where pay.Currency == currency
+                                               select pay.FeeMsat).Sum();
+
+
+            var channelfundsAndNotConfirmed = GetExecutedTopupTotalAmount(0);
+
+            var earnedFromAcceptedInvoices = (from inv in invoices
+                                              where inv.State == InvoiceState.Accepted
+                                              && inv.Currency == currency   
+                                              select inv.Amount).Sum();
+
+            var lockedPayedout = (from a in walletContext.Value.Payouts
+                                  where a.PublicKey == PublicKey
+                                  && a.State != PayoutState.Sent
+                               && a.State != PayoutState.Failure
+                                  select a.Satoshis).Sum();
+
+            var lockedPayedoutFee = (from a in walletContext.Value.Payouts
+                                     where a.PublicKey == PublicKey
+                                     && a.State != PayoutState.Sent
+                                  && a.State != PayoutState.Failure
+                                     select a.PayoutFee).Sum();
+
+            var lockedPayments = (from pay in payments
+                                  where pay.Status != PaymentStatus.Succeeded
+                                  && pay.Currency == currency
+                                  select pay.Amount).Sum();
+
+            var lockedPaymentFeesMsat = (from pay in payments
+                                         where pay.Status != PaymentStatus.Succeeded
+                                         && pay.Currency == currency
+                                         select pay.FeeMsat).Sum();
+
+            var executedPayedous = (from a in walletContext.Value.Payouts
+                                    where a.PublicKey == PublicKey
+                                 && a.State != PayoutState.Failure
+                                 && a.State != PayoutState.Open
+                                    select a);
+
+            long totalTxFees = 0;
+            long sentTxFees = 0;
+            foreach (var pa in executedPayedous)
             {
-                var tx = LND.GetTransaction(this.lndConf, pa.Tx);
-                totalTxFees += tx.TotalFees;
-                if (pa.State == PayoutState.Sent)
-                    sentTxFees += tx.TotalFees;
+                if (!string.IsNullOrEmpty(pa.Tx))
+                {
+                    var tx = LND.GetTransaction(this.lndConf, pa.Tx);
+                    totalTxFees += tx.TotalFees;
+                    if (pa.State == PayoutState.Sent)
+                        sentTxFees += tx.TotalFees;
+                }
             }
+
+            return new AccountBalanceDetails
+            {
+                AvailableAmount = channelfunds - payedout + earnedFromSettledInvoices - sendOrLockedPayments - sendOrLockedPaymentFeesMsat / 1000,
+
+                TotalAmount = channelfundsAndNotConfirmed - payedout + earnedFromSettledInvoices + earnedFromAcceptedInvoices - sendOrLockedPayments - sendOrLockedPaymentFeesMsat / 1000,
+
+                TotalTopups = channelfundsAndNotConfirmed,
+                NotConfirmedTopups = channelfundsAndNotConfirmed - channelfunds,
+                TotalEarnings = earnedFromAcceptedInvoices + earnedFromSettledInvoices,
+                SettledEarnings = earnedFromSettledInvoices,
+
+                TotalPayments = -sendOrLockedPayments,
+                TotalPaymentFees = -sendOrLockedPaymentFeesMsat / 1000,
+
+                InFlightPayments = -lockedPayments,
+                InFlightPaymentFees = -lockedPaymentFeesMsat / 1000,
+
+                TotalPayouts = -payedout,
+                TotalPayoutFees = -payedoutfee,
+
+                InProgressPayouts = -lockedPayedout,
+                InProgressPayoutFees = -lockedPayedoutFee,
+
+                InProgressPayoutOnChainFees = -(totalTxFees - sentTxFees),
+                TotalPayoutOnChainFees = -(totalTxFees),
+            };
         }
-
-        return new AccountBalanceDetails
-        {
-            AvailableAmount = channelfunds - payedout + earnedFromSettledInvoices - sendOrLockedPayments - sendOrLockedPaymentFeesMsat / 1000,
-
-            TotalAmount = channelfundsAndNotConfirmed - payedout + earnedFromSettledInvoices + earnedFromAcceptedInvoices - sendOrLockedPayments - sendOrLockedPaymentFeesMsat / 1000,
-
-            TotalTopups = channelfundsAndNotConfirmed,
-            NotConfirmedTopups = channelfundsAndNotConfirmed - channelfunds,
-            TotalEarnings = earnedFromAcceptedInvoices + earnedFromSettledInvoices,
-            SettledEarnings = earnedFromSettledInvoices,
-
-            TotalPayments = -sendOrLockedPayments,
-            TotalPaymentFees = -sendOrLockedPaymentFeesMsat / 1000,
-
-            InFlightPayments = -lockedPayments,
-            InFlightPaymentFees = -lockedPaymentFeesMsat / 1000,
-
-            TotalPayouts = -payedout,
-            TotalPayoutFees = -payedoutfee,
-
-            InProgressPayouts = -lockedPayedout,
-            InProgressPayoutFees = -lockedPayedoutFee,
-
-            InProgressPayoutOnChainFees = -(totalTxFees - sentTxFees),
-            TotalPayoutOnChainFees = -(totalTxFees),
-        };
+        else
+            throw new NotImplementedException();
     }
 
 }
@@ -1371,6 +1556,7 @@ public class LNDWalletManager : LNDEventSource
 
     public BitcoinNode BitcoinNode;
     private LND.NodeSettings lndConf;
+    private StripeSettings stripeConf;
     private ThreadLocal<WaletContext> walletContext;
     private DBProvider provider;
     private string connectionString;
@@ -1384,13 +1570,14 @@ public class LNDWalletManager : LNDEventSource
     private ConcurrentDictionary<string, bool> alreadySubscribedSingleInvoices = new();
     private ConcurrentDictionary<string, CancellationTokenSource> alreadySubscribedSingleInvoicesTokenSources = new();
 
-    public LNDWalletManager(DBProvider provider, string connectionString, BitcoinNode bitcoinNode, LND.NodeSettings lndConf, string adminPubkey)
+    public LNDWalletManager(DBProvider provider, string connectionString, BitcoinNode bitcoinNode, LND.NodeSettings lndConf, StripeSettings stripeConf, string adminPubkey)
     {
         this.provider = provider;
         this.connectionString = connectionString;
         this.walletContext = new ThreadLocal<WaletContext>(() => new WaletContext(provider, connectionString));
         this.BitcoinNode = bitcoinNode;
         this.lndConf = lndConf;
+        this.stripeConf = stripeConf;
         this.adminPubkey = adminPubkey;
         walletContext.Value.Database.EnsureCreated();
     }
@@ -1478,21 +1665,7 @@ public class LNDWalletManager : LNDEventSource
             TraceEx.TraceInformation("SubscribeInvoices Thread Starting");
             var allInvs = new Dictionary<string, InvoiceRecord>(
                 from inv in LND.ListInvoices(lndConf).Invoices
-                select KeyValuePair.Create(inv.RHash.ToArray().AsHex(),
-                    new InvoiceRecord
-                    {
-                        PaymentHash = inv.RHash.ToArray().AsHex(),
-                        IsHodl = false,
-                        PaymentRequest = inv.PaymentRequest,
-                        Satoshis = inv.Value,
-                        State = (InvoiceState)inv.State,
-                        Memo = inv.Memo,
-                        PaymentAddr = inv.PaymentAddr.ToArray().AsHex(),
-                        CreationTime = DateTimeOffset.FromUnixTimeSeconds(inv.CreationDate).UtcDateTime,
-                        ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(inv.CreationDate).UtcDateTime.AddSeconds(inv.Expiry),
-                        SettleTime = DateTimeOffset.FromUnixTimeSeconds(inv.SettleDate).UtcDateTime,
-
-                    }));
+                select KeyValuePair.Create(inv.RHash.ToArray().AsHex(), LNDAccountManager.ParseInvoiceToInvoiceRecord(invoice: inv, isHodl: false)));
 
             var internalPayments = new HashSet<string>(from pay in walletContext.Value.InternalPayments
                                                        where pay.Status == InternalPaymentStatus.InFlight
@@ -1696,7 +1869,7 @@ public class LNDWalletManager : LNDEventSource
 
     public LNDAccountManager GetAccount(ECXOnlyPubKey pubkey)
     {
-        return new LNDAccountManager(lndConf, this.provider, this.connectionString, pubkey, this);
+        return new LNDAccountManager(lndConf, stripeConf, this.provider, this.connectionString, pubkey, this);
     }
 
     public bool HasAdminRights(string pubkey)
@@ -1989,20 +2162,7 @@ public class LNDWalletManager : LNDEventSource
             var allInvs = new Dictionary<string, InvoiceRecord>(
                        (from inv in LND.ListInvoices(lndConf).Invoices
                         select KeyValuePair.Create(inv.RHash.ToArray().AsHex(),
-                        new InvoiceRecord
-                        {
-                            PaymentHash = inv.RHash.ToArray().AsHex(),
-                            IsHodl = false,
-                            PaymentRequest = inv.PaymentRequest,
-                            Satoshis = inv.Value,
-                            State = (InvoiceState)inv.State,
-                            Memo = inv.Memo,
-                            PaymentAddr = inv.PaymentAddr.ToArray().AsHex(),
-                            CreationTime = DateTimeOffset.FromUnixTimeSeconds(inv.CreationDate).UtcDateTime,
-                            ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(inv.CreationDate).UtcDateTime.AddSeconds(inv.Expiry),
-                            SettleTime = DateTimeOffset.FromUnixTimeSeconds(inv.SettleDate).UtcDateTime,
-                        })));
-
+                        LNDAccountManager.ParseInvoiceToInvoiceRecord(invoice: inv, isHodl: false))));
 
             {
                 var internalPayments = (from pay in walletContext.Value.InternalPayments

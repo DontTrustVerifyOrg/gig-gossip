@@ -83,6 +83,7 @@ IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
 var config = GetConfigurationRoot(".giggossip", "wallet.conf");
 var walletSettings = config.GetSection("wallet").Get<WalletSettings>();
 var lndConf = config.GetSection("lnd").Get<LndSettings>();
+var stripeConf = config.GetSection("stripe").Get<StripeSettings>();
 BitcoinSettings btcConf = config.GetSection("bitcoin").Get<BitcoinSettings>();
 BitcoinNode bitcoinNode = new BitcoinNode(btcConf.AuthenticationString, btcConf.HostOrUri, btcConf.Network, btcConf.WalletName);
 
@@ -106,7 +107,7 @@ Singlethon.LNDWalletManager = new LNDWalletManager(
     Enum.Parse<DBProvider>(walletSettings.DBProvider),
     walletSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)),
     bitcoinNode,
-    lndConf,
+    lndConf, stripeConf,
     walletSettings.AdminPublicKey);
 
 Singlethon.LNDWalletManager.OnInvoiceStateChanged += (sender, e) =>
@@ -472,7 +473,7 @@ app.MapGet("/getbalance",(string authToken) =>
 {
     try
     {
-        return new Result<AccountBalanceDetails>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetBalance());
+        return new Result<AccountBalanceDetails>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetBalance("BTC"));
     }
     catch (Exception ex)
     {
@@ -645,6 +646,57 @@ app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, str
     g.Parameters[4].Description = "The expiration time for the payment request, in seconds. After this duration, the HODL invoice will no longer be valid for payment. Consider setting an appropriate duration based on the expected escrow period.";
     return g;
 });
+
+app.MapGet("/addfiatinvoice", async (string authToken, long cents, string currency, string memo, long expiry) =>
+{
+    try
+    {
+        return new Result<InvoiceRecord>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CreateNewClassicStripeInvoiceAsync(cents, currency, memo, expiry));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<InvoiceRecord>(ex);
+    }
+})
+.WithName("AddFiatInvoice")
+.WithSummary("Generate a new Fiat over Lightning Network invoice")
+.WithDescription("Creates and returns a new Fiat over Lightning Network invoice for receiving payments. This endpoint allows users to generate payment requests with customizable amount, memo, and expiration time. The created invoice can be shared with payers to facilitate Lightning Network transactions.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorization token for authentication and access control. This token, generated using Schnorr Signatures for secp256k1, encodes the user's public key and session identifier from the GetToken function.";
+    g.Parameters[1].Description = "The amount of the invoice in fiat currency cents. Must be a positive integer representing the exact payment amount requested.";
+    g.Parameters[2].Description = "The fiat currency code.";
+    g.Parameters[3].Description = "An optional memo or description for the invoice. This can be used to provide additional context or details about the payment to the payer. The memo will be included in the encoded payment request.";
+    g.Parameters[4].Description = "The expiration time for the payment request, in seconds. After this duration, the invoice will no longer be valid for payment.";
+    return g;
+});
+app.MapGet("/addfiathodlinvoice", async (string authToken, long cents, string currency, string hash, string memo, long expiry) =>
+{
+    try
+    {
+        return new Result<InvoiceRecord>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CreateNewHodlStripeInvoiceAsync(cents, currency, memo, hash.AsBytes(), expiry));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<InvoiceRecord>(ex);
+    }
+})
+.WithName("AddFiatHodlInvoice")
+.WithSummary("Generate a new Fiat over Lightning Network HODL invoice for escrow-like functionality")
+.WithDescription("Creates and returns a new Fiat over Lightning Network HODL invoice. HODL invoices enable escrow-like functionalities by allowing the recipient to claim the payment only when a specific preimage is revealed using the SettleInvoice method. This preimage must be provided by the payer or a trusted third party. This mechanism provides an additional layer of security and enables conditional payments in the Lightning Network, making it suitable for implementing escrow accounts and other advanced payment scenarios.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorization token for authentication and access control. This token, generated using Schnorr Signatures for secp256k1, encodes the user's public key and session identifier from the GetToken function.";
+    g.Parameters[1].Description = "The amount of the invoice in fiat currency cents. Must be a positive integer representing the exact payment amount requested.";
+    g.Parameters[2].Description = "The fiat currency code.";
+    g.Parameters[3].Description = "The SHA-256 hash of the preimage. The payer or a trusted third party must provide the corresponding preimage, which will be used with the SettleInvoice method to claim the payment, enabling escrow-like functionality.";
+    g.Parameters[4].Description = "An optional memo or description for the invoice. This can be used to provide additional context or details about the payment or escrow conditions to the payer. The memo will be included in the encoded payment request.";
+    g.Parameters[5].Description = "The expiration time for the payment request, in seconds. After this duration, the HODL invoice will no longer be valid for payment. Consider setting an appropriate duration based on the expected escrow period.";
+    return g;
+});
+
 
 app.MapGet("/decodeinvoice", (string authToken, string paymentRequest) =>
 {

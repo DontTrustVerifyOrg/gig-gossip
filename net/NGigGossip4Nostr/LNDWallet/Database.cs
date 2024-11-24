@@ -128,6 +128,11 @@ public class InternalPayment
     /// Fee charged for this payment. 
     /// </summary>
     public required long PaymentFee { get; set; }
+
+    public required DateTime CreationTime { get; set; }
+
+    public required string Currency { get; set; }   
+    public required long Amount { get; set; }
 }
 
 /// <summary>
@@ -219,6 +224,8 @@ public class Payout
     /// Bitcoin transaction identifier for the payout.
     /// </summary>
     public string? Tx { get; set; }
+
+    public required DateTime CreationTime { get; set; }
 }
 
 
