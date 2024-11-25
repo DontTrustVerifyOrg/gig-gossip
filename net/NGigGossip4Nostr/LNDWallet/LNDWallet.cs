@@ -1180,7 +1180,7 @@ public class LNDAccountManager
                         Memo = (string)memofields[2],
                         PaymentAddr = payReq.PaymentAddr.ToArray().AsHex(),
                         CreationTime = DateTimeOffset.FromUnixTimeSeconds(payReq.Timestamp).UtcDateTime,
-                        ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(payReq.Expiry).UtcDateTime.AddSeconds(payReq.Expiry),
+                        ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(payReq.Timestamp).UtcDateTime.AddSeconds(payReq.Expiry),
                     };
             }
             catch
@@ -1197,7 +1197,7 @@ public class LNDAccountManager
             Memo = payReq.Description,
             PaymentAddr = payReq.PaymentAddr.ToArray().AsHex(),
             CreationTime = DateTimeOffset.FromUnixTimeSeconds(payReq.Timestamp).UtcDateTime,
-            ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(payReq.Expiry).UtcDateTime.AddSeconds(payReq.Expiry),
+            ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(payReq.Timestamp).UtcDateTime.AddSeconds(payReq.Expiry),
         };
 
     }
