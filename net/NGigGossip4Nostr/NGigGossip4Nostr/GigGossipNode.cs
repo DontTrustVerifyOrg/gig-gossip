@@ -80,6 +80,7 @@ public class AcceptBroadcastResponse
     public required string [] Properties { get; set; }
     public required RideShareReply RideShareReply { get; set; }
     public required long Fee { get; set; }
+    public required string Currency { get; set; }
 }
 
 
@@ -694,7 +695,11 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                     var settlerClient = this.SettlerSelector.GetSettlerClient(acceptBroadcastResponse.SettlerServiceUri);
                     var authToken = await MakeSettlerAuthTokenAsync(acceptBroadcastResponse.SettlerServiceUri);
                     replyPaymentHash = SettlerAPIResult.Get<string>(await settlerClient.GenerateReplyPaymentPreimageAsync(authToken, broadcastFrame.JobRequest.Header.JobRequestId.AsGuid(), this.PublicKey, CancellationTokenSource.Token));
-                    var replyInvoice = WalletAPIResult.Get<InvoiceRecord>(await GetWalletClient().AddHodlInvoiceAsync(await MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)InvoicePaymentTimeout.TotalSeconds, cancellationToken)).PaymentRequest;
+                    string replyInvoice;
+                    if (acceptBroadcastResponse.Currency == "BTC")
+                        replyInvoice = WalletAPIResult.Get<InvoiceRecord>(await GetWalletClient().AddHodlInvoiceAsync(await MakeWalletAuthToken(), acceptBroadcastResponse.Fee, replyPaymentHash, "", (long)InvoicePaymentTimeout.TotalSeconds, cancellationToken)).PaymentRequest;
+                    else
+                        replyInvoice = WalletAPIResult.Get<InvoiceRecord>(await GetWalletClient().AddFiatHodlInvoiceAsync(await MakeWalletAuthToken(), acceptBroadcastResponse.Fee, acceptBroadcastResponse.Currency, replyPaymentHash, "", (long)InvoicePaymentTimeout.TotalSeconds, cancellationToken)).PaymentRequest;
                     TL.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), replyPaymentHash, "hash");
                     TL.NewMessage(this.PublicKey, replyPaymentHash, "create");
                     decodedReplyInvoice = WalletAPIResult.Get<PaymentRequestRecord>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), replyInvoice, cancellationToken));
