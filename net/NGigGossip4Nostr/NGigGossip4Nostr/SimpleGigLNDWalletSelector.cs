@@ -2,6 +2,8 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.SignalR.Client;
+using NetworkClientToolkit;
+using GigGossip;
 
 namespace NGigGossip4Nostr;
 
@@ -71,6 +73,35 @@ public class WalletAPILoggingWrapper : IWalletAPI
             throw;
         }
     }
+
+    public async Task<InvoiceRecordResult> AddFiatInvoiceAsync(string authToken, long cents, string currency, string memo, long expiry, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(cents,currency, memo, expiry);
+        try
+        {
+            return TL.Ret(await API.AddFiatInvoiceAsync(authToken, cents, currency, memo, expiry, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+    public async Task<InvoiceRecordResult> AddFiatHodlInvoiceAsync(string authToken, long cents, string currency, string hash, string memo, long expiry, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(cents, currency, hash, memo, expiry);
+        try
+        {
+            return TL.Ret(await API.AddFiatHodlInvoiceAsync(authToken, cents, currency, hash, memo, expiry, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
 
     public async Task<Result> CancelInvoiceAsync(string authToken, string paymenthash, CancellationToken cancellationToken)
     {
