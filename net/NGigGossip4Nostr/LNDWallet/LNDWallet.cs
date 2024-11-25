@@ -632,7 +632,7 @@ public class LNDAccountManager
     public async Task<InvoiceRecord> CreateNewHodlStripeInvoiceAsync(long totalCents, string currency, string memo, byte[] hash, long expiry)
     {
         var pi = await CreateStripePaymentIntentAsync(totalCents, currency);
-        var strMemo = JArray.FromObject(new object[] { totalCents, currency, memo, pi.Value.PaymentIntentId, pi.Value.ClientSecret }).ToString();
+        var strMemo = JArray.FromObject(new object[] { totalCents, currency, memo, pi.Value.ClientSecret }).ToString();
         return CreateNewHodlInvoice(0, strMemo, hash, expiry);
     }
 
@@ -705,7 +705,7 @@ public class LNDAccountManager
     public async Task<InvoiceRecord> CreateNewClassicStripeInvoiceAsync(long totalCents, string currency, string memo, long expiry)
     {
         var pi = await CreateStripePaymentIntentAsync(totalCents, currency);
-        var strMemo = JArray.FromObject(new object[] { totalCents,currency, memo, pi.Value.PaymentIntentId, pi.Value.ClientSecret }).ToString();
+        var strMemo = JArray.FromObject(new object[] { totalCents,currency, memo, pi.Value.ClientSecret }).ToString();
         return CreateNewClassicInvoice(0, strMemo, expiry);
     }
 
@@ -1125,7 +1125,7 @@ public class LNDAccountManager
             try
             {
                 var memofields = JArray.Parse(invoice.Memo).ToObject<object[]>();
-                if (memofields.Length == 5 && ((long?)memofields[0]) != null && memofields.Skip(1).All(x => (string)x != null))
+                if (memofields.Length == 4 && ((long?)memofields[0]) != null && memofields.Skip(1).All(x => (string)x != null))
                     return new InvoiceRecord
                     {
                         PaymentHash = invoice.RHash.ToArray().AsHex(),
@@ -1135,7 +1135,7 @@ public class LNDAccountManager
                         Currency = (string)memofields[1],
                         State = (InvoiceState)invoice.State,
                         Memo = (string)memofields[2],
-                        PaymentAddr = invoice.PaymentAddr.ToArray().AsHex(),
+                        PaymentAddr = (string)memofields[3],
                         CreationTime = DateTimeOffset.FromUnixTimeSeconds(invoice.CreationDate).UtcDateTime,
                         ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(invoice.CreationDate).UtcDateTime.AddSeconds(invoice.Expiry),
                         SettleTime = DateTimeOffset.FromUnixTimeSeconds(invoice.SettleDate).UtcDateTime,
@@ -1171,14 +1171,14 @@ public class LNDAccountManager
             try
             {
                 var memofields = JArray.Parse(payReq.Description).ToObject<object[]>();
-                if (memofields.Length == 5 && ((long?)memofields[0]) != null && memofields.Skip(1).All(x => (string)x != null))
+                if (memofields.Length == 4 && ((long?)memofields[0]) != null && memofields.Skip(1).All(x => (string)x != null))
                     return new PaymentRequestRecord
                     {
                         PaymentHash = payReq.PaymentHash,
                         Amount = (long)memofields[0],
                         Currency = (string)memofields[1],
                         Memo = (string)memofields[2],
-                        PaymentAddr = payReq.PaymentAddr.ToArray().AsHex(),
+                        PaymentAddr = (string)memofields[3],
                         CreationTime = DateTimeOffset.FromUnixTimeSeconds(payReq.Timestamp).UtcDateTime,
                         ExpiryTime = DateTimeOffset.FromUnixTimeSeconds(payReq.Timestamp).UtcDateTime.AddSeconds(payReq.Expiry),
                     };
@@ -1209,7 +1209,7 @@ public class LNDAccountManager
             try
             {
                 var memofields = JArray.Parse(payReq.Description).ToObject<object[]>();
-                if (memofields.Length == 5 && ((long?)memofields[0]) != null && memofields.Skip(1).All(x => (string)x != null))
+                if (memofields.Length == 4 && ((long?)memofields[0]) != null && memofields.Skip(1).All(x => (string)x != null))
                     return new PaymentRecord
                     {
                         PaymentHash = payReq.PaymentHash,
