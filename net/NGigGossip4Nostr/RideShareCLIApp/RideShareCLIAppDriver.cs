@@ -100,6 +100,7 @@ public partial class RideShareCLIApp
                             Properties = settings.NodeSettings.GetDriverProperties(),
                             RideShareReply = reply,
                             Fee = fee,
+                            Currency = "BTC",
                             SettlerServiceUri = settings.NodeSettings.SettlerOpenApi,
                         },
                         async (payReq) =>
