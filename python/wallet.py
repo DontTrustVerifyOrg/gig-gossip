@@ -268,7 +268,6 @@ class Wallet:
         """
         api_url = f"{self.base_url}/getbalance"
         response = requests.get(url=api_url, params={"authToken": self._create_authtoken()})
-        print(response.json())
         response.raise_for_status()
         return self.parse_response(response.json())
     
@@ -351,6 +350,30 @@ class Wallet:
         """
         api_url = f"{self.base_url}/addhodlinvoice"
         response = requests.get(url=api_url, params={"authToken": self._create_authtoken(), "satoshis": satoshis, "hash": hash, "memo": memo, "expiry": expiry})
+        response.raise_for_status()
+        return self.parse_response(response.json())
+
+    def addfiatinvoice(self, cents, currency, memo, expiry):
+        api_url = f"{self.base_url}/addfiatinvoice"
+        response = requests.get(url=api_url, params={"authToken": self._create_authtoken(), "cents": cents, "currency":currency, "memo": memo, "expiry": expiry})
+        response.raise_for_status()
+        return self.parse_response(response.json())
+
+    def addfiathodlinvoice(self,  cents, currency, hash: str, memo: str, expiry: int) -> Any:
+        """
+        Creates and returns a new Lightning Network HODL invoice. HODL invoices enable escrow-like functionalities by allowing the recipient to claim the payment only when a specific preimage is revealed using the SettleInvoice method. This preimage must be provided by the payer or a trusted third party. This mechanism provides an additional layer of security and enables conditional payments in the Lightning Network, making it suitable for implementing escrow accounts and other advanced payment scenarios.
+
+        Args:
+            satoshis: The amount of the invoice in satoshis (1 BTC = 100,000,000 satoshis). Must be a positive integer representing the exact payment amount requested.
+            hash: The SHA-256 hash of the preimage. The payer or a trusted third party must provide the corresponding preimage, which will be used with the SettleInvoice method to claim the payment, enabling escrow-like functionality.
+            memo: An optional memo or description for the invoice. This can be used to provide additional context or details about the payment or escrow conditions to the payer. The memo will be included in the encoded payment request.
+            expiry: The expiration time for the payment request, in seconds. After this duration, the HODL invoice will no longer be valid for payment. Consider setting an appropriate duration based on the expected escrow period.
+
+        Returns:
+            InvoiceRecordResult containing the created HODL invoice details
+        """
+        api_url = f"{self.base_url}/addhodlinvoice"
+        response = requests.get(url=api_url, params={"authToken": self._create_authtoken(), "cents": cents, "currency":currency, "hash": hash, "memo": memo, "expiry": expiry})
         response.raise_for_status()
         return self.parse_response(response.json())
 
