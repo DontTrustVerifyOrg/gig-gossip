@@ -632,7 +632,7 @@ public class LNDAccountManager
     public async Task<InvoiceRecord> CreateNewHodlStripeInvoiceAsync(long totalCents, string currency, string memo, byte[] hash, long expiry)
     {
         var pi = await CreateStripePaymentIntentAsync(totalCents, currency);
-        var strMemo = JArray.FromObject(new string[] { memo, pi.Value.PaymentIntentId, pi.Value.ClientSecret }).ToString();
+        var strMemo = JArray.FromObject(new object[] { totalCents, currency, memo, pi.Value.PaymentIntentId, pi.Value.ClientSecret }).ToString();
         return CreateNewHodlInvoice(0, strMemo, hash, expiry);
     }
 
@@ -705,7 +705,7 @@ public class LNDAccountManager
     public async Task<InvoiceRecord> CreateNewClassicStripeInvoiceAsync(long totalCents, string currency, string memo, long expiry)
     {
         var pi = await CreateStripePaymentIntentAsync(totalCents, currency);
-        var strMemo = JArray.FromObject(new string[] { memo, pi.Value.PaymentIntentId, pi.Value.ClientSecret }).ToString();
+        var strMemo = JArray.FromObject(new object[] { totalCents,currency, memo, pi.Value.PaymentIntentId, pi.Value.ClientSecret }).ToString();
         return CreateNewClassicInvoice(0, strMemo, expiry);
     }
 
