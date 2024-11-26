@@ -59,6 +59,7 @@ public enum PaymentFailureReason
     InvoiceAlreadyCancelled = 103,
     InvoiceAlreadyAccepted = 104,
     FeeLimitTooSmall = 105,
+    FiatNotPaidOrMismatched = 106,
 }
 
 [Serializable]
@@ -660,6 +661,14 @@ public class LNDAccountManager
         public string ClientSecret { get; set; }
     }
 
+    public struct PaymentIntentState
+    {
+        public string PaymentIntentId { get; set; }
+        public string Status { get; set; }
+        public long Amount { get; set; }
+        public string Currency { get; set; }
+    }
+
     public async Task<PaymentIntentResponse?> CreateStripePaymentIntentAsync(long cents, string currencyCode)
     {
         using var TL = TRACE.Log().Args(cents, currencyCode);
@@ -694,6 +703,38 @@ public class LNDAccountManager
                 ClientSecret = (string)responseJson["clientSecret"]
             };
             return paymentIntentResponse;
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+
+    public async Task<PaymentIntentState?> GetStripePaymentState(string clientSecret)
+    {
+        using var TL = TRACE.Log().Args(clientSecret);
+        try
+        {
+            var client = new HttpClient();
+
+            client.DefaultRequestHeaders.Add("X-Api-Key", stripeConf.StripeApiKey);
+
+
+            HttpResponseMessage response = await client.GetAsync(stripeConf.StripeApiUri + "payment-intent/" + clientSecret);
+            response.EnsureSuccessStatusCode();
+            string responseBody = await response.Content.ReadAsStringAsync();
+
+            JObject responseJson = JObject.Parse(responseBody);
+            PaymentIntentState paymentIntentState = new PaymentIntentState
+            {
+                PaymentIntentId = (string)responseJson["paymentIntentId"],
+                Status = (string)responseJson["status"],
+                Amount = (long)responseJson["amount"],
+                Currency = ((string)responseJson["currency"]).ToUpper(),
+            };
+            return paymentIntentState;
         }
         catch (Exception ex)
         {
@@ -810,10 +851,18 @@ public class LNDAccountManager
         return PaymentRecord.FromPaymentRequestRecord(payReq, PaymentStatus.Failed, reason, 0);
     }
 
+
+
     private async Task<PaymentRecord> SendPaymentAsyncTx(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction TX, string paymentRequest, int timeout, long ourRouteFeeSat, long feelimit)
     {
         var decinv = LND.DecodeInvoice(lndConf, paymentRequest);
         var paymentRequestRecord = ParsePayReqToPaymentRequestRecord(decinv);
+        if(paymentRequestRecord.Currency != "BTC")
+        {
+            var payst = await GetStripePaymentState(paymentRequestRecord.PaymentAddr);
+            if (!payst.HasValue || payst.Value.Currency!=paymentRequestRecord.Currency || payst.Value.Amount!=paymentRequestRecord.Amount || payst.Value.Status!= "succeeded")
+                return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.FiatNotPaidOrMismatched, false);
+        }
 
         var availableAmount = GetAccountBalance("BTC").AvailableAmount;
 
