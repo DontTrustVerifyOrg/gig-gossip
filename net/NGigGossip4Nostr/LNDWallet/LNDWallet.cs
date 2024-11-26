@@ -24,6 +24,7 @@ public enum InvoiceState
     Settled = 1,
     Cancelled = 2,
     Accepted = 3,
+    FiatNotPaid = 4,
 }
 
 [Serializable]
@@ -59,6 +60,7 @@ public enum PaymentFailureReason
     InvoiceAlreadyCancelled = 103,
     InvoiceAlreadyAccepted = 104,
     FeeLimitTooSmall = 105,
+    FiatNotPaidOrMismatched = 106,
 }
 
 [Serializable]
@@ -413,11 +415,11 @@ public class LNDAccountManager
         return newaddress;
     }
 
-    public Guid RegisterNewPayoutForExecution(long satoshis, string btcAddress)
+    public async Task<Guid> RegisterNewPayoutForExecutionAsync(long satoshis, string btcAddress)
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
-        var availableAmount = GetAccountBalance("BTC").AvailableAmount;
+        var availableAmount = (await GetAccountBalanceAsync("BTC")).AvailableAmount;
         if (availableAmount < satoshis)
             throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds); ;
 
@@ -660,6 +662,14 @@ public class LNDAccountManager
         public string ClientSecret { get; set; }
     }
 
+    public struct PaymentIntentState
+    {
+        public string PaymentIntentId { get; set; }
+        public string Status { get; set; }
+        public long Amount { get; set; }
+        public string Currency { get; set; }
+    }
+
     public async Task<PaymentIntentResponse?> CreateStripePaymentIntentAsync(long cents, string currencyCode)
     {
         using var TL = TRACE.Log().Args(cents, currencyCode);
@@ -694,6 +704,38 @@ public class LNDAccountManager
                 ClientSecret = (string)responseJson["clientSecret"]
             };
             return paymentIntentResponse;
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
+
+    public async Task<PaymentIntentState?> GetStripePaymentState(string clientSecret)
+    {
+        using var TL = TRACE.Log().Args(clientSecret);
+        try
+        {
+            var client = new HttpClient();
+
+            client.DefaultRequestHeaders.Add("X-Api-Key", stripeConf.StripeApiKey);
+
+
+            HttpResponseMessage response = await client.GetAsync(stripeConf.StripeApiUri + "payment-intent/" + clientSecret);
+            response.EnsureSuccessStatusCode();
+            string responseBody = await response.Content.ReadAsStringAsync();
+
+            JObject responseJson = JObject.Parse(responseBody);
+            PaymentIntentState paymentIntentState = new PaymentIntentState
+            {
+                PaymentIntentId = (string)responseJson["paymentIntentId"],
+                Status = (string)responseJson["status"],
+                Amount = (long)responseJson["amount"],
+                Currency = ((string)responseJson["currency"]).ToUpper(),
+            };
+            return paymentIntentState;
         }
         catch (Exception ex)
         {
@@ -810,12 +852,20 @@ public class LNDAccountManager
         return PaymentRecord.FromPaymentRequestRecord(payReq, PaymentStatus.Failed, reason, 0);
     }
 
+
+
     private async Task<PaymentRecord> SendPaymentAsyncTx(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction TX, string paymentRequest, int timeout, long ourRouteFeeSat, long feelimit)
     {
         var decinv = LND.DecodeInvoice(lndConf, paymentRequest);
         var paymentRequestRecord = ParsePayReqToPaymentRequestRecord(decinv);
+        if(paymentRequestRecord.Currency != "BTC")
+        {
+            var payst = await GetStripePaymentState(paymentRequestRecord.PaymentAddr);
+            if (!payst.HasValue || payst.Value.Currency!=paymentRequestRecord.Currency || payst.Value.Amount!=paymentRequestRecord.Amount || payst.Value.Status!= "succeeded")
+                return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.FiatNotPaidOrMismatched, false);
+        }
 
-        var availableAmount = GetAccountBalance("BTC").AvailableAmount;
+        var availableAmount = (await GetAccountBalanceAsync("BTC")).AvailableAmount;
 
         Invoice invoice = null;
         HodlInvoice? selfHodlInvoice = null;
@@ -998,7 +1048,7 @@ public class LNDAccountManager
         return await SendPaymentAsyncTx(TX, paymentRequest, timeout, ourRouteFeeSat, feelimit);
     }
 
-    public void SettleInvoice(byte[] preimage)
+    public async Task SettleInvoiceAsync(byte[] preimage)
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
@@ -1006,6 +1056,14 @@ public class LNDAccountManager
         var paymentHash = paymentHashBytes.AsHex();
 
         var invoice = LND.LookupInvoiceV2(lndConf, paymentHashBytes);
+
+        var paymentRequestRecord = ParseInvoiceToInvoiceRecord(invoice, true);
+        if (paymentRequestRecord.Currency != "BTC")
+        {
+            var payst = await GetStripePaymentState(paymentRequestRecord.PaymentAddr);
+            if (!payst.HasValue || payst.Value.Currency != paymentRequestRecord.Currency || payst.Value.Amount != paymentRequestRecord.Amount || payst.Value.Status != "succeeded")
+                throw new LNDWalletException(LNDWalletErrorCode.FiatNotPaidOrMismatched);
+        }
 
         HodlInvoice? selfHodlInvoice = (from inv in walletContext.Value.HodlInvoices
                                         where inv.PaymentHash == paymentHash && inv.PublicKey == PublicKey
@@ -1240,7 +1298,7 @@ public class LNDAccountManager
 
     }
 
-    public InvoiceRecord[] ListInvoices(bool includeClassic, bool includeHodl)
+    public async Task<InvoiceRecord[]> ListInvoicesAsync(bool includeClassic, bool includeHodl)
     {
         var allInvs = new Dictionary<string, InvoiceRecord>(
             (from inv in LND.ListInvoices(lndConf).Invoices
@@ -1279,7 +1337,14 @@ public class LNDAccountManager
             {
                 if (ret.ContainsKey(pay.PaymentHash))
                 {
-                    ret[pay.PaymentHash].State = (pay.Status == InternalPaymentStatus.InFlight) ? InvoiceState.Accepted : (pay.Status == InternalPaymentStatus.Succeeded ? InvoiceState.Settled : InvoiceState.Cancelled);
+                    if (pay.Currency != "BTC")
+                    {
+                        var payst = await GetStripePaymentState(ret[pay.PaymentHash].PaymentAddr);
+                        if (!payst.HasValue || payst.Value.Currency != pay.Currency || payst.Value.Amount != ret[pay.PaymentHash].Amount || payst.Value.Status != "succeeded")
+                            ret[pay.PaymentHash].State = InvoiceState.FiatNotPaid;
+                    }
+                    else
+                        ret[pay.PaymentHash].State = (pay.Status == InternalPaymentStatus.InFlight) ? InvoiceState.Accepted : (pay.Status == InternalPaymentStatus.Succeeded ? InvoiceState.Settled : InvoiceState.Cancelled);
                 }
             }
         }
@@ -1424,21 +1489,27 @@ public class LNDAccountManager
 
             TX.Commit();
             var ret = ParseInvoiceToInvoiceRecord(invoice, selfHodlInvoice != null);
+            if (ret.Currency != "BTC" && payment != null)
+            {
+                var payst = await GetStripePaymentState(ret.PaymentAddr);
+                if (!payst.HasValue || payst.Value.Currency != ret.Currency || payst.Value.Amount != ret.Amount || payst.Value.Status != "succeeded")
+                    ret.State = InvoiceState.FiatNotPaid;
+            }
             ret.State = payment == null ? (InvoiceState)invoice.State : (payment.Status == InternalPaymentStatus.InFlight ? InvoiceState.Accepted : InvoiceState.Settled);
             return ret;
         }
         throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
     }
 
-    public AccountBalanceDetails GetBalance(string currency)
+    public async Task<AccountBalanceDetails> GetBalanceAsync(string currency)
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
-        var bal = GetAccountBalance(currency);
+        var bal = (await GetAccountBalanceAsync(currency));
         TX.Commit();
         return bal;
     }
 
-    private AccountBalanceDetails GetAccountBalance(string currency)
+    private async Task<AccountBalanceDetails> GetAccountBalanceAsync(string currency)
     {
         if (currency == "BTC")
         {
@@ -1453,7 +1524,7 @@ public class LNDAccountManager
                                && a.State != PayoutState.Failure
                                select a.PayoutFee).Sum();
 
-            var invoices = ListInvoices(true, true);
+            var invoices = await ListInvoicesAsync(true, true);
             var payments = ListNotFailedPayments();
 
             var earnedFromSettledInvoices = (from inv in invoices
@@ -1611,7 +1682,10 @@ public class LNDWalletManager : LNDEventSource
                             while (await stream.ResponseStream.MoveNext(alreadySubscribedSingleInvoicesTokenSources[paymentHash].Token))
                             {
                                 var inv = stream.ResponseStream.Current;
-                                this.FireOnInvoiceStateChanged(pubkey, inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
+
+                                if (LNDAccountManager.ParseInvoiceToInvoiceRecord(inv, true).Currency == "BTC")
+                                    this.FireOnInvoiceStateChanged(pubkey, inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
+
                                 if (inv.State == Invoice.Types.InvoiceState.Settled || inv.State == Invoice.Types.InvoiceState.Canceled)
                                 {
                                     alreadySubscribedSingleInvoicesTokenSources.TryRemove(paymentHash, out _);
@@ -1714,9 +1788,12 @@ public class LNDWalletManager : LNDEventSource
                         if(pubkey==null)
                             continue;
 
-                        this.FireOnInvoiceStateChanged(pubkey, inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
-                        if (inv.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)
-                            SubscribeSingleInvoiceTracking(pubkey, inv.RHash.ToArray().AsHex());
+                        if (LNDAccountManager.ParseInvoiceToInvoiceRecord(inv, true).Currency == "BTC")
+                        {
+                            this.FireOnInvoiceStateChanged(pubkey, inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
+                            if (inv.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)
+                                SubscribeSingleInvoiceTracking(pubkey, inv.RHash.ToArray().AsHex());
+                        }
 
                         walletContext.Value.UPDATE(new TrackingIndex { Id = TackingIndexId.AddInvoice, Value = inv.AddIndex }).SAVE();
                         walletContext.Value.UPDATE(new TrackingIndex { Id = TackingIndexId.SettleInvoice, Value = inv.SettleIndex }).SAVE();

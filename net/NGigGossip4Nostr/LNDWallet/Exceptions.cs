@@ -52,6 +52,7 @@ public enum LNDWalletErrorCode
     /// Fee limit is smaller than our fee
     /// </summary>
     FeeLimitTooSmall = 14,
+    FiatNotPaidOrMismatched = 15
 }
 
 /// <summary>
@@ -74,6 +75,7 @@ public static class Extensions
         "Payout is already completed",
         "Operation failed",
         "Access Denied",
+        "Fiat payment not paid or mismatched",
      };
 
     /// <summary>
