@@ -469,11 +469,11 @@ app.MapGet("/estimatefee", (string authToken, string address, long satoshis) =>
     return g;
 });
 
-app.MapGet("/getbalance",(string authToken) =>
+app.MapGet("/getbalance",async (string authToken) =>
 {
     try
     {
-        return new Result<AccountBalanceDetails>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetBalance("BTC"));
+        return new Result<AccountBalanceDetails>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetBalanceAsync("BTC"));
     }
     catch (Exception ex)
     {
@@ -532,11 +532,11 @@ app.MapGet("/listtransactions", (string authToken) =>
     return g;
 });
 
-app.MapGet("/registerpayout", (string authToken, long satoshis, string btcAddress) =>
+app.MapGet("/registerpayout", async (string authToken, long satoshis, string btcAddress) =>
 {
     try
     {
-        return new Result<Guid>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).RegisterNewPayoutForExecution(satoshis, btcAddress));
+        return new Result<Guid>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).RegisterNewPayoutForExecutionAsync(satoshis, btcAddress));
     }
     catch(Exception ex) 
     {
@@ -796,11 +796,11 @@ app.MapGet("/estimateroutefee", (string authToken, string paymentrequest, int ti
 })
 .DisableAntiforgery();
 
-app.MapGet("/settleinvoice", (string authToken, string preimage) =>
+app.MapGet("/settleinvoice", async (string authToken, string preimage) =>
 {
     try
     {
-        Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SettleInvoice(preimage.AsBytes());
+        await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SettleInvoiceAsync(preimage.AsBytes());
         return new Result();
     }
     catch (Exception ex)
@@ -867,11 +867,11 @@ app.MapGet("/getinvoice", async (string authToken, string paymenthash) =>
 })
 .DisableAntiforgery();
 
-app.MapGet("/listinvoices", (string authToken) =>
+app.MapGet("/listinvoices", async (string authToken) =>
 {
     try
     {
-        return new Result<InvoiceRecord[]>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).ListInvoices(true,true));
+        return new Result<InvoiceRecord[]>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).ListInvoicesAsync(true,true));
     }
     catch (Exception ex)
     {
