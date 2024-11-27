@@ -1650,7 +1650,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -1715,6 +1716,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -1964,7 +1969,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -2029,6 +2035,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -2249,7 +2259,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -2314,6 +2325,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -2504,7 +2519,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -2569,6 +2585,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -2612,7 +2632,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -2677,6 +2698,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -2716,7 +2741,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -2781,6 +2807,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -2895,7 +2925,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -2960,6 +2991,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -3028,7 +3063,8 @@
               "Open",
               "Settled",
               "Cancelled",
-              "Accepted"
+              "Accepted",
+              "FiatNotPaid"
             ],
             "x-ms-enum": {
               "name": "InvoiceState",
@@ -3049,6 +3085,10 @@
                 {
                   "value": 3,
                   "name": "Accepted"
+                },
+                {
+                  "value": 4,
+                  "name": "FiatNotPaid"
                 }
               ]
             }
@@ -3095,7 +3135,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -3160,6 +3201,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -3203,7 +3248,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -3268,6 +3314,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -3284,7 +3334,8 @@
           0,
           1,
           2,
-          3
+          3,
+          4
         ],
         "type": "integer",
         "format": "int32",
@@ -3292,7 +3343,8 @@
           "Open",
           "Settled",
           "Cancelled",
-          "Accepted"
+          "Accepted",
+          "FiatNotPaid"
         ],
         "x-ms-enum": {
           "name": "InvoiceState",
@@ -3313,6 +3365,10 @@
             {
               "value": 3,
               "name": "Accepted"
+            },
+            {
+              "value": 4,
+              "name": "FiatNotPaid"
             }
           ]
         }
@@ -3338,7 +3394,8 @@
               "Open",
               "Settled",
               "Cancelled",
-              "Accepted"
+              "Accepted",
+              "FiatNotPaid"
             ],
             "x-ms-enum": {
               "name": "InvoiceState",
@@ -3359,6 +3416,10 @@
                 {
                   "value": 3,
                   "name": "Accepted"
+                },
+                {
+                  "value": 4,
+                  "name": "FiatNotPaid"
                 }
               ]
             }
@@ -3382,7 +3443,8 @@
           11,
           12,
           13,
-          14
+          14,
+          15
         ],
         "type": "integer",
         "format": "int32",
@@ -3401,7 +3463,8 @@
           "PayoutAlreadySent",
           "OperationFailed",
           "AccessDenied",
-          "FeeLimitTooSmall"
+          "FeeLimitTooSmall",
+          "FiatNotPaidOrMismatched"
         ],
         "x-ms-enum": {
           "name": "LNDWalletErrorCode",
@@ -3466,6 +3529,10 @@
             {
               "value": 14,
               "name": "FeeLimitTooSmall"
+            },
+            {
+              "value": 15,
+              "name": "FiatNotPaidOrMismatched"
             }
           ]
         }
@@ -3527,7 +3594,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -3592,6 +3660,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -3666,7 +3738,8 @@
           102,
           103,
           104,
-          105
+          105,
+          106
         ],
         "type": "integer",
         "format": "int32",
@@ -3682,7 +3755,8 @@
           "InvoiceAlreadySettled",
           "InvoiceAlreadyCancelled",
           "InvoiceAlreadyAccepted",
-          "FeeLimitTooSmall"
+          "FeeLimitTooSmall",
+          "FiatNotPaidOrMismatched"
         ],
         "x-ms-enum": {
           "name": "PaymentFailureReason",
@@ -3735,6 +3809,10 @@
             {
               "value": 105,
               "name": "FeeLimitTooSmall"
+            },
+            {
+              "value": 106,
+              "name": "FiatNotPaidOrMismatched"
             }
           ]
         }
@@ -3808,7 +3886,8 @@
               "InvoiceAlreadySettled",
               "InvoiceAlreadyCancelled",
               "InvoiceAlreadyAccepted",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "PaymentFailureReason",
@@ -3861,6 +3940,10 @@
                 {
                   "value": 105,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 106,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -3915,7 +3998,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -3980,6 +4064,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -4023,7 +4111,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -4088,6 +4177,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -4174,7 +4267,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -4239,6 +4333,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -4353,7 +4451,8 @@
               "InvoiceAlreadySettled",
               "InvoiceAlreadyCancelled",
               "InvoiceAlreadyAccepted",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "PaymentFailureReason",
@@ -4406,6 +4505,10 @@
                 {
                   "value": 105,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 106,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -4523,7 +4626,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -4588,6 +4692,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -4631,7 +4739,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -4696,6 +4805,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -5028,7 +5141,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -5093,6 +5207,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -5138,7 +5256,8 @@
               "InvoiceAlreadySettled",
               "InvoiceAlreadyCancelled",
               "InvoiceAlreadyAccepted",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "PaymentFailureReason",
@@ -5191,6 +5310,10 @@
                 {
                   "value": 105,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 106,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -5230,7 +5353,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -5295,6 +5419,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -5334,7 +5462,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -5399,6 +5528,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
@@ -5474,7 +5607,8 @@
               "PayoutAlreadySent",
               "OperationFailed",
               "AccessDenied",
-              "FeeLimitTooSmall"
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
             ],
             "x-ms-enum": {
               "name": "LNDWalletErrorCode",
@@ -5539,6 +5673,10 @@
                 {
                   "value": 14,
                   "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
                 }
               ]
             }
