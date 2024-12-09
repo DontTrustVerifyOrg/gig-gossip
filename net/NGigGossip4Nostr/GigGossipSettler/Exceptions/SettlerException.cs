@@ -30,6 +30,8 @@ public enum SettlerErrorCode
     NotFound = 7,
 
     InvoiceProblem =8,
+
+    NotSupportedCountryCurrencyPair = 9,
 }
 
 public static class SettlerErrorCodeExtensions
@@ -43,7 +45,8 @@ public static class SettlerErrorCodeExtensions
         "Operation failed",
         "Access Denied",
         "Not Found",
-        "Problem with invoice"
+        "Problem with invoice",
+        "Country currency pair is not supported"
     };
 
     /// <summary>
