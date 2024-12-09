@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using NetworkClientToolkit;
 using GigGossip;
 using Google.Protobuf.WellKnownTypes;
+using GoogleApi.Interfaces;
 
 namespace NGigGossip4Nostr;
 
@@ -73,7 +74,22 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public string BaseUrl => API.BaseUrl;
     public IRetryPolicy RetryPolicy => API.RetryPolicy;
- 
+
+
+    public async Task<CaPricingResult> GetCaPricingAsync(string country, string currency, System.Threading.CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(country, currency);
+        try
+        {
+            return TL.Ret(await API.GetCaPricingAsync(country, currency, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
     public async Task<GigGossipSettlerAPIClient.StringResult> GetCaPublicKeyAsync(CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log();
