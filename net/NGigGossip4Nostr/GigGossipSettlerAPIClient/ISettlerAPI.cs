@@ -14,6 +14,7 @@ public interface ISettlerAPI
     string BaseUrl { get; }
     IRetryPolicy RetryPolicy { get; }
 
+    Task<CaPricingResult> GetCaPricingAsync(string country, string currency, System.Threading.CancellationToken cancellationToken);
     Task<StringResult> GetCaPublicKeyAsync(CancellationToken cancellationToken);
     Task<BooleanResult> IsCertificateRevokedAsync(System.Guid certid, CancellationToken cancellationToken);
     Task<GuidResult> GetTokenAsync(string pubkey, CancellationToken cancellationToken);
@@ -93,6 +94,11 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
     public IPreimageRevealClient CreatePreimageRevealClient()
     {
         return api.CreatePreimageRevealClient();
+    }
+
+    public async Task<CaPricingResult> GetCaPricingAsync(string country, string currency, System.Threading.CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.GetCaPricingAsync(country, currency, cancellationToken));
     }
 
     public async Task<StringResult> GetCaPublicKeyAsync(CancellationToken cancellationToken)
