@@ -19,6 +19,16 @@ using System.Text;
 
 namespace GigGossipSettler;
 
+
+[Serializable]
+public struct CaPricing
+{
+    public string CountryCode { get; set; }
+    public string Currency { get; set; }
+    public long ChargeMiliPercent { get; set; }
+    public long ChargeFlatCents { get; set; }
+}
+
 [Serializable]
 public class PreimageReveal
 {
@@ -92,22 +102,22 @@ public class Settler : CertificationAuthority
 
     private TimeSpan invoicePaymentTimeout;
     public TimeSpan disputeTimeout;
-    private long priceAmountForSettlement;
     public IWalletAPI lndWalletClient;
     private InvoiceStateUpdatesMonitor _invoiceStateUpdatesMonitor;
     private Guid walletTokenGuid;
     public ThreadLocal<SettlerContext> settlerContext;
     private IScheduler scheduler;
     private ISettlerSelector settlerSelector;
+    Dictionary<(string, string), CaPricing> pricings;
 
     private string adminPubkey;
     private CancellationTokenSource CancellationTokenSource = new();
 
     public IRetryPolicy RetryPolicy;
 
-    public Settler(Uri serviceUri, ISettlerSelector settlerSelector, ECPrivKey settlerPrivateKey, long priceAmountForSettlement, TimeSpan invoicePaymentTimeout, TimeSpan disputeTimeout, IRetryPolicy retryPolicy, string firebaseAdminConfBase64) : base(serviceUri, settlerPrivateKey)
+    public Settler(Uri serviceUri, ISettlerSelector settlerSelector, ECPrivKey settlerPrivateKey, Dictionary<(string, string), CaPricing> pricings, TimeSpan invoicePaymentTimeout, TimeSpan disputeTimeout, IRetryPolicy retryPolicy, string firebaseAdminConfBase64) : base(serviceUri, settlerPrivateKey)
     {
-        this.priceAmountForSettlement = priceAmountForSettlement;
+        this.pricings = pricings;
         this.invoicePaymentTimeout = invoicePaymentTimeout;
         this.disputeTimeout = disputeTimeout;
         this.settlerSelector = settlerSelector;
@@ -447,6 +457,12 @@ public class Settler : CertificationAuthority
     public async Task<SettlementTrust> GenerateSettlementTrustAsync(string replierpubkey, string[] replierproperties, Reply reply, string replyInvoice, JobRequest signedRequestPayload)
     {
         var decodedInv = WalletAPIResult.Get<PaymentRequestRecord>(await lndWalletClient.DecodeInvoiceAsync(MakeAuthToken(), replyInvoice, CancellationTokenSource.Token));
+
+        if(!this.pricings.ContainsKey((signedRequestPayload.Header.RideShare.Country, decodedInv.Currency)))
+            throw new SettlerException(Exceptions.SettlerErrorCode.NotSupportedCountryCurrencyPair);
+
+        var priceing = this.pricings[(signedRequestPayload.Header.RideShare.Country, decodedInv.Currency)];
+
         var invPaymentHash = decodedInv.PaymentHash;
         if ((from pi in settlerContext.Value.Preimages where pi.SignedRequestPayloadId == signedRequestPayload.Header.JobRequestId.AsGuid() && pi.PaymentHash == invPaymentHash select pi).FirstOrDefault() == null)
             throw new UnknownPreimageException();
@@ -478,9 +494,13 @@ public class Settler : CertificationAuthority
             Signature = this.Sign(jobReplyHeader),
         };
 
+        var netinvamount = decodedInv.Currency == "BTC" ? (priceing.ChargeFlatCents + ((decimal)priceing.ChargeMiliPercent * (decimal)decodedInv.Amount) / 1000) : 0;
+
         var networkInvoicePaymentHash = GenerateReplyPaymentPreimage(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.Header.JobRequestId.AsGuid(), replierpubkey);
         var networkInvoice = WalletAPIResult.Get<InvoiceRecord>(await lndWalletClient.AddHodlInvoiceAsync(
-             MakeAuthToken(), decodedInv.Currency == "BTC" ? priceAmountForSettlement:0, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds, CancellationTokenSource.Token));
+             MakeAuthToken(), (long)netinvamount, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds, CancellationTokenSource.Token));
+
+
 
         settlerContext.Value
             .INSERT(new Gig()

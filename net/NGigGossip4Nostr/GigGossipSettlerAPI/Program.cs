@@ -35,6 +35,8 @@ using Microsoft.OpenApi.Writers;
 using System.Text.Json;
 using Enum = System.Enum;
 using Type = System.Type;
+using System.Text.Json.Nodes;
+using System;
 
 #pragma warning disable 1591
 
@@ -94,6 +96,13 @@ IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
 var config = GetConfigurationRoot(".giggossip", "settler.conf");
 var settlerSettings = config.GetSection("settler").Get<SettlerSettings>();
 
+Dictionary<(string, string), CaPricing> pricings = new();
+foreach (var prcname in settlerSettings.GetPricings())
+{
+    var prc = config.GetSection(prcname).Get<CaPricing>();
+    pricings.Add((prc.CountryCode, prc.Currency), prc);
+}
+
 ECPrivKey caPrivateKey = settlerSettings.SettlerPrivateKey.AsECPrivKey();
 
 var httpClient = new HttpClient();
@@ -103,7 +112,7 @@ var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.Absolut
 Singlethon.Settler = new Settler(
     settlerSettings.ServiceUri, 
     new SimpleSettlerSelector(httpClient, retryPolicy),
-    caPrivateKey, settlerSettings.PriceAmountForSettlement,
+    caPrivateKey, pricings,
     TimeSpan.FromSeconds(settlerSettings.InvoicePaymentTimeoutSec),
     TimeSpan.FromSeconds(settlerSettings.DisputeTimeoutSec),
     new DefaultRetryPolicy(),
@@ -132,6 +141,32 @@ Singlethon.Settler.OnPreimageReveal+= (sender, e) =>
 await Singlethon.Settler.StartAsync();
 
 TraceEx.TraceInformation("... Running");
+
+app.MapGet("/getcapricing", (string country, string currency) =>
+{
+    try
+    {
+        if (!pricings.ContainsKey((country, currency)))
+            throw new SettlerException(SettlerErrorCode.NotSupportedCountryCurrencyPair);
+
+        return new Result<CaPricing>(pricings[(country, currency)]);
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<CaPricing>(ex);
+    }
+})
+.WithName("GetCaPricing")
+.WithSummary("Get pricing for specific country and currency")
+.WithDescription("Returns the pricing details for a specific country and currency.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Country";
+    g.Parameters[1].Description = "Currency";
+    return g;
+}).DisableAntiforgery();
+
 
 app.MapGet("/getcapublickey", () =>
 {
@@ -1149,6 +1184,7 @@ public struct Result<T>
     public string ErrorMessage { get; set; } = "";
 }
 
+
 [Serializable]
 public struct GeolocationRet
 {
@@ -1169,7 +1205,6 @@ public class SettlerSettings
     public required Uri ListenHost { get; set; }
     public required Uri ServiceUri { get; set; }
     public required Uri GigWalletOpenApi { get; set; }
-    public required long PriceAmountForSettlement { get; set; }
     public required string DBProvider { get; set; }
     public required string ConnectionString { get; set; }
     public required string SettlerPrivateKey { get; set; }
@@ -1181,6 +1216,12 @@ public class SettlerSettings
     public required string SMSGlobalAPIKeySecret { get; set; }
     public required int SMSCodeRetryNumber { get; set; }
     public required int SMSCodeTimeoutMin { get; set; }
+    public required string Princings { get; set; }
+
+    public List<string> GetPricings()
+    {
+        return (from s in JsonArray.Parse(Princings).AsArray() select s.GetValue<string>()).ToList();
+    }
 }
 
 public sealed class DefaultRetryPolicy : IRetryPolicy
