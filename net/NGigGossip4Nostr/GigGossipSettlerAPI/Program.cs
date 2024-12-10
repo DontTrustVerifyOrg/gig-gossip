@@ -146,7 +146,7 @@ app.MapGet("/getcapricing", (string country, string currency) =>
 {
     try
     {
-        if (!pricings.ContainsKey((country, currency)))
+        if (!pricings.ContainsKey((country.ToUpper(), currency.ToUpper())))
             throw new SettlerException(SettlerErrorCode.NotSupportedCountryCurrencyPair);
 
         return new Result<CaPricing>(pricings[(country, currency)]);

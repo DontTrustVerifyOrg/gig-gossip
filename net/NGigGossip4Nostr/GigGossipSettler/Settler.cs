@@ -494,7 +494,7 @@ public class Settler : CertificationAuthority
             Signature = this.Sign(jobReplyHeader),
         };
 
-        var netinvamount = decodedInv.Currency == "BTC" ? (priceing.ChargeFlatCents + ((decimal)priceing.ChargeMiliPercent * (decimal)decodedInv.Amount) / 1000) : 0;
+        var netinvamount = decodedInv.Currency == "BTC" ? (priceing.ChargeFlatCents + ((decimal)priceing.ChargeMiliPercent * (decimal)decodedInv.Amount) / 100000) : 0;
 
         var networkInvoicePaymentHash = GenerateReplyPaymentPreimage(this.CaXOnlyPublicKey.AsHex(), signedRequestPayload.Header.JobRequestId.AsGuid(), replierpubkey);
         var networkInvoice = WalletAPIResult.Get<InvoiceRecord>(await lndWalletClient.AddHodlInvoiceAsync(
