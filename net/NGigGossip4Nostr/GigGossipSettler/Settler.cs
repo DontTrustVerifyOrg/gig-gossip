@@ -458,10 +458,10 @@ public class Settler : CertificationAuthority
     {
         var decodedInv = WalletAPIResult.Get<PaymentRequestRecord>(await lndWalletClient.DecodeInvoiceAsync(MakeAuthToken(), replyInvoice, CancellationTokenSource.Token));
 
-        if(!this.pricings.ContainsKey((signedRequestPayload.Header.RideShare.Country, decodedInv.Currency)))
+        if(!this.pricings.ContainsKey((signedRequestPayload.Header.RideShare.Country.ToUpper(), decodedInv.Currency.ToUpper())))
             throw new SettlerException(Exceptions.SettlerErrorCode.NotSupportedCountryCurrencyPair);
 
-        var priceing = this.pricings[(signedRequestPayload.Header.RideShare.Country, decodedInv.Currency)];
+        var priceing = this.pricings[(signedRequestPayload.Header.RideShare.Country.ToUpper(), decodedInv.Currency.ToUpper())];
 
         var invPaymentHash = decodedInv.PaymentHash;
         if ((from pi in settlerContext.Value.Preimages where pi.SignedRequestPayloadId == signedRequestPayload.Header.JobRequestId.AsGuid() && pi.PaymentHash == invPaymentHash select pi).FirstOrDefault() == null)
