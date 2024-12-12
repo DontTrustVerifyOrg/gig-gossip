@@ -750,9 +750,9 @@ app.MapGet("/verifychannel", async (string authToken, string pubkey, string name
             var code = Random.Shared.NextInt64(999999).ToString("000000");
             var resp = await client.SMS.SMSSend(new
             {
-                origin = "Fairide",
+                origin = "GoHyper",
                 destination = value,
-                message = "Welcome to Fairide Security Center, your verification code is " + code + ". Use this to complete your registration.",
+                message = "Welcome to GoHyper Security Center, your verification code is " + code + ". Use this to complete your registration.",
             });
             if (resp.statuscode != 200)
                 throw new InvalidOperationException("SMS sending failed");
