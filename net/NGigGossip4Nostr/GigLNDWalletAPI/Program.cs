@@ -473,7 +473,7 @@ app.MapGet("/getbalance",async (string authToken) =>
 {
     try
     {
-        return new Result<AccountBalanceDetails>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetBalanceAsync("BTC"));
+        return new Result<AccountBalanceDetails>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetBalanceAsync());
     }
     catch (Exception ex)
     {
