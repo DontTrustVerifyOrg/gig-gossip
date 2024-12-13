@@ -490,6 +490,28 @@ app.MapGet("/getbalance",async (string authToken) =>
     return g;
 });
 
+app.MapGet("/getfiatbalance", async (string authToken,string currency) =>
+{
+    try
+    {
+        return new Result<AccountFiatBalanceDetails>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).GetFiatBalanceAsync(currency));
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<AccountFiatBalanceDetails>(ex);
+    }
+})
+.WithName("GetFiatBalance")
+.WithSummary("Retrieve the current balance of the user's fiat account")
+.WithDescription("This endpoint provides detailed information about the user's fiat account balance. The balance is returned as an AccountFiatBalanceDetails object, which includes the total balance, available balance, and any pending transactions. All amounts are in cents related to the specified currency. ")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorization token for authentication and access control. This token, generated using Schnorr Signatures for secp256k1, encodes the user's public key and session identifier from the GetToken function.";
+    g.Parameters[1].Description = "The fiat currency code.";
+    return g;
+});
+
 app.MapGet("/newaddress", (string authToken) =>
 {
     try
@@ -671,6 +693,7 @@ app.MapGet("/addfiatinvoice", async (string authToken, long cents, string curren
     g.Parameters[4].Description = "The expiration time for the payment request, in seconds. After this duration, the invoice will no longer be valid for payment.";
     return g;
 });
+
 app.MapGet("/addfiathodlinvoice", async (string authToken, long cents, string currency, string hash, string memo, long expiry) =>
 {
     try
