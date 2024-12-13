@@ -573,6 +573,48 @@
         }
       }
     },
+    "/getfiatbalance": {
+      "get": {
+        "tags": [
+          "GigLNDWalletAPI"
+        ],
+        "summary": "Retrieve the current balance of the user's fiat account",
+        "description": "This endpoint provides detailed information about the user's fiat account balance. The balance is returned as an AccountFiatBalanceDetails object, which includes the total balance, available balance, and any pending transactions. All amounts are in cents related to the specified currency. ",
+        "operationId": "GetFiatBalance",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorization token for authentication and access control. This token, generated using Schnorr Signatures for secp256k1, encodes the user's public key and session identifier from the GetToken function.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "description": "The fiat currency code.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountFiatBalanceDetailsResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/newaddress": {
       "get": {
         "tags": [
@@ -1625,6 +1667,147 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/AccountBalanceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "errorCode": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LNDWalletErrorCode"
+              }
+            ],
+            "x-enumNames": [
+              "Ok",
+              "InvalidToken",
+              "NotEnoughFunds",
+              "UnknownPayment",
+              "UnknownInvoice",
+              "InvoiceAlreadyCancelled",
+              "InvoiceAlreadyAccepted",
+              "InvoiceAlreadySettled",
+              "InvoiceNotAccepted",
+              "AlreadyPayed",
+              "PayoutNotOpened",
+              "PayoutAlreadySent",
+              "OperationFailed",
+              "AccessDenied",
+              "FeeLimitTooSmall",
+              "FiatNotPaidOrMismatched"
+            ],
+            "x-ms-enum": {
+              "name": "LNDWalletErrorCode",
+              "modelAsString": false,
+              "values": [
+                {
+                  "value": 0,
+                  "name": "Ok"
+                },
+                {
+                  "value": 1,
+                  "name": "InvalidToken"
+                },
+                {
+                  "value": 2,
+                  "name": "NotEnoughFunds"
+                },
+                {
+                  "value": 3,
+                  "name": "UnknownPayment"
+                },
+                {
+                  "value": 4,
+                  "name": "UnknownInvoice"
+                },
+                {
+                  "value": 5,
+                  "name": "InvoiceAlreadyCancelled"
+                },
+                {
+                  "value": 6,
+                  "name": "InvoiceAlreadyAccepted"
+                },
+                {
+                  "value": 7,
+                  "name": "InvoiceAlreadySettled"
+                },
+                {
+                  "value": 8,
+                  "name": "InvoiceNotAccepted"
+                },
+                {
+                  "value": 9,
+                  "name": "AlreadyPayed"
+                },
+                {
+                  "value": 10,
+                  "name": "PayoutNotOpened"
+                },
+                {
+                  "value": 11,
+                  "name": "PayoutAlreadySent"
+                },
+                {
+                  "value": 12,
+                  "name": "OperationFailed"
+                },
+                {
+                  "value": 13,
+                  "name": "AccessDenied"
+                },
+                {
+                  "value": 14,
+                  "name": "FeeLimitTooSmall"
+                },
+                {
+                  "value": 15,
+                  "name": "FiatNotPaidOrMismatched"
+                }
+              ]
+            }
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AccountFiatBalanceDetails": {
+        "required": [
+          "inProgressPayouts",
+          "settledEarnings",
+          "totalEarnings",
+          "totalPayouts"
+        ],
+        "type": "object",
+        "properties": {
+          "settledEarnings": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalEarnings": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPayouts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "inProgressPayouts": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AccountFiatBalanceDetailsResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccountFiatBalanceDetails"
               }
             ],
             "nullable": true
