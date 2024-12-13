@@ -247,6 +247,32 @@ public class AccountBalanceDetails
     public required long InProgressPayoutFees { get; set; }
 }
 
+
+
+[Serializable]
+public class AccountFiatBalanceDetails
+{
+    /// <summary>
+    /// Amount of earning from settled invoices
+    /// </summary>
+    public required long SettledEarnings { get; set; }
+
+    /// <summary>
+    /// Amount on accepted invoices including these that are still not Settled (they can be Cancelled or Settled in the future)
+    /// </summary>
+    public required long TotalEarnings { get; set; }
+
+    /// <summary>
+    /// Amount of locked payouts that including these that are in progress
+    /// </summary>
+    public required long TotalPayouts { get; set; }
+
+    /// <summary>
+    /// Amount that is locked in the system for the payouts that are still in progress 
+    /// </summary>
+    public required long InProgressPayouts { get; set; }
+}
+
 [Serializable]
 public class InvoiceStateChange
 {
@@ -693,7 +719,7 @@ public class LNDAccountManager
             client.DefaultRequestHeaders.Add("X-Api-Key", stripeConf.StripeApiKey);
 
 
-            HttpResponseMessage response = await client.PostAsync(stripeConf.StripeApiUri+ "payment-intent", requestContent);
+            HttpResponseMessage response = await client.PostAsync(stripeConf.StripeApiUri + "payment-intent", requestContent);
             response.EnsureSuccessStatusCode();
             string responseBody = await response.Content.ReadAsStringAsync();
 
@@ -732,7 +758,7 @@ public class LNDAccountManager
             {
                 PaymentIntentId = (string)responseJson["paymentIntentId"],
                 Status = (string)responseJson["status"],
-                Amount = (long)responseJson["amount"],
+                Amount = (long)responseJson["totalCents"],
                 Currency = ((string)responseJson["currency"]).ToUpper(),
             };
             return paymentIntentState;
@@ -744,10 +770,39 @@ public class LNDAccountManager
         }
     }
 
+    public async Task<long> GetPendingBalance(string currency)
+    {
+        using var TL = TRACE.Log();
+        try
+        {
+            var client = new HttpClient();
+
+            client.DefaultRequestHeaders.Add("X-Api-Key", stripeConf.StripeApiKey);
+
+            HttpResponseMessage response = await client.GetAsync(stripeConf.StripeApiUri + "account/pending-balance/" + PublicKey);
+            response.EnsureSuccessStatusCode();
+            string responseBody = await response.Content.ReadAsStringAsync();
+
+            JObject responseJson = JObject.Parse(responseBody);
+            var bal = (JArray)responseJson["balance"];
+            foreach (var e in bal.Values())
+            {
+                if ((string)e["currency"] == currency)
+                    return (long)e["totalCents"];
+            }
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
     public async Task<InvoiceRecord> CreateNewClassicStripeInvoiceAsync(long totalCents, string currency, string memo, long expiry)
     {
         var pi = await CreateStripePaymentIntentAsync(totalCents, currency);
-        var strMemo = JArray.FromObject(new object[] { totalCents,currency, memo, pi.Value.ClientSecret }).ToString();
+        var strMemo = JArray.FromObject(new object[] { totalCents, currency, memo, pi.Value.ClientSecret }).ToString();
         return CreateNewClassicInvoice(0, strMemo, expiry);
     }
 
@@ -768,7 +823,8 @@ public class LNDAccountManager
         {
             invoice = LND.LookupInvoiceV2(lndConf, decinv.PaymentHash.AsBytes());
         }
-        catch (Exception) {/* cannot locate */  }
+        catch (Exception) {/* cannot locate */
+        }
 
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
@@ -858,10 +914,10 @@ public class LNDAccountManager
     {
         var decinv = LND.DecodeInvoice(lndConf, paymentRequest);
         var paymentRequestRecord = ParsePayReqToPaymentRequestRecord(decinv);
-        if(paymentRequestRecord.Currency != "BTC")
+        if (paymentRequestRecord.Currency != "BTC")
         {
             var payst = await GetStripePaymentState(paymentRequestRecord.PaymentAddr);
-            if (!payst.HasValue || payst.Value.Currency!=paymentRequestRecord.Currency || payst.Value.Amount!=paymentRequestRecord.Amount || payst.Value.Status!= "succeeded")
+            if (!payst.HasValue || payst.Value.Currency != paymentRequestRecord.Currency || payst.Value.Amount != paymentRequestRecord.Amount || payst.Value.Status != "succeeded")
                 return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.FiatNotPaidOrMismatched, false);
         }
 
@@ -897,8 +953,8 @@ public class LNDAccountManager
 
 
             selfHodlInvoice = (from inv in walletContext.Value.HodlInvoices
-                                            where inv.PaymentHash == decinv.PaymentHash
-                                            select inv).FirstOrDefault();
+                               where inv.PaymentHash == decinv.PaymentHash
+                               select inv).FirstOrDefault();
 
             selfClsInv = null;
             if (selfHodlInvoice == null)
@@ -940,7 +996,7 @@ public class LNDAccountManager
                 {
                     PaymentHash = decinv.PaymentHash,
                     PublicKey = PublicKey,
-                    PaymentFee = noFees ? 0: ourRouteFeeSat,
+                    PaymentFee = noFees ? 0 : ourRouteFeeSat,
                     Satoshis = decinv.NumSatoshis,
                     Status = selfHodlInvoice != null ? InternalPaymentStatus.InFlight : InternalPaymentStatus.Succeeded,
                     Amount = paymentRequestRecord.Amount,
@@ -964,9 +1020,9 @@ public class LNDAccountManager
 
             TX.Commit();
 
-            return ParsePayReqToPaymentRecord(decinv, 
-                selfHodlInvoice != null ? PaymentStatus.InFlight : PaymentStatus.Succeeded, 
-                PaymentFailureReason.None, 
+            return ParsePayReqToPaymentRecord(decinv,
+                selfHodlInvoice != null ? PaymentStatus.InFlight : PaymentStatus.Succeeded,
+                PaymentFailureReason.None,
                 noFees ? 0 : ourRouteFeeSat * 1000);
         }
         else
@@ -1036,7 +1092,7 @@ public class LNDAccountManager
                 }
 
                 TX.Commit();
-                return ParsePayReqToPaymentRecord( decinv, (PaymentStatus)cur.Status, PaymentFailureReason.None, cur.FeeMsat);
+                return ParsePayReqToPaymentRecord(decinv, (PaymentStatus)cur.Status, PaymentFailureReason.None, cur.FeeMsat);
             }
         }
 
@@ -1166,8 +1222,8 @@ public class LNDAccountManager
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
         var internalPayment = (from pay in walletContext.Value.InternalPayments
-                        where pay.PaymentHash == paymentHash
-                        select pay).FirstOrDefault();
+                               where pay.PaymentHash == paymentHash
+                               select pay).FirstOrDefault();
 
         if (internalPayment == null)
             throw new LNDWalletException(LNDWalletErrorCode.UnknownPayment);
@@ -1501,122 +1557,134 @@ public class LNDAccountManager
         throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
     }
 
-    public async Task<AccountBalanceDetails> GetBalanceAsync(string currency)
+    public async Task<AccountFiatBalanceDetails> GetFiatBalanceAsync(string currency)
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
         var bal = (await GetAccountBalanceAsync(currency));
+        TX.Commit();
+        var inProgressPayouts = await GetPendingBalance(currency);
+        var ret = new AccountFiatBalanceDetails
+        {
+            TotalEarnings = bal.TotalEarnings,
+            SettledEarnings = bal.SettledEarnings,
+            TotalPayouts = bal.SettledEarnings-inProgressPayouts,
+            InProgressPayouts = inProgressPayouts,
+        };
+        return ret;
+    }
+
+    public async Task<AccountBalanceDetails> GetBalanceAsync()
+    {
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
+        var bal = (await GetAccountBalanceAsync("BTC"));
         TX.Commit();
         return bal;
     }
 
     private async Task<AccountBalanceDetails> GetAccountBalanceAsync(string currency)
     {
-        if (currency == "BTC")
+        var channelfunds = GetExecutedTopupTotalAmount(6);
+        var payedout = (from a in walletContext.Value.Payouts
+                        where a.PublicKey == PublicKey
+                        && a.State != PayoutState.Failure
+                        select a.Satoshis).Sum();
+
+        var payedoutfee = (from a in walletContext.Value.Payouts
+                           where a.PublicKey == PublicKey
+                           && a.State != PayoutState.Failure
+                           select a.PayoutFee).Sum();
+
+        var invoices = await ListInvoicesAsync(true, true);
+        var payments = ListNotFailedPayments();
+
+        var earnedFromSettledInvoices = (from inv in invoices
+                                         where inv.State == InvoiceState.Settled && inv.Currency == currency
+                                         select inv.Amount).Sum();
+
+        var sendOrLockedPayments = (from pay in payments
+                                    where pay.Currency == currency
+                                    select pay.Amount).Sum();
+
+        var sendOrLockedPaymentFeesMsat = (from pay in payments
+                                           where pay.Currency == currency
+                                           select pay.FeeMsat).Sum();
+
+
+        var channelfundsAndNotConfirmed = GetExecutedTopupTotalAmount(0);
+
+        var earnedFromAcceptedInvoices = (from inv in invoices
+                                          where inv.State == InvoiceState.Accepted
+                                          && inv.Currency == currency
+                                          select inv.Amount).Sum();
+
+        var lockedPayedout = (from a in walletContext.Value.Payouts
+                              where a.PublicKey == PublicKey
+                              && a.State != PayoutState.Sent
+                           && a.State != PayoutState.Failure
+                              select a.Satoshis).Sum();
+
+        var lockedPayedoutFee = (from a in walletContext.Value.Payouts
+                                 where a.PublicKey == PublicKey
+                                 && a.State != PayoutState.Sent
+                              && a.State != PayoutState.Failure
+                                 select a.PayoutFee).Sum();
+
+        var lockedPayments = (from pay in payments
+                              where pay.Status != PaymentStatus.Succeeded
+                              && pay.Currency == currency
+                              select pay.Amount).Sum();
+
+        var lockedPaymentFeesMsat = (from pay in payments
+                                     where pay.Status != PaymentStatus.Succeeded
+                                     && pay.Currency == currency
+                                     select pay.FeeMsat).Sum();
+
+        var executedPayedous = (from a in walletContext.Value.Payouts
+                                where a.PublicKey == PublicKey
+                             && a.State != PayoutState.Failure
+                             && a.State != PayoutState.Open
+                                select a);
+
+        long totalTxFees = 0;
+        long sentTxFees = 0;
+        foreach (var pa in executedPayedous)
         {
-            var channelfunds = GetExecutedTopupTotalAmount(6);
-            var payedout = (from a in walletContext.Value.Payouts
-                            where a.PublicKey == PublicKey
-                            && a.State != PayoutState.Failure
-                            select a.Satoshis).Sum();
-
-            var payedoutfee = (from a in walletContext.Value.Payouts
-                               where a.PublicKey == PublicKey
-                               && a.State != PayoutState.Failure
-                               select a.PayoutFee).Sum();
-
-            var invoices = await ListInvoicesAsync(true, true);
-            var payments = ListNotFailedPayments();
-
-            var earnedFromSettledInvoices = (from inv in invoices
-                                             where inv.State == InvoiceState.Settled && inv.Currency == currency
-                                             select inv.Amount).Sum();
-
-            var sendOrLockedPayments = (from pay in payments 
-                                        where pay.Currency==currency
-                                        select pay.Amount).Sum();
-
-            var sendOrLockedPaymentFeesMsat = (from pay in payments
-                                               where pay.Currency == currency
-                                               select pay.FeeMsat).Sum();
-
-
-            var channelfundsAndNotConfirmed = GetExecutedTopupTotalAmount(0);
-
-            var earnedFromAcceptedInvoices = (from inv in invoices
-                                              where inv.State == InvoiceState.Accepted
-                                              && inv.Currency == currency   
-                                              select inv.Amount).Sum();
-
-            var lockedPayedout = (from a in walletContext.Value.Payouts
-                                  where a.PublicKey == PublicKey
-                                  && a.State != PayoutState.Sent
-                               && a.State != PayoutState.Failure
-                                  select a.Satoshis).Sum();
-
-            var lockedPayedoutFee = (from a in walletContext.Value.Payouts
-                                     where a.PublicKey == PublicKey
-                                     && a.State != PayoutState.Sent
-                                  && a.State != PayoutState.Failure
-                                     select a.PayoutFee).Sum();
-
-            var lockedPayments = (from pay in payments
-                                  where pay.Status != PaymentStatus.Succeeded
-                                  && pay.Currency == currency
-                                  select pay.Amount).Sum();
-
-            var lockedPaymentFeesMsat = (from pay in payments
-                                         where pay.Status != PaymentStatus.Succeeded
-                                         && pay.Currency == currency
-                                         select pay.FeeMsat).Sum();
-
-            var executedPayedous = (from a in walletContext.Value.Payouts
-                                    where a.PublicKey == PublicKey
-                                 && a.State != PayoutState.Failure
-                                 && a.State != PayoutState.Open
-                                    select a);
-
-            long totalTxFees = 0;
-            long sentTxFees = 0;
-            foreach (var pa in executedPayedous)
+            if (!string.IsNullOrEmpty(pa.Tx))
             {
-                if (!string.IsNullOrEmpty(pa.Tx))
-                {
-                    var tx = LND.GetTransaction(this.lndConf, pa.Tx);
-                    totalTxFees += tx.TotalFees;
-                    if (pa.State == PayoutState.Sent)
-                        sentTxFees += tx.TotalFees;
-                }
+                var tx = LND.GetTransaction(this.lndConf, pa.Tx);
+                totalTxFees += tx.TotalFees;
+                if (pa.State == PayoutState.Sent)
+                    sentTxFees += tx.TotalFees;
             }
-
-            return new AccountBalanceDetails
-            {
-                AvailableAmount = channelfunds - payedout + earnedFromSettledInvoices - sendOrLockedPayments - sendOrLockedPaymentFeesMsat / 1000,
-
-                TotalAmount = channelfundsAndNotConfirmed - payedout + earnedFromSettledInvoices + earnedFromAcceptedInvoices - sendOrLockedPayments - sendOrLockedPaymentFeesMsat / 1000,
-
-                TotalTopups = channelfundsAndNotConfirmed,
-                NotConfirmedTopups = channelfundsAndNotConfirmed - channelfunds,
-                TotalEarnings = earnedFromAcceptedInvoices + earnedFromSettledInvoices,
-                SettledEarnings = earnedFromSettledInvoices,
-
-                TotalPayments = -sendOrLockedPayments,
-                TotalPaymentFees = -sendOrLockedPaymentFeesMsat / 1000,
-
-                InFlightPayments = -lockedPayments,
-                InFlightPaymentFees = -lockedPaymentFeesMsat / 1000,
-
-                TotalPayouts = -payedout,
-                TotalPayoutFees = -payedoutfee,
-
-                InProgressPayouts = -lockedPayedout,
-                InProgressPayoutFees = -lockedPayedoutFee,
-
-                InProgressPayoutOnChainFees = -(totalTxFees - sentTxFees),
-                TotalPayoutOnChainFees = -(totalTxFees),
-            };
         }
-        else
-            throw new NotImplementedException();
+
+        return new AccountBalanceDetails
+        {
+            AvailableAmount = channelfunds - payedout + earnedFromSettledInvoices - sendOrLockedPayments - sendOrLockedPaymentFeesMsat / 1000,
+
+            TotalAmount = channelfundsAndNotConfirmed - payedout + earnedFromSettledInvoices + earnedFromAcceptedInvoices - sendOrLockedPayments - sendOrLockedPaymentFeesMsat / 1000,
+
+            TotalTopups = channelfundsAndNotConfirmed,
+            NotConfirmedTopups = channelfundsAndNotConfirmed - channelfunds,
+            TotalEarnings = earnedFromAcceptedInvoices + earnedFromSettledInvoices,
+            SettledEarnings = earnedFromSettledInvoices,
+
+            TotalPayments = -sendOrLockedPayments,
+            TotalPaymentFees = -sendOrLockedPaymentFeesMsat / 1000,
+
+            InFlightPayments = -lockedPayments,
+            InFlightPaymentFees = -lockedPaymentFeesMsat / 1000,
+
+            TotalPayouts = -payedout,
+            TotalPayoutFees = -payedoutfee,
+
+            InProgressPayouts = -lockedPayedout,
+            InProgressPayoutFees = -lockedPayedoutFee,
+
+            InProgressPayoutOnChainFees = -(totalTxFees - sentTxFees),
+            TotalPayoutOnChainFees = -(totalTxFees),
+        };
+
     }
 
 }
