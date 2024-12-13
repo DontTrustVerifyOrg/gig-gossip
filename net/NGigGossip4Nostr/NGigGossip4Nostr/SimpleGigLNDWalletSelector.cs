@@ -187,6 +187,20 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
+    public async Task<AccountFiatBalanceDetailsResult> GetFiatBalanceAsync(string authToken, string currency, System.Threading.CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(currency);
+        try
+        {
+            return TL.Ret(await API.GetFiatBalanceAsync(authToken, currency, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
     public async Task<Int64Result> GetBitcoinWalletBalanceAsync(string authToken, int minConf, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(minConf);
