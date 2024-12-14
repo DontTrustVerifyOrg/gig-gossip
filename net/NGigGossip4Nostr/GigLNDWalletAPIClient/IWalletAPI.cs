@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.Metrics;
 using System.Net.Http;
 using System.Threading;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -26,8 +27,8 @@ public interface IWalletAPI
     Task<GuidResult> RegisterPayoutAsync(string authToken, long satoshis, string btcAddress, System.Threading.CancellationToken cancellationToken);
     Task<InvoiceRecordResult> AddInvoiceAsync(string authToken, long satoshis, string memo, long expiry, System.Threading.CancellationToken cancellationToken);
     Task<InvoiceRecordResult> AddHodlInvoiceAsync(string authToken, long satoshis, string hash, string memo, long expiry, System.Threading.CancellationToken cancellationToken);
-    Task<InvoiceRecordResult> AddFiatInvoiceAsync(string authToken, long cents, string currency, string memo, long expiry, System.Threading.CancellationToken cancellationToken);
-    Task<InvoiceRecordResult> AddFiatHodlInvoiceAsync(string authToken, long cents, string currency, string hash, string memo, long expiry, System.Threading.CancellationToken cancellationToken);
+    Task<InvoiceRecordResult> AddFiatInvoiceAsync(string authToken, long cents, string country, string currency, string memo, long expiry, System.Threading.CancellationToken cancellationToken);
+    Task<InvoiceRecordResult> AddFiatHodlInvoiceAsync(string authToken, long cents, string country, string currency, string hash, string memo, long expiry, System.Threading.CancellationToken cancellationToken);
     Task<PaymentRequestRecordResult> DecodeInvoiceAsync(string authToken, string paymentRequest, System.Threading.CancellationToken cancellationToken);
     Task<RouteFeeRecordResult> EstimateRouteFeeAsync(string authToken, string paymentrequest, int timeout, CancellationToken cancellationToken);
     Task<PaymentRecordResult> SendPaymentAsync(string authToken, string paymentrequest, int timeout, long feelimit, System.Threading.CancellationToken cancellationToken);
@@ -119,14 +120,14 @@ public class WalletAPIRetryWrapper : IWalletAPI
         return await RetryPolicy.WithRetryPolicy(() => api.AddInvoiceAsync(authToken, satoshis, memo, expiry, cancellationToken));
     }
 
-    public async Task<InvoiceRecordResult> AddFiatInvoiceAsync(string authToken, long cents, string currency, string memo, long expiry, CancellationToken cancellationToken)
+    public async Task<InvoiceRecordResult> AddFiatInvoiceAsync(string authToken, long cents, string country, string currency, string memo, long expiry, CancellationToken cancellationToken)
     {
-        return await RetryPolicy.WithRetryPolicy(() => api.AddFiatInvoiceAsync(authToken, cents,currency, memo, expiry, cancellationToken));
+        return await RetryPolicy.WithRetryPolicy(() => api.AddFiatInvoiceAsync(authToken, cents, country, currency, memo, expiry, cancellationToken));
     }
 
-    public async Task<InvoiceRecordResult> AddFiatHodlInvoiceAsync(string authToken, long cents, string currency, string hash, string memo, long expiry, CancellationToken cancellationToken)
+    public async Task<InvoiceRecordResult> AddFiatHodlInvoiceAsync(string authToken, long cents, string country, string currency, string hash, string memo, long expiry, CancellationToken cancellationToken)
     {
-        return await RetryPolicy.WithRetryPolicy(() => api.AddFiatHodlInvoiceAsync(authToken, cents, currency, hash, memo, expiry, cancellationToken));
+        return await RetryPolicy.WithRetryPolicy(() => api.AddFiatHodlInvoiceAsync(authToken, cents, country, currency, hash, memo, expiry, cancellationToken));
     }
 
     public async Task<Result> CancelInvoiceAsync(string authToken, string paymenthash, CancellationToken cancellationToken)
