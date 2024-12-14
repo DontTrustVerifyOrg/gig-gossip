@@ -971,6 +971,15 @@
             }
           },
           {
+            "name": "country",
+            "in": "query",
+            "description": "The fiat currency country code.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "currency",
             "in": "query",
             "description": "The fiat currency code.",
@@ -1039,6 +1048,15 @@
             "schema": {
               "type": "integer",
               "format": "int64"
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "description": "The fiat currency country code.",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           },
           {

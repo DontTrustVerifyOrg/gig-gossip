@@ -74,12 +74,12 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<InvoiceRecordResult> AddFiatInvoiceAsync(string authToken, long cents, string currency, string memo, long expiry, CancellationToken cancellationToken)
+    public async Task<InvoiceRecordResult> AddFiatInvoiceAsync(string authToken, long cents, string country, string currency, string memo, long expiry, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(cents,currency, memo, expiry);
         try
         {
-            return TL.Ret(await API.AddFiatInvoiceAsync(authToken, cents, currency, memo, expiry, cancellationToken));
+            return TL.Ret(await API.AddFiatInvoiceAsync(authToken, cents, country, currency, memo, expiry, cancellationToken));
         }
         catch (Exception ex)
         {
@@ -88,12 +88,12 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
-    public async Task<InvoiceRecordResult> AddFiatHodlInvoiceAsync(string authToken, long cents, string currency, string hash, string memo, long expiry, CancellationToken cancellationToken)
+    public async Task<InvoiceRecordResult> AddFiatHodlInvoiceAsync(string authToken, long cents, string country, string currency, string hash, string memo, long expiry, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(cents, currency, hash, memo, expiry);
         try
         {
-            return TL.Ret(await API.AddFiatHodlInvoiceAsync(authToken, cents, currency, hash, memo, expiry, cancellationToken));
+            return TL.Ret(await API.AddFiatHodlInvoiceAsync(authToken, cents, country, currency, hash, memo, expiry, cancellationToken));
         }
         catch (Exception ex)
         {

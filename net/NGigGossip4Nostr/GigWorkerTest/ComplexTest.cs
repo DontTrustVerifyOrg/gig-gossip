@@ -574,6 +574,7 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
                             PublicKey = me.PublicKey.AsPublicKey()
                         },
                         Fee = 4321,
+                        Country = "PL",
                         Currency = "BTC",
                         SettlerServiceUri = SettlerUri,
                     }, async (_) => { },
