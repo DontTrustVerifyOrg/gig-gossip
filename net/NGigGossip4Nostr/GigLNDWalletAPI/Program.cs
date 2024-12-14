@@ -669,11 +669,11 @@ app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, str
     return g;
 });
 
-app.MapGet("/addfiatinvoice", async (string authToken, long cents, string currency, string memo, long expiry) =>
+app.MapGet("/addfiatinvoice", async (string authToken, long cents, string country, string currency, string memo, long expiry) =>
 {
     try
     {
-        return new Result<InvoiceRecord>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CreateNewClassicStripeInvoiceAsync(cents, currency, memo, expiry));
+        return new Result<InvoiceRecord>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CreateNewClassicStripeInvoiceAsync(cents, country, currency, memo, expiry));
     }
     catch (Exception ex)
     {
@@ -688,17 +688,18 @@ app.MapGet("/addfiatinvoice", async (string authToken, long cents, string curren
 {
     g.Parameters[0].Description = "Authorization token for authentication and access control. This token, generated using Schnorr Signatures for secp256k1, encodes the user's public key and session identifier from the GetToken function.";
     g.Parameters[1].Description = "The amount of the invoice in fiat currency cents. Must be a positive integer representing the exact payment amount requested.";
-    g.Parameters[2].Description = "The fiat currency code.";
-    g.Parameters[3].Description = "An optional memo or description for the invoice. This can be used to provide additional context or details about the payment to the payer. The memo will be included in the encoded payment request.";
-    g.Parameters[4].Description = "The expiration time for the payment request, in seconds. After this duration, the invoice will no longer be valid for payment.";
+    g.Parameters[2].Description = "The fiat currency country code.";
+    g.Parameters[3].Description = "The fiat currency code.";
+    g.Parameters[4].Description = "An optional memo or description for the invoice. This can be used to provide additional context or details about the payment to the payer. The memo will be included in the encoded payment request.";
+    g.Parameters[5].Description = "The expiration time for the payment request, in seconds. After this duration, the invoice will no longer be valid for payment.";
     return g;
 });
 
-app.MapGet("/addfiathodlinvoice", async (string authToken, long cents, string currency, string hash, string memo, long expiry) =>
+app.MapGet("/addfiathodlinvoice", async (string authToken, long cents, string country, string currency, string hash, string memo, long expiry) =>
 {
     try
     {
-        return new Result<InvoiceRecord>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CreateNewHodlStripeInvoiceAsync(cents, currency, memo, hash.AsBytes(), expiry));
+        return new Result<InvoiceRecord>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CreateNewHodlStripeInvoiceAsync(cents, country, currency, memo, hash.AsBytes(), expiry));
     }
     catch (Exception ex)
     {
@@ -713,10 +714,11 @@ app.MapGet("/addfiathodlinvoice", async (string authToken, long cents, string cu
 {
     g.Parameters[0].Description = "Authorization token for authentication and access control. This token, generated using Schnorr Signatures for secp256k1, encodes the user's public key and session identifier from the GetToken function.";
     g.Parameters[1].Description = "The amount of the invoice in fiat currency cents. Must be a positive integer representing the exact payment amount requested.";
-    g.Parameters[2].Description = "The fiat currency code.";
-    g.Parameters[3].Description = "The SHA-256 hash of the preimage. The payer or a trusted third party must provide the corresponding preimage, which will be used with the SettleInvoice method to claim the payment, enabling escrow-like functionality.";
-    g.Parameters[4].Description = "An optional memo or description for the invoice. This can be used to provide additional context or details about the payment or escrow conditions to the payer. The memo will be included in the encoded payment request.";
-    g.Parameters[5].Description = "The expiration time for the payment request, in seconds. After this duration, the HODL invoice will no longer be valid for payment. Consider setting an appropriate duration based on the expected escrow period.";
+    g.Parameters[2].Description = "The fiat currency country code.";
+    g.Parameters[3].Description = "The fiat currency code.";
+    g.Parameters[4].Description = "The SHA-256 hash of the preimage. The payer or a trusted third party must provide the corresponding preimage, which will be used with the SettleInvoice method to claim the payment, enabling escrow-like functionality.";
+    g.Parameters[5].Description = "An optional memo or description for the invoice. This can be used to provide additional context or details about the payment or escrow conditions to the payer. The memo will be included in the encoded payment request.";
+    g.Parameters[6].Description = "The expiration time for the payment request, in seconds. After this duration, the HODL invoice will no longer be valid for payment. Consider setting an appropriate duration based on the expected escrow period.";
     return g;
 });
 

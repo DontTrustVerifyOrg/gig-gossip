@@ -657,9 +657,9 @@ public class LNDAccountManager
         }
     }
 
-    public async Task<InvoiceRecord> CreateNewHodlStripeInvoiceAsync(long totalCents, string currency, string memo, byte[] hash, long expiry)
+    public async Task<InvoiceRecord> CreateNewHodlStripeInvoiceAsync(long totalCents,string country, string currency, string memo, byte[] hash, long expiry)
     {
-        var pi = await CreateStripePaymentIntentAsync(totalCents, currency);
+        var pi = await CreateStripePaymentIntentAsync(totalCents, country, currency);
         var strMemo = JArray.FromObject(new object[] { totalCents, currency, memo, pi.Value.ClientSecret }).ToString();
         return CreateNewHodlInvoice(0, strMemo, hash, expiry);
     }
@@ -696,7 +696,7 @@ public class LNDAccountManager
         public string Currency { get; set; }
     }
 
-    public async Task<PaymentIntentResponse?> CreateStripePaymentIntentAsync(long cents, string currencyCode)
+    public async Task<PaymentIntentResponse?> CreateStripePaymentIntentAsync(long cents, string countryCode, string currencyCode)
     {
         using var TL = TRACE.Log().Args(cents, currencyCode);
         try
@@ -707,6 +707,7 @@ public class LNDAccountManager
             {
                 totalCents = cents,
                 currencyCode = currencyCode,
+                countryCode = countryCode,
                 driverPubKey = this.PublicKey,
             };
 
@@ -799,9 +800,9 @@ public class LNDAccountManager
         }
     }
 
-    public async Task<InvoiceRecord> CreateNewClassicStripeInvoiceAsync(long totalCents, string currency, string memo, long expiry)
+    public async Task<InvoiceRecord> CreateNewClassicStripeInvoiceAsync(long totalCents, string country, string currency, string memo, long expiry)
     {
-        var pi = await CreateStripePaymentIntentAsync(totalCents, currency);
+        var pi = await CreateStripePaymentIntentAsync(totalCents, country, currency);
         var strMemo = JArray.FromObject(new object[] { totalCents, currency, memo, pi.Value.ClientSecret }).ToString();
         return CreateNewClassicInvoice(0, strMemo, expiry);
     }
