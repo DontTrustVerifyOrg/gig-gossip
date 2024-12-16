@@ -786,7 +786,7 @@ public class LNDAccountManager
 
             JObject responseJson = JObject.Parse(responseBody);
             var bal = (JArray)responseJson["balance"];
-            foreach (var e in bal.Values())
+            foreach (var e in bal)
             {
                 if ((string)e["currency"] == currency)
                     return (long)e["totalCents"];
