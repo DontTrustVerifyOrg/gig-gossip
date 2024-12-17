@@ -1545,13 +1545,13 @@ public class LNDAccountManager
 
             TX.Commit();
             var ret = ParseInvoiceToInvoiceRecord(invoice, selfHodlInvoice != null);
+            ret.State = payment == null ? (InvoiceState)invoice.State : (payment.Status == InternalPaymentStatus.InFlight ? InvoiceState.Accepted : InvoiceState.Settled);
             if (ret.Currency != "BTC" && payment != null)
             {
                 var payst = await GetStripePaymentState(ret.PaymentAddr);
                 if (!payst.HasValue || payst.Value.Currency != ret.Currency || payst.Value.Amount != ret.Amount || payst.Value.Status != "succeeded")
                     ret.State = InvoiceState.FiatNotPaid;
             }
-            ret.State = payment == null ? (InvoiceState)invoice.State : (payment.Status == InternalPaymentStatus.InFlight ? InvoiceState.Accepted : InvoiceState.Settled);
             return ret;
         }
         throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
