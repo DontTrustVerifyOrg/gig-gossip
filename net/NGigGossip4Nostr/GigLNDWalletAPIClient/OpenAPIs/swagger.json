@@ -1794,13 +1794,13 @@
       "AccountFiatBalanceDetails": {
         "required": [
           "inProgressPayouts",
-          "settledEarnings",
           "totalEarnings",
+          "totalFees",
           "totalPayouts"
         ],
         "type": "object",
         "properties": {
-          "settledEarnings": {
+          "totalFees": {
             "type": "integer",
             "format": "int64"
           },

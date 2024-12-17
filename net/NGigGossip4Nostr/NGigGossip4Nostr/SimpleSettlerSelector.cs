@@ -454,6 +454,20 @@ public class SettlerAPIWrapper : ISettlerAPI
         }
     }
 
+    public Task<GigGossipSettlerAPIClient.Result> OpenDisputeAsync(string authToken, string driverPublicKey, string reason, Guid gigId, Guid repliercertificateId, string paymentClientSecret, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log().Args(driverPublicKey, reason, gigId, repliercertificateId, paymentClientSecret);
+        try
+        {
+            return TL.Ret(API.OpenDisputeAsync(authToken, driverPublicKey, reason, gigId, repliercertificateId, paymentClientSecret, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
     public async Task<GigGossipSettlerAPIClient.Result> ManageDisputeAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, bool open, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(gigId, repliperCertificateId, open);
@@ -564,6 +578,7 @@ public class SettlerAPIWrapper : ISettlerAPI
     {
         return new PreimageRevealClientWrapper(API.CreatePreimageRevealClient());
     }
+
 
 }
 
