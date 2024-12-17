@@ -1394,14 +1394,13 @@ public class LNDAccountManager
             {
                 if (ret.ContainsKey(pay.PaymentHash))
                 {
+                    ret[pay.PaymentHash].State = (pay.Status == InternalPaymentStatus.InFlight) ? InvoiceState.Accepted : (pay.Status == InternalPaymentStatus.Succeeded ? InvoiceState.Settled : InvoiceState.Cancelled);
                     if (pay.Currency != "BTC")
                     {
                         var payst = await GetStripePaymentState(ret[pay.PaymentHash].PaymentAddr);
                         if (!payst.HasValue || payst.Value.Currency != pay.Currency || payst.Value.Amount != ret[pay.PaymentHash].Amount || payst.Value.Status != "succeeded")
                             ret[pay.PaymentHash].State = InvoiceState.FiatNotPaid;
                     }
-                    else
-                        ret[pay.PaymentHash].State = (pay.Status == InternalPaymentStatus.InFlight) ? InvoiceState.Accepted : (pay.Status == InternalPaymentStatus.Succeeded ? InvoiceState.Settled : InvoiceState.Cancelled);
                 }
             }
         }
@@ -1546,13 +1545,13 @@ public class LNDAccountManager
 
             TX.Commit();
             var ret = ParseInvoiceToInvoiceRecord(invoice, selfHodlInvoice != null);
+            ret.State = payment == null ? (InvoiceState)invoice.State : (payment.Status == InternalPaymentStatus.InFlight ? InvoiceState.Accepted : InvoiceState.Settled);
             if (ret.Currency != "BTC" && payment != null)
             {
                 var payst = await GetStripePaymentState(ret.PaymentAddr);
                 if (!payst.HasValue || payst.Value.Currency != ret.Currency || payst.Value.Amount != ret.Amount || payst.Value.Status != "succeeded")
                     ret.State = InvoiceState.FiatNotPaid;
             }
-            ret.State = payment == null ? (InvoiceState)invoice.State : (payment.Status == InternalPaymentStatus.InFlight ? InvoiceState.Accepted : InvoiceState.Settled);
             return ret;
         }
         throw new LNDWalletException(LNDWalletErrorCode.UnknownInvoice);
