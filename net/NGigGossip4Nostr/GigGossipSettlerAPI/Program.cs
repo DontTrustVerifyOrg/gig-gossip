@@ -37,6 +37,7 @@ using Enum = System.Enum;
 using Type = System.Type;
 using System.Text.Json.Nodes;
 using System;
+using System.Drawing;
 
 #pragma warning disable 1591
 
@@ -95,6 +96,7 @@ IConfigurationRoot GetConfigurationRoot(string defaultFolder, string iniName)
 
 var config = GetConfigurationRoot(".giggossip", "settler.conf");
 var settlerSettings = config.GetSection("settler").Get<SettlerSettings>();
+var scpConf = config.GetSection("scp").Get<ScpSettings>();
 
 Dictionary<(string, string), CaPricing> pricings = new();
 foreach (var prcname in settlerSettings.GetPricings())
@@ -116,7 +118,8 @@ Singlethon.Settler = new Settler(
     TimeSpan.FromSeconds(settlerSettings.InvoicePaymentTimeoutSec),
     TimeSpan.FromSeconds(settlerSettings.DisputeTimeoutSec),
     new DefaultRetryPolicy(),
-    settlerSettings.FirebaseAdminConfBase64
+    settlerSettings.FirebaseAdminConfBase64,
+    scpConf
     );
 
 await Singlethon.Settler.InitAsync(
@@ -1091,11 +1094,41 @@ app.MapPost("/encryptjobreplyforcertificateid", async ([FromForm] Guid certifica
 .WithDescription("Encrypts the object using public key related to the specific certioficate id.")
 .DisableAntiforgery();
 
+app.MapGet("/opendispute", async (string authToken, string driverPublicKey, string reason, Guid gigId, Guid repliercertificateId, string paymentClientSecret)=>
+{
+    try
+    {
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        await Singlethon.Settler.OpenDisputeAsync(pubkey, driverPublicKey, reason, gigId, repliercertificateId, paymentClientSecret);
+        return new Result();
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result(ex);
+    }
+})
+.WithName("OpenDispute")
+.WithSummary("Allows opening dispute by the user.")
+.WithDescription("Allows opening dispute by the user. After opening, the dispute needs to be solved positively before the HODL invoice timeouts occure. Otherwise all the invoices and payments will be cancelled.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication.";
+    g.Parameters[1].Description = "Driver pubkey";
+    g.Parameters[2].Description = "Reason";
+    g.Parameters[3].Description = "Gig-job identifier.";
+    g.Parameters[4].Description = "CertificateId of the replier.";
+    g.Parameters[5].Description = "Payment client secret";
+    return g;
+})
+.DisableAntiforgery();
+
+
 app.MapGet("/managedispute", async (string authToken, Guid gigId, Guid repliperCertificateId, bool open) =>
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken, open?false : true);
+        Singlethon.Settler.ValidateAuthToken(authToken, true);
         await Singlethon.Settler.ManageDisputeAsync(gigId, repliperCertificateId, open);
         return new Result();
     }

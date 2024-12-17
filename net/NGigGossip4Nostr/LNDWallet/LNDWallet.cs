@@ -252,10 +252,7 @@ public class AccountBalanceDetails
 [Serializable]
 public class AccountFiatBalanceDetails
 {
-    /// <summary>
-    /// Amount of earning from settled invoices
-    /// </summary>
-    public required long SettledEarnings { get; set; }
+    public required long TotalFees { get; set; }
 
     /// <summary>
     /// Amount on accepted invoices including these that are still not Settled (they can be Cancelled or Settled in the future)
@@ -771,7 +768,7 @@ public class LNDAccountManager
         }
     }
 
-    public async Task<long> GetPendingBalance(string currency)
+    public async Task<(long pendingBalance, long payouts, long total)> GetFiatBalanceFromApi(string currency)
     {
         using var TL = TRACE.Log();
         try
@@ -780,18 +777,15 @@ public class LNDAccountManager
 
             client.DefaultRequestHeaders.Add("X-Api-Key", stripeConf.StripeApiKey);
 
-            HttpResponseMessage response = await client.GetAsync(stripeConf.StripeApiUri + "account/pending-balance/" + PublicKey);
+            HttpResponseMessage response = await client.GetAsync(stripeConf.StripeApiUri + "account/balance/" + PublicKey);
             response.EnsureSuccessStatusCode();
             string responseBody = await response.Content.ReadAsStringAsync();
 
             JObject responseJson = JObject.Parse(responseBody);
-            var bal = (JArray)responseJson["balance"];
-            foreach (var e in bal)
-            {
-                if ((string)e["currency"] == currency)
-                    return (long)e["totalCents"];
-            }
-            return 0;
+            var pendingBalance = (from e in (JArray)responseJson["pendingBalance"] where ((string)e["currency"] == currency) select (long)e["totalCents"]).Sum();
+            var payouts = (from e in (JArray)responseJson["payouts"] where ((string)e["currency"] == currency) select (long)e["totalCents"]).Sum();
+            var total = (from e in (JArray)responseJson["total"] where ((string)e["currency"] == currency) select (long)e["totalCents"]).Sum();
+            return (pendingBalance, payouts, total);
         }
         catch (Exception ex)
         {
@@ -1562,13 +1556,13 @@ public class LNDAccountManager
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
         var bal = (await GetAccountBalanceAsync(currency));
         TX.Commit();
-        var inProgressPayouts = await GetPendingBalance(currency);
+        var (pendingBalance, payouts, total) = await GetFiatBalanceFromApi(currency);
         var ret = new AccountFiatBalanceDetails
         {
-            TotalEarnings = bal.TotalEarnings,
-            SettledEarnings = bal.SettledEarnings,
-            TotalPayouts = bal.SettledEarnings-inProgressPayouts,
-            InProgressPayouts = inProgressPayouts,
+            TotalEarnings = total,
+            TotalFees = bal.TotalEarnings - total,
+            TotalPayouts = payouts,
+            InProgressPayouts = pendingBalance,
         };
         return ret;
     }
