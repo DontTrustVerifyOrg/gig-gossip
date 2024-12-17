@@ -1559,7 +1559,7 @@ public class LNDAccountManager
         var (pendingBalance, payouts, total) = await GetFiatBalanceFromApi(currency);
         var ret = new AccountFiatBalanceDetails
         {
-            TotalEarnings = total,
+            TotalEarnings = bal.TotalAmount,
             TotalFees = bal.TotalEarnings - total,
             TotalPayouts = payouts,
             InProgressPayouts = pendingBalance,
