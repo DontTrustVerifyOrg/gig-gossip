@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using NBitcoin.Protocol;
 using NBitcoin.Secp256k1;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Quartz;
 using Quartz.Impl;
 using System.Diagnostics;
@@ -108,6 +109,7 @@ public class Settler : CertificationAuthority
     public ThreadLocal<SettlerContext> settlerContext;
     private IScheduler scheduler;
     private ISettlerSelector settlerSelector;
+    private ScpSettings scpSettings;
     Dictionary<(string, string), CaPricing> pricings;
 
     private string adminPubkey;
@@ -115,13 +117,14 @@ public class Settler : CertificationAuthority
 
     public IRetryPolicy RetryPolicy;
 
-    public Settler(Uri serviceUri, ISettlerSelector settlerSelector, ECPrivKey settlerPrivateKey, Dictionary<(string, string), CaPricing> pricings, TimeSpan invoicePaymentTimeout, TimeSpan disputeTimeout, IRetryPolicy retryPolicy, string firebaseAdminConfBase64) : base(serviceUri, settlerPrivateKey)
+    public Settler(Uri serviceUri, ISettlerSelector settlerSelector, ECPrivKey settlerPrivateKey, Dictionary<(string, string), CaPricing> pricings, TimeSpan invoicePaymentTimeout, TimeSpan disputeTimeout, IRetryPolicy retryPolicy, string firebaseAdminConfBase64, ScpSettings scpSettings) : base(serviceUri, settlerPrivateKey)
     {
         this.pricings = pricings;
         this.invoicePaymentTimeout = invoicePaymentTimeout;
         this.disputeTimeout = disputeTimeout;
         this.settlerSelector = settlerSelector;
         this.RetryPolicy = retryPolicy;
+        this.scpSettings = scpSettings;
         FirebaseApp.Create(new AppOptions()
         {
             Credential = GoogleCredential.FromJson(Encoding.Default.GetString(Convert.FromBase64String(firebaseAdminConfBase64)))
@@ -649,6 +652,40 @@ public class Settler : CertificationAuthority
         }
     }
 
+    public async Task OpenDisputeAsync(string riderPublicKey, string driverPublicKey, string reason, Guid gigId, Guid repliercertificateId, string paymentIntentId)
+    {
+        await ManageDisputeAsync(gigId, repliercertificateId, true);
+        await CallDisputesAsync(riderPublicKey, driverPublicKey, reason, gigId, repliercertificateId, paymentIntentId);
+    }
+
+
+    public async Task CallDisputesAsync(string riderPublicKey, string driverPublicKey, string reason, Guid gigId, Guid repliperCertificateId, string paymentIntentId)
+    {
+        var client = new HttpClient();
+
+        var requestData = new
+        {
+            riderPublicKey,
+            driverPublicKey ,
+            reason ,
+            gigId ,
+            repliperCertificateId,
+            paymentIntentId ,
+        };
+
+        var requestContent = new StringContent(
+            Newtonsoft.Json.JsonConvert.SerializeObject(requestData),
+            System.Text.Encoding.UTF8,
+            "application/json"
+        );
+
+        client.DefaultRequestHeaders.Add("X-Api-Key", scpSettings.ScpApiKey);
+
+
+        HttpResponseMessage response = await client.PostAsync(scpSettings.ScpApiUri + "disputes", requestContent);
+        response.EnsureSuccessStatusCode();
+        string responseBody = await response.Content.ReadAsStringAsync();
+    }
 
     public async Task ManageDisputeAsync(Guid tid, Guid repliercertificateId, bool open)
     {
@@ -789,3 +826,8 @@ public class Settler : CertificationAuthority
     }
 }
 
+public class ScpSettings
+{
+    public required string ScpApiUri { get; set; }
+    public required string ScpApiKey { get; set; }
+}
