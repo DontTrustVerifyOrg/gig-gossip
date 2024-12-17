@@ -1394,14 +1394,13 @@ public class LNDAccountManager
             {
                 if (ret.ContainsKey(pay.PaymentHash))
                 {
+                    ret[pay.PaymentHash].State = (pay.Status == InternalPaymentStatus.InFlight) ? InvoiceState.Accepted : (pay.Status == InternalPaymentStatus.Succeeded ? InvoiceState.Settled : InvoiceState.Cancelled);
                     if (pay.Currency != "BTC")
                     {
                         var payst = await GetStripePaymentState(ret[pay.PaymentHash].PaymentAddr);
                         if (!payst.HasValue || payst.Value.Currency != pay.Currency || payst.Value.Amount != ret[pay.PaymentHash].Amount || payst.Value.Status != "succeeded")
                             ret[pay.PaymentHash].State = InvoiceState.FiatNotPaid;
                     }
-                    else
-                        ret[pay.PaymentHash].State = (pay.Status == InternalPaymentStatus.InFlight) ? InvoiceState.Accepted : (pay.Status == InternalPaymentStatus.Succeeded ? InvoiceState.Settled : InvoiceState.Cancelled);
                 }
             }
         }
