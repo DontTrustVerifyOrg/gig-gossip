@@ -652,14 +652,14 @@ public class Settler : CertificationAuthority
         }
     }
 
-    public async Task OpenDisputeAsync(string riderPublicKey, string driverPublicKey, string reason, Guid gigId, Guid repliercertificateId, string paymentIntentId)
+    public async Task OpenDisputeAsync(string riderPublicKey, string driverPublicKey, string reason, Guid gigId, Guid repliercertificateId, string stripeClientSecret)
     {
         await ManageDisputeAsync(gigId, repliercertificateId, true);
-        await CallDisputesAsync(riderPublicKey, driverPublicKey, reason, gigId, repliercertificateId, paymentIntentId);
+        await CallDisputesAsync(riderPublicKey, driverPublicKey, reason, gigId, repliercertificateId, stripeClientSecret);
     }
 
 
-    public async Task CallDisputesAsync(string riderPublicKey, string driverPublicKey, string reason, Guid gigId, Guid repliperCertificateId, string paymentIntentId)
+    public async Task CallDisputesAsync(string riderPublicKey, string driverPublicKey, string reason, Guid gigId, Guid repliperCertificateId, string stripeClientSecret)
     {
         var client = new HttpClient();
 
@@ -670,7 +670,7 @@ public class Settler : CertificationAuthority
             reason ,
             gigId ,
             repliperCertificateId,
-            paymentIntentId ,
+            stripeClientSecret,
         };
 
         var requestContent = new StringContent(
