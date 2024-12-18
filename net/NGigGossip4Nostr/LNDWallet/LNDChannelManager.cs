@@ -58,7 +58,7 @@ public class LNDChannelManager
 					TraceEx.TraceException(ex);
 				}
 				if(!again)
-					Thread.Sleep(10000);
+					Thread.Sleep(60000);
 			}
             TraceEx.TraceInformation("Main Monitoring Thread Joining");
         });

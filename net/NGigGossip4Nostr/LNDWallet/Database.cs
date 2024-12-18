@@ -353,7 +353,6 @@ public class WaletContext : DbContext
     public WaletContext UPDATE<T>(T obj) where T : class
     {
         var set = this.Set<T>();
-        QueryCacheExtensions.ClearCache<T>(set);
         set.Update(obj);
         return this;
     }
@@ -372,7 +371,6 @@ public class WaletContext : DbContext
     public WaletContext INSERT<T>(T obj) where T:class
     {
         var set = this.Set<T>();
-        QueryCacheExtensions.ClearCache<T>(set);
         set.Add(obj);
         return this;
     }
@@ -380,7 +378,6 @@ public class WaletContext : DbContext
     public WaletContext DELETE<T>(T obj) where T : class
     {
         var set = this.Set<T>();
-        QueryCacheExtensions.ClearCache<T>(set);
         set.Remove(obj);
         return this;
     }
