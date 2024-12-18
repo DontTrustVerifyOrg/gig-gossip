@@ -519,7 +519,7 @@ public class LNDAccountManager
         var mypayouts = (
             from a in walletContext.Value.Payouts
             where a.PublicKey == PublicKey
-            select a);
+            select a).ToList();
 
         var runningtransactions = new Dictionary<string, Lnrpc.Transaction>(
             from a in LND.GetTransactions(lndConf).Transactions
@@ -1360,7 +1360,7 @@ public class LNDAccountManager
 
         if (includeClassic)
         {
-            var myInvoices = (from inv in walletContext.Value.ClassicInvoices where inv.PublicKey == this.PublicKey select inv);
+            var myInvoices = (from inv in walletContext.Value.ClassicInvoices where inv.PublicKey == this.PublicKey select inv).ToList();
             foreach (var inv in myInvoices)
             {
                 if (allInvs.ContainsKey(inv.PaymentHash))
@@ -1370,7 +1370,7 @@ public class LNDAccountManager
 
         if (includeHodl)
         {
-            var myInvoices = (from inv in walletContext.Value.HodlInvoices where inv.PublicKey == this.PublicKey select inv);
+            var myInvoices = (from inv in walletContext.Value.HodlInvoices where inv.PublicKey == this.PublicKey select inv).ToList();
             foreach (var inv in myInvoices)
             {
                 if (allInvs.ContainsKey(inv.PaymentHash))
@@ -1383,7 +1383,7 @@ public class LNDAccountManager
 
         {
             var internalPayments = (from pay in walletContext.Value.InternalPayments
-                                    select pay);
+                                    select pay).ToList();
             foreach (var pay in internalPayments)
             {
                 if (ret.ContainsKey(pay.PaymentHash))
@@ -1420,7 +1420,7 @@ public class LNDAccountManager
         var ret = new Dictionary<string, PaymentRecord>();
 
         {
-            var myPayments = (from pay in walletContext.Value.ExternalPayments where pay.PublicKey == this.PublicKey select pay);
+            var myPayments = (from pay in walletContext.Value.ExternalPayments where pay.PublicKey == this.PublicKey select pay).ToList();
             foreach (var pay in myPayments)
             {
                 if (allPays[pay.PaymentHash].Status != PaymentStatus.Failed)
@@ -1429,7 +1429,7 @@ public class LNDAccountManager
             }
         }
         {
-            var myPayments = (from pay in walletContext.Value.InternalPayments where pay.PublicKey == this.PublicKey select pay);
+            var myPayments = (from pay in walletContext.Value.InternalPayments where pay.PublicKey == this.PublicKey select pay).ToList();
             foreach (var pay in myPayments)
             {
                 ret.Add(pay.PaymentHash, new PaymentRecord
@@ -1639,7 +1639,7 @@ public class LNDAccountManager
                                 where a.PublicKey == PublicKey
                              && a.State != PayoutState.Failure
                              && a.State != PayoutState.Open
-                                select a);
+                                select a).ToList();
 
         long totalTxFees = 0;
         long sentTxFees = 0;
