@@ -479,7 +479,6 @@ public class Settler : CertificationAuthority
              MakeAuthToken(), (long)netinvamount, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds, CancellationTokenSource.Token));
 
 
-
         settlerContext.Value
             .INSERT(new Gig()
             {
@@ -758,12 +757,13 @@ public class Settler : CertificationAuthority
         if (status != LNDWalletErrorCode.Ok)
             throw new InvoiceProblemException(status);
 
+        TX.Commit();
+
         foreach (var pi in preims)
             this.FireOnPreimageReveal(pi.PaymentHash, pi.Preimage);
 
         FireOnGigStatus(gig.SignedRequestPayloadId, gig.ReplierCertificateId, GigStatus.Completed, gig.SymmetricKey);
 
-        TX.Commit();
     }
 
     public async Task ScheduleGigAsync(Gig gig)
