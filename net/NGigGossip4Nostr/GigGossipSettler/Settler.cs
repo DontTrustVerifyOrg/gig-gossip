@@ -290,7 +290,14 @@ public class Settler : CertificationAuthority
 
     public void GiveUserProperty(string pubkey, string name, byte[] value, byte[] secret, DateTime validTill)
     {
-        settlerContext.Value.UPDATE_OR_INSERT_AND_SAVE(
+        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
+
+        var up = (from u in settlerContext.Value.UserProperties
+                  where u.Name == name && u.PublicKey == pubkey
+                  select u).FirstOrDefault();
+        if (up == null)
+        {
+            settlerContext.Value.INSERT(
             new UserProperty
             {
                 PropertyId = Guid.NewGuid(),
@@ -301,6 +308,18 @@ public class Settler : CertificationAuthority
                 Value = value,
                 Secret = secret,
             });
+        }
+        else
+        {
+            up.ValidTill = validTill;
+            up.Value = value;
+            up.Secret = secret;
+            up.IsRevoked = false;
+            settlerContext.Value
+                .UPDATE(up)
+                .SAVE();
+        }
+        TX.Commit();
     }
 
     public UserProperty? GetUserProperty(string pubkey, string name)
