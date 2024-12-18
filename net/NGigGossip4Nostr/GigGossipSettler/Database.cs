@@ -5,6 +5,9 @@ using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography.X509Certificates;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics;
+using GigGossipSettler;
+using Google.Protobuf.WellKnownTypes;
+using NBitcoin;
 
 namespace GigGossipSettler;
 
@@ -316,7 +319,7 @@ public class SettlerContext : DbContext
         this.connectionString = connectionString;
     }
 
-    public Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction BEGIN_TRANSACTION(System.Data.IsolationLevel isolationLevel= System.Data.IsolationLevel.ReadCommitted)
+    public Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction BEGIN_TRANSACTION(System.Data.IsolationLevel isolationLevel = System.Data.IsolationLevel.ReadCommitted)
     {
         if (provider == DBProvider.Sqlite)
             return new NullTransaction();
@@ -329,8 +332,8 @@ public class SettlerContext : DbContext
     /// Tokens table.
     /// </summary>
     public DbSet<Token> Tokens { get; set; }
- 
-     /// <summary>
+
+    /// <summary>
     /// Preimages table.
     /// </summary>
     public DbSet<InvoicePreimage> Preimages { get; set; }
@@ -350,7 +353,7 @@ public class SettlerContext : DbContext
     /// Certificate->UserProperty 1-to-many table.
     /// </summary>
     public DbSet<CertificateProperty> CertificateProperties { get; set; }
-    
+
     /// <summary>
     /// UserCertificates table.
     /// </summary>
@@ -420,6 +423,17 @@ public class SettlerContext : DbContext
         this.ChangeTracker.Clear();
     }
 
+    public void UPDATE_OR_INSERT_AND_SAVE<T>(T obj)
+    {
+        try
+        {
+            this.UPDATE(obj).SAVE();
+        }
+        catch (DbUpdateException)
+        {
+            this.INSERT(obj).SAVE();
+        }
+    }
 }
 
 

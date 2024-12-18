@@ -440,13 +440,13 @@ public class LNDAccountManager
 
     public async Task<Guid> RegisterNewPayoutForExecutionAsync(long satoshis, string btcAddress)
     {
+        var myid = Guid.NewGuid();
+
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
         var availableAmount = (await GetAccountBalanceAsync("BTC")).AvailableAmount;
         if (availableAmount < satoshis)
             throw new LNDWalletException(LNDWalletErrorCode.NotEnoughFunds); ;
-
-        var myid = Guid.NewGuid();
 
         walletContext.Value
             .INSERT(new Payout()
@@ -818,7 +818,9 @@ public class LNDAccountManager
         {
             invoice = LND.LookupInvoiceV2(lndConf, decinv.PaymentHash.AsBytes());
         }
-        catch (Exception) {/* cannot locate */
+        catch (Exception) 
+        {
+            /* cannot locate */
         }
 
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
@@ -916,8 +918,6 @@ public class LNDAccountManager
                 return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.FiatNotPaidOrMismatched, false);
         }
 
-        var availableAmount = (await GetAccountBalanceAsync("BTC")).AvailableAmount;
-
         Invoice invoice = null;
         HodlInvoice? selfHodlInvoice = null;
         ClassicInvoice? selfClsInv = null;
@@ -926,6 +926,11 @@ public class LNDAccountManager
             invoice = LND.LookupInvoiceV2(lndConf, decinv.PaymentHash.AsBytes());
         }
         catch (Exception) {/* cannot locate */  }
+
+        if(TX==null)
+            TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
+
+        var availableAmount = (await GetAccountBalanceAsync("BTC")).AvailableAmount;
 
         if (invoice != null)
         {
@@ -1000,6 +1005,8 @@ public class LNDAccountManager
                 })
                 .SAVE();
 
+            TX.Commit();
+
             eventSource.CancelSingleInvoiceTracking(decinv.PaymentHash);
 
             var pubkey = selfHodlInvoice != null ? selfHodlInvoice.PublicKey : selfClsInv.PublicKey;
@@ -1013,7 +1020,6 @@ public class LNDAccountManager
                 selfHodlInvoice != null ? PaymentStatus.InFlight : PaymentStatus.Succeeded,
                 PaymentFailureReason.None);
 
-            TX.Commit();
 
             return ParsePayReqToPaymentRecord(decinv,
                 selfHodlInvoice != null ? PaymentStatus.InFlight : PaymentStatus.Succeeded,
@@ -1095,8 +1101,7 @@ public class LNDAccountManager
 
     public async Task<PaymentRecord> SendPaymentAsync(string paymentRequest, int timeout, long ourRouteFeeSat, long feelimit)
     {
-        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
-        return await SendPaymentAsyncTx(TX, paymentRequest, timeout, ourRouteFeeSat, feelimit);
+        return await SendPaymentAsyncTx(null, paymentRequest, timeout, ourRouteFeeSat, feelimit);
     }
 
     public async Task SettleInvoiceAsync(byte[] preimage)
@@ -2282,8 +2287,21 @@ public class LNDWalletManager : LNDEventSource
         }
         else
         {
-            var sum = (from chan in chans.Channels select LND.GetTransaction(lndConf, chan.ClosingTxHash).TotalFees).Sum();
-            return sum / chans.Channels.Count;
+            long sum = 0;
+            long count = 0;
+            foreach (var chan in chans.Channels)
+            {
+                try
+                {
+                    sum += LND.GetTransaction(lndConf, chan.ClosingTxHash).TotalFees;
+                    count++;
+                }
+                catch
+                {
+                    //pass
+                }
+            }
+            return sum / count;
         }
     }
 

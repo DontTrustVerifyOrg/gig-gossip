@@ -279,55 +279,28 @@ public class Settler : CertificationAuthority
 
     public void SaveUserTraceProperty(string pubkey, string name, byte[] value)
     {
-        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
-        var query = (from u in settlerContext.Value.UserTraceProperties
-                     where u.Name == name && u.PublicKey == pubkey
-                     select u);
-        if (query.ExecuteUpdate(i => i
-                .SetProperty(a => a.Value, a => value))
-             == 0)
-        {
-            settlerContext.Value
-                .INSERT(new UserTraceProperty
-                {
-                    PublicKey = pubkey,
-                    Name = name,
-                    Value = value,
-                })
-                .SAVE();
-        }
-        TX.Commit();
+        settlerContext.Value.UPDATE_OR_INSERT_AND_SAVE(
+            new UserTraceProperty
+            {
+                PublicKey = pubkey,
+                Name = name,
+                Value = value,
+            });
     }
 
     public void GiveUserProperty(string pubkey, string name, byte[] value, byte[] secret, DateTime validTill)
     {
-        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
-
-        var query = (from u in settlerContext.Value.UserProperties
-                     where u.Name == name && u.PublicKey == pubkey
-                     select u);
-        if (query.ExecuteUpdate(i => i
-                .SetProperty(a => a.Value, a => value)
-                .SetProperty(a => a.Secret, a => secret)
-                .SetProperty(a => a.IsRevoked, a => false)
-                .SetProperty(a => a.ValidTill, a => validTill))
-             == 0)
-        {
-            settlerContext.Value
-                .INSERT(new UserProperty()
-                {
-                    PropertyId = Guid.NewGuid(),
-                    IsRevoked = false,
-                    Name = name,
-                    PublicKey = pubkey,
-                    ValidTill = validTill,
-                    Value = value,
-                    Secret = secret,
-                })
-                .SAVE();
-        }
-
-        TX.Commit();
+        settlerContext.Value.UPDATE_OR_INSERT_AND_SAVE(
+            new UserProperty
+            {
+                PropertyId = Guid.NewGuid(),
+                IsRevoked = false,
+                Name = name,
+                PublicKey = pubkey,
+                ValidTill = validTill,
+                Value = value,
+                Secret = secret,
+            });
     }
 
     public UserProperty? GetUserProperty(string pubkey, string name)
