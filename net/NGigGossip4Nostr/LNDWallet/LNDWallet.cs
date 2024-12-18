@@ -900,14 +900,14 @@ public class LNDAccountManager
     private PaymentRecord failedPaymentRecordAndCommit(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction TX, PaymentRequestRecord payReq, PaymentFailureReason reason, bool delete)
     {
         failedPaymentRecordStore(payReq, reason, delete);
-
-        TX.Commit();
+        if(TX != null)
+            TX.Commit();
         return PaymentRecord.FromPaymentRequestRecord(payReq, PaymentStatus.Failed, reason, 0);
     }
 
 
 
-    private async Task<PaymentRecord> SendPaymentAsyncTx(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction TX, string paymentRequest, int timeout, long ourRouteFeeSat, long feelimit)
+    public async Task<PaymentRecord> SendPaymentAsync(string paymentRequest, int timeout, long ourRouteFeeSat, long feelimit)
     {
         var decinv = LND.DecodeInvoice(lndConf, paymentRequest);
         var paymentRequestRecord = ParsePayReqToPaymentRequestRecord(decinv);
@@ -915,7 +915,7 @@ public class LNDAccountManager
         {
             var payst = await GetStripePaymentState(paymentRequestRecord.PaymentAddr);
             if (!payst.HasValue || payst.Value.Currency != paymentRequestRecord.Currency || payst.Value.Amount != paymentRequestRecord.Amount || payst.Value.Status != "succeeded")
-                return failedPaymentRecordAndCommit(TX, paymentRequestRecord, PaymentFailureReason.FiatNotPaidOrMismatched, false);
+                return failedPaymentRecordAndCommit(null, paymentRequestRecord, PaymentFailureReason.FiatNotPaidOrMismatched, false);
         }
 
         Invoice invoice = null;
@@ -927,8 +927,7 @@ public class LNDAccountManager
         }
         catch (Exception) {/* cannot locate */  }
 
-        if(TX==null)
-            TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
         var availableAmount = (await GetAccountBalanceAsync("BTC")).AvailableAmount;
 
@@ -1099,14 +1098,8 @@ public class LNDAccountManager
 
     }
 
-    public async Task<PaymentRecord> SendPaymentAsync(string paymentRequest, int timeout, long ourRouteFeeSat, long feelimit)
-    {
-        return await SendPaymentAsyncTx(null, paymentRequest, timeout, ourRouteFeeSat, feelimit);
-    }
-
     public async Task SettleInvoiceAsync(byte[] preimage)
     {
-        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
         var paymentHashBytes = Crypto.ComputePaymentHash(preimage);
         var paymentHash = paymentHashBytes.AsHex();
@@ -1120,6 +1113,8 @@ public class LNDAccountManager
             if (!payst.HasValue || payst.Value.Currency != paymentRequestRecord.Currency || payst.Value.Amount != paymentRequestRecord.Amount || payst.Value.Status != "succeeded")
                 throw new LNDWalletException(LNDWalletErrorCode.FiatNotPaidOrMismatched);
         }
+
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
         HodlInvoice? selfHodlInvoice = (from inv in walletContext.Value.HodlInvoices
                                         where inv.PaymentHash == paymentHash && inv.PublicKey == PublicKey
@@ -1139,30 +1134,31 @@ public class LNDAccountManager
             else if (internalPayment.Status != InternalPaymentStatus.InFlight) //this should be always true
                 throw new LNDWalletException(LNDWalletErrorCode.InvoiceNotAccepted);
 
-            var payment = (from pay in walletContext.Value.InternalPayments
-                           where pay.PaymentHash == paymentHash
-                           select pay).FirstOrDefault();
-            if (payment != null)
-            {
-                payment.Status = InternalPaymentStatus.Succeeded;
-                walletContext.Value
-                    .UPDATE(payment)
-                    .SAVE();
-            }
-
-            eventSource.FireOnInvoiceStateChanged(selfHodlInvoice.PublicKey, paymentHash, InvoiceState.Settled);
-            eventSource.FireOnPaymentStatusChanged(payment.PublicKey, paymentHash, PaymentStatus.Succeeded, PaymentFailureReason.None);
+            internalPayment.Status = InternalPaymentStatus.Succeeded;
+            walletContext.Value
+                .UPDATE(internalPayment)
+                .SAVE();
+            TX.Commit();
         }
         else
         {
+            TX.Commit();
             LND.SettleInvoice(lndConf, preimage);
         }
-        TX.Commit();
+
+        if (internalPayment != null)
+        {
+            eventSource.FireOnInvoiceStateChanged(selfHodlInvoice.PublicKey, paymentHash, InvoiceState.Settled);
+            eventSource.FireOnPaymentStatusChanged(internalPayment.PublicKey, paymentHash, PaymentStatus.Succeeded, PaymentFailureReason.None);
+        }
     }
 
-    private void CancelInvoiceNoTx(string paymentHash)
+    public void CancelInvoice(string paymentHash)
     {
+
         var invoice = LND.LookupInvoiceV2(lndConf, paymentHash.AsBytes());
+
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
         HodlInvoice? selfHodlInvoice = (from inv in walletContext.Value.HodlInvoices
                                         where inv.PaymentHash == paymentHash && inv.PublicKey == PublicKey
@@ -1202,21 +1198,19 @@ public class LNDAccountManager
                 })
                 .SAVE();
 
+            TX.Commit();
+
             eventSource.CancelSingleInvoiceTracking(paymentHash);
             eventSource.FireOnPaymentStatusChanged(internalPayment.PublicKey, paymentHash, PaymentStatus.Failed, PaymentFailureReason.Canceled);
         }
+        else
+            TX.Commit();
+
         LND.CancelInvoice(lndConf, paymentHash.AsBytes());
+
     }
 
-    public void CancelInvoice(string paymentHash)
-    {
-        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
-
-        CancelInvoiceNoTx(paymentHash);
-
-        TX.Commit();
-    }
-
+    /*
     public async Task<PaymentRecord> CancelInvoiceSendPaymentAsync(string paymentHash, string paymentRequest, int timeout, long ourRouteFeeSat, long feelimit)
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
@@ -1231,6 +1225,7 @@ public class LNDAccountManager
         CancelInvoiceNoTx(paymentHash);
         return await SendPaymentAsyncTx(TX, paymentRequest, timeout, ourRouteFeeSat, feelimit);
     }
+    */
 
     public static InvoiceRecord ParseInvoiceToInvoiceRecord(Invoice invoice, bool isHodl)
     {
@@ -1515,17 +1510,19 @@ public class LNDAccountManager
 
     public async Task<InvoiceRecord> GetInvoiceAsync(string paymentHash)
     {
+
+        var invoice = LND.LookupInvoiceV2(lndConf, paymentHash.AsBytes());
+
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
         HodlInvoice? selfHodlInvoice = (from inv in walletContext.Value.HodlInvoices
                                         where inv.PaymentHash == paymentHash
                                         select inv).FirstOrDefault();
 
-        var invoice = LND.LookupInvoiceV2(lndConf, paymentHash.AsBytes());
         if ((invoice.State != Lnrpc.Invoice.Types.InvoiceState.Open) && (invoice.State != Lnrpc.Invoice.Types.InvoiceState.Canceled))
         {
-            TX.Commit();
             return ParseInvoiceToInvoiceRecord(invoice, selfHodlInvoice != null);
         }
+
 
         // if InvoiceState is Open or Cancelled
 
@@ -1559,7 +1556,7 @@ public class LNDAccountManager
     public async Task<AccountFiatBalanceDetails> GetFiatBalanceAsync(string currency)
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
-        var bal = (await GetAccountBalanceAsync(currency));
+        var bal = await GetAccountBalanceAsync(currency);
         TX.Commit();
         var (pendingBalance, payouts, total) = await GetFiatBalanceFromApi(currency);
         var ret = new AccountFiatBalanceDetails
@@ -1575,7 +1572,7 @@ public class LNDAccountManager
     public async Task<AccountBalanceDetails> GetBalanceAsync()
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
-        var bal = (await GetAccountBalanceAsync("BTC"));
+        var bal = await GetAccountBalanceAsync("BTC");
         TX.Commit();
         return bal;
     }
@@ -2077,7 +2074,7 @@ public class LNDWalletManager : LNDEventSource
 
     internal bool MarkPayoutAsSending(Guid id, long fee)
     {
-        using var TX = walletContext.Value.BEGIN_TRANSACTION();
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
         var payout = (from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Open select po).FirstOrDefault();
         if (payout == null)
@@ -2087,15 +2084,14 @@ public class LNDWalletManager : LNDEventSource
         walletContext.Value
             .UPDATE(payout)
             .SAVE();
-        FireOnPayoutStateChanged(payout.PublicKey, payout.PayoutId, payout.State, payout.PayoutFee, payout.Tx);
-
         TX.Commit();
+        FireOnPayoutStateChanged(payout.PublicKey, payout.PayoutId, payout.State, payout.PayoutFee, payout.Tx);
         return true;
     }
 
     internal bool MarkPayoutAsFailure(Guid id, string tx)
     {
-        using var TX = walletContext.Value.BEGIN_TRANSACTION();
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
         var payout = (from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Sending select po).FirstOrDefault();
         if (payout == null)
@@ -2107,16 +2103,15 @@ public class LNDWalletManager : LNDEventSource
             .SAVE();
 
         CloseReserve(id);
-        FireOnPayoutStateChanged(payout.PublicKey, payout.PayoutId, payout.State, payout.PayoutFee, payout.Tx);
-
         TX.Commit();
+        FireOnPayoutStateChanged(payout.PublicKey, payout.PayoutId, payout.State, payout.PayoutFee, payout.Tx);
 
         return true;
     }
 
     internal void MarkPayoutAsSent(Guid id, string tx)
     {
-        using var TX = walletContext.Value.BEGIN_TRANSACTION();
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
         var payout = (from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Sending select po).FirstOrDefault();
         if (payout == null)
@@ -2128,9 +2123,9 @@ public class LNDWalletManager : LNDEventSource
             .SAVE();
 
         CloseReserve(id);
-        FireOnPayoutStateChanged(payout.PublicKey, payout.PayoutId, payout.State, payout.PayoutFee, payout.Tx);
-
         TX.Commit();
+
+        FireOnPayoutStateChanged(payout.PublicKey, payout.PayoutId, payout.State, payout.PayoutFee, payout.Tx);
     }
 
     public (long feeSat, ulong satpervbyte) EstimateFee(string addr, long satoshis)
@@ -2336,7 +2331,6 @@ public class LNDWalletManager : LNDEventSource
                                 if (inv.ExpiryTime < DateTime.UtcNow)
                                 {
                                     TL.Iteration(pay);
-                                    using var TX = walletContext.Value.BEGIN_TRANSACTION();
 
                                     walletContext.Value
                                         .DELETE_IF_EXISTS(from p in walletContext.Value.InternalPayments
@@ -2355,7 +2349,6 @@ public class LNDWalletManager : LNDEventSource
                                     this.CancelSingleInvoiceTracking(pay.PaymentHash);
                                     this.FireOnPaymentStatusChanged(pay.PublicKey, pay.PaymentHash, PaymentStatus.Failed, PaymentFailureReason.Canceled);
 
-                                    TX.Commit();
                                 }
                             }
                         }

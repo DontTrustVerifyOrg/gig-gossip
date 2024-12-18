@@ -750,7 +750,7 @@ app.MapGet("/cancelinvoicesendpayment", async (string authToken, string paymenth
 {
     try
     {
-        return new Result<PaymentRecord>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CancelInvoiceSendPaymentAsync(paymenthash, paymentrequest, timeout, walletSettings.SendPaymentFee, feelimit));
+        throw new NotImplementedException();
     }
     catch (Exception ex)
     {
