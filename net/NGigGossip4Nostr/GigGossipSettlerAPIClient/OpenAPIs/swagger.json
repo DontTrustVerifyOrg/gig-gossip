@@ -1778,8 +1778,7 @@
             "description": "Gig-job identifier.",
             "required": true,
             "schema": {
-              "type": "string",
-              "format": "uuid"
+              "type": "string"
             }
           },
           {
@@ -1788,12 +1787,11 @@
             "description": "CertificateId of the replier.",
             "required": true,
             "schema": {
-              "type": "string",
-              "format": "uuid"
+              "type": "string"
             }
           },
           {
-            "name": "paymentClientSecret",
+            "name": "stripeClientSecret",
             "in": "query",
             "description": "Payment client secret",
             "required": true,
