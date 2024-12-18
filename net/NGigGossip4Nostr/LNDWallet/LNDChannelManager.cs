@@ -242,8 +242,6 @@ public class LNDChannelManager
 						walletManager.MarkPayoutAsSent(payout.PayoutId, tx);
 						TL.Info($"Payout done");
 					}
-
-
                 }
 				catch (Exception ex)
 				{
