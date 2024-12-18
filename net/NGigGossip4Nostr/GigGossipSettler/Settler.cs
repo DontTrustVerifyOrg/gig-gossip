@@ -307,7 +307,7 @@ public class Settler : CertificationAuthority
                 ValidTill = validTill,
                 Value = value,
                 Secret = secret,
-            });
+            }).SAVE();
         }
         else
         {
