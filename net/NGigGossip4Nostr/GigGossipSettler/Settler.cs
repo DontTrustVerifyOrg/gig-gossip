@@ -601,16 +601,16 @@ public class Settler : CertificationAuthority
 
         TX.Commit();
 
-        await sendPushNotificationsAsync(topic.FromGeohash);
+        Task.Run(async () => await sendPushNotificationsAsync(topic.FromGeohash));
 
         return new BroadcastRequest { JobRequest = cert1, CancelJobRequest = cert2 };
     }
 
     private async Task sendPushNotificationsAsync(string geohash)
     {
-        var appModes = new Dictionary<string, string>((from g in settlerContext.Value.UserProperties where g.Name == "AppMode" select KeyValuePair.Create(g.PublicKey, Encoding.Default.GetString(g.Secret))));
-        var langs = new Dictionary<string, string>((from g in settlerContext.Value.UserProperties where g.Name == "Language" select KeyValuePair.Create(g.PublicKey, Encoding.Default.GetString(g.Secret))));
-        var geohashes = new Dictionary<string, string>((from g in settlerContext.Value.UserTraceProperties where g.Name == "Geohash" select KeyValuePair.Create(g.PublicKey, Encoding.Default.GetString(g.Value))));
+        var appModes = (from g in settlerContext.Value.UserProperties where g.Name == "AppMode" select g).ToLookup(g=> g.PublicKey).ToDictionary(g=>g.Key, x=> Encoding.Default.GetString(x.First().Secret));
+        var langs = (from g in settlerContext.Value.UserProperties where g.Name == "Language" select g).ToLookup(g => g.PublicKey).ToDictionary(g => g.Key, x => Encoding.Default.GetString(x.First().Secret));
+        var geohashes = (from g in settlerContext.Value.UserTraceProperties where g.Name == "Geohash" select g).ToLookup(g => g.PublicKey).ToDictionary(g => g.Key, x => Encoding.Default.GetString(x.First().Value));
         foreach (var pn in (from g in settlerContext.Value.UserProperties where g.Name == "PushNotificationsToken" select g))
         {
             try
