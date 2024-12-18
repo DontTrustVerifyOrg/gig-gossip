@@ -48,7 +48,7 @@ public interface ISettlerAPI
     Task<StringResult> GenerateSettlementTrustAsync(string authToken, string properties, string replyinvoice, FileParameter message, FileParameter signedRequestPayloadSerialized, CancellationToken cancellationToken);
     Task<StringResult> EncryptJobReplyForCertificateIdAsync(System.Guid? certificateId, FileParameter objectSerialized, CancellationToken cancellationToken);
     Task<Result> ManageDisputeAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, bool open, CancellationToken cancellationToken);
-    Task<Result> OpenDisputeAsync(string authToken, string driverPublicKey, string reason, System.Guid gigId, System.Guid repliercertificateId, string paymentClientSecret, System.Threading.CancellationToken cancellationToken);
+    Task<Result> OpenDisputeAsync(string authToken, string driverPublicKey, string reason, string gigId, string repliercertificateId, string paymentClientSecret, System.Threading.CancellationToken cancellationToken);
     Task<Result> CancelGigAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, CancellationToken cancellationToken);
 
     Task<Result> DeleteMyPersonalUserDataAsync(string authToken, System.Threading.CancellationToken cancellationToken);
@@ -268,7 +268,7 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
         return await RetryPolicy.WithRetryPolicy(() => api.DeleteMyPersonalUserDataAsync(authToken, cancellationToken));
     }
 
-    public async Task<Result> OpenDisputeAsync(string authToken, string driverPublicKey, string reason, Guid gigId, Guid repliercertificateId, string paymentClientSecret, CancellationToken cancellationToken)
+    public async Task<Result> OpenDisputeAsync(string authToken, string driverPublicKey, string reason, string gigId, string repliercertificateId, string paymentClientSecret, CancellationToken cancellationToken)
     {
         return await RetryPolicy.WithRetryPolicy(() => api.OpenDisputeAsync(authToken, driverPublicKey, reason, gigId, repliercertificateId, paymentClientSecret, cancellationToken));
     }

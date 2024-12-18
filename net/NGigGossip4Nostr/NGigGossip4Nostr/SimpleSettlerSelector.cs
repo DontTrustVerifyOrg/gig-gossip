@@ -454,7 +454,7 @@ public class SettlerAPIWrapper : ISettlerAPI
         }
     }
 
-    public async Task<GigGossipSettlerAPIClient.Result> OpenDisputeAsync(string authToken, string driverPublicKey, string reason, Guid gigId, Guid repliercertificateId, string paymentClientSecret, CancellationToken cancellationToken)
+    public async Task<GigGossipSettlerAPIClient.Result> OpenDisputeAsync(string authToken, string driverPublicKey, string reason, string gigId, string repliercertificateId, string paymentClientSecret, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(driverPublicKey, reason, gigId, repliercertificateId, paymentClientSecret);
         try
