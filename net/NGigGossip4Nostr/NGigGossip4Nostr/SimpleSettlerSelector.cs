@@ -454,12 +454,12 @@ public class SettlerAPIWrapper : ISettlerAPI
         }
     }
 
-    public Task<GigGossipSettlerAPIClient.Result> OpenDisputeAsync(string authToken, string driverPublicKey, string reason, Guid gigId, Guid repliercertificateId, string paymentClientSecret, CancellationToken cancellationToken)
+    public async Task<GigGossipSettlerAPIClient.Result> OpenDisputeAsync(string authToken, string driverPublicKey, string reason, Guid gigId, Guid repliercertificateId, string paymentClientSecret, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(driverPublicKey, reason, gigId, repliercertificateId, paymentClientSecret);
         try
         {
-            return TL.Ret(API.OpenDisputeAsync(authToken, driverPublicKey, reason, gigId, repliercertificateId, paymentClientSecret, cancellationToken));
+            return TL.Ret(await API.OpenDisputeAsync(authToken, driverPublicKey, reason, gigId, repliercertificateId, paymentClientSecret, cancellationToken));
         }
         catch (Exception ex)
         {
