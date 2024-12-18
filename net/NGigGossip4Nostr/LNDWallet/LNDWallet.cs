@@ -2093,7 +2093,7 @@ public class LNDWalletManager : LNDEventSource
     {
         using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
 
-        var payout = (from po in walletContext.Value.Payouts where po.PayoutId == id && po.State == PayoutState.Sending select po).FirstOrDefault();
+        var payout = (from po in walletContext.Value.Payouts where po.PayoutId == id select po).FirstOrDefault();
         if (payout == null)
             return false;
         payout.State = PayoutState.Failure;
