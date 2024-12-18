@@ -610,10 +610,10 @@ public class Settler : CertificationAuthority
     {
         try
         {
-            var appModes = (from g in settlerContext.Value.UserProperties where g.Name == "AppMode" select g).ToLookup(g => g.PublicKey).ToDictionary(g => g.Key, x => Encoding.Default.GetString(x.First().Secret));
-            var langs = (from g in settlerContext.Value.UserProperties where g.Name == "Language" select g).ToLookup(g => g.PublicKey).ToDictionary(g => g.Key, x => Encoding.Default.GetString(x.First().Secret));
-            var geohashes = (from g in settlerContext.Value.UserTraceProperties where g.Name == "Geohash" select g).ToLookup(g => g.PublicKey).ToDictionary(g => g.Key, x => Encoding.Default.GetString(x.First().Value));
-            foreach (var pn in (from g in settlerContext.Value.UserProperties where g.Name == "PushNotificationsToken" select g))
+            var appModes = (from g in settlerContext.Value.UserProperties where g.Name == "AppMode" select g).ToList().ToLookup(g => g.PublicKey).ToDictionary(g => g.Key, x => Encoding.Default.GetString(x.First().Secret));
+            var langs = (from g in settlerContext.Value.UserProperties where g.Name == "Language" select g).ToList().ToLookup(g => g.PublicKey).ToDictionary(g => g.Key, x => Encoding.Default.GetString(x.First().Secret));
+            var geohashes = (from g in settlerContext.Value.UserTraceProperties where g.Name == "Geohash" select g).ToList().ToLookup(g => g.PublicKey).ToDictionary(g => g.Key, x => Encoding.Default.GetString(x.First().Value));
+            foreach (var pn in (from g in settlerContext.Value.UserProperties where g.Name == "PushNotificationsToken" select g).ToList())
             {
                 try
                 {
@@ -812,7 +812,7 @@ public class Settler : CertificationAuthority
     {
         using var TX = settlerContext.Value.BEGIN_TRANSACTION();
 
-        var certids = (from c in (from u in settlerContext.Value.UserCertificates where u.PublicKey == pubkey select u) select c.CertificateId).ToHashSet();
+        var certids = (from c in (from u in settlerContext.Value.UserCertificates where u.PublicKey == pubkey select u) select c.CertificateId).ToList().ToHashSet();
         if (certids.Count > 0)
             (from u in settlerContext.Value.CertificateProperties where certids.Contains(u.CertificateId) select u).ExecuteDelete();
 
