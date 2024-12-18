@@ -1094,12 +1094,12 @@ app.MapPost("/encryptjobreplyforcertificateid", async ([FromForm] Guid certifica
 .WithDescription("Encrypts the object using public key related to the specific certioficate id.")
 .DisableAntiforgery();
 
-app.MapGet("/opendispute", async (string authToken, string driverPublicKey, string reason, Guid gigId, Guid repliercertificateId, string stripeClientSecret) =>
+app.MapGet("/opendispute", async (string authToken, string driverPublicKey, string reason, string gigId, string repliercertificateId, string stripeClientSecret) =>
 {
     try
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-        await Singlethon.Settler.OpenDisputeAsync(pubkey, driverPublicKey, reason, gigId, repliercertificateId, stripeClientSecret);
+        await Singlethon.Settler.OpenDisputeAsync(pubkey, driverPublicKey, reason, Guid.Parse(gigId), Guid.Parse(repliercertificateId), stripeClientSecret);
         return new Result();
     }
     catch (Exception ex)
