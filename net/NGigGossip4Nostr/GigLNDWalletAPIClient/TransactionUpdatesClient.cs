@@ -24,7 +24,7 @@ namespace GigLNDWalletAPIClient
 
         public async Task ConnectAsync(string authToken, CancellationToken cancellationToken)
         {
-            await slimLock.WaitAsync();
+            if (!await slimLock.WaitAsync(1000)) throw new TimeoutException();
             try
             {
                 var builder = new HubConnectionBuilder();
@@ -42,7 +42,7 @@ namespace GigLNDWalletAPIClient
 
         public IAsyncEnumerable<NewTransactionFound> StreamAsync(string authToken, CancellationToken cancellationToken)
         {
-            slimLock.Wait();
+            if (!slimLock.Wait(1000)) throw new TimeoutException();
             try
             {
                 return connection.StreamAsync<NewTransactionFound>("StreamAsync", authToken, cancellationToken);
