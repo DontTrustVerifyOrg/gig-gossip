@@ -106,7 +106,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     public TimeSpan InvoicePaymentTimeout;
     protected int fanout;
 
-    private SemaphoreSlim alreadyBroadcastedSemaphore = new SemaphoreSlim(1, 1);
+    private SemaphoreSlim slimLock = new SemaphoreSlim(1, 1);
 
     private ConcurrentDictionary<Uri, IGigStatusClient> settlerGigStatusClients ;
     private ConcurrentDictionary<Uri, IPreimageRevealClient> settlerPreimageRevelClients ;
@@ -677,7 +677,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             Guid replierCertificateId;
             string replyPaymentHash;
 
-            await alreadyBroadcastedSemaphore.WaitAsync();
+            if (!await slimLock.WaitAsync(1000)) throw new TimeoutException();
             try
             {
                 AcceptedBroadcastRow alreadyBroadcasted;
@@ -778,7 +778,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             }
             finally
             {
-                alreadyBroadcastedSemaphore.Release();
+                slimLock.Release();
             }
             var ret = new AcceptBroadcastReturnValue()
             {
@@ -805,7 +805,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log().Args(messageId, peerPublicKey, responseFrame, newResponse);
         try
         {
-            await alreadyBroadcastedSemaphore.WaitAsync();
+            if (!await slimLock.WaitAsync(1000)) throw new TimeoutException();
             try
             {
                 var decodedNetworkInvoice = WalletAPIResult.Get<PaymentRequestRecord>(await GetWalletClient().DecodeInvoiceAsync(await MakeWalletAuthToken(), responseFrame.NetworkPaymentRequest.Value, cancellationToken));
@@ -910,7 +910,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             }
             finally
             {
-                alreadyBroadcastedSemaphore.Release();
+                slimLock.Release();
             }
         }
         catch(Exception ex)
@@ -925,7 +925,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log();
         try
         {
-            alreadyBroadcastedSemaphore.Wait();
+            if (!slimLock.Wait(1000)) throw new TimeoutException();
             try
             {
                 lock (NodeDb.Context)
@@ -937,7 +937,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             }
             finally
             {
-                alreadyBroadcastedSemaphore.Release();
+                slimLock.Release();
             }
         }
         catch(Exception ex)
@@ -952,7 +952,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log().Args(signedrequestpayloadId);
         try
         {
-            alreadyBroadcastedSemaphore.Wait();
+            if (!slimLock.Wait(1000)) throw new TimeoutException();
             try
             {
                 lock (NodeDb.Context)
@@ -964,7 +964,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             }
             finally
             {
-                alreadyBroadcastedSemaphore.Release();
+                slimLock.Release();
             }
         }
         catch(Exception ex)
@@ -979,7 +979,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log();
         try
         {
-            alreadyBroadcastedSemaphore.Wait();
+            if (!slimLock.Wait(1000)) throw new TimeoutException();
             try
             {
                 lock (NodeDb.Context)
@@ -991,7 +991,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             }
             finally
             {
-                alreadyBroadcastedSemaphore.Release();
+                slimLock.Release();
             }
         }
         catch(Exception ex)
@@ -1006,7 +1006,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log().Args(brd);
         try
         {
-            alreadyBroadcastedSemaphore.Wait();
+            if (!slimLock.Wait(1000)) throw new TimeoutException();
             try
             {
                 brd.Cancelled = true;
@@ -1017,7 +1017,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             }
             finally
             {
-                alreadyBroadcastedSemaphore.Release();
+                slimLock.Release();
             }
         }
         catch(Exception ex)
@@ -1033,7 +1033,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log().Args(signedrequestpayloadId);
         try
         {
-            alreadyBroadcastedSemaphore.Wait();
+            if (!slimLock.Wait(1000)) throw new TimeoutException();
             try
             {
                 lock (NodeDb.Context)
@@ -1045,7 +1045,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             }
             finally
             {
-                alreadyBroadcastedSemaphore.Release();
+                slimLock.Release();
             }
         }
         catch(Exception ex)
@@ -1060,7 +1060,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log().Args(replyInvoiceHash);
         try
         {
-            alreadyBroadcastedSemaphore.Wait();
+            if (!slimLock.Wait(1000)) throw new TimeoutException();
             try
             {
                 lock (NodeDb.Context)
@@ -1072,7 +1072,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             }
             finally
             {
-                alreadyBroadcastedSemaphore.Release();
+                slimLock.Release();
             }
         }
         catch(Exception ex)
