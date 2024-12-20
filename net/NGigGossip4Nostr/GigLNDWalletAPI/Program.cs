@@ -173,6 +173,8 @@ app.MapGet("/topupandmine6blocks", (string authToken, string bitcoinAddr, long s
 {
     try
     {
+        if(satoshis<=0)
+            throw new InvalidOperationException("Satoshis must be greater than 0");
         Singlethon.LNDWalletManager.ValidateAuthToken(authToken);
         if (Singlethon.LNDWalletManager.BitcoinNode.IsRegTest)
             Singlethon.LNDWalletManager.BitcoinNode.TopUpAndMine6Blocks(bitcoinAddr, satoshis);
@@ -201,6 +203,8 @@ app.MapGet("/sendtoaddress", (string authToken, string bitcoinAddr, long satoshi
 {
     try
     {
+        if (satoshis <= 0)
+            throw new InvalidOperationException("Satoshis must be greater than 0");
         Singlethon.LNDWalletManager.ValidateAuthToken(authToken, !Singlethon.LNDWalletManager.BitcoinNode.IsRegTest);
         Singlethon.LNDWalletManager.BitcoinNode.SendToAddress(bitcoinAddr, satoshis);
         return new Result();
@@ -225,6 +229,8 @@ app.MapGet("/generateblocks", (string authToken, int blocknum) =>
 {
     try
     {
+        if (blocknum <= 0)
+            throw new InvalidOperationException("Blucknum must be greater than 0");
         Singlethon.LNDWalletManager.ValidateAuthToken(authToken);
         if (Singlethon.LNDWalletManager.BitcoinNode.IsRegTest)
             Singlethon.LNDWalletManager.BitcoinNode.GenerateBlocks(blocknum);
@@ -274,6 +280,8 @@ app.MapGet("/getbitcoinwalletbalance", (string authToken, int minConf) =>
 {
     try
     {
+        if (minConf < 0)
+            throw new InvalidOperationException("Blucknum must be greater equal 0");
         Singlethon.LNDWalletManager.ValidateAuthToken(authToken,!Singlethon.LNDWalletManager.BitcoinNode.IsRegTest);
         return new Result<long>(Singlethon.LNDWalletManager.BitcoinNode.WalletBalance(minConf));
     }
@@ -329,6 +337,8 @@ app.MapGet("/openreserve", (string authToken, long satoshis) =>
 {
     try
     {
+        if (satoshis <= 0)
+            throw new InvalidOperationException("Satoshis must be greater than 0");
         Singlethon.LNDWalletManager.ValidateAuthToken(authToken,!Singlethon.LNDWalletManager.BitcoinNode.IsRegTest);
         return new Result<Guid>(Singlethon.LNDWalletManager.OpenReserve(satoshis));
     }
@@ -443,6 +453,8 @@ app.MapGet("/estimatefee", (string authToken, string address, long satoshis) =>
     bool isAdmin = false;
     try
     {
+        if (satoshis < 0)
+            throw new InvalidOperationException("Satoshis must be greater equal 0");
         var pubKey = Singlethon.LNDWalletManager.ValidateAuthToken(authToken);
         isAdmin = Singlethon.LNDWalletManager.HasAdminRights(pubKey); 
         var (feesat, satspervbyte) = Singlethon.LNDWalletManager.EstimateFee(address, satoshis);
@@ -558,6 +570,8 @@ app.MapGet("/registerpayout", async (string authToken, long satoshis, string btc
 {
     try
     {
+        if (satoshis < 0)
+            throw new InvalidOperationException("Satoshis must be greater equal 0");
         return new Result<Guid>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).RegisterNewPayoutForExecutionAsync(satoshis, btcAddress));
     }
     catch(Exception ex) 
@@ -625,6 +639,10 @@ app.MapGet("/addinvoice", (string authToken, long satoshis, string memo, long ex
 {
     try
     {
+        if (satoshis < 0)
+            throw new InvalidOperationException("Satoshis must be greater equal 0");
+        if (expiry < 0)
+            throw new InvalidOperationException("Expiry must be greater equal 0");
         return new Result<InvoiceRecord>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CreateNewClassicInvoice(satoshis, memo, expiry));
     }
     catch (Exception ex)
@@ -648,6 +666,10 @@ app.MapGet("/addhodlinvoice", (string authToken, long satoshis, string hash, str
 {
     try
     {
+        if (satoshis < 0)
+            throw new InvalidOperationException("Satoshis must be greater equal 0");
+        if (expiry < 0)
+            throw new InvalidOperationException("Expiry must be greater equal 0");
         return new Result<InvoiceRecord>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CreateNewHodlInvoice(satoshis, memo, hash.AsBytes(), expiry));
     }
     catch (Exception ex)
@@ -673,6 +695,10 @@ app.MapGet("/addfiatinvoice", async (string authToken, long cents, string countr
 {
     try
     {
+        if (cents < 0)
+            throw new InvalidOperationException("Cents must be greater equal 0");
+        if (expiry < 0)
+            throw new InvalidOperationException("Expiry must be greater equal 0");
         return new Result<InvoiceRecord>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CreateNewClassicStripeInvoiceAsync(cents, country, currency, memo, expiry));
     }
     catch (Exception ex)
@@ -699,6 +725,10 @@ app.MapGet("/addfiathodlinvoice", async (string authToken, long cents, string co
 {
     try
     {
+        if (cents < 0)
+            throw new InvalidOperationException("Cents must be greater equal 0");
+        if (expiry < 0)
+            throw new InvalidOperationException("Expiry must be greater equal 0");
         return new Result<InvoiceRecord>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).CreateNewHodlStripeInvoiceAsync(cents, country, currency, memo, hash.AsBytes(), expiry));
     }
     catch (Exception ex)
@@ -776,6 +806,10 @@ app.MapGet("/sendpayment", async (string authToken, string paymentrequest, int t
 {
     try
     {
+        if (timeout < 0)
+            throw new InvalidOperationException("Timeout must be greater equal 0");
+        if (feelimit < 0)
+            throw new InvalidOperationException("Feelimit must be greater equal 0");
         return new Result<PaymentRecord>(await Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).SendPaymentAsync(paymentrequest, timeout, walletSettings.SendPaymentFee, feelimit));
     }
     catch (Exception ex)
@@ -801,6 +835,8 @@ app.MapGet("/estimateroutefee", (string authToken, string paymentrequest, int ti
 {
     try
     {
+        if (timeout < 0)
+            throw new InvalidOperationException("Timeout must be greater equal 0");
         return new Result<RouteFeeRecord>(Singlethon.LNDWalletManager.ValidateAuthTokenAndGetAccount(authToken).EstimateRouteFee(paymentrequest, walletSettings.SendPaymentFee, timeout));
     }
     catch (Exception ex)
