@@ -30,7 +30,7 @@ public class ServerListener
                 RetryContext = new();
                 return;
             }
-            catch (Exception ex) when (ex.CanRetry())
+            catch (Exception ex)// when (ex.CanRetry())
             {
                 var ts = retryPolicy.NextRetryDelay(RetryContext);
                 if (ts == null)
