@@ -1499,10 +1499,10 @@ public class LNDAccountManager
 
     }
 
-    public async Task<InvoiceRecord[]> ListInvoicesAsync(bool includeClassic, bool includeHodl)
+    public async Task<InvoiceRecord[]> ListInvoicesAsync(bool includeClassic, bool includeHodl, int minValue=-1)
     {
         var allInvs = new Dictionary<string, InvoiceRecord>(
-            (from inv in LND.ListInvoices(lndConf).Invoices
+            (from inv in LND.ListInvoices(lndConf).Invoices where inv.Value > minValue
              select KeyValuePair.Create(inv.RHash.ToArray().AsHex(),
              ParseInvoiceToInvoiceRecord(invoice: inv, isHodl: false))));
 
@@ -1748,7 +1748,7 @@ public class LNDAccountManager
                            && a.State != PayoutState.Failure
                            select a.PayoutFee).Sum();
 
-        var invoices = await ListInvoicesAsync(true, true);
+        var invoices = await ListInvoicesAsync(true, true, 0);
         var payments = ListNotFailedPayments();
 
         var earnedFromSettledInvoices = (from inv in invoices
