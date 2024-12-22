@@ -346,33 +346,22 @@ public abstract class LNDEventSource
     public event PayoutStatusChangedEventHandler OnPayoutStateChanged;
 
 
-    public abstract void InvalidateFiatBalance(string pubkey, string currency);
-    public abstract void InvalidateBalance(string pubkey);
 
-    public void FireOnInvoiceStateChanged(string pubkey,string currency, string paymentHash, InvoiceState invstate)
+    public void FireOnInvoiceStateChanged(string pubkey, string currency, string paymentHash, InvoiceState invstate)
     {
-        if(currency=="BTC")
-            InvalidateBalance(pubkey);
-        else
-            InvalidateFiatBalance(pubkey, currency);
-
         OnInvoiceStateChanged?.Invoke(this, new InvoiceStateChangedEventArgs()
         {
             PublicKey = pubkey,
-             InvoiceStateChange = new InvoiceStateChange
-             {
-                 PaymentHash = paymentHash,
-                 NewState = invstate
-             }
+            InvoiceStateChange = new InvoiceStateChange
+            {
+                PaymentHash = paymentHash,
+                NewState = invstate
+            }
         });
     }
 
     public void FireOnPaymentStatusChanged(string pubkey, string currency, string paymentHash, PaymentStatus paystatus, PaymentFailureReason failureReason)
     {
-        if (currency == "BTC")
-            InvalidateBalance(pubkey);
-        else
-            InvalidateFiatBalance(pubkey, currency);
 
         OnPaymentStatusChanged?.Invoke(this, new PaymentStatusChangedEventArgs()
         {
@@ -388,7 +377,7 @@ public abstract class LNDEventSource
 
     public void FireOnNewTransactionFound(string pubkey, string txHash, int numConfirmations, string address, long amountSat)
     {
-        InvalidateBalance(pubkey);
+
 
         OnNewTransactionFound?.Invoke(this, new NewTransactionFoundEventArgs()
         {
@@ -406,7 +395,6 @@ public abstract class LNDEventSource
 
     public void FireOnPayoutStateChanged(string pubkey, Guid payoutId, PayoutState paystatus, long payoutFee, string tx)
     {
-        InvalidateBalance(pubkey);
 
         OnPayoutStateChanged?.Invoke(this, new PayoutStateChangedEventArgs()
         {
@@ -1499,6 +1487,7 @@ public class LNDAccountManager
 
     }
 
+
     public async Task<InvoiceRecord[]> ListInvoicesAsync(bool includeClassic, bool includeHodl, int minValue=-1)
     {
         var allInvs = new Dictionary<string, InvoiceRecord>(
@@ -1705,33 +1694,27 @@ public class LNDAccountManager
 
     public async Task<AccountFiatBalanceDetails> GetFiatBalanceAsync(string currency)
     {
-        return await LNDWalletManager._accountFiatBalances.GetOrAddAsync((PublicKey, currency), async (k) =>
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
+        var bal = await GetAccountBalanceAsync(currency);
+        TX.Commit();
+        var (pendingBalance, payouts, total) = await GetFiatBalanceFromApi(currency);
+        var ret = new AccountFiatBalanceDetails
         {
-            using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
-            var bal = await GetAccountBalanceAsync(currency);
-            TX.Commit();
-            var (pendingBalance, payouts, total) = await GetFiatBalanceFromApi(currency);
-            var ret = new AccountFiatBalanceDetails
-            {
-                TotalEarnings = bal.TotalAmount,
-                TotalFees = bal.TotalEarnings - total,
-                TotalPayouts = payouts,
-                InProgressPayouts = pendingBalance,
-            };
-            return ret;
-        });
+            TotalEarnings = bal.TotalAmount,
+            TotalFees = bal.TotalEarnings - total,
+            TotalPayouts = payouts,
+            InProgressPayouts = pendingBalance,
+        };
+        return ret;
     }
 
 
     public async Task<AccountBalanceDetails> GetBalanceAsync()
     {
-        return await LNDWalletManager._accountBalances.GetOrAddAsync(PublicKey, async (k) =>
-        {
-            using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
-            var bal = await GetAccountBalanceAsync("BTC");
-            TX.Commit();
-            return bal;
-        });
+        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
+        var bal = await GetAccountBalanceAsync("BTC");
+        TX.Commit();
+        return bal;
     }
 
 
@@ -1862,20 +1845,6 @@ public class LNDWalletManager : LNDEventSource
     private Thread subscribeTransactionsThread;
     private ConcurrentDictionary<string, bool> alreadySubscribedSingleInvoices = new();
     private ConcurrentDictionary<string, CancellationTokenSource> alreadySubscribedSingleInvoicesTokenSources = new();
-
-
-    internal static ConcurrentDictionary<(string pubkey, string currency), AccountFiatBalanceDetails> _accountFiatBalances = new();
-    internal static ConcurrentDictionary<string, AccountBalanceDetails> _accountBalances = new();
-
-    public override void InvalidateFiatBalance(string pubkey, string currency)
-    {
-        _accountFiatBalances.TryRemove((pubkey, currency), out _);
-    }
-
-    public override void InvalidateBalance(string pubkey)
-    {
-        _accountBalances.TryRemove(pubkey, out _);
-    }
 
 
     public LNDWalletManager(DBProvider provider, string connectionString, BitcoinNode bitcoinNode, LND.NodeSettings lndConf, StripeSettings stripeConf, string adminPubkey)
