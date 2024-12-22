@@ -14,6 +14,7 @@ using Walletrpc;
 using System.Text;
 using Invoicesrpc;
 using System.Runtime.ConstrainedExecution;
+using NetworkClientToolkit;
 
 namespace LNDWallet;
 
@@ -335,15 +336,24 @@ public class PayoutStateChangedEventArgs : EventArgs
 
 public delegate void PayoutStatusChangedEventHandler(object sender, PayoutStateChangedEventArgs e);
 
-public class LNDEventSource
+public abstract class LNDEventSource
 {
     public event InvoiceStateChangedEventHandler OnInvoiceStateChanged;
     public event PaymentStatusChangedEventHandler OnPaymentStatusChanged;
     public event NewTransactionFoundEventHandler OnNewTransactionFound;
     public event PayoutStatusChangedEventHandler OnPayoutStateChanged;
 
-    public void FireOnInvoiceStateChanged(string pubkey, string paymentHash, InvoiceState invstate)
+
+    public abstract void InvalidateFiatBalance(string pubkey, string currency);
+    public abstract void InvalidateBalance(string pubkey);
+
+    public void FireOnInvoiceStateChanged(string pubkey,string currency, string paymentHash, InvoiceState invstate)
     {
+        if(currency=="BTC")
+            InvalidateBalance(pubkey);
+        else
+            InvalidateFiatBalance(pubkey, currency);
+
         OnInvoiceStateChanged?.Invoke(this, new InvoiceStateChangedEventArgs()
         {
             PublicKey = pubkey,
@@ -355,8 +365,13 @@ public class LNDEventSource
         });
     }
 
-    public void FireOnPaymentStatusChanged(string pubkey, string paymentHash, PaymentStatus paystatus, PaymentFailureReason failureReason)
+    public void FireOnPaymentStatusChanged(string pubkey, string currency, string paymentHash, PaymentStatus paystatus, PaymentFailureReason failureReason)
     {
+        if (currency == "BTC")
+            InvalidateBalance(pubkey);
+        else
+            InvalidateFiatBalance(pubkey, currency);
+
         OnPaymentStatusChanged?.Invoke(this, new PaymentStatusChangedEventArgs()
         {
                 PublicKey = pubkey,
@@ -371,6 +386,8 @@ public class LNDEventSource
 
     public void FireOnNewTransactionFound(string pubkey, string txHash, int numConfirmations, string address, long amountSat)
     {
+        InvalidateBalance(pubkey);
+
         OnNewTransactionFound?.Invoke(this, new NewTransactionFoundEventArgs()
         {
             PublicKey = pubkey,
@@ -387,6 +404,8 @@ public class LNDEventSource
 
     public void FireOnPayoutStateChanged(string pubkey, Guid payoutId, PayoutState paystatus, long payoutFee, string tx)
     {
+        InvalidateBalance(pubkey);
+
         OnPayoutStateChanged?.Invoke(this, new PayoutStateChangedEventArgs()
         {
             PublicKey = pubkey,
@@ -1010,12 +1029,12 @@ public class LNDAccountManager
 
             var pubkey = selfHodlInvoice != null ? selfHodlInvoice.PublicKey : selfClsInv.PublicKey;
 
-            eventSource.FireOnInvoiceStateChanged(pubkey, decinv.PaymentHash, InvoiceState.Accepted);
+            eventSource.FireOnInvoiceStateChanged(pubkey, paymentRequestRecord.Currency, decinv.PaymentHash, InvoiceState.Accepted);
 
             if (selfClsInv != null)
-                eventSource.FireOnInvoiceStateChanged(pubkey, decinv.PaymentHash, InvoiceState.Settled);
+                eventSource.FireOnInvoiceStateChanged(pubkey, paymentRequestRecord.Currency, decinv.PaymentHash, InvoiceState.Settled);
 
-            eventSource.FireOnPaymentStatusChanged(PublicKey, decinv.PaymentHash,
+            eventSource.FireOnPaymentStatusChanged(PublicKey, paymentRequestRecord.Currency, decinv.PaymentHash,
                 selfHodlInvoice != null ? PaymentStatus.InFlight : PaymentStatus.Succeeded,
                 PaymentFailureReason.None);
 
@@ -1148,8 +1167,8 @@ public class LNDAccountManager
 
         if (internalPayment != null)
         {
-            eventSource.FireOnInvoiceStateChanged(selfHodlInvoice.PublicKey, paymentHash, InvoiceState.Settled);
-            eventSource.FireOnPaymentStatusChanged(internalPayment.PublicKey, paymentHash, PaymentStatus.Succeeded, PaymentFailureReason.None);
+            eventSource.FireOnInvoiceStateChanged(selfHodlInvoice.PublicKey, paymentRequestRecord.Currency, paymentHash, InvoiceState.Settled);
+            eventSource.FireOnPaymentStatusChanged(internalPayment.PublicKey, paymentRequestRecord.Currency, paymentHash, PaymentStatus.Succeeded, PaymentFailureReason.None);
         }
     }
 
@@ -1201,7 +1220,7 @@ public class LNDAccountManager
             TX.Commit();
 
             eventSource.CancelSingleInvoiceTracking(paymentHash);
-            eventSource.FireOnPaymentStatusChanged(internalPayment.PublicKey, paymentHash, PaymentStatus.Failed, PaymentFailureReason.Canceled);
+            eventSource.FireOnPaymentStatusChanged(internalPayment.PublicKey, internalPayment.Currency, paymentHash, PaymentStatus.Failed, PaymentFailureReason.Canceled);
         }
         else
             TX.Commit();
@@ -1555,27 +1574,35 @@ public class LNDAccountManager
 
     public async Task<AccountFiatBalanceDetails> GetFiatBalanceAsync(string currency)
     {
-        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
-        var bal = await GetAccountBalanceAsync(currency);
-        TX.Commit();
-        var (pendingBalance, payouts, total) = await GetFiatBalanceFromApi(currency);
-        var ret = new AccountFiatBalanceDetails
+        return await LNDWalletManager._accountFiatBalances.GetOrAddAsync((PublicKey, currency), async (k) =>
         {
-            TotalEarnings = bal.TotalAmount,
-            TotalFees = bal.TotalEarnings - total,
-            TotalPayouts = payouts,
-            InProgressPayouts = pendingBalance,
-        };
-        return ret;
+            using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
+            var bal = await GetAccountBalanceAsync(currency);
+            TX.Commit();
+            var (pendingBalance, payouts, total) = await GetFiatBalanceFromApi(currency);
+            var ret = new AccountFiatBalanceDetails
+            {
+                TotalEarnings = bal.TotalAmount,
+                TotalFees = bal.TotalEarnings - total,
+                TotalPayouts = payouts,
+                InProgressPayouts = pendingBalance,
+            };
+            return ret;
+        });
     }
+
 
     public async Task<AccountBalanceDetails> GetBalanceAsync()
     {
-        using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
-        var bal = await GetAccountBalanceAsync("BTC");
-        TX.Commit();
-        return bal;
+        return await LNDWalletManager._accountBalances.GetOrAddAsync(PublicKey, async (k) =>
+        {
+            using var TX = walletContext.Value.BEGIN_TRANSACTION(IsolationLevel.Serializable);
+            var bal = await GetAccountBalanceAsync("BTC");
+            TX.Commit();
+            return bal;
+        });
     }
+
 
     private async Task<AccountBalanceDetails> GetAccountBalanceAsync(string currency)
     {
@@ -1705,6 +1732,21 @@ public class LNDWalletManager : LNDEventSource
     private ConcurrentDictionary<string, bool> alreadySubscribedSingleInvoices = new();
     private ConcurrentDictionary<string, CancellationTokenSource> alreadySubscribedSingleInvoicesTokenSources = new();
 
+
+    internal static ConcurrentDictionary<(string pubkey, string currency), AccountFiatBalanceDetails> _accountFiatBalances = new();
+    internal static ConcurrentDictionary<string, AccountBalanceDetails> _accountBalances = new();
+
+    public override void InvalidateFiatBalance(string pubkey, string currency)
+    {
+        _accountFiatBalances.TryRemove((pubkey, currency), out _);
+    }
+
+    public override void InvalidateBalance(string pubkey)
+    {
+        _accountBalances.TryRemove(pubkey, out _);
+    }
+
+
     public LNDWalletManager(DBProvider provider, string connectionString, BitcoinNode bitcoinNode, LND.NodeSettings lndConf, StripeSettings stripeConf, string adminPubkey)
     {
         this.provider = provider;
@@ -1748,7 +1790,7 @@ public class LNDWalletManager : LNDEventSource
                                 var inv = stream.ResponseStream.Current;
 
                                 if (LNDAccountManager.ParseInvoiceToInvoiceRecord(inv, true).Currency == "BTC")
-                                    this.FireOnInvoiceStateChanged(pubkey, inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
+                                    this.FireOnInvoiceStateChanged(pubkey, "BTC", inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
 
                                 if (inv.State == Invoice.Types.InvoiceState.Settled || inv.State == Invoice.Types.InvoiceState.Canceled)
                                 {
@@ -1854,7 +1896,7 @@ public class LNDWalletManager : LNDEventSource
 
                         if (LNDAccountManager.ParseInvoiceToInvoiceRecord(inv, true).Currency == "BTC")
                         {
-                            this.FireOnInvoiceStateChanged(pubkey, inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
+                            this.FireOnInvoiceStateChanged(pubkey, "BTC", inv.RHash.ToArray().AsHex(), (InvoiceState)inv.State);
                             if (inv.State == Lnrpc.Invoice.Types.InvoiceState.Accepted)
                                 SubscribeSingleInvoiceTracking(pubkey, inv.RHash.ToArray().AsHex());
                         }
@@ -1891,14 +1933,14 @@ public class LNDWalletManager : LNDEventSource
                     while (await stream.ResponseStream.MoveNext(trackPaymentsCancallationTokenSource.Token))
                     {
                         var pm = stream.ResponseStream.Current;
-                        var pubkey = (from i in walletContext.Value.InternalPayments
+                        var pay = (from i in walletContext.Value.InternalPayments
                             where i.PaymentHash == pm.PaymentHash
-                            select i.PublicKey).FirstOrDefault();
+                            select i).FirstOrDefault();
 
-                        if (pubkey == null)
+                        if (pay == null)
                             continue;
 
-                        this.FireOnPaymentStatusChanged(pubkey, pm.PaymentHash, (PaymentStatus)pm.Status, (PaymentFailureReason)pm.FailureReason);
+                        this.FireOnPaymentStatusChanged(pay.PublicKey, pay.Currency, pm.PaymentHash, (PaymentStatus)pm.Status, (PaymentFailureReason)pm.FailureReason);
                     }
                 }
                 catch (RpcException e)
@@ -2347,7 +2389,7 @@ public class LNDWalletManager : LNDEventSource
                                         .SAVE();
 
                                     this.CancelSingleInvoiceTracking(pay.PaymentHash);
-                                    this.FireOnPaymentStatusChanged(pay.PublicKey, pay.PaymentHash, PaymentStatus.Failed, PaymentFailureReason.Canceled);
+                                    this.FireOnPaymentStatusChanged(pay.PublicKey,pay.Currency, pay.PaymentHash, PaymentStatus.Failed, PaymentFailureReason.Canceled);
 
                                 }
                             }

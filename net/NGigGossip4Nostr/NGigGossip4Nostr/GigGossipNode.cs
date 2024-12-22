@@ -925,7 +925,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log();
         try
         {
-            if (!slimLock.Wait(1000)) throw new TimeoutException();
+            if (!slimLock.Wait(10000)) throw new TimeoutException();
             try
             {
                 lock (NodeDb.Context)
@@ -952,7 +952,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log().Args(signedrequestpayloadId);
         try
         {
-            if (!slimLock.Wait(1000)) throw new TimeoutException();
+            if (!slimLock.Wait(10000)) throw new TimeoutException();
             try
             {
                 lock (NodeDb.Context)
@@ -979,7 +979,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log();
         try
         {
-            if (!slimLock.Wait(1000)) throw new TimeoutException();
+            if (!slimLock.Wait(10000)) throw new TimeoutException();
             try
             {
                 lock (NodeDb.Context)
@@ -1006,7 +1006,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log().Args(brd);
         try
         {
-            if (!slimLock.Wait(1000)) throw new TimeoutException();
+            if (!slimLock.Wait(10000)) throw new TimeoutException();
             try
             {
                 brd.Cancelled = true;
@@ -1033,7 +1033,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log().Args(signedrequestpayloadId);
         try
         {
-            if (!slimLock.Wait(1000)) throw new TimeoutException();
+            if (!slimLock.Wait(10000)) throw new TimeoutException();
             try
             {
                 lock (NodeDb.Context)
@@ -1060,7 +1060,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log().Args(replyInvoiceHash);
         try
         {
-            if (!slimLock.Wait(1000)) throw new TimeoutException();
+            if (!slimLock.Wait(10000)) throw new TimeoutException();
             try
             {
                 lock (NodeDb.Context)

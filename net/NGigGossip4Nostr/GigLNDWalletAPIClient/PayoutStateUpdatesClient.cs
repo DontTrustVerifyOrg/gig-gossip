@@ -42,7 +42,7 @@ namespace GigLNDWalletAPIClient
 
         public IAsyncEnumerable<PayoutStateChanged> StreamAsync(string authToken, CancellationToken cancellationToken)
         {
-            if (!slimLock.Wait(1000)) throw new TimeoutException();
+            if (!slimLock.Wait(10000)) throw new TimeoutException();
             try
             {
                 return connection.StreamAsync<PayoutStateChanged>("StreamAsync", authToken, cancellationToken);
