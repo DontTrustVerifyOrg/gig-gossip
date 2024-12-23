@@ -38,6 +38,7 @@ using Type = System.Type;
 using System.Text.Json.Nodes;
 using System;
 using System.Drawing;
+using GoogleApi.Entities.Places.Common;
 
 #pragma warning disable 1591
 
@@ -260,7 +261,7 @@ app.MapGet("/deletemypersonaluserdata", (string authToken) =>
 .DisableAntiforgery();
 
 
-app.MapGet("/addressautocomplete", async (string authToken, string query, string country)=>
+app.MapGet("/addressautocomplete", async (string authToken, string query, string country, double longitude, double lattitude, double radius)=>
 {
     try
     {
@@ -272,8 +273,14 @@ app.MapGet("/addressautocomplete", async (string authToken, string query, string
             Input = query,
             Language = GoogleApi.Entities.Common.Enums.Language.English,
             RestrictType = GoogleApi.Entities.Places.AutoComplete.Request.Enums.RestrictPlaceType.GeocodeAndEstablishment,
-            Components = new Dictionary<GoogleApi.Entities.Common.Enums.Component, string>() { { GoogleApi.Entities.Common.Enums.Component.Country, country } },
         };
+
+        if (radius > 0)
+            request.LocationRestriction = new GoogleApi.Entities.Places.Common.LocationRestriction() { Location = new GoogleApi.Entities.Common.Coordinate(lattitude, longitude), Radius = radius };
+
+        if (!string.IsNullOrEmpty(country))
+            request.Components = new Dictionary<GoogleApi.Entities.Common.Enums.Component, string>() { { GoogleApi.Entities.Common.Enums.Component.Country, country } };
+
 
         var response = await GooglePlaces.AutoComplete.QueryAsync(request);
         return new Result<string[]>((from p in response.Predictions select p.Description).ToArray());
@@ -292,6 +299,9 @@ app.MapGet("/addressautocomplete", async (string authToken, string query, string
     g.Parameters[0].Description = "Authorisation token for the communication. This is a restricted call and authToken needs to be the token of the authorised user excluding the Subject.";
     g.Parameters[1].Description = "Query";
     g.Parameters[2].Description = "Country";
+    g.Parameters[3].Description = "Longitude";
+    g.Parameters[4].Description = "Lattitude";
+    g.Parameters[5].Description = "Radius";
     return g;
 })
 .DisableAntiforgery();
