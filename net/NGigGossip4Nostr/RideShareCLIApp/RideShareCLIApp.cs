@@ -523,7 +523,7 @@ public partial class RideShareCLIApp
         {
             var query = Prompt.Input<string>(message);
             var props = SettlerAPIResult.Get<List<string>>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-                .AddressAutocompleteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au", CancellationTokenSource.Token));
+                .AddressAutocompleteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au",0,0,0, CancellationTokenSource.Token));
 
             if (props.Count == 0)
                 continue;
