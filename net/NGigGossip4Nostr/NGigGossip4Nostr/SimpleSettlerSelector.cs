@@ -132,12 +132,12 @@ public class SettlerAPIWrapper : ISettlerAPI
         }
     }
 
-    public async Task<StringArrayResult> AddressAutocompleteAsync(string authToken, string query, string country, CancellationToken cancellationToken)
+    public async Task<StringArrayResult> AddressAutocompleteAsync(string authToken, string query, string country, double longitude, double lattitude, double radius, CancellationToken cancellationToken)
     {
         using var TL = TRACE.Log().Args(query, country);
         try
         {
-            return TL.Ret(await API.AddressAutocompleteAsync(authToken, query, country, cancellationToken));
+            return TL.Ret(await API.AddressAutocompleteAsync(authToken, query, country, longitude, lattitude, radius, cancellationToken));
         }
         catch (Exception ex)
         {

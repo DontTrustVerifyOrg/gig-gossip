@@ -305,7 +305,7 @@ public class GigGossipSettlerCLI
                 {
                     var country = Prompt.Input<string>("Country",DefaultCountryCode);
                     var query = Prompt.Input<string>("Start writing address");
-                    var suggestions = SettlerAPIResult.Get<List<string>>(await settlerClient.AddressAutocompleteAsync(await MakeToken(), query, country, CancellationToken.None));
+                    var suggestions = SettlerAPIResult.Get<List<string>>(await settlerClient.AddressAutocompleteAsync(await MakeToken(), query, country,0,0,0, CancellationToken.None));
                     DrawTable(new string[] { "Suggestion" }, (from s in suggestions select new string[] { s }).ToArray());
                 }
                 else if(cmd == CommandEnum.GetRoute)

@@ -19,7 +19,7 @@ public interface ISettlerAPI
     Task<BooleanResult> IsCertificateRevokedAsync(System.Guid certid, CancellationToken cancellationToken);
     Task<GuidResult> GetTokenAsync(string pubkey, CancellationToken cancellationToken);
 
-    Task<StringArrayResult> AddressAutocompleteAsync(string authToken, string query, string country, CancellationToken cancellationToken);
+    Task<StringArrayResult> AddressAutocompleteAsync(string authToken, string query, string country, double longitude, double lattitude, double radius, System.Threading.CancellationToken cancellationToken);
     Task<GeolocationRetResult> AddressGeocodeAsync(string authToken, string address, string country, CancellationToken cancellationToken);
     Task<StringResult> LocationGeocodeAsync(string authToken, double lat, double lon, CancellationToken cancellationToken);
     Task<RouteRetResult> GetRouteAsync(string authToken, double fromLat, double fromLon, double toLat, double toLon, CancellationToken cancellationToken);
@@ -117,9 +117,9 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
         return await RetryPolicy.WithRetryPolicy(() => api.GetTokenAsync(pubkey, cancellationToken));
     }
 
-    public async Task<StringArrayResult> AddressAutocompleteAsync(string authToken, string query, string country, CancellationToken cancellationToken)
+    public async Task<StringArrayResult> AddressAutocompleteAsync(string authToken, string query, string country, double longitude, double lattitude, double radius, CancellationToken cancellationToken)
     {
-        return await RetryPolicy.WithRetryPolicy(() => api.AddressAutocompleteAsync(authToken, query, country, cancellationToken));
+        return await RetryPolicy.WithRetryPolicy(() => api.AddressAutocompleteAsync(authToken, query, country, longitude, lattitude, radius, cancellationToken));
     }
 
     public async Task<GeolocationRetResult> AddressGeocodeAsync(string authToken, string address, string country, CancellationToken cancellationToken)

@@ -204,6 +204,36 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "longitude",
+            "in": "query",
+            "description": "Longitude",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "lattitude",
+            "in": "query",
+            "description": "Lattitude",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "radius",
+            "in": "query",
+            "description": "Radius",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
           }
         ],
         "responses": {
