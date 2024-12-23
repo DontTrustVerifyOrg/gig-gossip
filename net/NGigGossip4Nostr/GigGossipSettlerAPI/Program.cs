@@ -271,7 +271,7 @@ app.MapGet("/addressautocomplete", async (string authToken, string query, string
             Key = settlerSettings.GoogleMapsAPIKey,
             Input = query,
             Language = GoogleApi.Entities.Common.Enums.Language.English,
-            RestrictType = GoogleApi.Entities.Places.AutoComplete.Request.Enums.RestrictPlaceType.Address,
+            RestrictType = GoogleApi.Entities.Places.AutoComplete.Request.Enums.RestrictPlaceType.GeocodeAndEstablishment,
             Components = new Dictionary<GoogleApi.Entities.Common.Enums.Component, string>() { { GoogleApi.Entities.Common.Enums.Component.Country, country } },
         };
 
