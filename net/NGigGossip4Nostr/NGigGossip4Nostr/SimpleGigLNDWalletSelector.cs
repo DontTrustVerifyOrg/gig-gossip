@@ -481,6 +481,20 @@ public class WalletAPILoggingWrapper : IWalletAPI
         }
     }
 
+    public async Task<AccountInfoResult> GetAccountInfoAsync(string authToken, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log();
+        try
+        {
+            return TL.Ret(await API.GetAccountInfoAsync(authToken, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
     public IInvoiceStateUpdatesClient CreateInvoiceStateUpdatesClient()
     {
         return new InvoiceStateUpdatesClientWrapper(API.CreateInvoiceStateUpdatesClient());

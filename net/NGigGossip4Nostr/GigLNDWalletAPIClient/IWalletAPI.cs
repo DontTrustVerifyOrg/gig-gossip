@@ -12,6 +12,7 @@ public interface IWalletAPI
     string BaseUrl { get; }
     IRetryPolicy RetryPolicy { get; }
     Task<GuidResult> GetTokenAsync(string pubkey, System.Threading.CancellationToken cancellationToken);
+    Task<AccountInfoResult> GetAccountInfoAsync(string authToken, System.Threading.CancellationToken cancellationToken);
     Task<Result> TopUpAndMine6BlocksAsync(string authToken, string bitcoinAddr, long satoshis, System.Threading.CancellationToken cancellationToken);
     Task<Result> SendToAddressAsync(string authToken, string bitcoinAddr, long satoshis, System.Threading.CancellationToken cancellationToken);
     Task<Result> GenerateBlocksAsync(string authToken, int blocknum, System.Threading.CancellationToken cancellationToken);
@@ -263,5 +264,10 @@ public class WalletAPIRetryWrapper : IWalletAPI
     public async Task<PaymentRecordResult> CancelInvoiceSendPaymentAsync(string authToken, string paymenthash, string paymentrequest, int timeout, long feelimit, CancellationToken cancellationToken)
     {
         return await RetryPolicy.WithRetryPolicy(() => api.CancelInvoiceSendPaymentAsync(authToken, paymenthash, paymentrequest, timeout, feelimit, cancellationToken));
+    }
+
+    public async Task<AccountInfoResult> GetAccountInfoAsync(string authToken, CancellationToken cancellationToken)
+    {
+        return await RetryPolicy.WithRetryPolicy(() => api.GetAccountInfoAsync(authToken, cancellationToken));
     }
 }
