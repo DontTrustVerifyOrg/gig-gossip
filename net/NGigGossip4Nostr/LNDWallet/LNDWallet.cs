@@ -274,6 +274,13 @@ public class AccountFiatBalanceDetails
 }
 
 [Serializable]
+public class AccountInfo
+{
+    public required string FiatCountry { get; set; }
+    public required string FiatCurrency { get; set; }
+}
+
+[Serializable]
 public class InvoiceStateChange
 {
     public required string PaymentHash { get; set; }
@@ -724,19 +731,20 @@ public class LNDAccountManager
         using var TL = TRACE.Log().Args(totalCents, country, memo, hash, expiry);
         try
         {
-            var pi = await CreateStripePaymentIntentAsync(totalCents, country, currency);
-            var strMemo = JArray.FromObject(new object[] { totalCents, currency, memo, pi.Value.ClientSecret }).ToString();
+            var pi = await CreateStripePaymentIntentAsync(totalCents);
+            if (currency.ToUpper() != pi.Value.Currency.ToUpper())
+                throw new LNDWalletException(LNDWalletErrorCode.FiatCountryCurrencyNotSupported);
+            if (country.ToUpper() != pi.Value.Country.ToUpper())
+                throw new LNDWalletException(LNDWalletErrorCode.FiatCountryCurrencyNotSupported);
+            var strMemo = JArray.FromObject(new object[] { totalCents, pi.Value.Currency, memo, pi.Value.ClientSecret }).ToString();
             return CreateNewHodlInvoice(0, strMemo, hash, expiry);
-
         }
         catch (Exception ex)
         {
             TL.Exception(ex);
             throw;
         }
-
     }
-
 
     public InvoiceRecord CreateNewClassicInvoice(long satoshis, string memo, long expiry)
     {
@@ -768,6 +776,8 @@ public class LNDAccountManager
     {
         public string PaymentIntentId { get; set; }
         public string ClientSecret { get; set; }
+        public string Country { get; set; }
+        public string Currency { get; set; }
     }
 
     public struct PaymentIntentState
@@ -778,9 +788,9 @@ public class LNDAccountManager
         public string Currency { get; set; }
     }
 
-    public async Task<PaymentIntentResponse?> CreateStripePaymentIntentAsync(long cents, string countryCode, string currencyCode)
+    public async Task<PaymentIntentResponse?> CreateStripePaymentIntentAsync(long cents)
     {
-        using var TL = TRACE.Log().Args(cents, currencyCode);
+        using var TL = TRACE.Log().Args(cents);
         try
         {
             var client = new HttpClient();
@@ -788,8 +798,6 @@ public class LNDAccountManager
             var requestData = new
             {
                 totalCents = cents,
-                currencyCode = currencyCode,
-                countryCode = countryCode,
                 driverPubKey = this.PublicKey,
             };
 
@@ -810,7 +818,9 @@ public class LNDAccountManager
             PaymentIntentResponse paymentIntentResponse = new PaymentIntentResponse
             {
                 PaymentIntentId = (string)responseJson["paymentIntentId"],
-                ClientSecret = (string)responseJson["clientSecret"]
+                ClientSecret = (string)responseJson["clientSecret"],
+                Country = (string)responseJson["countryCode"],
+                Currency = (string)responseJson["currency"],
             };
             return paymentIntentResponse;
         }
@@ -879,13 +889,40 @@ public class LNDAccountManager
         }
     }
 
+    public async Task<(string? countryCode, string? defaultCurrency)> GetAccountInfoFromApi()
+    {
+        using var TL = TRACE.Log();
+        try
+        {
+            var client = new HttpClient();
+
+            client.DefaultRequestHeaders.Add("X-Api-Key", stripeConf.StripeApiKey);
+
+            HttpResponseMessage response = await client.GetAsync(stripeConf.StripeApiUri + "account?pubkey=" + PublicKey);
+            response.EnsureSuccessStatusCode();
+            string responseBody = await response.Content.ReadAsStringAsync();
+
+            JObject responseJson = JObject.Parse(responseBody);
+            return ((string)responseJson["countryCode"], (string)responseJson["defaultCurrency"]);
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
+
     public async Task<InvoiceRecord> CreateNewClassicStripeInvoiceAsync(long totalCents, string country, string currency, string memo, long expiry)
     {
         using var TL = TRACE.Log().Args(totalCents, country, memo, expiry);
         try
         {
-            var pi = await CreateStripePaymentIntentAsync(totalCents, country, currency);
-            var strMemo = JArray.FromObject(new object[] { totalCents, currency, memo, pi.Value.ClientSecret }).ToString();
+            var pi = await CreateStripePaymentIntentAsync(totalCents);
+            if(currency.ToUpper()!=pi.Value.Currency.ToUpper())
+                throw new LNDWalletException(LNDWalletErrorCode.FiatCountryCurrencyNotSupported);
+            if (country.ToUpper() != pi.Value.Country.ToUpper())
+                throw new LNDWalletException(LNDWalletErrorCode.FiatCountryCurrencyNotSupported);
+            var strMemo = JArray.FromObject(new object[] { totalCents, pi.Value.Currency, memo, pi.Value.ClientSecret }).ToString();
             return CreateNewClassicInvoice(0, strMemo, expiry);
         }
         catch (Exception ex)
@@ -1708,6 +1745,15 @@ public class LNDAccountManager
         return ret;
     }
 
+    public async Task<AccountInfo> GetAccountInfo()
+    {
+        var (country, currency) = await GetAccountInfoFromApi();
+        return new AccountInfo
+        {
+            FiatCountry = country,
+            FiatCurrency = currency,
+        };
+    }
 
     public async Task<AccountBalanceDetails> GetBalanceAsync()
     {

@@ -43,6 +43,8 @@ public partial class RideShareCLIApp
                 PickupAfter = DateTime.Now.AsUnixTimestamp(),
                 PickupBefore = DateTime.Now.AddMinutes(waitingTimeForPickupMinutes).AsUnixTimestamp(),
                 Distance = fromLocation.Distance(toLocation),
+                Country = "AU",
+                Currency = "BTC",
             },
             settings.NodeSettings.GetRiderProperties(),
             async (_) => { });
