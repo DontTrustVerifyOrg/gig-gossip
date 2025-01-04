@@ -52,7 +52,8 @@ public enum LNDWalletErrorCode
     /// Fee limit is smaller than our fee
     /// </summary>
     FeeLimitTooSmall = 14,
-    FiatNotPaidOrMismatched = 15
+    FiatNotPaidOrMismatched = 15,
+    FiatCountryCurrencyNotSupported = 16,
 }
 
 /// <summary>
@@ -76,6 +77,7 @@ public static class Extensions
         "Operation failed",
         "Access Denied",
         "Fiat payment not paid or mismatched",
+        "Fiat country-currency not supported",
      };
 
     /// <summary>
