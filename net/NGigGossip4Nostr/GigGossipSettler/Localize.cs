@@ -45,6 +45,7 @@ public static class Localize
     public static T GetStrings<T, G>(string lang)
     {
         InitializeStrings();
+        lang=lang.ToUpper();
         if (!langConf.ContainsKey(lang))
         {
             Console.WriteLine("NO TRANSLATION FOR LANGUAGE:" + lang);
@@ -56,6 +57,7 @@ public static class Localize
     public static T GetStrings<T>(string lang)
     {
         InitializeStrings();
+        lang = lang.ToUpper();
         if (!langConf.ContainsKey(lang))
         {
             Console.WriteLine("NO TRANSLATION FOR LANGUAGE:" + lang);
