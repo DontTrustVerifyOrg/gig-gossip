@@ -74,6 +74,8 @@ public class Settler : CertificationAuthority
     public void FireOnPreimageReveal(string paymentHash, string preimage)
     {
         if (OnPreimageReveal != null)
+        {
+            Console.WriteLine("Firing OnPreimageReveal "+paymentHash);
             OnPreimageReveal.Invoke(this, new PreimageRevealEventArgs
             {
                 PreimageReveal = new PreimageReveal
@@ -82,6 +84,7 @@ public class Settler : CertificationAuthority
                     Preimage = preimage,
                 }
             });
+        }
     }
 
     public event GigStatusEventHandler OnGigStatus;
@@ -89,6 +92,8 @@ public class Settler : CertificationAuthority
     public void FireOnGigStatus(Guid signedRequestPayloadId, Guid replierCertificateId, GigStatus status, string value = "")
     {
         if (OnGigStatus != null)
+        {
+            Console.WriteLine("Firing OnGigStatus " + signedRequestPayloadId.ToString()+ " " + replierCertificateId.ToString()+" "+status.ToString()+" "+value);
             OnGigStatus.Invoke(this, new GigStatusEventArgs
             {
                 GigStatusChanged = new GigStatusKey
@@ -99,6 +104,7 @@ public class Settler : CertificationAuthority
                     SymmetricKey = value,
                 }
             });
+        }
     }
 
     private TimeSpan invoicePaymentTimeout;
@@ -640,6 +646,7 @@ public class Settler : CertificationAuthority
                 }
                 catch (Exception ex)
                 {
+                    Console.WriteLine(pn.PublicKey);
                     Console.WriteLine(ex.Message);
                 }
             }
