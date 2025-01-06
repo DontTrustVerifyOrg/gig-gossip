@@ -640,7 +640,17 @@ public class Settler : CertificationAuthority
                             };
 
                             var messaging = FirebaseMessaging.DefaultInstance;
-                            var result = await messaging.SendAsync(message);
+                            try
+                            {
+                                var result = await messaging.SendAsync(message);
+                            }
+                            catch (FirebaseMessagingException ex)
+                            {
+                                Console.WriteLine("Cannot send PN - removing token");
+                                settlerContext.Value
+                                    .DELETE(pn)
+                                    .SAVE();
+                            }
                         }
                     }
                 }
