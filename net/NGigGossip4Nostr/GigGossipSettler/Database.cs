@@ -417,6 +417,12 @@ public class SettlerContext : DbContext
         return this;
     }
 
+    public SettlerContext DELETE<T>(T obj) where T : class
+    {
+        this.Type2DbSet(obj!).Remove(obj);
+        return this;
+    }
+
     public void SAVE()
     {
         this.SaveChanges();
