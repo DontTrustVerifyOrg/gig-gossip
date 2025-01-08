@@ -27,6 +27,7 @@ using GoogleApi;
 using System.Text.Json;
 using Nostr.Client.Messages;
 using GoogleApi.Entities.Common.Enums;
+using GoogleApi.Entities.Interfaces;
 
 [Serializable]
 public class InvoiceData
@@ -507,9 +508,12 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             }
 
             var retcontacts = (from r in contacts.AsEnumerable().OrderBy(x => rnd.Next()).Take(this.fanout) select new BroadcastHistoryRow() { ContactPublicKey = r, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
-            NodeDb.Context.TryAddObjectRange(retcontacts);
-            if (originatorPublicKey != null)
-                NodeDb.Context.TryAddObject(new BroadcastHistoryRow() { ContactPublicKey = originatorPublicKey, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
+            lock (NodeDb.Context)
+            {
+                NodeDb.Context.TryAddObjectRange(retcontacts);
+                if (originatorPublicKey != null)
+                    NodeDb.Context.TryAddObject(new BroadcastHistoryRow() { ContactPublicKey = originatorPublicKey, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
+            }
 
             return TL.Ret( 
                 (from r in retcontacts select r.ContactPublicKey).ToList()
@@ -523,7 +527,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     }
 
 
-    public async Task BroadcastAsync(JobRequest requestPayload,
+    public async Task<List<string>> BroadcastAsync(JobRequest requestPayload,
                         string? originatorPublicKey = null,
                         Onion? backwardOnion = null)
     {
@@ -535,8 +539,10 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             if (tobroadcast.Count == 0)
             {
                 TL.Info("empty broadcast list (already broadcasted)");
-                return;
+                return new List<string>();
             }
+
+            var fails = new List<string>();
 
             foreach (var peerPublicKey in tobroadcast)
             {
@@ -554,9 +560,11 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 }
                 catch (Exception ex)
                 {
+                    fails.Add(peerPublicKey);
                     TL.Exception(ex);
                 }
             }
+            return fails;
         }
         catch (Exception ex)
         {
@@ -588,20 +596,30 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public async Task CancelBroadcastAsync(CancelJobRequest cancelRequestPayload)
+    public async Task<List<string>> CancelBroadcastAsync(CancelJobRequest cancelRequestPayload)
     {
         using var TL = TRACE.Log().Args(cancelRequestPayload);
         try
         {
             var tobroadcast = GetBroadcastCancelContactList(cancelRequestPayload.Header.JobRequestId.AsGuid());
+            var fails = new List<string>();
             foreach (var peerPublicKey in tobroadcast)
             {
                 CancelBroadcastFrame cancelBroadcastFrame = new CancelBroadcastFrame()
                 {
                     CancelJobRequest = cancelRequestPayload
                 };
-                await this.SendMessageAsync(peerPublicKey, new Frame { CancelBroadcast = cancelBroadcastFrame }, false, DateTime.UtcNow.AddMinutes(2));
+                try 
+                { 
+                    await this.SendMessageAsync(peerPublicKey, new Frame { CancelBroadcast = cancelBroadcastFrame }, false, DateTime.UtcNow.AddMinutes(2));
+                }
+                catch (Exception ex)
+                {
+                    fails.Add(peerPublicKey);
+                    TL.Exception(ex);
+                }
             }
+            return fails;
         }
         catch(Exception ex)
         {
@@ -664,9 +682,9 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public async Task BroadcastToPeersAsync(string peerPublicKey, BroadcastFrame broadcastFrame)
+    public async Task<List<string>> BroadcastToPeersAsync(string peerPublicKey, BroadcastFrame broadcastFrame)
     {
-        await this.BroadcastAsync(
+        return await this.BroadcastAsync(
             requestPayload: broadcastFrame.JobRequest,
             originatorPublicKey: peerPublicKey,
             backwardOnion: broadcastFrame.BackwardOnion);
@@ -1441,7 +1459,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         }
     }
 
-    public async Task<BroadcastRequest> BroadcastTopicAsync<T>(T topic, string[] properties, Func<BroadcastRequest, Task> preSend) where T:Google.Protobuf.IMessage<T>
+    public async Task<(BroadcastRequest Request, List<string> Fails)> BroadcastTopicAsync<T>(T topic, string[] properties, Func<BroadcastRequest, Task> preSend) where T:Google.Protobuf.IMessage<T>
     {
         using var TL = TRACE.Log().Args(topic, properties, preSend);
         try
@@ -1455,9 +1473,9 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
             await preSend(broadcastTopicResponse);
 
-            await BroadcastAsync(broadcastTopicResponse.JobRequest);
+            var fails = await BroadcastAsync(broadcastTopicResponse.JobRequest);
 
-            return TL.Ret(broadcastTopicResponse);
+            return TL.Ret((broadcastTopicResponse, fails));
         }
         catch(Exception ex)
         {

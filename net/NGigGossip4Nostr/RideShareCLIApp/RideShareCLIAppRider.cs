@@ -35,7 +35,7 @@ public partial class RideShareCLIApp
         this.fromAddress = fromAddress;
         this.toAddress = toAddress;
 
-        return await gigGossipNode.BroadcastTopicAsync(
+        return (await gigGossipNode.BroadcastTopicAsync(
             topic: new RideShareTopic
             {
                 FromGeohash = fromGh,
@@ -47,7 +47,7 @@ public partial class RideShareCLIApp
                 Currency = "BTC",
             },
             settings.NodeSettings.GetRiderProperties(),
-            async (_) => { });
+            async (_) => { })).Request;
     }
 
     private async Task AcceptDriverAsync(int idx)
