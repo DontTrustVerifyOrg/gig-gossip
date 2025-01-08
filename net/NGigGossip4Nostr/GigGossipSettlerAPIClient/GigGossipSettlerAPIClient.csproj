@@ -2,10 +2,10 @@
 
   <PropertyGroup>
     <PackageId>GigGossip.SettlerApi.Client</PackageId>
-    <Version>2.1.4</Version>
+    <Version>2.1.5</Version>
     <Authors>TheHyperlabs</Authors>
     <Company>TheHyperlabs</Company>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -25,7 +25,7 @@
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.0" />
-    <PackageReference Include="GoogleApi" Version="5.7.3" />
+    <PackageReference Include="GoogleApi" Version="5.6.0" />
   </ItemGroup>
   <ItemGroup>
     <None Remove="OpenAPIs\swagger1.json" />
