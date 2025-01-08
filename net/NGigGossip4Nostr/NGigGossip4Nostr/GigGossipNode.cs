@@ -547,8 +547,15 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                         this.PublicKey,
                         peerPublicKey.AsECXOnlyPubKey())
                 };
-                await SendMessageAsync(peerPublicKey, new Frame { Broadcast = broadcastFrame }, true);
-                TL.NewMessage(this.PublicKey, peerPublicKey, "broadcast");
+                try
+                {
+                    await SendMessageAsync(peerPublicKey, new Frame { Broadcast = broadcastFrame }, true);
+                    TL.NewMessage(this.PublicKey, peerPublicKey, "broadcast");
+                }
+                catch (Exception ex)
+                {
+                    TL.Exception(ex);
+                }
             }
         }
         catch (Exception ex)
