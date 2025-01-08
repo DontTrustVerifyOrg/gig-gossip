@@ -560,7 +560,13 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 }
                 catch (Exception ex)
                 {
-                    fails.Add(peerPublicKey);
+                    fails.Add(peerPublicKey + " " +
+                        Newtonsoft.Json.JsonConvert.SerializeObject(TRACE.SerializableException(ex),
+                        new Newtonsoft.Json.JsonSerializerSettings
+                        {
+                            DefaultValueHandling = Newtonsoft.Json.DefaultValueHandling.Ignore,
+                            NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore,
+                        }));
                     TL.Exception(ex);
                 }
             }
