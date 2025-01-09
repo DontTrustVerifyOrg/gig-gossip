@@ -30,7 +30,12 @@ public partial class CertificateHeader
     /// </summary>
     /// <param name="caAccessor">An instance of an object that implements ICertificationAuthorityAccessor</param>
     /// <returns>Returns true if the certificate is valid, false otherwise.</returns>
-    public bool IsStillValid => NotValidBefore.AsUtcDateTime() <= DateTime.UtcNow && DateTime.UtcNow <= NotValidAfter.AsUtcDateTime();
+    public bool IsStillValid(TimeSpan timestampTolerance)
+    {
+        return
+            (NotValidBefore.AsUtcDateTime() - DateTime.UtcNow) <= timestampTolerance
+        && (DateTime.UtcNow - NotValidAfter.AsUtcDateTime()) <= timestampTolerance;
+    }
 }
 
 /// <summary>

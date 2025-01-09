@@ -25,15 +25,6 @@ public class GigStatusHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public void Monitor(string authToken, Guid signedRequestPayload, Guid replierCertificateId)
-    {
-        string publicKey;
-        lock (Singlethon.Settler)
-            publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
-
-        Singlethon.GigStatus4UserPublicKey.AddItem(publicKey, new GigReplCert { SignerRequestPayloadId = signedRequestPayload, ReplierCertificateId = replierCertificateId });
-    }
-
     public async IAsyncEnumerable<GigStatusKey> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         string publicKey;
@@ -45,8 +36,7 @@ public class GigStatusHub : Hub
         {
             await foreach (var ic in asyncCom.DequeueAsync(cancellationToken))
             {
-                if (Singlethon.GigStatus4UserPublicKey.ContainsItem(publicKey, new GigReplCert { SignerRequestPayloadId = ic.GigStatusChanged.JobRequestId, ReplierCertificateId = ic.GigStatusChanged.JobReplyId }))
-                    yield return ic.GigStatusChanged;
+                yield return ic.GigStatusChanged;
             }
         }
     }

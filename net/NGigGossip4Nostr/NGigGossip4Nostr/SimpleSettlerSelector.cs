@@ -28,6 +28,7 @@ public interface ISettlerSelector : ICertificationAuthorityAccessor
 public class SimpleSettlerSelector : ISettlerSelector
 {
     ConcurrentDictionary<Uri, ISettlerAPI> swaggerClients = new();
+    ConcurrentDictionary<Uri, ECXOnlyPubKey> CApubkeys = new();
     ConcurrentDictionary<Guid, bool> revokedCertificates = new();
 
     Func<HttpClient> _httpClientFactory;
@@ -42,7 +43,7 @@ public class SimpleSettlerSelector : ISettlerSelector
 
     public async Task<ECXOnlyPubKey> GetPubKeyAsync(Uri serviceUri, CancellationToken cancellationToken)
     {
-        return SettlerAPIResult.Get<string>(await GetSettlerClient(serviceUri).GetCaPublicKeyAsync(cancellationToken)).AsECXOnlyPubKey();
+        return await CApubkeys.GetOrAddAsync(serviceUri, async (serviceUri) => SettlerAPIResult.Get<string>(await GetSettlerClient(serviceUri).GetCaPublicKeyAsync(cancellationToken)).AsECXOnlyPubKey());
     }
 
     public ISettlerAPI GetSettlerClient(Uri serviceUri)
@@ -74,7 +75,6 @@ public class SettlerAPIWrapper : ISettlerAPI
 
     public string BaseUrl => API.BaseUrl;
     public IRetryPolicy RetryPolicy => API.RetryPolicy;
-
 
     public async Task<CaPricingResult> GetCaPricingAsync(string country, string currency, System.Threading.CancellationToken cancellationToken)
     {
