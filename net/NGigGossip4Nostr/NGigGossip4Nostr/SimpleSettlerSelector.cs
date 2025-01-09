@@ -622,19 +622,7 @@ internal class GigStatusClientWrapper :  IGigStatusClient
         }
     }
 
-    public async Task MonitorAsync(string authToken, Guid gigId, Guid replierCertificateId, CancellationToken cancellationToken)
-    {
-        using var TL = TRACE.Log().Args(gigId, replierCertificateId);
-        try
-        {
-            await API.MonitorAsync(authToken, gigId, replierCertificateId, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            TL.Exception(ex);
-            throw;
-        }
-    }
+
 
     public async IAsyncEnumerable<GigStatusKey> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -686,19 +674,6 @@ internal class PreimageRevealClientWrapper : IPreimageRevealClient
         }
     }
 
-    public async Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
-    {
-        using var TL = TRACE.Log().Args(paymentHash);
-        try
-        {
-            await API.MonitorAsync(authToken, paymentHash, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            TL.Exception(ex);
-            throw;
-        }
-    }
 
     public async IAsyncEnumerable<PreimageReveal> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {

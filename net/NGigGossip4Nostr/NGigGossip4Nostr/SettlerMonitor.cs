@@ -62,17 +62,6 @@ public class SettlerMonitor
             lock (gigGossipNode.NodeDb.Context)
                 gigGossipNode.NodeDb.Context.AddObject(obj);
 
-            try
-            {
-                await (await this.gigGossipNode.GetPreimageRevealClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), phash, CancellationTokenSource.Token);
-            }
-            catch
-            {
-                lock (gigGossipNode.NodeDb.Context)
-                    gigGossipNode.NodeDb.Context.RemoveObject(obj);
-
-                throw;
-            }
             return TL.Ret(true);
         }
         catch (Exception ex)
@@ -116,17 +105,6 @@ public class SettlerMonitor
             lock (gigGossipNode.NodeDb.Context)
                 gigGossipNode.NodeDb.Context.AddObject(obj);
 
-            try
-            {
-                await (await this.gigGossipNode.GetGigStatusClientAsync(serviceUri)).MonitorAsync(await this.gigGossipNode.MakeSettlerAuthTokenAsync(serviceUri), signedRequestPayloadId, replierCertificateId, CancellationTokenSource.Token);
-            }
-            catch
-            {
-                lock (gigGossipNode.NodeDb.Context)
-                    gigGossipNode.NodeDb.Context.RemoveObject(obj);
-
-                throw;
-            }
             return TL.Ret(true);
         }
         catch (Exception ex)
