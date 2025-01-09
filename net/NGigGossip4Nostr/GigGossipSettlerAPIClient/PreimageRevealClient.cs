@@ -7,7 +7,6 @@ namespace GigGossipSettlerAPIClient
         Uri Uri { get; }
 
         Task ConnectAsync(string authToken, CancellationToken cancellationToken);
-        Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken);
         IAsyncEnumerable<PreimageReveal> StreamAsync(string authToken, CancellationToken cancellationToken);
         Task DisposeAsync();
     }
@@ -32,11 +31,6 @@ namespace GigGossipSettlerAPIClient
                 builder.WithAutomaticReconnect(swaggerClient.RetryPolicy);
             Connection = builder.Build();
             await Connection.StartAsync(cancellationToken);
-        }
-
-        public async Task MonitorAsync(string authToken, string paymentHash, CancellationToken cancellationToken)
-        {
-            await Connection.SendAsync("Monitor", authToken, paymentHash, cancellationToken);
         }
 
         public IAsyncEnumerable<PreimageReveal> StreamAsync(string authToken, CancellationToken cancellationToken)
