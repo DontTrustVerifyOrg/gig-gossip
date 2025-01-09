@@ -26,15 +26,6 @@ public class PreimageRevealHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public void Monitor(string authToken,string paymentHash)
-    {
-        string publicKey;
-        lock (Singlethon.Settler)
-            publicKey = Singlethon.Settler.ValidateAuthToken(authToken);
-
-        Singlethon.Preimages4UserPublicKey.AddItem(publicKey, paymentHash);
-    }
-
     public async IAsyncEnumerable<PreimageReveal> StreamAsync(string authToken, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         string publicKey;
@@ -46,8 +37,7 @@ public class PreimageRevealHub : Hub
         {
             await foreach (var ic in asyncCom.DequeueAsync(cancellationToken))
             {
-                if (Singlethon.Preimages4UserPublicKey.ContainsItem(publicKey, ic.PreimageReveal.PaymentHash))
-                    yield return ic.PreimageReveal;
+                yield return ic.PreimageReveal;
             }
         }
     }
