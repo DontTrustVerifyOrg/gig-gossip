@@ -645,7 +645,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log().Args(messageId, peerPublicKey, cancelBroadcastFrame);
         try
         {
-            if (!await cancelBroadcastFrame.CancelJobRequest.VerifyAsync(SettlerSelector, CancellationTokenSource.Token))
+            if (!await cancelBroadcastFrame.CancelJobRequest.VerifyAsync(SettlerSelector, timestampTolerance, CancellationTokenSource.Token))
             {
                 TL.Warning("cancel request payload mismatch");
                 return;
@@ -667,19 +667,19 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         try
         {
             var requestPayloadValue = broadcastFrame.JobRequest;
-            if (requestPayloadValue.Header.Timestamp.AsUtcDateTime() > DateTime.UtcNow)
+            if (requestPayloadValue.Header.Timestamp.AsUtcDateTime() - DateTime.UtcNow > this.timestampTolerance)
             {
                 TL.Warning("future timestamp");
                 return;
             }
 
-            if (requestPayloadValue.Header.Timestamp.AsUtcDateTime() + this.timestampTolerance < DateTime.UtcNow)
+            if (this.timestampTolerance < DateTime.UtcNow - requestPayloadValue.Header.Timestamp.AsUtcDateTime())
             {
                 TL.Warning("timestamp too old");
                 return;
             }
 
-            if (!await broadcastFrame.JobRequest.VerifyAsync(SettlerSelector, CancellationTokenSource.Token))
+            if (!await broadcastFrame.JobRequest.VerifyAsync(SettlerSelector, timestampTolerance, CancellationTokenSource.Token))
             {
                 TL.Warning("request payload mismatch");
                 return;
@@ -850,7 +850,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                 {
                     TL.NewMessage(peerPublicKey, this.PublicKey, "reply");
                     var settlerPubKey = await SettlerSelector.GetPubKeyAsync(responseFrame.SettlementPromise.Header.TheirSecurityCenterUri.AsUri(), CancellationTokenSource.Token);
-                    var replyPayload = await responseFrame.DecryptAndVerifyAsync(privateKey, settlerPubKey, this.SettlerSelector, CancellationTokenSource.Token);
+                    var replyPayload = await responseFrame.DecryptAndVerifyAsync(privateKey, settlerPubKey, this.SettlerSelector, timestampTolerance, CancellationTokenSource.Token);
                     if (replyPayload == null)
                     {
                         TL.Warning("reply payload mismatch");

@@ -4,9 +4,9 @@ namespace GigGossip;
 
 public partial class CancelJobRequest
 {
-    public async Task<bool> VerifyAsync(ICertificationAuthorityAccessor caAccessor, CancellationToken cancellationToken)
+    public async Task<bool> VerifyAsync(ICertificationAuthorityAccessor caAccessor,TimeSpan timestampTolerance, CancellationToken cancellationToken)
     {
-        if (!this.Header.Header.IsStillValid)
+        if (!this.Header.Header.IsStillValid(timestampTolerance))
             return false;
         var caPubKey = await caAccessor.GetPubKeyAsync(this.Header.Header.AuthorityUri.AsUri(), cancellationToken);
         return Crypto.VerifyObject(this.Header, this.Signature.Value.ToArray(), caPubKey);
