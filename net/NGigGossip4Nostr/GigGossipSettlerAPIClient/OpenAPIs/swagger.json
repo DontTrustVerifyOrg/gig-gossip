@@ -1844,6 +1844,117 @@
         }
       }
     },
+    "/opendriverdispute": {
+      "get": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "summary": "Allows opening dispute by the user.",
+        "description": "Allows opening dispute by the user. After opening, the dispute needs to be solved positively before the HODL invoice timeouts occure. Otherwise all the invoices and payments will be cancelled.",
+        "operationId": "OpenDriverDispute",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorisation token for the communication.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "riderPublicKey",
+            "in": "query",
+            "description": "Driver pubkey",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "description": "Reason",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "gigId",
+            "in": "query",
+            "description": "Gig-job identifier.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "repliercertificateId",
+            "in": "query",
+            "description": "CertificateId of the replier.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openticket": {
+      "get": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "summary": "Allows opening helpdesk ticket.",
+        "description": "Allows opening  Helpdesk ticket.",
+        "operationId": "OpenTicket",
+        "parameters": [
+          {
+            "name": "authToken",
+            "in": "query",
+            "description": "Authorisation token for the communication.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "message",
+            "in": "query",
+            "description": "Message",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/managedispute": {
       "get": {
         "tags": [
