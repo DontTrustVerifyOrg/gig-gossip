@@ -1109,7 +1109,7 @@ app.MapGet("/opendispute", async (string authToken, string driverPublicKey, stri
     try
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-        await Singlethon.Settler.OpenDisputeAsync(pubkey, driverPublicKey, reason, Guid.Parse(gigId), Guid.Parse(repliercertificateId), stripeClientSecret);
+        await Singlethon.Settler.OpenCustomerDisputeAsync(pubkey, driverPublicKey, reason, Guid.Parse(gigId), Guid.Parse(repliercertificateId), stripeClientSecret);
         return new Result();
     }
     catch (Exception ex)
@@ -1133,6 +1133,60 @@ app.MapGet("/opendispute", async (string authToken, string driverPublicKey, stri
 })
 .DisableAntiforgery();
 
+
+app.MapGet("/opendriverdispute", async (string authToken, string riderPublicKey, string reason, string gigId, string repliercertificateId) =>
+{
+    try
+    {
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        await Singlethon.Settler.OpenDriverDisputeAsync(riderPublicKey, pubkey, reason, Guid.Parse(gigId), Guid.Parse(repliercertificateId));
+        return new Result();
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result(ex);
+    }
+})
+.WithName("OpenDriverDispute")
+.WithSummary("Allows opening dispute by the user.")
+.WithDescription("Allows opening dispute by the user. After opening, the dispute needs to be solved positively before the HODL invoice timeouts occure. Otherwise all the invoices and payments will be cancelled.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication.";
+    g.Parameters[1].Description = "Driver pubkey";
+    g.Parameters[2].Description = "Reason";
+    g.Parameters[3].Description = "Gig-job identifier.";
+    g.Parameters[4].Description = "CertificateId of the replier.";
+    return g;
+})
+.DisableAntiforgery();
+
+
+app.MapGet("/openticket", async (string authToken,string message) =>
+{
+    try
+    {
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
+        await Singlethon.Settler.OpenTicketAsync(pubkey, message);
+        return new Result();
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result(ex);
+    }
+})
+.WithName("OpenTicket")
+.WithSummary("Allows opening helpdesk ticket.")
+.WithDescription("Allows opening  Helpdesk ticket.")
+.WithOpenApi(g =>
+{
+    g.Parameters[0].Description = "Authorisation token for the communication.";
+    g.Parameters[1].Description = "Message";
+    return g;
+})
+.DisableAntiforgery();
 
 app.MapGet("/managedispute", async (string authToken, Guid gigId, Guid repliperCertificateId, bool open) =>
 {

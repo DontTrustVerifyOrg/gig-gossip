@@ -644,7 +644,7 @@ public class Settler : CertificationAuthority
                             {
                                 var result = await messaging.SendAsync(message);
                             }
-                            catch (FirebaseMessagingException ex)
+                            catch (FirebaseMessagingException)
                             {
                                 Console.WriteLine("Cannot send PN - removing token");
                                 settlerContext.Value
@@ -667,14 +667,23 @@ public class Settler : CertificationAuthority
         }
     }
 
-    public async Task OpenDisputeAsync(string riderPublicKey, string driverPublicKey, string reason, Guid gigId, Guid repliercertificateId, string stripeClientSecret)
+    public async Task OpenCustomerDisputeAsync(string riderPublicKey, string driverPublicKey, string reason, Guid gigId, Guid repliercertificateId, string stripeClientSecret)
     {
         await ManageDisputeAsync(gigId, repliercertificateId, true);
-        await CallDisputesAsync(riderPublicKey, driverPublicKey, reason, gigId, repliercertificateId, stripeClientSecret);
+        await CallCustomerDisputesAsync(riderPublicKey, driverPublicKey, reason, gigId, repliercertificateId, stripeClientSecret);
     }
 
+    public async Task OpenDriverDisputeAsync(string riderPublicKey, string driverPublicKey, string reason, Guid gigId, Guid repliercertificateId)
+    {
+        await CallDriverDisputesAsync(riderPublicKey, driverPublicKey, reason, gigId, repliercertificateId);
+    }
 
-    public async Task CallDisputesAsync(string riderPublicKey, string driverPublicKey, string reason, Guid gigId, Guid repliperCertificateId, string stripeClientSecret)
+    public async Task OpenTicketAsync(string publicKey, string message)
+    {
+        await CallOpenTicketAsync(publicKey, message);
+    }
+
+    public async Task CallCustomerDisputesAsync(string riderPublicKey, string driverPublicKey, string reason, Guid gigId, Guid repliperCertificateId, string stripeClientSecret)
     {
         var client = new HttpClient();
 
@@ -701,6 +710,60 @@ public class Settler : CertificationAuthority
         response.EnsureSuccessStatusCode();
         string responseBody = await response.Content.ReadAsStringAsync();
     }
+
+
+    public async Task CallDriverDisputesAsync(string riderPublicKey, string driverPublicKey, string reason, Guid gigId, Guid repliperCertificateId)
+    {
+        var client = new HttpClient();
+
+        var requestData = new
+        {
+            riderPublicKey,
+            driverPublicKey,
+            reason,
+            gigId,
+            repliperCertificateId
+        };
+
+        var requestContent = new StringContent(
+            Newtonsoft.Json.JsonConvert.SerializeObject(requestData),
+            System.Text.Encoding.UTF8,
+            "application/json"
+        );
+
+        client.DefaultRequestHeaders.Add("X-Api-Key", scpSettings.ScpApiKey);
+
+
+        HttpResponseMessage response = await client.PostAsync(scpSettings.ScpApiUri + "disputes/driver", requestContent);
+        response.EnsureSuccessStatusCode();
+        string responseBody = await response.Content.ReadAsStringAsync();
+    }
+
+
+    public async Task CallOpenTicketAsync(string publicKey, string message)
+    {
+        var client = new HttpClient();
+
+        var requestData = new
+        {
+            publicKey,
+            message
+        };
+
+        var requestContent = new StringContent(
+            Newtonsoft.Json.JsonConvert.SerializeObject(requestData),
+            System.Text.Encoding.UTF8,
+            "application/json"
+        );
+
+        client.DefaultRequestHeaders.Add("X-Api-Key", scpSettings.ScpApiKey);
+
+
+        HttpResponseMessage response = await client.PostAsync(scpSettings.ScpApiUri + "tickets", requestContent);
+        response.EnsureSuccessStatusCode();
+        string responseBody = await response.Content.ReadAsStringAsync();
+    }
+
 
     public async Task ManageDisputeAsync(Guid tid, Guid repliercertificateId, bool open)
     {
