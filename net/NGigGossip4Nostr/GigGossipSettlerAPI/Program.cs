@@ -127,7 +127,8 @@ await Singlethon.Settler.InitAsync(
     lndWalletClient,
     Enum.Parse<DBProvider>(settlerSettings.DBProvider),
     settlerSettings.ConnectionString.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)),
-    settlerSettings.OwnerPublicKey
+    settlerSettings.OwnerPublicKey,
+    settlerSettings.AzureBlobStorageConnectionString
     );
 
 Singlethon.Settler.OnGigStatus += (sender, e) =>
@@ -1241,6 +1242,32 @@ app.MapGet("/cancelgig", async (string authToken, Guid gigId, Guid repliperCerti
 })
 .DisableAntiforgery();
 
+app.MapPost("/uploadpublicblob", async ([FromForm] string authToken, IFormFile file)
+    =>
+{
+    try
+    {
+        Singlethon.Settler.ValidateAuthToken(authToken.ToString());
+        if (file == null || file.Length == 0)
+            throw new InvalidOperationException("File is empty.");
+        if (file.Length > 65535)
+            throw new InvalidOperationException("File too big.");
+
+        using var stream = file.OpenReadStream();
+        var url = await Singlethon.Settler.UploadBlobAsync(Guid.NewGuid().ToString("N").ToUpper(), stream);
+        return new Result<string>(url);
+    }
+    catch (Exception ex)
+    {
+        TraceEx.TraceException(ex);
+        return new Result<string>(ex);
+    }
+})
+.WithName("UploadPublicBlob")
+.WithSummary("Uploads a public blob")
+.WithDescription("Uploads a public blob to the server. The file must not be empty or exceed 65535 bytes in size. Only authorized users can upload the file.")
+.DisableAntiforgery();
+
 app.MapGet("/health", () =>
 {
     return Results.Ok("ok");
@@ -1313,6 +1340,7 @@ public class SettlerSettings
     public required Uri GigWalletOpenApi { get; set; }
     public required string DBProvider { get; set; }
     public required string ConnectionString { get; set; }
+    public required string AzureBlobStorageConnectionString { get; set; }
     public required string SettlerPrivateKey { get; set; }
     public required string OwnerPublicKey { get; set; }
     public required long InvoicePaymentTimeoutSec { get; set; }

@@ -1,4 +1,5 @@
 ﻿
+using Azure.Storage.Blobs;
 using FirebaseAdmin;
 using FirebaseAdmin.Messaging;
 using GigGossip;
@@ -121,6 +122,9 @@ public class Settler : CertificationAuthority
     private string adminPubkey;
     private CancellationTokenSource CancellationTokenSource = new();
 
+    private string azureStorageConnectionString;
+    private readonly string azureContainerName = "gohyper";
+
     public IRetryPolicy RetryPolicy;
 
     public Settler(Uri serviceUri, ISettlerSelector settlerSelector, ECPrivKey settlerPrivateKey, Dictionary<(string, string), CaPricing> pricings, TimeSpan invoicePaymentTimeout, TimeSpan disputeTimeout, IRetryPolicy retryPolicy, string firebaseAdminConfBase64, ScpSettings scpSettings) : base(serviceUri, settlerPrivateKey)
@@ -137,9 +141,10 @@ public class Settler : CertificationAuthority
         }); 
     }
 
-    public async Task InitAsync(IWalletAPI lndWalletClient, DBProvider provider, string connectionString, string adminPubkey)
+    public async Task InitAsync(IWalletAPI lndWalletClient, DBProvider provider, string connectionString, string adminPubkey,string azureStorageConnectionString)
     {
         this.adminPubkey = adminPubkey;
+        this.azureStorageConnectionString = azureStorageConnectionString;
 
         this.lndWalletClient = lndWalletClient;
 
@@ -902,6 +907,28 @@ public class Settler : CertificationAuthority
 
 
         TX.Commit();
+    }
+
+    public async Task<string> UploadBlobAsync(string blobName, Stream content)
+    {
+        // Create BlobServiceClient
+        var blobServiceClient = new BlobServiceClient(azureStorageConnectionString);
+
+        // Get the Blob Container
+        var containerClient = blobServiceClient.GetBlobContainerClient(azureContainerName);
+
+        // Ensure container exists
+        await containerClient.CreateIfNotExistsAsync();
+
+        // Set container access level to public if not already done
+        await containerClient.SetAccessPolicyAsync(Azure.Storage.Blobs.Models.PublicAccessType.Blob);
+
+        // Upload the Blob
+        var blobClient = containerClient.GetBlobClient(blobName);
+        await blobClient.UploadAsync(content, overwrite: true);
+
+        // Return the public URI
+        return blobClient.Uri.ToString();
     }
 }
 
