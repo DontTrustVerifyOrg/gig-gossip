@@ -597,6 +597,19 @@ public class SettlerAPIWrapper : ISettlerAPI
         }
     }
 
+    public async Task<GigGossipSettlerAPIClient.StringResult> UploadPublicBlobAsync(string authToken, FileParameter file, CancellationToken cancellationToken)
+    {
+        using var TL = TRACE.Log();
+        try
+        {
+            return TL.Ret(await API.UploadPublicBlobAsync(authToken, file, cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            TL.Exception(ex);
+            throw;
+        }
+    }
 
     public IGigStatusClient CreateGigStatusClient()
     {

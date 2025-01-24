@@ -2070,6 +2070,58 @@
         }
       }
     },
+    "/uploadpublicblob": {
+      "post": {
+        "tags": [
+          "GigGossipSettlerAPI"
+        ],
+        "summary": "Uploads a public blob",
+        "description": "Uploads a public blob to the server. The file must not be empty or exceed 65535 bytes in size. Only authorized users can upload the file.",
+        "operationId": "UploadPublicBlob",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "authToken",
+                  "file"
+                ],
+                "type": "object",
+                "properties": {
+                  "authToken": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "authToken": {
+                  "style": "form"
+                },
+                "file": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StringResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
