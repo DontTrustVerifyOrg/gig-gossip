@@ -1247,14 +1247,14 @@ app.MapPost("/uploadpublicblob", async ([FromForm] string authToken, IFormFile f
 {
     try
     {
-        Singlethon.Settler.ValidateAuthToken(authToken.ToString());
+        var pubkey = Singlethon.Settler.ValidateAuthToken(authToken.ToString());
         if (file == null || file.Length == 0)
             throw new InvalidOperationException("File is empty.");
         if (file.Length > 65535)
             throw new InvalidOperationException("File too big.");
 
         using var stream = file.OpenReadStream();
-        var url = await Singlethon.Settler.UploadBlobAsync(Guid.NewGuid().ToString("N").ToUpper(), stream);
+        var url = await Singlethon.Settler.UploadBlobAsync(pubkey.ToUpper() + "_" + Guid.NewGuid().ToString("N").ToUpper(), stream);
         return new Result<string>(url);
     }
     catch (Exception ex)
