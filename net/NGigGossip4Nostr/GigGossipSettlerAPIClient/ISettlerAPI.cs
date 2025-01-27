@@ -54,7 +54,7 @@ public interface ISettlerAPI
     Task<Result> CancelGigAsync(string authToken, System.Guid gigId, System.Guid repliperCertificateId, CancellationToken cancellationToken);
 
     Task<Result> DeleteMyPersonalUserDataAsync(string authToken, System.Threading.CancellationToken cancellationToken);
-    Task<StringResult> UploadPublicBlobAsync(string authToken, FileParameter file, System.Threading.CancellationToken cancellationToken);
+    Task<StringResult> UploadPublicBlobAsync(string authToken, string id, FileParameter file, System.Threading.CancellationToken cancellationToken);
 
     IGigStatusClient CreateGigStatusClient();
     IPreimageRevealClient CreatePreimageRevealClient();
@@ -286,8 +286,8 @@ public class SettlerAPIRetryWrapper : ISettlerAPI
         return await RetryPolicy.WithRetryPolicy(() => api.OpenTicketAsync(authToken, message, cancellationToken));
     }
 
-    public async Task<StringResult> UploadPublicBlobAsync(string authToken, FileParameter file, CancellationToken cancellationToken)
+    public async Task<StringResult> UploadPublicBlobAsync(string authToken, string id, FileParameter file, CancellationToken cancellationToken)
     {
-        return await RetryPolicy.WithRetryPolicy(() => api.UploadPublicBlobAsync(authToken, file, cancellationToken));
+        return await RetryPolicy.WithRetryPolicy(() => api.UploadPublicBlobAsync(authToken, id, file, cancellationToken));
     }
 }

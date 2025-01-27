@@ -1242,7 +1242,7 @@ app.MapGet("/cancelgig", async (string authToken, Guid gigId, Guid repliperCerti
 })
 .DisableAntiforgery();
 
-app.MapPost("/uploadpublicblob", async ([FromForm] string authToken, IFormFile file)
+app.MapPost("/uploadpublicblob", async ([FromForm] string authToken, [FromForm] string id, IFormFile file)
     =>
 {
     try
@@ -1254,7 +1254,7 @@ app.MapPost("/uploadpublicblob", async ([FromForm] string authToken, IFormFile f
             throw new InvalidOperationException("File too big.");
 
         using var stream = file.OpenReadStream();
-        var url = await Singlethon.Settler.UploadBlobAsync(pubkey + "_" + Guid.NewGuid().ToString("N").ToUpper(), stream);
+        var url = await Singlethon.Settler.UploadBlobAsync(pubkey + "_" + id, stream);
         return new Result<string>(url);
     }
     catch (Exception ex)

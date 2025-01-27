@@ -2091,6 +2091,9 @@
                   "authToken": {
                     "type": "string"
                   },
+                  "id": {
+                    "type": "string"
+                  },
                   "file": {
                     "type": "string",
                     "format": "binary"
@@ -2099,6 +2102,9 @@
               },
               "encoding": {
                 "authToken": {
+                  "style": "form"
+                },
+                "id": {
                   "style": "form"
                 },
                 "file": {
