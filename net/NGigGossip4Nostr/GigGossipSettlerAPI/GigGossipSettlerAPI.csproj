@@ -22,10 +22,10 @@
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
 		<PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="7.0.0" />
-		<PackageReference Include="SMSGlobal" Version="1.1.0" />
 		<PackageReference Include="System.Net.Http" Version="4.3.4" />
 		<PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
 		<PackageReference Include="System.Xml.XmlSerializer" Version="4.3.0" />
+		<PackageReference Include="Twilio" Version="7.8.2" />
 	</ItemGroup>
 
 	<ItemGroup>
