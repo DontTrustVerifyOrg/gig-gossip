@@ -39,6 +39,9 @@ using System.Text.Json.Nodes;
 using System;
 using System.Drawing;
 using GoogleApi.Entities.Places.Common;
+using Twilio;
+using Twilio.Rest.Verify.V2;
+using Twilio.Rest.Verify.V2.Service;
 
 #pragma warning disable 1591
 
@@ -111,6 +114,9 @@ ECPrivKey caPrivateKey = settlerSettings.SettlerPrivateKey.AsECPrivKey();
 var httpClient = new HttpClient();
 var retryPolicy = new DefaultRetryPolicy();
 var lndWalletClient = new swaggerClient(settlerSettings.GigWalletOpenApi.AbsoluteUri, httpClient, new DefaultRetryPolicy());
+
+var twilioCreds = settlerSettings.TwilioAccountSidAndToken.Split(":");
+TwilioClient.Init(twilioCreds[0], twilioCreds[1]);
 
 Singlethon.Settler = new Settler(
     settlerSettings.ServiceUri, 
@@ -759,18 +765,13 @@ app.MapGet("/verifychannel", async (string authToken, string pubkey, string name
         Singlethon.Settler.ValidateAuthToken(authToken);
         if (name.ToLower() == "phonenumber" && method.ToLower() == "sms")
         {
-            var creds = settlerSettings.SMSGlobalAPIKeySecret.Split(":");
-            var client = new SMSGlobal.api.Client(new SMSGlobal.api.Credentials(creds[0], creds[1]));
-            var code = Random.Shared.NextInt64(999999).ToString("000000");
-            var resp = await client.SMS.SMSSend(new
-            {
-                origin = "GoHyper",
-                destination = value,
-                message = "Welcome to GoHyper Security Center, your verification code is " + code + ". Use this to complete your registration.",
-            });
-            if (resp.statuscode != 200)
+            var verification = await VerificationResource.CreateAsync(
+                                        to: value,
+                                        channel: "sms",
+                                        pathServiceSid: twilioCreds[2]);
+
+            if (verification.Status!= "pending")
                 throw new InvalidOperationException("SMS sending failed");
-            Singlethon.channelSmsCodes.TryAdd(new ChannelKey { PubKey = pubkey, Channel = value }, new ChannelVal { Code = code, Retries = settlerSettings.SMSCodeRetryNumber, Deadline=DateTime.UtcNow.AddMinutes(settlerSettings.SMSCodeTimeoutMin)  });
         }
         else
             throw new NotImplementedException();
@@ -796,38 +797,22 @@ app.MapGet("/verifychannel", async (string authToken, string pubkey, string name
 })
 .DisableAntiforgery();
 
-app.MapGet("/submitchannelsecret", (string authToken, string pubkey, string name, string method, string value, string secret) =>
+app.MapGet("/submitchannelsecret", async (string authToken, string pubkey, string name, string method, string value, string secret) =>
 {
     try
     {
         Singlethon.Settler.ValidateAuthToken(authToken);
         if (name.ToLower() == "phonenumber" && method.ToLower() == "sms")
         {
-            var key = new ChannelKey { PubKey = pubkey, Channel = value };
-            ChannelVal code = new ChannelVal(){Code="000000", Retries=0, Deadline=DateTime.MinValue};
+            var verification = await VerificationCheckResource.CreateAsync(
+                            to: value,
+                            code: secret,
+                            pathServiceSid: twilioCreds[2]);
 
-            if ((secret == "000000") || Singlethon.channelSmsCodes.TryGetValue(key, out code))
-            {
-                if ((secret == "000000") || (DateTime.UtcNow<= code.Deadline))
-                {
-                    if ((secret == "000000") || (code.Code == secret))
-                    {
-                        Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes("valid"), Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
-                        Singlethon.channelSmsCodes.TryRemove(key, out _);
-                        return new Result<int>(-1);
-                    }
-                    else
-                    {
-                        if (code.Retries > 0)
-                        {
-                            Singlethon.channelSmsCodes.AddOrReplace(key, new ChannelVal { Code = code.Code, Retries = code.Retries - 1, Deadline = code.Deadline });
-                            return new Result<int>(code.Retries);
-                        }
-                    }
-                }
-                Singlethon.channelSmsCodes.TryRemove(key, out _);
-            }
-            return new Result<int>(0);
+            if (verification.Status == "approved")
+                return new Result<int>(-1);
+            else
+                return new Result<int>(0);
         }
         else
             throw new NotImplementedException();
@@ -1347,7 +1332,7 @@ public class SettlerSettings
     public required long DisputeTimeoutSec { get; set; }
     public required string GoogleMapsAPIKey { get; set; }
     public required string FirebaseAdminConfBase64 { get; set; }
-    public required string SMSGlobalAPIKeySecret { get; set; }
+    public required string TwilioAccountSidAndToken { get; set; }
     public required int SMSCodeRetryNumber { get; set; }
     public required int SMSCodeTimeoutMin { get; set; }
     public required string Princings { get; set; }
