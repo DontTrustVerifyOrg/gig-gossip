@@ -810,7 +810,10 @@ app.MapGet("/submitchannelsecret", async (string authToken, string pubkey, strin
                             pathServiceSid: twilioCreds[2]);
 
             if (verification.Status == "approved")
+            {
+                Singlethon.Settler.GiveUserProperty(pubkey, name, Encoding.UTF8.GetBytes("valid"), Encoding.UTF8.GetBytes(method + ":" + value), DateTime.MaxValue);
                 return new Result<int>(-1);
+            }
             else
                 return new Result<int>(0);
         }
