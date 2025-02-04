@@ -26,7 +26,9 @@ public partial class RideShareCLIApp
     bool driverApproached;
     bool riderDroppedOff;
 
-    async Task<(BroadcastRequest Request, List<string> Fails)> RequestRide(string fromAddress, GeoLocation fromLocation, string toAddress, GeoLocation toLocation, int precision, int waitingTimeForPickupMinutes, Func<BroadcastRequest, Task> pre)
+    async Task<(BroadcastRequest Request, List<string> Fails)> RequestRide(string fromAddress, GeoLocation fromLocation, string toAddress, GeoLocation toLocation, int precision, DateTime pickupAfter, DateTime pickupBefore,
+        string country, string currency, long suggestedPrice,
+        Func<BroadcastRequest, Task> pre)
     {
         var fromGh = GeoHash.Encode(latitude: fromLocation.Latitude, longitude: fromLocation.Longitude, numberOfChars: precision);
         var toGh = GeoHash.Encode(latitude: toLocation.Latitude, longitude: toLocation.Longitude, numberOfChars: precision);
@@ -40,11 +42,33 @@ public partial class RideShareCLIApp
             {
                 FromGeohash = fromGh,
                 ToGeohash = toGh,
-                PickupAfter = DateTime.Now.AsUnixTimestamp(),
-                PickupBefore = DateTime.Now.AddMinutes(waitingTimeForPickupMinutes).AsUnixTimestamp(),
+                PickupAfter = pickupAfter.AsUnixTimestamp(),
+                PickupBefore = pickupBefore.AsUnixTimestamp(),
                 Distance = fromLocation.Distance(toLocation),
-                Country = "AU",
-                Currency = "BTC",
+                Country = country,
+                Currency = currency,
+                SuggestedPrice = suggestedPrice,
+            },
+            settings.NodeSettings.GetRiderProperties(),
+            pre));
+    }
+
+    async Task<(BroadcastRequest Request, List<string> Fails)> RequestBlockDelivery(string senderName, string blockDescription, string fromAddress, GeoLocation fromLocation, DateTime pickupAfter, DateTime pickupBefore,DateTime finishBefore, string country, string currency, long suggestedPrice, Func<BroadcastRequest, Task> pre)
+    {
+        this.fromLocation = fromLocation;
+        this.fromAddress = fromAddress;
+
+        return (await gigGossipNode.BroadcastTopicAsync(
+            topic: new BlockDeliveryTopic
+            {
+                FromAddress = fromAddress,
+                FromLocation = fromLocation,
+                PickupAfter = pickupAfter.AsUnixTimestamp(),
+                PickupBefore = pickupBefore.AsUnixTimestamp(),
+                FinishBefore = finishBefore.AsUnixTimestamp(),
+                Country = country,
+                Currency = currency,
+                SuggestedPrice = suggestedPrice,
             },
             settings.NodeSettings.GetRiderProperties(),
             pre));

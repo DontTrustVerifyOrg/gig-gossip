@@ -215,6 +215,8 @@ public partial class RideShareCLIApp
         DriverMode,
         [Display(Name = "Request Ride")]
         RequestRide,
+        [Display(Name = "Request Block Delivery")]
+        RequestBlockDelivery,
         [Display(Name = "Reset")]
         Reset,
         [Display(Name = "Exit")]
@@ -474,7 +476,13 @@ public partial class RideShareCLIApp
                         toLocation = await GetAddressGeocodeAsync(toAddress);
                     }
 
-                    int waitingTimeForPickupMinutes = 12;
+                    DateTime pickupAfter = Prompt.Input<DateTime>("Pickup After", DateTime.Now);
+                    DateTime pickupBefore = Prompt.Input<DateTime>("Pickup Before", DateTime.Now.AddMinutes(15));
+
+                    string country = Prompt.Select<string>("Country", new string[] { "AU", "PL", "US" }, defaultValue: "AU");
+                    string currency = Prompt.Select<string>("Country", new string[] { "BTC", "AUD", "PLN", "USD" }, defaultValue: "BTC");
+
+                    long suggestedPrice = Prompt.Input<long>("Suggested Price", 10000);
 
                     receivedResponseIdxesForPaymentHashes = new();
                     receivedResponsesForPaymentHashes = new();
@@ -493,12 +501,87 @@ public partial class RideShareCLIApp
                             me.Exit();
                         }
                     };
-                    var (req,fails) = await RequestRide(fromAddress, fromLocation, toAddress, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes,
+                    var (req, fails) = await RequestRide(
+                        fromAddress, fromLocation,
+                        toAddress, toLocation,
+                        settings.NodeSettings.GeohashPrecision,
+                        pickupAfter, pickupBefore,
+                        country, currency,
+                        suggestedPrice,
                        async (req) =>
                        {
                            requestedRide = req;
                        });
-                    if(fails.Count>0)
+                    if (fails.Count > 0)
+                        Console.WriteLine("Failed to send to " + fails.Count + " drivers");
+                    receivedResponsesTable.Start();
+                }
+                else if (cmd == CommandEnum.RequestBlockDelivery)
+                {
+                    if (ActiveSignedRequestPayloadId != Guid.Empty)
+                    {
+                        AnsiConsole.MarkupLine("[red]Ride in progress[/]");
+                    }
+
+                    string senderName = Prompt.Input<string>("Sender Name", "Deliver In Person");
+                    string blockDescription = Prompt.Input<string>("Block Description", "Block of Packages");
+                    string fromAddress;
+                    GeoLocation fromLocation;
+
+
+                    if (Prompt.Confirm("Use random", false))
+                    {
+
+                        var keys = new List<string>(MockData.FakeAddresses.Keys);
+
+                        fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+
+                        fromLocation = new GeoLocation { Latitude = MockData.FakeAddresses[fromAddress].Latitude, Longitude = MockData.FakeAddresses[fromAddress].Longitude };
+                    }
+                    else
+                    {
+                        fromAddress = await GetAddressAsync("From");
+                        fromLocation = await GetAddressGeocodeAsync(fromAddress);
+                    }
+
+                    DateTime pickupAfter = Prompt.Input<DateTime>("Pickup After", DateTime.Now);
+                    DateTime pickupBefore = Prompt.Input<DateTime>("Pickup Before", DateTime.Now.AddMinutes(15));
+                    DateTime finishBefore = Prompt.Input<DateTime>("Finish Before", DateTime.Now.AddHours(3));
+
+                    string country = Prompt.Select<string>("Country", new string[] { "AU", "PL", "US" }, defaultValue: "AU");
+                    string currency = Prompt.Select<string>("Country", new string[] { "BTC", "AUD", "PLN", "USD" }, defaultValue: "BTC");
+
+                    long suggestedPrice = Prompt.Input<long>("Suggested Price", 10000);
+
+                    receivedResponseIdxesForPaymentHashes = new();
+                    receivedResponsesForPaymentHashes = new();
+                    receivedResponsesTable = new DataTable(new string[] { "PaymentHash", "DriverId", "NoResp", "From", "Time", "To", "DriverFee", "NetworkFee" });
+                    receivedResponsesTable.OnKeyPressed += async (o, e) =>
+                    {
+                        var me = (DataTable)o;
+                        if (e.Key == ConsoleKey.Enter)
+                        {
+                            await AcceptDriverAsync(me.SelectedRowIdx);
+                            me.Exit();
+                        }
+                        if (e.Key == ConsoleKey.Escape)
+                        {
+                            await CancelBroadcast();
+                            me.Exit();
+                        }
+                    };
+                    var (req, fails) = await RequestBlockDelivery(
+                        senderName,
+                        blockDescription,
+                        fromAddress, fromLocation,
+                        pickupAfter, pickupBefore, finishBefore,
+                        country, currency,
+                        suggestedPrice,
+                       async (req) =>
+                       {
+                           requestedRide = req;
+                       });
+                    if (fails.Count > 0)
                         Console.WriteLine("Failed to send to " + fails.Count + " drivers");
                     receivedResponsesTable.Start();
                 }
