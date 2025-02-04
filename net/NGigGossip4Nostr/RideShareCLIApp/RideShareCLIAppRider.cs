@@ -26,7 +26,7 @@ public partial class RideShareCLIApp
     bool driverApproached;
     bool riderDroppedOff;
 
-    async Task<BroadcastRequest> RequestRide(string fromAddress, GeoLocation fromLocation, string toAddress, GeoLocation toLocation, int precision, int waitingTimeForPickupMinutes)
+    async Task<(BroadcastRequest Request, List<string> Fails)> RequestRide(string fromAddress, GeoLocation fromLocation, string toAddress, GeoLocation toLocation, int precision, int waitingTimeForPickupMinutes, Func<BroadcastRequest, Task> pre)
     {
         var fromGh = GeoHash.Encode(latitude: fromLocation.Latitude, longitude: fromLocation.Longitude, numberOfChars: precision);
         var toGh = GeoHash.Encode(latitude: toLocation.Latitude, longitude: toLocation.Longitude, numberOfChars: precision);
@@ -47,7 +47,7 @@ public partial class RideShareCLIApp
                 Currency = "BTC",
             },
             settings.NodeSettings.GetRiderProperties(),
-            async (_) => { })).Request;
+            pre));
     }
 
     private async Task AcceptDriverAsync(int idx)
@@ -100,6 +100,15 @@ public partial class RideShareCLIApp
 
         lock (receivedResponsesForPaymentHashes)
         {
+            Dictionary<string, byte[]> certprops = new(from x in e.ReplyPayloadCert.Header.Header.Properties select KeyValuePair.Create(x.Name, x.Value.ToArray()));
+
+            if (!new HashSet<string>(certprops.Keys)
+                    .IsSupersetOf(settings.NodeSettings.GetRequiredDriverProperties()))
+            {
+                Console.WriteLine("DriverProperties are not satisfied");
+                return;//ignore drivers without all required properties
+            }
+
             string paymentHash = e.DecodedReplyInvoice.PaymentHash;
 
             if (!receivedResponsesForPaymentHashes.ContainsKey(paymentHash))
@@ -130,21 +139,29 @@ public partial class RideShareCLIApp
 
     private async void GigGossipNodeEventSource_OnResponseReady(object? sender, ResponseReadyEventArgs e)
     {
-        if (requestedRide == null)
+        try
         {
-            AnsiConsole.WriteLine("requestedRide is empty 2");
-            return;
+            AnsiConsole.WriteLine("GigGossipNodeEventSource_OnResponseReady");
+            if (requestedRide == null)
+            {
+                AnsiConsole.WriteLine("requestedRide is empty 2");
+                return;
+            }
+            if (e.RequestPayloadId == requestedRide.JobRequest.Header.JobRequestId.AsGuid())
+            {
+                await e.GigGossipNode.CancelBroadcastAsync(requestedRide.CancelJobRequest);
+                await gigGossipNode.AddTempRelaysAsync((from u in e.Reply.RideShare.Relays select u.AsUri().AbsoluteUri).ToArray());
+                directTimer.Start();
+                directPubkeys[e.RequestPayloadId] = e.Reply.RideShare.PublicKey.AsHex();
+                new Thread(async () => await RiderJourneyAsync(e.RequestPayloadId, e.ReplierCertificateId, e.Reply.RideShare.Secret, settings.NodeSettings.SettlerOpenApi)).Start();
+            }
+            else
+                AnsiConsole.WriteLine("SignedRequestPayloadId mismatch 2");
         }
-        if (e.RequestPayloadId == requestedRide.JobRequest.Header.JobRequestId.AsGuid())
+        catch (Exception ex)
         {
-            await e.GigGossipNode.CancelBroadcastAsync(requestedRide.CancelJobRequest);
-            await gigGossipNode.AddTempRelaysAsync((from u in e.Reply.RideShare.Relays select u.AsUri().AbsoluteUri).ToArray());
-            directTimer.Start();
-            directPubkeys[e.RequestPayloadId] = e.Reply.RideShare.PublicKey.AsHex();
-            new Thread(async () => await RiderJourneyAsync(e.RequestPayloadId, e.ReplierCertificateId, e.Reply.RideShare.Secret, settings.NodeSettings.SettlerOpenApi)).Start();
+            AnsiConsole.WriteException(ex);
         }
-        else
-            AnsiConsole.WriteLine("SignedRequestPayloadId mismatch 2");
     }
 
     private void GigGossipNodeEventSource_OnInvoiceCancelled(object? sender, JobInvoiceCancelledEventArgs e)
@@ -270,9 +287,9 @@ public partial class RideShareCLIApp
         if (locationFrame.JobRequestId.AsGuid() == requestedRide.JobRequest.Header.JobRequestId.AsGuid())
         {
             AnsiConsole.WriteLine("driver location:" + senderPublicKey + "|" + locationFrame.RideStatus.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
-            if (locationFrame.RideStatus >= RideState.DriverWaitingForRider)
+            if (locationFrame.RideStatus == RideState.DriverWaitingForRider)
                 driverApproached = true;
-            if (locationFrame.RideStatus >= RideState.Completed)
+            if (locationFrame.RideStatus == RideState.Completed)
                 riderDroppedOff = true;
             lastDriverLocation = locationFrame.Location;
             lastDriverSeenAt = DateTime.UtcNow;

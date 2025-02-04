@@ -97,12 +97,12 @@ public partial class RideShareCLIApp
             var payReq = await e.GigGossipNode.AcceptBroadcastAsync(e.PeerPublicKey, e.BroadcastFrame,
                         new AcceptBroadcastResponse()
                         {
-                            Properties = settings.NodeSettings.GetDriverProperties(),
+                            Properties = settings.NodeSettings.GetAllDriverProperties(),
                             RideShareReply = reply,
                             Fee = fee,
                             Country = "PL",
                             Currency = "BTC",
-                            SettlerServiceUri = settings.NodeSettings.SettlerOpenApi,
+                            SettlerServiceUri = settings.NodeSettings.SettlerOpenApi,                             
                         },
                         async (payReq) =>
                         {

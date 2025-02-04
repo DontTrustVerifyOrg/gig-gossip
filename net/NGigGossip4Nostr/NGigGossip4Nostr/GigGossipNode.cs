@@ -1257,7 +1257,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         catch(Exception ex)
         {
             TL.Exception(ex);
-            throw;
         }
     }
 
@@ -1272,7 +1271,6 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         catch(Exception ex)
         {
             TL.Exception(ex);
-            throw;
         }
     }
 

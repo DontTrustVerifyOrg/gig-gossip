@@ -48,8 +48,14 @@ public class NodeSettings
     public required int Fanout { get; set; }
     public required long FeeLimitSat { get; set; }
     public required string RiderProperties { get; set; }
-    public required string DriverProperties { get; set; }
+    public required string AllDriverProperties { get; set; }
+    public required string RequiredDriverProperties { get; set; }
     public required int GeohashPrecision { get; set; }
+    public required long ClosingFeeSat { get; set; }
+    public required long PricePerKilometerSat { get; set; }
+    public required long ClosingFeeFiat { get; set; }
+    public required long PricePerKilometerFiat { get; set; }
+
 
     public string[] GetNostrRelays()
     {
@@ -61,9 +67,14 @@ public class NodeSettings
         return (from s in JsonArray.Parse(RiderProperties)!.AsArray() select s.GetValue<string>()).ToArray();
     }
 
-    public string[] GetDriverProperties()
+    public string[] GetAllDriverProperties()
     {
-        return (from s in JsonArray.Parse(DriverProperties)!.AsArray() select s.GetValue<string>()).ToArray();
+        return (from s in JsonArray.Parse(AllDriverProperties)!.AsArray() select s.GetValue<string>()).ToArray();
+    }
+
+    public string[] GetRequiredDriverProperties()
+    {
+        return (from s in JsonArray.Parse(RequiredDriverProperties)!.AsArray() select s.GetValue<string>()).ToArray();
     }
 
 }

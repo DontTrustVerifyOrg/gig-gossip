@@ -404,7 +404,7 @@ public partial class RideShareCLIApp
                                     var myAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
                                     var myStartLocation = new GeoLocation { Latitude = MockData.FakeAddresses[myAddress].Latitude, Longitude = MockData.FakeAddresses[myAddress].Longitude };
 
-                                    await AcceptRideAsync(me.SelectedRowIdx, myStartLocation,"Hello from Driver!");
+                                    await AcceptRideAsync(me.SelectedRowIdx, myStartLocation, "Hello from Driver!");
                                     me.UpdateCell(me.SelectedRowIdx, 0, "sent");
                                 }
                                 else
@@ -454,14 +454,14 @@ public partial class RideShareCLIApp
 
                         var keys = new List<string>(MockData.FakeAddresses.Keys);
 
-                        while(true)
+                        while (true)
                         {
                             fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
                             toAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
-                            if(fromAddress != toAddress)
+                            if (fromAddress != toAddress)
                                 break;
                         }
-                        
+
                         fromLocation = new GeoLocation { Latitude = MockData.FakeAddresses[fromAddress].Latitude, Longitude = MockData.FakeAddresses[fromAddress].Longitude };
                         toLocation = new GeoLocation { Latitude = MockData.FakeAddresses[toAddress].Latitude, Longitude = MockData.FakeAddresses[toAddress].Longitude };
                     }
@@ -493,7 +493,13 @@ public partial class RideShareCLIApp
                             me.Exit();
                         }
                     };
-                    requestedRide = await RequestRide(fromAddress, fromLocation, toAddress, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes);
+                    var (req,fails) = await RequestRide(fromAddress, fromLocation, toAddress, toLocation, settings.NodeSettings.GeohashPrecision, waitingTimeForPickupMinutes,
+                       async (req) =>
+                       {
+                           requestedRide = req;
+                       });
+                    if(fails.Count>0)
+                        Console.WriteLine("Failed to send to " + fails.Count + " drivers");
                     receivedResponsesTable.Start();
                 }
                 else if (cmd == CommandEnum.Reset)
