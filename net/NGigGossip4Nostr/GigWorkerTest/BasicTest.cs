@@ -199,8 +199,9 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
         using var TL = TRACE.Log().Args(me, peerPublicKey, broadcastFrame);
         try
         {
-            if (broadcastFrame.JobRequest.Header.TopicCase == JobRequestHeader.TopicOneofCase.RideShare)
+            if (broadcastFrame.JobRequest.Header.Topic.ValueCase == JobTopic.ValueOneofCase.RideShare)
             {
+                var taxiTopic = broadcastFrame.JobRequest.Header.Topic.RideShare;
                 await me.AcceptBroadcastAsync(peerPublicKey, broadcastFrame,
                     new AcceptBroadcastResponse()
                     {

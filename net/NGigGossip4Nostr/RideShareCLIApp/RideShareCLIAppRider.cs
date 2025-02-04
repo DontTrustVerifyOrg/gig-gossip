@@ -38,40 +38,50 @@ public partial class RideShareCLIApp
         this.toAddress = toAddress;
 
         return (await gigGossipNode.BroadcastTopicAsync(
-            topic: new RideShareTopic
+            topic: new JobTopic
             {
-                FromGeohash = fromGh,
-                ToGeohash = toGh,
-                PickupAfter = pickupAfter.AsUnixTimestamp(),
-                PickupBefore = pickupBefore.AsUnixTimestamp(),
-                Distance = fromLocation.Distance(toLocation),
                 Country = country,
                 Currency = currency,
                 SuggestedPrice = suggestedPrice,
+                Geohash = fromGh,
+                RideShare = new RideShareTopic
+                {
+                    FromGeohash = fromGh,
+                    ToGeohash = toGh,
+                    PickupAfter = pickupAfter.AsUnixTimestamp(),
+                    PickupBefore = pickupBefore.AsUnixTimestamp(),
+                    Distance = fromLocation.Distance(toLocation),
+                }
             },
             settings.NodeSettings.GetRiderProperties(),
             pre));
     }
 
-    async Task<(BroadcastRequest Request, List<string> Fails)> RequestBlockDelivery(string senderName, string blockDescription, string fromAddress, GeoLocation fromLocation, DateTime pickupAfter, DateTime pickupBefore,DateTime finishBefore, string country, string currency, long suggestedPrice, Func<BroadcastRequest, Task> pre)
+    async Task<(BroadcastRequest Request, List<string> Fails)> RequestBlockDelivery(string senderName, string blockDescription, string fromAddress, GeoLocation fromLocation, int precision, DateTime pickupAfter, DateTime pickupBefore, DateTime finishBefore, string country, string currency, long suggestedPrice, Func<BroadcastRequest, Task> pre)
     {
         this.fromLocation = fromLocation;
         this.fromAddress = fromAddress;
+        var fromGh = GeoHash.Encode(latitude: fromLocation.Latitude, longitude: fromLocation.Longitude, numberOfChars: precision);
 
         return (await gigGossipNode.BroadcastTopicAsync(
-            topic: new BlockDeliveryTopic
+            topic: new JobTopic
             {
-                FromAddress = fromAddress,
-                FromLocation = fromLocation,
-                PickupAfter = pickupAfter.AsUnixTimestamp(),
-                PickupBefore = pickupBefore.AsUnixTimestamp(),
-                FinishBefore = finishBefore.AsUnixTimestamp(),
                 Country = country,
                 Currency = currency,
                 SuggestedPrice = suggestedPrice,
+                Geohash = fromGh,
+                BlockDelivery = new BlockDeliveryTopic
+                {
+                    FromAddress = fromAddress,
+                    FromLocation = fromLocation,
+                    PickupAfter = pickupAfter.AsUnixTimestamp(),
+                    PickupBefore = pickupBefore.AsUnixTimestamp(),
+                    FinishBefore = finishBefore.AsUnixTimestamp(),
+                }
             },
             settings.NodeSettings.GetRiderProperties(),
-            pre));
+            pre
+        ));
     }
 
     private async Task AcceptDriverAsync(int idx)
@@ -124,6 +134,11 @@ public partial class RideShareCLIApp
 
         lock (receivedResponsesForPaymentHashes)
         {
+            if (e.ReplyPayloadCert.Header.JobRequest.Header.Topic.ValueCase != JobTopic.ValueOneofCase.RideShare)
+                return;
+
+            var taxiTopic = e.ReplyPayloadCert.Header.JobRequest.Header.Topic.RideShare;
+
             Dictionary<string, byte[]> certprops = new(from x in e.ReplyPayloadCert.Header.Header.Properties select KeyValuePair.Create(x.Name, x.Value.ToArray()));
 
             if (!new HashSet<string>(certprops.Keys)
@@ -142,7 +157,6 @@ public partial class RideShareCLIApp
                 receivedResponseIdxesForPaymentHashes[paymentHash] = receivedResponsesForPaymentHashes.Count - 1;
                 var fee = e.DecodedReplyInvoice.Amount;
                 var netfee = e.DecodedNetworkInvoice.Amount;
-                var taxiTopic = e.ReplyPayloadCert.Header.JobRequest.Header.RideShare;
                 var from = taxiTopic.FromGeohash;
                 var tim = "(" + taxiTopic.PickupAfter.AsUtcDateTime().ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore.AsUtcDateTime() - taxiTopic.PickupAfter.AsUtcDateTime()).TotalMinutes).ToString() + ")";
                 var to = taxiTopic.ToGeohash;

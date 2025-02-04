@@ -240,6 +240,21 @@ message Reply
     }
 }
 
+message JobTopic 
+{
+    string Country = 1;
+    string Geohash = 2;
+    string Currency = 3;
+    int64 SuggestedPrice = 4;
+
+    oneof Value
+    {
+        bytes Unknown = 5;
+        RideShareTopic RideShare = 6;
+        BlockDeliveryTopic BlockDelivery = 7;
+    }
+}
+
 message JobRequestHeader
 {
     CertificateHeader Header = 1;
@@ -252,12 +267,7 @@ message JobRequestHeader
     /// <summary>
     /// Gets or sets the topic of the payload.
     /// </summary>
-    oneof Topic
-    {
-        bytes Unknown = 4;
-        RideShareTopic RideShare = 5;
-        BlockDeliveryTopic BlockDelivery = 6;
-    }
+    JobTopic Topic = 4;
 }
 
 /// <summary>
@@ -353,9 +363,6 @@ message RideShareTopic
     Timestamp PickupAfter = 3;
     Timestamp PickupBefore = 4;
     double Distance = 5;
-    string Currency = 6;
-    string Country = 7;
-    int64 SuggestedPrice = 8;
 }
 
 message RideShareReply
@@ -407,10 +414,6 @@ message BlockDeliveryTopic
     Timestamp PickupAfter = 5;
     Timestamp PickupBefore = 6;
     Timestamp FinishBefore = 7;
-
-    string Currency = 8;
-    string Country = 9;
-    int64 SuggestedPrice = 10;
 }
 
 message BlockDeliveryReply

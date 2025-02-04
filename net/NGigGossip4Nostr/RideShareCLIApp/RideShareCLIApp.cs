@@ -482,7 +482,7 @@ public partial class RideShareCLIApp
                     string country = Prompt.Select<string>("Country", new string[] { "AU", "PL", "US" }, defaultValue: "AU");
                     string currency = Prompt.Select<string>("Country", new string[] { "BTC", "AUD", "PLN", "USD" }, defaultValue: "BTC");
 
-                    long suggestedPrice = Prompt.Input<long>("Suggested Price", 10000);
+                    long suggestedPrice = Prompt.Input<long>("Suggested Price", 10000L);
 
                     receivedResponseIdxesForPaymentHashes = new();
                     receivedResponsesForPaymentHashes = new();
@@ -551,7 +551,7 @@ public partial class RideShareCLIApp
                     string country = Prompt.Select<string>("Country", new string[] { "AU", "PL", "US" }, defaultValue: "AU");
                     string currency = Prompt.Select<string>("Country", new string[] { "BTC", "AUD", "PLN", "USD" }, defaultValue: "BTC");
 
-                    long suggestedPrice = Prompt.Input<long>("Suggested Price", 10000);
+                    long suggestedPrice = Prompt.Input<long>("Suggested Price", 10000L);
 
                     receivedResponseIdxesForPaymentHashes = new();
                     receivedResponsesForPaymentHashes = new();
@@ -574,6 +574,7 @@ public partial class RideShareCLIApp
                         senderName,
                         blockDescription,
                         fromAddress, fromLocation,
+                        settings.NodeSettings.GeohashPrecision,
                         pickupAfter, pickupBefore, finishBefore,
                         country, currency,
                         suggestedPrice,

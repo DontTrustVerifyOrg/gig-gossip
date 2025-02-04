@@ -464,10 +464,10 @@ public class Settler : CertificationAuthority
     {
         var decodedInv = WalletAPIResult.Get<PaymentRequestRecord>(await lndWalletClient.DecodeInvoiceAsync(MakeAuthToken(), replyInvoice, CancellationTokenSource.Token));
 
-        if(!this.pricings.ContainsKey((signedRequestPayload.Header.RideShare.Country.ToUpper(), decodedInv.Currency.ToUpper())))
+        if(!this.pricings.ContainsKey((signedRequestPayload.Header.Topic.Country.ToUpper(), decodedInv.Currency.ToUpper())))
             throw new SettlerException(Exceptions.SettlerErrorCode.NotSupportedCountryCurrencyPair);
 
-        var priceing = this.pricings[(signedRequestPayload.Header.RideShare.Country.ToUpper(), decodedInv.Currency.ToUpper())];
+        var priceing = this.pricings[(signedRequestPayload.Header.Topic.Country.ToUpper(), decodedInv.Currency.ToUpper())];
 
         var invPaymentHash = decodedInv.PaymentHash;
         if ((from pi in settlerContext.Value.Preimages where pi.SignedRequestPayloadId == signedRequestPayload.Header.JobRequestId.AsGuid() && pi.PaymentHash == invPaymentHash select pi).FirstOrDefault() == null)
@@ -570,7 +570,7 @@ public class Settler : CertificationAuthority
         return jobReply.Encrypt(pubkey.AsECXOnlyPubKey(), this._CaPrivateKey);
     }
 
-    public async Task<BroadcastRequest> GenerateRequestPayloadAsync(string senderspubkey, string[] sendersproperties, RideShareTopic topic)
+    public async Task<BroadcastRequest> GenerateRequestPayloadAsync(string senderspubkey, string[] sendersproperties, JobTopic topic)
     {
         using var TX = settlerContext.Value.BEGIN_TRANSACTION();
 
@@ -584,7 +584,7 @@ public class Settler : CertificationAuthority
                     sendersproperties),
             JobRequestId = guid.AsUUID(),
             Timestamp = DateTime.UtcNow.AsUnixTimestamp(),
-            RideShare = topic
+            Topic = topic
         };
 
         var cert1 = new JobRequest
@@ -612,7 +612,7 @@ public class Settler : CertificationAuthority
 
         TX.Commit();
 
-        Task.Run(async () => await sendPushNotificationsAsync(topic.FromGeohash));
+        Task.Run(async () => await sendPushNotificationsAsync(topic.Geohash));
 
         return new BroadcastRequest { JobRequest = cert1, CancelJobRequest = cert2 };
     }

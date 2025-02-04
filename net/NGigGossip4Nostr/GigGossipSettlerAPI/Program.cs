@@ -1035,7 +1035,7 @@ app.MapPost("/generaterequestpayload", async ([FromForm] string authToken, [From
     try
     {
         var pubkey = Singlethon.Settler.ValidateAuthToken(authToken);
-        var rideShareTopic = Crypto.BinaryDeserializeObject<RideShareTopic>(await serialisedTopic.ToBytes());
+        var rideShareTopic = Crypto.BinaryDeserializeObject<JobTopic>(await serialisedTopic.ToBytes());
         var st = await Singlethon.Settler.GenerateRequestPayloadAsync(pubkey, properties.Split(","), rideShareTopic);
         return new Result<string>(Convert.ToBase64String(Crypto.BinarySerializeObject(st)));
     }

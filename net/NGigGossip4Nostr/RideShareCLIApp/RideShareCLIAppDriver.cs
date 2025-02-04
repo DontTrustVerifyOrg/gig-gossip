@@ -30,10 +30,10 @@ public partial class RideShareCLIApp
 
     private async void GigGossipNodeEventSource_OnAcceptBroadcast(object? sender, AcceptBroadcastEventArgs e)
     {
-        if (e.BroadcastFrame.JobRequest.Header.TopicCase !=  JobRequestHeader.TopicOneofCase.RideShare)
+        if (e.BroadcastFrame.JobRequest.Header.Topic.ValueCase !=  JobTopic.ValueOneofCase.RideShare)
             return;
 
-        var taxiTopic = e.BroadcastFrame.JobRequest.Header.RideShare;
+        var taxiTopic = e.BroadcastFrame.JobRequest.Header.Topic.RideShare;
 
 
         if (inDriverMode)
@@ -80,10 +80,10 @@ public partial class RideShareCLIApp
 
         foreach (var e in evs)
         {
-            if (e.BroadcastFrame.JobRequest.Header.TopicCase !=  JobRequestHeader.TopicOneofCase.RideShare)
-                continue;
+            if (e.BroadcastFrame.JobRequest.Header.Topic.ValueCase != JobTopic.ValueOneofCase.RideShare)
+                return;
 
-            var taxiTopic = e.BroadcastFrame.JobRequest.Header.RideShare;
+            var taxiTopic = e.BroadcastFrame.JobRequest.Header.Topic.RideShare;
 
             var reply = new RideShareReply()
             {
