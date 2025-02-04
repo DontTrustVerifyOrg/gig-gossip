@@ -236,6 +236,7 @@ message Reply
     {
         bytes Unknown = 1;
         RideShareReply RideShare = 2;
+        BlockDeliveryReply BlockDelivery = 3;
     }
 }
 
@@ -255,6 +256,7 @@ message JobRequestHeader
     {
         bytes Unknown = 4;
         RideShareTopic RideShare = 5;
+        BlockDeliveryTopic BlockDelivery = 6;
     }
 }
 
@@ -342,6 +344,8 @@ message GeoLocation
     double Longitude = 2;
 }
 
+// RideShare
+
 message RideShareTopic
 {
     string FromGeohash = 1;
@@ -392,6 +396,8 @@ message LocationFrame
     RideState RideStatus = 11;
 }
 
+// BlockDelivery
+
 message BlockDeliveryTopic
 {
     string SenderName = 1;
@@ -407,3 +413,11 @@ message BlockDeliveryTopic
     int64 SuggestedPrice = 10;
 }
 
+message BlockDeliveryReply
+{
+    PublicKey PublicKey = 1;
+    repeated URI Relays = 2;
+    string Secret = 3;
+    GeoLocation Location = 4;
+    string Message = 5;
+}
