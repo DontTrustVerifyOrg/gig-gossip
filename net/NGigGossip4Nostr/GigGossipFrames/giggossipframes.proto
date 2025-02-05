@@ -347,11 +347,34 @@ message Frame
     }
 }
 
-
 message GeoLocation 
 {
     double Latitude = 1;
     double Longitude = 2;
+}
+
+message GeoCircle
+{
+    GeoLocation Center = 1;
+    double Radius = 2;
+}
+
+message GeoBox
+{
+    GeoLocation TopLeft = 1;
+    GeoLocation BottomRight = 2;
+}
+
+message GeoShape
+{
+    oneof Value
+    {
+        string Geohash = 1;
+        GeoLocation Location = 2;
+        GeoCircle Circle = 3;
+        GeoBox Box = 4;
+        string EncodedPolyline = 5;
+    }
 }
 
 // RideShare
@@ -374,13 +397,39 @@ message RideShareReply
     string Message = 5;
 }
 
+
+// BlockDelivery
+
+message BlockDeliveryTopic
+{
+    string SenderName = 1;
+    string BlockDescription = 2;
+    GeoLocation FromLocation = 3;
+    string FromAddress = 4;
+    GeoShape ToShape = 5;
+    Timestamp PickupAfter = 6;
+    Timestamp PickupBefore = 7;
+    Timestamp FinishBefore = 8;
+}
+
+message BlockDeliveryReply
+{
+    PublicKey PublicKey = 1;
+    repeated URI Relays = 2;
+    string Secret = 3;
+    GeoLocation Location = 4;
+    string Message = 5;
+}
+
+// Comms
+
 enum RideState
 {
     Started = 0;
-    DriverGoingForRider = 1;
-    DriverWaitingForRider = 2;
-    RiderPickedUp = 3;
-    DriverGoingWithRider = 4;
+    GoingFor = 1;
+    WaitingFor = 2;
+    PickedUp = 3;
+    GoingWith = 4;
     Completed = 5;
     Disputed = 6;
     Failed = 7;
@@ -403,24 +452,3 @@ message LocationFrame
     RideState RideStatus = 11;
 }
 
-// BlockDelivery
-
-message BlockDeliveryTopic
-{
-    string SenderName = 1;
-    string BlockDescription = 2;
-    GeoLocation FromLocation = 3;
-    string FromAddress = 4;
-    Timestamp PickupAfter = 5;
-    Timestamp PickupBefore = 6;
-    Timestamp FinishBefore = 7;
-}
-
-message BlockDeliveryReply
-{
-    PublicKey PublicKey = 1;
-    repeated URI Relays = 2;
-    string Secret = 3;
-    GeoLocation Location = 4;
-    string Message = 5;
-}

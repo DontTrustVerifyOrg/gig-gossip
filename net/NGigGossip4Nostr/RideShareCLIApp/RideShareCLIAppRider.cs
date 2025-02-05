@@ -293,7 +293,7 @@ public partial class RideShareCLIApp
                         SecurityCenterUri = settlerServiceUri.AsURI(),
                         Location = lastDriverLocation,
                         Message = "I am in the car",
-                        RideStatus = RideState.RiderPickedUp,
+                        RideStatus = RideState.PickedUp,
                         FromAddress = fromAddress,
                         FromLocation = fromLocation,
                         ToAddress = toAddress,
@@ -325,7 +325,7 @@ public partial class RideShareCLIApp
         if (locationFrame.JobRequestId.AsGuid() == requestedRide.JobRequest.Header.JobRequestId.AsGuid())
         {
             AnsiConsole.WriteLine("driver location:" + senderPublicKey + "|" + locationFrame.RideStatus.ToString() + "|" + locationFrame.Message + "|" + locationFrame.Location.ToString());
-            if (locationFrame.RideStatus == RideState.DriverWaitingForRider)
+            if (locationFrame.RideStatus == RideState.WaitingFor)
                 driverApproached = true;
             if (locationFrame.RideStatus == RideState.Completed)
                 riderDroppedOff = true;

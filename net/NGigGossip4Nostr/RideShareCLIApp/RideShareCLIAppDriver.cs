@@ -284,7 +284,7 @@ public partial class RideShareCLIApp
                         ToLocation = locationFrame.ToLocation,
                         Secret = locationFrame.Secret,
                         Message = "I am waiting",
-                        RideStatus = RideState.DriverWaitingForRider,
+                        RideStatus = RideState.WaitingFor,
                         JobReplyId = locationFrame.JobReplyId,
                         SecurityCenterUri = locationFrame.SecurityCenterUri,
                     }
@@ -311,7 +311,7 @@ public partial class RideShareCLIApp
                             JobRequestId = requestPayloadId.AsUUID(),
                             Location = new GeoLocation { Latitude = location.Lat, Longitude = location.Lon },
                             Message = "We are driving",
-                            RideStatus = RideState.RiderPickedUp,
+                            RideStatus = RideState.PickedUp,
                             FromAddress = locationFrame.FromAddress,
                             ToAddress = locationFrame.ToAddress,
                             FromLocation = locationFrame.FromLocation,
