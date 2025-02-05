@@ -61,6 +61,8 @@ public partial class RideShareCLIApp
     {
         this.fromLocation = fromLocation;
         this.fromAddress = fromAddress;
+        this.toLocation = toCenter;
+        this.toAddress = blockDescription;
         var fromGh = GeoHash.Encode(latitude: fromLocation.Latitude, longitude: fromLocation.Longitude, numberOfChars: precision);
 
         return (await gigGossipNode.BroadcastTopicAsync(
