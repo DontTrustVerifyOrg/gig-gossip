@@ -85,24 +85,28 @@ public partial class RideShareCLIApp
 
             var taxiTopic = e.BroadcastFrame.JobRequest.Header.Topic.RideShare;
 
-            var reply = new RideShareReply()
+            var reply = new Reply()
             {
-                PublicKey = new PublicKey { Value = e.GigGossipNode.PublicKey.AsECXOnlyPubKey().ToBytes().AsByteString() },
-                Secret = secret,
-                Location = myLocation,
-                Message = message,
+                RideShare = new RideShareReply()
+                {
+                    PublicKey = new PublicKey { Value = e.GigGossipNode.PublicKey.AsECXOnlyPubKey().ToBytes().AsByteString() },
+                    Secret = secret,
+                    Location = myLocation,
+                    Message = message,
+                }
             };
-            reply.Relays.Add((from r in e.GigGossipNode.NostrRelays select new URI { Value = r}));
+
+            reply.RideShare.Relays.Add((from r in e.GigGossipNode.NostrRelays select new URI { Value = r }));
 
             var payReq = await e.GigGossipNode.AcceptBroadcastAsync(e.PeerPublicKey, e.BroadcastFrame,
                         new AcceptBroadcastResponse()
                         {
                             Properties = settings.NodeSettings.GetAllDriverProperties(),
-                            RideShareReply = reply,
+                            Reply = reply,
                             Fee = fee,
                             Country = "PL",
                             Currency = "BTC",
-                            SettlerServiceUri = settings.NodeSettings.SettlerOpenApi,                             
+                            SettlerServiceUri = settings.NodeSettings.SettlerOpenApi,
                         },
                         async (payReq) =>
                         {

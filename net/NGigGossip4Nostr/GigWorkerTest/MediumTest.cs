@@ -563,9 +563,12 @@ public class GigWorkerGossipNodeEvents : IGigGossipNodeEvents
                     new AcceptBroadcastResponse()
                     {
                         Properties = new string[] { "drive"},
-                        RideShareReply = new RideShareReply
+                        Reply =   new Reply
                         {
-                            PublicKey = me.PublicKey.AsPublicKey()
+                            RideShare = new RideShareReply
+                            {
+                                PublicKey = me.PublicKey.AsPublicKey()
+                            }
                         },
                         Fee = 4321,
                         Country = "PL",

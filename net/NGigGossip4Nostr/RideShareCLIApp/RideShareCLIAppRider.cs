@@ -57,7 +57,7 @@ public partial class RideShareCLIApp
             pre));
     }
 
-    async Task<(BroadcastRequest Request, List<string> Fails)> RequestBlockDelivery(string senderName, string blockDescription, string fromAddress, GeoLocation fromLocation, int precision, DateTime pickupAfter, DateTime pickupBefore, DateTime finishBefore, string country, string currency, long suggestedPrice, Func<BroadcastRequest, Task> pre)
+    async Task<(BroadcastRequest Request, List<string> Fails)> RequestBlockDelivery(string senderName, string blockDescription, string fromAddress, GeoLocation fromLocation, int precision, GeoLocation toCenter, double radius, DateTime pickupAfter, DateTime pickupBefore, DateTime finishBefore, string country, string currency, long suggestedPrice, Func<BroadcastRequest, Task> pre)
     {
         this.fromLocation = fromLocation;
         this.fromAddress = fromAddress;
@@ -77,6 +77,16 @@ public partial class RideShareCLIApp
                     PickupAfter = pickupAfter.AsUnixTimestamp(),
                     PickupBefore = pickupBefore.AsUnixTimestamp(),
                     FinishBefore = finishBefore.AsUnixTimestamp(),
+                    BlockDescription = blockDescription,
+                    SenderName = senderName,
+                    ToShape = new GeoShape
+                    {
+                        Circle = new GeoCircle
+                        {
+                            Center = toCenter,
+                            Radius = radius
+                        }
+                    }
                 }
             },
             settings.NodeSettings.GetRiderProperties(),
@@ -134,10 +144,7 @@ public partial class RideShareCLIApp
 
         lock (receivedResponsesForPaymentHashes)
         {
-            if (e.ReplyPayloadCert.Header.JobRequest.Header.Topic.ValueCase != JobTopic.ValueOneofCase.RideShare)
-                return;
-
-            var taxiTopic = e.ReplyPayloadCert.Header.JobRequest.Header.Topic.RideShare;
+            var topic = e.ReplyPayloadCert.Header.JobRequest.Header.Topic;
 
             Dictionary<string, byte[]> certprops = new(from x in e.ReplyPayloadCert.Header.Header.Properties select KeyValuePair.Create(x.Name, x.Value.ToArray()));
 
@@ -157,9 +164,12 @@ public partial class RideShareCLIApp
                 receivedResponseIdxesForPaymentHashes[paymentHash] = receivedResponsesForPaymentHashes.Count - 1;
                 var fee = e.DecodedReplyInvoice.Amount;
                 var netfee = e.DecodedNetworkInvoice.Amount;
-                var from = taxiTopic.FromGeohash;
-                var tim = "(" + taxiTopic.PickupAfter.AsUtcDateTime().ToString(DATE_FORMAT) + "+" + ((int)(taxiTopic.PickupBefore.AsUtcDateTime() - taxiTopic.PickupAfter.AsUtcDateTime()).TotalMinutes).ToString() + ")";
-                var to = taxiTopic.ToGeohash;
+                var from = (topic.ValueCase == JobTopic.ValueOneofCase.RideShare) ? topic.RideShare.FromGeohash : topic.BlockDelivery.SenderName;
+                var tim = (topic.ValueCase == JobTopic.ValueOneofCase.RideShare) ?
+                    ("(" + topic.RideShare.PickupAfter.AsUtcDateTime().ToString(DATE_FORMAT) + "+" + ((int)(topic.RideShare.PickupBefore.AsUtcDateTime() - topic.RideShare.PickupAfter.AsUtcDateTime()).TotalMinutes).ToString() + ")")
+                    :
+                    ("(" + topic.BlockDelivery.PickupAfter.AsUtcDateTime().ToString(DATE_FORMAT) + "+" + ((int)(topic.BlockDelivery.PickupBefore.AsUtcDateTime() - topic.BlockDelivery.PickupAfter.AsUtcDateTime()).TotalMinutes).ToString() + ")");
+                var to = (topic.ValueCase == JobTopic.ValueOneofCase.RideShare) ? topic.RideShare.ToGeohash : topic.BlockDelivery.BlockDescription;
 
                 receivedResponsesTable.AddRow(new string[] { paymentHash, e.ReplyPayloadCert.Header.JobReplyId.AsGuid().ToString(), "1", from, tim, to, fee.ToString(), netfee.ToString() });
 
@@ -188,10 +198,20 @@ public partial class RideShareCLIApp
             if (e.RequestPayloadId == requestedRide.JobRequest.Header.JobRequestId.AsGuid())
             {
                 await e.GigGossipNode.CancelBroadcastAsync(requestedRide.CancelJobRequest);
-                await gigGossipNode.AddTempRelaysAsync((from u in e.Reply.RideShare.Relays select u.AsUri().AbsoluteUri).ToArray());
-                directTimer.Start();
-                directPubkeys[e.RequestPayloadId] = e.Reply.RideShare.PublicKey.AsHex();
-                new Thread(async () => await RiderJourneyAsync(e.RequestPayloadId, e.ReplierCertificateId, e.Reply.RideShare.Secret, settings.NodeSettings.SettlerOpenApi)).Start();
+                if (e.Reply.ValueCase == Reply.ValueOneofCase.RideShare)
+                {
+                    await gigGossipNode.AddTempRelaysAsync((from u in e.Reply.RideShare.Relays select u.AsUri().AbsoluteUri).ToArray());
+                    directTimer.Start();
+                    directPubkeys[e.RequestPayloadId] = e.Reply.RideShare.PublicKey.AsHex();
+                    new Thread(async () => await RiderJourneyAsync(e.RequestPayloadId, e.ReplierCertificateId, e.Reply.RideShare.Secret, settings.NodeSettings.SettlerOpenApi)).Start();
+                }
+                else if(e.Reply.ValueCase == Reply.ValueOneofCase.BlockDelivery)
+                {
+                    await gigGossipNode.AddTempRelaysAsync((from u in e.Reply.BlockDelivery.Relays select u.AsUri().AbsoluteUri).ToArray());
+                    directTimer.Start();
+                    directPubkeys[e.RequestPayloadId] = e.Reply.BlockDelivery.PublicKey.AsHex();
+                    new Thread(async () => await RiderJourneyAsync(e.RequestPayloadId, e.ReplierCertificateId, e.Reply.BlockDelivery.Secret, settings.NodeSettings.SettlerOpenApi)).Start();
+                }
             }
             else
                 AnsiConsole.WriteLine("SignedRequestPayloadId mismatch 2");
@@ -311,6 +331,7 @@ public partial class RideShareCLIApp
             AnsiConsole.WriteException(ex);
         }
     }
+
 
     GeoLocation lastDriverLocation;
     DateTime lastDriverSeenAt = DateTime.MinValue;

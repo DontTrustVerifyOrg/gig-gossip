@@ -492,13 +492,13 @@ public partial class RideShareCLIApp
                         var me = (DataTable)o;
                         if (e.Key == ConsoleKey.Enter)
                         {
-                            await AcceptDriverAsync(me.SelectedRowIdx);
                             me.Exit();
+                            await AcceptDriverAsync(me.SelectedRowIdx);
                         }
                         if (e.Key == ConsoleKey.Escape)
                         {
-                            await CancelBroadcast();
                             me.Exit();
+                            await CancelBroadcast();
                         }
                     };
                     var (req, fails) = await RequestRide(
@@ -525,24 +525,35 @@ public partial class RideShareCLIApp
 
                     string senderName = Prompt.Input<string>("Sender Name", "Deliver In Person");
                     string blockDescription = Prompt.Input<string>("Block Description", "Block of Packages");
-                    string fromAddress;
-                    GeoLocation fromLocation;
-
+                    string fromAddress, toAddress;
+                    GeoLocation fromLocation, toLocation;
 
                     if (Prompt.Confirm("Use random", false))
                     {
 
                         var keys = new List<string>(MockData.FakeAddresses.Keys);
 
-                        fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+                        while (true)
+                        {
+                            fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+                            toAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+                            if (fromAddress != toAddress)
+                                break;
+                        }
 
                         fromLocation = new GeoLocation { Latitude = MockData.FakeAddresses[fromAddress].Latitude, Longitude = MockData.FakeAddresses[fromAddress].Longitude };
+                        toLocation = new GeoLocation { Latitude = MockData.FakeAddresses[toAddress].Latitude, Longitude = MockData.FakeAddresses[toAddress].Longitude };
                     }
                     else
                     {
                         fromAddress = await GetAddressAsync("From");
+                        toAddress = await GetAddressAsync("Delivery Circle Center");
+
                         fromLocation = await GetAddressGeocodeAsync(fromAddress);
+                        toLocation = await GetAddressGeocodeAsync(toAddress);
                     }
+
+                    double deliveryRadius = Prompt.Input<double>("Delivery Circle Radius", 100.0D);
 
                     DateTime pickupAfter = Prompt.Input<DateTime>("Pickup After", DateTime.Now);
                     DateTime pickupBefore = Prompt.Input<DateTime>("Pickup Before", DateTime.Now.AddMinutes(15));
@@ -561,13 +572,13 @@ public partial class RideShareCLIApp
                         var me = (DataTable)o;
                         if (e.Key == ConsoleKey.Enter)
                         {
-                            await AcceptDriverAsync(me.SelectedRowIdx);
                             me.Exit();
+                            await AcceptDriverAsync(me.SelectedRowIdx);
                         }
                         if (e.Key == ConsoleKey.Escape)
                         {
-                            await CancelBroadcast();
                             me.Exit();
+                            await CancelBroadcast();
                         }
                     };
                     var (req, fails) = await RequestBlockDelivery(
@@ -575,6 +586,7 @@ public partial class RideShareCLIApp
                         blockDescription,
                         fromAddress, fromLocation,
                         settings.NodeSettings.GeohashPrecision,
+                        toLocation, deliveryRadius,
                         pickupAfter, pickupBefore, finishBefore,
                         country, currency,
                         suggestedPrice,
@@ -626,14 +638,14 @@ public partial class RideShareCLIApp
                 var me = (DataTable)o;
                 if (e.Key == ConsoleKey.Enter)
                 {
+                    me.Exit();
                     address = me.GetCell(e.Line, 0);
                     done = true;
-                    me.Exit();
                 }
                 if (e.Key == ConsoleKey.Escape)
                 {
-                    address = me.GetCell(e.Line, 0);
                     me.Exit();
+                    address = me.GetCell(e.Line, 0);
                 }
             };
 

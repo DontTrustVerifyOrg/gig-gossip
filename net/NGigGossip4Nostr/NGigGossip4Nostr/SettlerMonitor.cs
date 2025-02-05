@@ -177,7 +177,7 @@ public class SettlerMonitor
                         if (status ==  GigStatus.Accepted|| status == GigStatus.Completed || status == GigStatus.Disuputed)
                         {
                             TL.Info("OnSymmetricKeyRevealed");
-                            Task.Run(() => gigGossipNode.OnSymmetricKeyRevealed(kv.Data, key));
+                            Task.Run(() => gigGossipNode.OnSymmetricKeyRevealed(kv.Data.ToArray(), new string(key)));
                             kv.SymmetricKey = key;
                             kv.Status = status;
                             lock (gigGossipNode.NodeDb.Context)
@@ -186,7 +186,7 @@ public class SettlerMonitor
                         else if (status == GigStatus.Cancelled)
                         {
                             TL.Info("OnGigCancelled");
-                            Task.Run(() => gigGossipNode.OnGigCancelled(kv.Data));
+                            Task.Run(() => gigGossipNode.OnGigCancelled(kv.Data.ToArray()));
                             kv.Status = status;
                             lock (gigGossipNode.NodeDb.Context)
                                 gigGossipNode.NodeDb.Context.SaveObject(kv);

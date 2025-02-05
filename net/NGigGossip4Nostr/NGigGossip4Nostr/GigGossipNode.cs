@@ -79,7 +79,7 @@ public class AcceptBroadcastResponse
 {
     public required Uri SettlerServiceUri { get; set; }
     public required string [] Properties { get; set; }
-    public required RideShareReply RideShareReply { get; set; }
+    public required Reply Reply { get; set; }
     public required long Fee { get; set; }
     public required string Country { get; set; }
     public required string Currency { get; set; }
@@ -758,7 +758,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                     var settr = SettlerAPIResult.Get<string>(await settlerClient.GenerateSettlementTrustAsync(authToken,
                         string.Join(",",acceptBroadcastResponse.Properties),
                         replyInvoice,
-                        new FileParameter(new MemoryStream(Crypto.BinarySerializeObject(new Reply { RideShare = acceptBroadcastResponse.RideShareReply }))),
+                        new FileParameter(new MemoryStream(Crypto.BinarySerializeObject(acceptBroadcastResponse.Reply ))),
                         new FileParameter(new MemoryStream(signedRequestPayloadSerialized)),
                         CancellationTokenSource.Token
                         ));

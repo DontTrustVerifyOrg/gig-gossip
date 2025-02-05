@@ -3,7 +3,7 @@
   <PropertyGroup>
 
     <PackageId>GigGossip.Core</PackageId>
-    <Version>2.1.15</Version>
+    <Version>2.1.6</Version>
     <Authors>TheHyperlabs</Authors>
     <Company>TheHyperlabs</Company>
 
