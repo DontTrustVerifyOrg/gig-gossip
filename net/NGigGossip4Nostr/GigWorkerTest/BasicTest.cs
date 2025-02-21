@@ -74,6 +74,7 @@ public class BasicTest
             var val = Convert.ToBase64String(Encoding.Default.GetBytes("ok"));
 
             var gigWorker = new GigGossipNode(
+                Enum.Parse<DBProvider>(gigWorkerSettings.DBProvider),
                 gigWorkerSettings.ConnectionString,
                 gigWorkerSettings.PrivateKey.AsECPrivKey(),
                 gigWorkerSettings.ChunkSize,
@@ -90,6 +91,7 @@ public class BasicTest
                 ));
 
             var customer = new GigGossipNode(
+                Enum.Parse<DBProvider>(customerSettings.DBProvider),
                 customerSettings.ConnectionString,
                 customerSettings.PrivateKey.AsECPrivKey(),
                 customerSettings.ChunkSize,
@@ -793,6 +795,7 @@ public class SettlerAdminSettings
 
 public class NodeSettings
 {
+    public required string DBProvider { get; set; }
     public required string ConnectionString { get; set; }
     public required Uri GigWalletOpenApi { get; set; }
     public required string NostrRelays { get; set; }

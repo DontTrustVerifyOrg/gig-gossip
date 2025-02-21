@@ -15,6 +15,7 @@ using System.Timers;
 using GigGossip;
 using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
+using Google.Protobuf;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +31,7 @@ using Sharprompt;
 using Spectre;
 using Spectre.Console;
 using SQLitePCL;
+using Stripe;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using static NBitcoin.Scripting.OutputDescriptor;
 
@@ -81,6 +83,7 @@ public partial class RideShareCLIApp
     System.Timers.Timer directTimer;
     Dictionary<Guid, string> directPubkeys = new();
     string privkeypassed;
+    string thecountry;
 
     CancellationTokenSource CancellationTokenSource = new();
 
@@ -116,6 +119,9 @@ public partial class RideShareCLIApp
         else
             privkeypassed = privkey;
 
+        thecountry = Prompt.Select("Country", MockData.Countries, defaultValue: "AU");
+
+
         IConfigurationRoot config = GetConfigurationRoot(baseDir, args, ".giggossip", "ridesharecli" + sfx + ".conf");
 
         this.settings = new Settings(id, config);
@@ -143,6 +149,8 @@ public partial class RideShareCLIApp
         gigGossipNodeEventSource.OnLNDPaymentStatusChanged += GigGossipNodeEventSource_OnLNDPaymentStatusChanged;
         gigGossipNodeEventSource.OnLNDNewTransaction += GigGossipNodeEventSource_OnLNDNewTransaction;
         gigGossipNodeEventSource.OnLNDPayoutStateChanged += GigGossipNodeEventSource_OnLNDPayoutStateChanged;
+
+        StripeConfiguration.ApiKey = settings.StripeSettings.StripePublishableKey;
     }
 
     private async void GigGossipNodeEventSource_OnLNDPayoutStateChanged(object? sender, LNDPayoutStateChangedEventArgs e)
@@ -285,6 +293,7 @@ public partial class RideShareCLIApp
 
             GigDebugLoggerAPIClient.FlowLoggerFactory.Initialize(false, privateKey.CreateXOnlyPubKey().AsHex(), settings.NodeSettings.LoggerOpenApi, () => new HttpClient());
             gigGossipNode = new GigGossipNode(
+                Enum.Parse<DBProvider>(settings.NodeSettings.DBProvider),
                 settings.NodeSettings.ConnectionString.Replace("$ID", settings.Id),
                 privateKey,
                 settings.NodeSettings.ChunkSize,
@@ -350,8 +359,8 @@ public partial class RideShareCLIApp
                 }
                 else if (cmd == CommandEnum.SetupMyInfo)
                 {
-                    var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.SettlerAdminSettings.SettlerOpenApi);
-                    var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.SettlerAdminSettings.SettlerOpenApi);
+                    var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi);
+                    var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi);
                     string name = Prompt.Input<string>("Your Name");
                     SettlerAPIResult.Check(await settlerClient.GiveUserPropertyAsync(authToken,
                         (await GetPublicKeyAsync()).AsHex(), "Name",
@@ -375,7 +384,7 @@ public partial class RideShareCLIApp
                         Convert.ToBase64String(new byte[] { }), 24 * 365 * 10,
                         CancellationTokenSource.Token));
 
-                    var randloc = MockData.RandomLocation();
+                    var randloc = MockData.RandomLocation(thecountry);
                     string trace = GeoHash.Encode(randloc.Latitude, randloc.Longitude, 7);
                     SettlerAPIResult.Check(await settlerClient.SaveUserTracePropertyAsync(authToken,
                         (await GetPublicKeyAsync()).AsHex(), "Geohash",
@@ -402,9 +411,9 @@ public partial class RideShareCLIApp
                             {
                                 if (me.GetCell(me.SelectedRowIdx, 0) != "sent")
                                 {
-                                    var keys = new List<string>(MockData.FakeAddresses.Keys);
-                                    var myAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
-                                    var myStartLocation = new GeoLocation { Latitude = MockData.FakeAddresses[myAddress].Latitude, Longitude = MockData.FakeAddresses[myAddress].Longitude };
+                                    var keys = new List<string>(MockData.FakeAddresses[thecountry].Keys);
+                                    var myAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses[thecountry].Count)];
+                                    var myStartLocation = new GeoLocation { Latitude = MockData.FakeAddresses[thecountry][myAddress].Latitude, Longitude = MockData.FakeAddresses[thecountry][myAddress].Longitude };
 
                                     await AcceptRideAsync(me.SelectedRowIdx, myStartLocation, "Hello from Driver!");
                                     me.UpdateCell(me.SelectedRowIdx, 0, "sent");
@@ -451,21 +460,21 @@ public partial class RideShareCLIApp
                     string fromAddress, toAddress;
                     GeoLocation fromLocation, toLocation;
 
-                    if (Prompt.Confirm("Use random", false))
+                    if (Prompt.Confirm("Use random", true))
                     {
 
-                        var keys = new List<string>(MockData.FakeAddresses.Keys);
+                        var keys = new List<string>(MockData.FakeAddresses[thecountry].Keys);
 
                         while (true)
                         {
-                            fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
-                            toAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+                            fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses[thecountry].Count)];
+                            toAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses[thecountry].Count)];
                             if (fromAddress != toAddress)
                                 break;
                         }
 
-                        fromLocation = new GeoLocation { Latitude = MockData.FakeAddresses[fromAddress].Latitude, Longitude = MockData.FakeAddresses[fromAddress].Longitude };
-                        toLocation = new GeoLocation { Latitude = MockData.FakeAddresses[toAddress].Latitude, Longitude = MockData.FakeAddresses[toAddress].Longitude };
+                        fromLocation = new GeoLocation { Latitude = MockData.FakeAddresses[thecountry][fromAddress].Latitude, Longitude = MockData.FakeAddresses[thecountry][fromAddress].Longitude };
+                        toLocation = new GeoLocation { Latitude = MockData.FakeAddresses[thecountry][toAddress].Latitude, Longitude = MockData.FakeAddresses[thecountry][toAddress].Longitude };
                     }
                     else
                     {
@@ -479,8 +488,7 @@ public partial class RideShareCLIApp
                     DateTime pickupAfter = Prompt.Input<DateTime>("Pickup After", DateTime.Now);
                     DateTime pickupBefore = Prompt.Input<DateTime>("Pickup Before", DateTime.Now.AddMinutes(15));
 
-                    string country = Prompt.Select<string>("Country", new string[] { "AU", "PL", "US" }, defaultValue: "AU");
-                    string currency = Prompt.Select<string>("Country", new string[] { "BTC", "AUD", "PLN", "USD" }, defaultValue: "BTC");
+                    string currency = Prompt.Select<string>("Currency", new string[] { "BTC", "AUD", "PLN"}, defaultValue: "BTC");
 
                     long suggestedPrice = Prompt.Input<long>("Suggested Price", 10000L);
 
@@ -506,11 +514,21 @@ public partial class RideShareCLIApp
                         toAddress, toLocation,
                         settings.NodeSettings.GeohashPrecision,
                         pickupAfter, pickupBefore,
-                        country, currency,
+                        thecountry, currency,
                         suggestedPrice,
-                       async (req) =>
+                       async (requestPayload) =>
                        {
-                           requestedRide = req;
+                           var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi);
+                           var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi);
+                           var brdurl = SettlerAPIResult.Get<string>(await settlerClient.UploadPublicBlobAsync(authToken,
+                                requestPayload.JobRequest.Header.JobRequestId.AsGuid().ToString("N").ToUpper(),
+                                new FileParameter(new MemoryStream(requestPayload.JobRequest.ToByteArray()))
+                                , CancellationToken.None));
+                           var blobid = brdurl.Split("/").Last();
+                           var gourl = "https://gohyper.app/ride?" + blobid;
+                           AnsiConsole.WriteLine("Broadcast URL: " + gourl);
+                           TextCopy.ClipboardService.SetText(gourl);
+                           requestedRide = requestPayload;
                        });
                     if (fails.Count > 0)
                         Console.WriteLine("Failed to send to " + fails.Count + " drivers");
@@ -528,21 +546,21 @@ public partial class RideShareCLIApp
                     string fromAddress, toAddress;
                     GeoLocation fromLocation, toLocation;
 
-                    if (Prompt.Confirm("Use random", false))
+                    if (Prompt.Confirm("Use random", true))
                     {
 
-                        var keys = new List<string>(MockData.FakeAddresses.Keys);
+                        var keys = new List<string>(MockData.FakeAddresses[thecountry].Keys);
 
                         while (true)
                         {
-                            fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
-                            toAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
+                            fromAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses[thecountry].Count)];
+                            toAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses[thecountry].Count)];
                             if (fromAddress != toAddress)
                                 break;
                         }
 
-                        fromLocation = new GeoLocation { Latitude = MockData.FakeAddresses[fromAddress].Latitude, Longitude = MockData.FakeAddresses[fromAddress].Longitude };
-                        toLocation = new GeoLocation { Latitude = MockData.FakeAddresses[toAddress].Latitude, Longitude = MockData.FakeAddresses[toAddress].Longitude };
+                        fromLocation = new GeoLocation { Latitude = MockData.FakeAddresses[thecountry][fromAddress].Latitude, Longitude = MockData.FakeAddresses[thecountry][fromAddress].Longitude };
+                        toLocation = new GeoLocation { Latitude = MockData.FakeAddresses[thecountry][toAddress].Latitude, Longitude = MockData.FakeAddresses[thecountry][toAddress].Longitude };
                     }
                     else
                     {
@@ -590,9 +608,19 @@ public partial class RideShareCLIApp
                         pickupAfter, pickupBefore, finishBefore,
                         country, currency,
                         suggestedPrice,
-                       async (req) =>
+                       async (requestPayload) =>
                        {
-                           requestedRide = req;
+                           var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi);
+                           var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi);
+                           var brdurl = SettlerAPIResult.Get<string>(await settlerClient.UploadPublicBlobAsync(authToken,
+                                requestPayload.JobRequest.Header.JobRequestId.AsGuid().ToString("N").ToUpper(),
+                                new FileParameter(new MemoryStream(requestPayload.JobRequest.ToByteArray()))
+                                , CancellationToken.None));
+                           var blobid = brdurl.Split("/").Last();
+                           var gourl= "https://gohyper.app/ride?" + blobid;
+                           AnsiConsole.WriteLine("Broadcast URL: " + gourl);
+                           TextCopy.ClipboardService.SetText(gourl);
+                           requestedRide = requestPayload; 
                        });
                     if (fails.Count > 0)
                         Console.WriteLine("Failed to send to " + fails.Count + " drivers");
@@ -625,7 +653,7 @@ public partial class RideShareCLIApp
         {
             var query = Prompt.Input<string>(message);
             var props = SettlerAPIResult.Get<List<string>>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-                .AddressAutocompleteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au",0,0,0, CancellationTokenSource.Token));
+                .AddressAutocompleteAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, thecountry.ToLower(), 0, 0, 0, CancellationTokenSource.Token));
 
             if (props.Count == 0)
                 continue;
@@ -659,13 +687,13 @@ public partial class RideShareCLIApp
     private async Task<GeolocationRet> GetGeolocation(string query)
     {
         return SettlerAPIResult.Get<GeolocationRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-            .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au", CancellationTokenSource.Token));
+            .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, thecountry.ToLower(), CancellationTokenSource.Token));
     }
 
     private async Task<GeoLocation> GetAddressGeocodeAsync(string query)
     {
         var r = SettlerAPIResult.Get<GeolocationRet>(await gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi)
-            .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, "au", CancellationTokenSource.Token));
+            .AddressGeocodeAsync(await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi), query, thecountry.ToLower(), CancellationTokenSource.Token));
         return new GeoLocation { Latitude = r.Lat, Longitude = r.Lon };
     }
 
@@ -775,22 +803,22 @@ public partial class RideShareCLIApp
 
     async Task<bool> IsPhoneNumberValidated(string phoneNumber)
     {
-        var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.SettlerAdminSettings.SettlerOpenApi);
-        var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.SettlerAdminSettings.SettlerOpenApi);
+        var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi);
+        var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi);
         return SettlerAPIResult.Get<bool>(await settlerClient.IsChannelVerifiedAsync(authToken, (await GetPublicKeyAsync()).AsHex(), "PhoneNumber", phoneNumber, CancellationTokenSource.Token));
     }
 
     async Task ValidatePhoneNumber(string phoneNumber)
     {
-        var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.SettlerAdminSettings.SettlerOpenApi);
-        var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.SettlerAdminSettings.SettlerOpenApi);
+        var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi);
+        var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi);
         SettlerAPIResult.Check(await settlerClient.VerifyChannelAsync(authToken, (await GetPublicKeyAsync()).AsHex(), "PhoneNumber", "SMS", phoneNumber, CancellationTokenSource.Token));
     }
 
     async Task<int> SubmitPhoneNumberSecret(string phoneNumber, string secret)
     {
-        var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.SettlerAdminSettings.SettlerOpenApi);
-        var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.SettlerAdminSettings.SettlerOpenApi);
+        var authToken = await gigGossipNode.MakeSettlerAuthTokenAsync(settings.NodeSettings.SettlerOpenApi);
+        var settlerClient = gigGossipNode.SettlerSelector.GetSettlerClient(settings.NodeSettings.SettlerOpenApi);
         return SettlerAPIResult.Get<int>(await settlerClient.SubmitChannelSecretAsync(authToken, (await GetPublicKeyAsync()).AsHex(), "PhoneNumber", "SMS", phoneNumber, secret, CancellationTokenSource.Token));
     }
 

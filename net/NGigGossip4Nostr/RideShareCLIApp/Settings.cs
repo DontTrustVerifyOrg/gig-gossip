@@ -10,31 +10,26 @@ namespace RideShareCLIApp
         public string Id;
 
         public NodeSettings NodeSettings;
-        public SettlerAdminSettings SettlerAdminSettings;
-        public ApplicationSettings ApplicationSettings;
+        public StripeSettings StripeSettings;
 
         public Settings(string id, IConfigurationRoot config)
         {
             this.Id = id;
             NodeSettings = config.GetSection("node").Get<NodeSettings>();
-            SettlerAdminSettings = config.GetSection("settleradmin").Get<SettlerAdminSettings>();
-            ApplicationSettings = config.GetSection("application").Get<ApplicationSettings>();
+            StripeSettings = config.GetSection("stripe").Get<StripeSettings>();
         }
     }
 }
 
-public class ApplicationSettings
+public class StripeSettings
 {
-}
-
-public class SettlerAdminSettings
-{
-    public required Uri SettlerOpenApi { get; set; }
-    public required string PrivateKey { get; set; }
+    public string StripeMerchantDisplayName { get; set; }
+    public string StripePublishableKey { get; set; }
 }
 
 public class NodeSettings
 {
+    public required string DBProvider { get; set; }
     public required string ConnectionString { get; set; }
     public required string SecureStorageConnectionString { get; set; }
     public required Uri GigWalletOpenApi { get; set; }

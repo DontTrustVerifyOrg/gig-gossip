@@ -11,6 +11,12 @@ using NBitcoin.Protocol;
 
 namespace NGigGossip4Nostr;
 
+public enum DBProvider
+{
+    Sqlite = 1,
+    SQLServer,
+}
+
 [PrimaryKey(nameof(PublicKey), nameof(SignedRequestPayloadId), nameof(ContactPublicKey))]
 public class BroadcastHistoryRow
 {
@@ -206,6 +212,8 @@ public class NostrContact
 /// </summary>
 public class GigGossipNodeContext : DbContext
 {
+    DBProvider provider;
+
     /// <summary>
     /// Connection string to the database.
     /// </summary>
@@ -215,9 +223,18 @@ public class GigGossipNodeContext : DbContext
     /// Initializes a new instance of the <see cref="WaletContext"/> class.
     /// </summary>
     /// <param name="connectionString">The connection string to connect to the database.</param>
-    public GigGossipNodeContext(string connectionString)
+    public GigGossipNodeContext(DBProvider provider, string connectionString)
     {
+        this.provider = provider;
         this.connectionString = connectionString;
+    }
+
+    public Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction BEGIN_TRANSACTION(System.Data.IsolationLevel isolationLevel = System.Data.IsolationLevel.ReadCommitted)
+    {
+        if (provider == DBProvider.Sqlite)
+            return new NullTransaction(this);
+        else
+            return this.Database.BeginTransaction(isolationLevel);
     }
 
     public DbSet<BroadcastHistoryRow> BroadcastHistory { get; set; }
@@ -237,7 +254,14 @@ public class GigGossipNodeContext : DbContext
     /// <param name="optionsBuilder">A builder used to create or modify options for this context.</param>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseSqlite(connectionString).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+        if (provider == DBProvider.Sqlite)
+            optionsBuilder.UseSqlite(connectionString);
+        else if (provider == DBProvider.SQLServer)
+            optionsBuilder.UseSqlServer(connectionString);
+        else
+            throw new NotImplementedException();
+
+        optionsBuilder.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
     }
 
     dynamic Type2DbSet(object obj)
@@ -269,50 +293,71 @@ public class GigGossipNodeContext : DbContext
         throw new InvalidOperationException();
     }
 
-    public void SaveObject<T>(T obj)
+    public GigGossipNodeContext UPDATE<T>(T obj)
     {
         this.Type2DbSet(obj!).Update(obj);
-        this.SaveChanges();
-        this.ChangeTracker.Clear();
+        return this;
     }
 
-    public void SaveObjectRange<T>(IEnumerable<T> range)
+    public GigGossipNodeContext UPDATE_IF_EXISTS<T>(IQueryable<T> qs, Func<T, T> update) where T : class
     {
-        if (range.Count() == 0)
-            return;
-        this.Type2DbSet(range.First()!).UpdateRange(range);
-        this.SaveChanges();
-        this.ChangeTracker.Clear();
+        var e = qs.FirstOrDefault();
+        if (e != null)
+        {
+            var obj = update(e);
+            UPDATE(obj);
+        }
+        return this;
     }
 
-    public void RemoveObjectRange<T>(IEnumerable<T> range)
-    {
-        if (range.Count() == 0)
-            return;
-        this.Type2DbSet(range.First()!).RemoveRange(range);
-        this.SaveChanges();
-        this.ChangeTracker.Clear();
-    }
-
-    public void AddObject<T>(T obj)
+    public GigGossipNodeContext INSERT<T>(T obj)
     {
         this.Type2DbSet(obj!).Add(obj);
-        this.SaveChanges();
-
-        this.ChangeTracker.Clear();
+        return this;
     }
 
-    public void RemoveObject<T>(T obj)
+    public GigGossipNodeContext DELETE<T>(T obj) where T : class
     {
         this.Type2DbSet(obj!).Remove(obj);
-        this.SaveChanges();
+        return this;
+    }
 
+    public GigGossipNodeContext DELETE_IF_EXISTS<T>(IQueryable<T> qs) where T : class
+    {
+        var e = qs.FirstOrDefault();
+        if (e != null)
+            DELETE(e);
+        return this;
+    }
+
+    public GigGossipNodeContext DELETE_RANGE<T>(IEnumerable<T> range)
+    {
+        if (range.Count() == 0)
+            return this;
+        this.Type2DbSet(range.First()!).RemoveRange(range);
+        return this;
+    }
+
+    public void SAVE()
+    {
+        this.SaveChanges();
         this.ChangeTracker.Clear();
     }
 
-    public bool TryAddObject<T>(T obj)
+    public void UPDATE_OR_INSERT_AND_SAVE<T>(T obj)
     {
-        this.Type2DbSet(obj!).Add(obj);
+        try
+        {
+            this.UPDATE(obj).SAVE();
+        }
+        catch (DbUpdateException)
+        {
+            this.INSERT(obj).SAVE();
+        }
+    }
+
+    public bool TRY_SAVE()
+    {
         try
         {
             this.SaveChanges();
@@ -328,35 +373,59 @@ public class GigGossipNodeContext : DbContext
             this.ChangeTracker.Clear();
         }
     }
+}
 
-    public void AddObjectRange<T>(IEnumerable<T> range)
+public class NullTransaction : Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction
+{
+    public Guid TransactionId => Guid.NewGuid();
+    private bool open = true;
+    private GigGossipNodeContext ctx;
+
+    public NullTransaction(GigGossipNodeContext ctx)
     {
-        if (range.Count() == 0)
-            return;
-        this.Type2DbSet(range.First()!).AddRange(range);
-        this.SaveChanges();
-        this.ChangeTracker.Clear();
+        this.ctx = ctx; 
+        Monitor.Enter(this.ctx);
     }
 
-    public bool TryAddObjectRange<T>(IEnumerable<T> range)
+    public void Commit()
     {
-        if (range.Count() == 0)
-            return true;
-        this.Type2DbSet(range.First()!).AddRange(range);
-        try
+        if(!open)
+            throw new InvalidOperationException();
+        open = false;
+        Monitor.Exit(this.ctx);
+    }
+
+    public async Task CommitAsync(CancellationToken cancellationToken = default)
+    {
+        Commit();
+    }
+
+    public void Dispose()
+    {
+        Rollback();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+    }
+
+    public void Rollback()
+    {
+        if (open)
         {
-            this.SaveChanges();
-            return true;
-        }
-        catch (Microsoft.EntityFrameworkCore.DbUpdateException)
-        {
-            return false;
-            //failed to add
-        }
-        finally
-        {
-            this.ChangeTracker.Clear();
+            open = false;
+            Monitor.Exit(this.ctx);
         }
     }
 
+    public async Task RollbackAsync(CancellationToken cancellationToken = default)
+    {
+        Rollback();
+    }
+
+    ~NullTransaction()
+    {
+        Rollback();
+    }
 }

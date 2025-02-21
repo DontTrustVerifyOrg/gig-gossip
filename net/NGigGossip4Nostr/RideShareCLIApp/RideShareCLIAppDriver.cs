@@ -233,9 +233,9 @@ public partial class RideShareCLIApp
     {
         try
         {
-            var keys = new List<string>(MockData.FakeAddresses.Keys);
-            var myAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses.Count)];
-            var myStartLocation = new GeoLocation { Latitude = MockData.FakeAddresses[myAddress].Latitude, Longitude= MockData.FakeAddresses[myAddress].Longitude };
+            var keys = new List<string>(MockData.FakeAddresses[thecountry].Keys);
+            var myAddress = keys[(int)Random.Shared.NextInt64(MockData.FakeAddresses[thecountry].Count)];
+            var myStartLocation = new GeoLocation { Latitude = MockData.FakeAddresses[thecountry][myAddress].Latitude, Longitude= MockData.FakeAddresses[thecountry][myAddress].Longitude };
 
             var requestPayloadId = locationFrame.JobRequestId.AsGuid();
             var pubkey = directPubkeys[requestPayloadId];

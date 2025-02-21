@@ -6,8 +6,10 @@ using NGeoHash;
 using Spectre.Console;
 using NBitcoin;
 using System.Diagnostics;
+using Stripe;
 
 using GigLNDWalletAPIClient;
+using GoogleApi.Entities.Search.Common;
 
 namespace RideShareCLIApp;
 
@@ -103,33 +105,69 @@ public partial class RideShareCLIApp
         var evs = receivedResponsesForPaymentHashes[paymentHash];
         var e = evs.Aggregate((curMin, x) => (curMin == null || x.DecodedNetworkInvoice.Amount < curMin.DecodedNetworkInvoice.Amount) ? x : curMin);
 
-        var balance = WalletAPIResult.Get<AccountBalanceDetails>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token)).AvailableAmount;
-
-
-        LNDWalletErrorCode paymentResult = LNDWalletErrorCode.Ok;
-
-        if (balance < e.DecodedReplyInvoice.Amount + e.DecodedNetworkInvoice.Amount + settings.NodeSettings.FeeLimitSat * 2)
+        if (e.DecodedReplyInvoice.Currency == "BTC")
         {
-            paymentResult = LNDWalletErrorCode.NotEnoughFunds;
+
+            var balance = WalletAPIResult.Get<AccountBalanceDetails>(await gigGossipNode.GetWalletClient().GetBalanceAsync(await gigGossipNode.MakeWalletAuthToken(), CancellationTokenSource.Token)).AvailableAmount;
+
+
+            LNDWalletErrorCode paymentResult = LNDWalletErrorCode.Ok;
+
+            if (balance < e.DecodedReplyInvoice.Amount + e.DecodedNetworkInvoice.Amount + settings.NodeSettings.FeeLimitSat * 2)
+            {
+                paymentResult = LNDWalletErrorCode.NotEnoughFunds;
+            }
+            else
+            {
+
+                var networkPayState = await e.GigGossipNode.PayInvoiceAsync(e.NetworkPaymentRequest, e.DecodedNetworkInvoice.PaymentHash, settings.NodeSettings.FeeLimitSat, CancellationToken.None);
+                if (networkPayState != LNDWalletErrorCode.Ok)
+                    paymentResult = networkPayState;
+                else
+                {
+                    var replyPayState = await e.GigGossipNode.PayInvoiceAsync(e.ReplyInvoice, e.DecodedReplyInvoice.PaymentHash, settings.NodeSettings.FeeLimitSat, CancellationToken.None);
+                    if (replyPayState != LNDWalletErrorCode.Ok)
+                        paymentResult = replyPayState;
+                }
+            }
+
+            if (paymentResult != LNDWalletErrorCode.Ok)
+            {
+                AnsiConsole.MarkupLine($"[red]{paymentResult}[/]");
+                return;
+            }
         }
         else
         {
+            var paymentIntentId = e.DecodedReplyInvoice.PaymentAddr;
+            AnsiConsole.WriteLine($"PaymentIntentId: {paymentIntentId}");
+            TextCopy.ClipboardService.SetText(paymentIntentId);
 
-            var networkPayState = await e.GigGossipNode.PayInvoiceAsync(e.NetworkPaymentRequest, e.DecodedNetworkInvoice.PaymentHash, settings.NodeSettings.FeeLimitSat, CancellationToken.None);
-            if (networkPayState != LNDWalletErrorCode.Ok)
-                paymentResult = networkPayState;
-            else
+            if (Prompt.Confirm("Payment was succesfull?", true))
             {
-                var replyPayState = await e.GigGossipNode.PayInvoiceAsync(e.ReplyInvoice, e.DecodedReplyInvoice.PaymentHash, settings.NodeSettings.FeeLimitSat, CancellationToken.None);
-                if (replyPayState != LNDWalletErrorCode.Ok)
-                    paymentResult = replyPayState;
-            }
-        }
 
-        if (paymentResult != LNDWalletErrorCode.Ok)
-        {
-            AnsiConsole.MarkupLine($"[red]{paymentResult}[/]");
-            return;
+                LNDWalletErrorCode paymentResult = LNDWalletErrorCode.Ok;
+
+
+
+                var networkPayState = await e.GigGossipNode.PayInvoiceAsync(e.NetworkPaymentRequest, e.DecodedNetworkInvoice.PaymentHash, settings.NodeSettings.FeeLimitSat, CancellationToken.None);
+                if (networkPayState != LNDWalletErrorCode.Ok)
+                    paymentResult = networkPayState;
+                else
+                {
+                    var replyPayState = await e.GigGossipNode.PayInvoiceAsync(e.ReplyInvoice, e.DecodedReplyInvoice.PaymentHash, settings.NodeSettings.FeeLimitSat, CancellationToken.None);
+                    if (replyPayState != LNDWalletErrorCode.Ok)
+                        paymentResult = replyPayState;
+                }
+
+                if (paymentResult != LNDWalletErrorCode.Ok)
+                {
+                    AnsiConsole.MarkupLine($"[red]{paymentResult}[/]");
+                    return;
+                }
+                else
+                    Console.WriteLine("Payment succeeded!");
+            }
         }
     }
 

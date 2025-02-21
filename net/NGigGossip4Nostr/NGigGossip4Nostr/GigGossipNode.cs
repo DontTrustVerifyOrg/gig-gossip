@@ -136,11 +136,11 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
     ConcurrentDictionary<string, bool> messageLocks;
     public GigDebugLoggerAPIClient.LogWrapper<GigGossipNode> TRACE = GigDebugLoggerAPIClient.FlowLoggerFactory.Trace<GigGossipNode>();
 
-    public GigGossipNode(string connectionString, ECPrivKey privKey, int chunkSize, IRetryPolicy retryPolicy, Func<HttpClient> httpClientFactory, bool traceEnabled, Uri myLoggerUri) : base(privKey, chunkSize,true, retryPolicy)
+    public GigGossipNode(DBProvider provider, string connectionString, ECPrivKey privKey, int chunkSize, IRetryPolicy retryPolicy, Func<HttpClient> httpClientFactory, bool traceEnabled, Uri myLoggerUri) : base(privKey, chunkSize,true, retryPolicy)
     {
         this.OnServerConnectionState += GigGossipNode_OnServerConnectionState;
 
-        this.NodeDb = new GigGossipNodeDatabase(connectionString);
+        this.NodeDb = new GigGossipNodeDatabase(provider, connectionString);
         this.httpClientFactory = httpClientFactory;
 
         WalletSelector = new SimpleGigLNDWalletSelector(httpClientFactory, RetryPolicy);
@@ -264,12 +264,13 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         {
             lock (_contactList)
             {
-                lock (NodeDb.Context)
-                {
-                    NodeDb.Context.RemoveObjectRange(
-                    from c in NodeDb.Context.NostrContacts where c.PublicKey == this.PublicKey select c);
-                    _contactList.Clear();
-                }
+                using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+                NodeDb.Context
+                    .DELETE_RANGE(
+                        from c in NodeDb.Context.NostrContacts where c.PublicKey == this.PublicKey select c)
+                    .SAVE();
+                TX.Commit();
+                _contactList.Clear();
             }
         }
         catch (Exception ex)
@@ -338,9 +339,9 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             lock (_contactList)
             {
                 _contactList[c.ContactPublicKey] = c;
-                lock (NodeDb.Context)
-                    if (!NodeDb.Context.TryAddObject(c))
-                        NodeDb.Context.SaveObject(c);
+                using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+                NodeDb.Context.UPDATE_OR_INSERT_AND_SAVE(c);
+                TX.Commit();
             }
         }
         catch (Exception ex)
@@ -357,15 +358,14 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         {
             lock (_contactList)
             {
-                lock (NodeDb.Context)
-                {
-                    var mycontacts = (from c in NodeDb.Context.NostrContacts where c.PublicKey == this.PublicKey select c);
-                    foreach (var c in mycontacts)
-                        _contactList[c.ContactPublicKey] = c;
-                }
+                using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+                var mycontacts = (from c in NodeDb.Context.NostrContacts where c.PublicKey == this.PublicKey select c).ToList();
+                foreach (var c in mycontacts)
+                    _contactList[c.ContactPublicKey] = c;
+                TX.Commit();
             }
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             TL.Exception(ex);
             throw;
@@ -494,38 +494,39 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         {
             var rnd = new Random();
             var contacts = new HashSet<string>(GetContactList(24));
-            lock (NodeDb.Context)
-            {
-                var alreadyBroadcasted = (from inc in NodeDb.Context.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey).ToList();
-                contacts.ExceptWith(alreadyBroadcasted);
-            }
+
+            using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+            var alreadyBroadcasted = (from inc in NodeDb.Context.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey).ToList();
+            contacts.ExceptWith(alreadyBroadcasted);
             if (originatorPublicKey != null)
                 contacts.ExceptWith(new string[] { originatorPublicKey });
             if (contacts.Count == 0)
             {
-                TL.Info("empty broadcast list");   
+                TL.Info("empty broadcast list");
+                TX.Commit();
                 return TL.Ret(new List<string>());
             }
 
-            var retcontacts = (from r in contacts.AsEnumerable().OrderBy(x => rnd.Next()).Take(this.fanout) select new BroadcastHistoryRow() { ContactPublicKey = r, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
-            lock (NodeDb.Context)
+            var bhrs = (from r in contacts.AsEnumerable().OrderBy(x => rnd.Next()).Take(this.fanout) select new BroadcastHistoryRow() { ContactPublicKey = r, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
+            foreach (var brh in bhrs)
             {
-                NodeDb.Context.TryAddObjectRange(retcontacts);
-                if (originatorPublicKey != null)
-                    NodeDb.Context.TryAddObject(new BroadcastHistoryRow() { ContactPublicKey = originatorPublicKey, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
+                NodeDb.Context.UPDATE_OR_INSERT_AND_SAVE(brh);
             }
+            if (originatorPublicKey != null)
+                NodeDb.Context.UPDATE_OR_INSERT_AND_SAVE(new BroadcastHistoryRow() { ContactPublicKey = originatorPublicKey, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
 
-            return TL.Ret( 
-                (from r in retcontacts select r.ContactPublicKey).ToList()
+            TX.Commit();
+
+            return TL.Ret(
+                (from brh in bhrs select brh.ContactPublicKey).ToList()
             );
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             TL.Exception(ex);
             throw;
         }
     }
-
 
     public async Task<List<string>> BroadcastAsync(JobRequest requestPayload,
                         string? originatorPublicKey = null,
@@ -584,18 +585,18 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log().Args(signedrequestpayloadId);
         try
         {
-            lock (NodeDb.Context)
-            {
-                var alreadyBroadcastCanceled = (from inc in NodeDb.Context.BroadcastCancelHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey).ToList();
-                var alreadyBroadcasted = new HashSet<string>((from inc in NodeDb.Context.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey));
-                alreadyBroadcasted.ExceptWith(alreadyBroadcastCanceled);
-                NodeDb.Context.AddObjectRange((from r in alreadyBroadcasted select new BroadcastCancelHistoryRow() { ContactPublicKey = r, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey }));
-                return TL.Ret(
-                    alreadyBroadcasted.ToList()
-                );
-            }
+            using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+            var alreadyBroadcastCanceled = (from inc in NodeDb.Context.BroadcastCancelHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey).ToList();
+            var alreadyBroadcasted = new HashSet<string>((from inc in NodeDb.Context.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey));
+            alreadyBroadcasted.ExceptWith(alreadyBroadcastCanceled);
+            foreach(var b in (from r in alreadyBroadcasted select new BroadcastCancelHistoryRow() { ContactPublicKey = r, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey }))
+                NodeDb.Context.UPDATE_OR_INSERT_AND_SAVE(b);
+            TX.Commit();
+            return TL.Ret(
+                alreadyBroadcasted.ToList()
+            );
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             TL.Exception(ex);
             throw;
@@ -718,13 +719,17 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             try
             {
                 AcceptedBroadcastRow alreadyBroadcasted;
-                lock (NodeDb.Context)
+
                 {
+                    using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+
                     alreadyBroadcasted = (from abx in NodeDb.Context.AcceptedBroadcasts
                                           where abx.PublicKey == this.PublicKey
                                           && abx.SignedRequestPayloadId == broadcastFrame.JobRequest.Header.JobRequestId.AsGuid()
                                           && abx.SettlerServiceUri == acceptBroadcastResponse.SettlerServiceUri
                                           select abx).FirstOrDefault();
+
+                    TX.Commit();
                 }
 
                 if (alreadyBroadcasted == null)
@@ -771,22 +776,28 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
                     replierCertificateId = settlementTrust.JobReplyId.AsGuid();
 
-                    NodeDb.Context.AddObject(new AcceptedBroadcastRow()
                     {
-                        PublicKey = this.PublicKey,
-                        BroadcastFrame = Crypto.BinarySerializeObject(broadcastFrame),
-                        SignedRequestPayloadId = broadcastFrame.JobRequest.Header.JobRequestId.AsGuid(),
-                        SettlerServiceUri = acceptBroadcastResponse.SettlerServiceUri,
-                        EncryptedReplyPayload = encryptedReplyPayload,
-                        NetworkPaymentRequest = networkInvoice,
-                        SignedSettlementPromise = Crypto.BinarySerializeObject(signedSettlementPromise),
-                        ReplyInvoice = replyInvoice,
-                        DecodedNetworkInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedNetworkInvoice),
-                        DecodedReplyInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedReplyInvoice),
-                        ReplyInvoiceHash = replyPaymentHash,
-                        Cancelled = false,
-                        ReplierCertificateId = settlementTrust.JobReplyId.AsGuid(),
-                    });
+                        using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+                        NodeDb.Context
+                            .INSERT(new AcceptedBroadcastRow()
+                            {
+                                PublicKey = this.PublicKey,
+                                BroadcastFrame = Crypto.BinarySerializeObject(broadcastFrame),
+                                SignedRequestPayloadId = broadcastFrame.JobRequest.Header.JobRequestId.AsGuid(),
+                                SettlerServiceUri = acceptBroadcastResponse.SettlerServiceUri,
+                                EncryptedReplyPayload = encryptedReplyPayload,
+                                NetworkPaymentRequest = networkInvoice,
+                                SignedSettlementPromise = Crypto.BinarySerializeObject(signedSettlementPromise),
+                                ReplyInvoice = replyInvoice,
+                                DecodedNetworkInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedNetworkInvoice),
+                                DecodedReplyInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedReplyInvoice),
+                                ReplyInvoiceHash = replyPaymentHash,
+                                Cancelled = false,
+                                ReplierCertificateId = settlementTrust.JobReplyId.AsGuid(),
+                            })
+                            .SAVE();
+                        TX.Commit();
+                    }
 
                     TL.NewMessage(Encoding.Default.GetBytes(acceptBroadcastResponse.SettlerServiceUri.AbsoluteUri).AsHex(), broadcastFrame.JobRequest.Header.JobRequestId.ToString() + "_" + this.PublicKey, "create");
                     TL.NewMessage(this.PublicKey, broadcastFrame.JobRequest.Header.JobRequestId.ToString() + "_" + this.PublicKey, "encrypts");
@@ -874,21 +885,24 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
                             TotalSeconds = (int)InvoicePaymentTimeout.TotalSeconds
                         }));
 
-                    lock (NodeDb.Context)
                     {
-                        NodeDb.Context.AddObject(
-                        new ReplyPayloadRow()
-                        {
-                            ReplyId = Guid.NewGuid(),
-                            PublicKey = this.PublicKey,
-                            SignedRequestPayloadId = replyPayload.Header.JobRequest.Header.JobRequestId.AsGuid(),
-                            ReplierCertificateId = replyPayload.Header.JobReplyId.AsGuid(),
-                            ReplyInvoice = replyPayload.Header.JobPaymentRequest.Value,
-                            DecodedReplyInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedReplyInvoice),
-                            NetworkPaymentRequest = responseFrame.NetworkPaymentRequest.Value,
-                            DecodedNetworkInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedNetworkInvoice),
-                            TheReplyPayload = Crypto.BinarySerializeObject(replyPayload)
-                        });
+                        using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+                        NodeDb.Context
+                            .INSERT(
+                                new ReplyPayloadRow()
+                                {
+                                    ReplyId = Guid.NewGuid(),
+                                    PublicKey = this.PublicKey,
+                                    SignedRequestPayloadId = replyPayload.Header.JobRequest.Header.JobRequestId.AsGuid(),
+                                    ReplierCertificateId = replyPayload.Header.JobReplyId.AsGuid(),
+                                    ReplyInvoice = replyPayload.Header.JobPaymentRequest.Value,
+                                    DecodedReplyInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedReplyInvoice),
+                                    NetworkPaymentRequest = responseFrame.NetworkPaymentRequest.Value,
+                                    DecodedNetworkInvoice = JsonSerializer.SerializeToUtf8Bytes(decodedNetworkInvoice),
+                                    TheReplyPayload = Crypto.BinarySerializeObject(replyPayload)
+                                })
+                            .SAVE();
+                        TX.Commit();
                     }
 
                     gigGossipNodeEvents.OnNewResponse(this, replyPayload, replyPayload.Header.JobPaymentRequest.Value, decodedReplyInvoice, responseFrame.NetworkPaymentRequest.Value, decodedNetworkInvoice);
@@ -965,12 +979,12 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             if (!slimLock.Wait(10000)) throw new TimeoutException();
             try
             {
-                lock (NodeDb.Context)
-                {
-                    return TL.Ret(
-                        (from rp in NodeDb.Context.ReplyPayloads where rp.PublicKey == this.PublicKey select rp).ToList()
-                    );
-                }
+                using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+                var ret = (from rp in NodeDb.Context.ReplyPayloads where rp.PublicKey == this.PublicKey select rp).ToList();
+                TX.Commit();
+                return TL.Ret(
+                    ret
+                );
             }
             finally
             {
@@ -992,12 +1006,10 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             if (!slimLock.Wait(10000)) throw new TimeoutException();
             try
             {
-                lock (NodeDb.Context)
-                {
-                    return TL.Ret(
-                         (from rp in NodeDb.Context.ReplyPayloads where rp.PublicKey == this.PublicKey && rp.SignedRequestPayloadId == signedrequestpayloadId select rp).ToList()
-                    );
-                }
+                using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+                var ret = (from rp in NodeDb.Context.ReplyPayloads where rp.PublicKey == this.PublicKey && rp.SignedRequestPayloadId == signedrequestpayloadId select rp).ToList();
+                TX.Commit();
+                return TL.Ret(ret);
             }
             finally
             {
@@ -1019,12 +1031,10 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             if (!slimLock.Wait(10000)) throw new TimeoutException();
             try
             {
-                lock (NodeDb.Context)
-                {
-                    return TL.Ret(
-                        (from rp in NodeDb.Context.AcceptedBroadcasts where rp.PublicKey == this.PublicKey && !rp.Cancelled select rp).ToList()
-                    );
-                }
+                using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+                var ret = (from rp in NodeDb.Context.AcceptedBroadcasts where rp.PublicKey == this.PublicKey && !rp.Cancelled select rp).ToList();
+                TX.Commit();
+                return TL.Ret(ret);
             }
             finally
             {
@@ -1047,10 +1057,9 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             try
             {
                 brd.Cancelled = true;
-                lock (NodeDb.Context)
-                {
-                    NodeDb.Context.SaveObject(brd);
-                }
+                using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+                NodeDb.Context.UPDATE(brd).SAVE();
+                TX.Commit();
             }
             finally
             {
@@ -1073,12 +1082,10 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             if (!slimLock.Wait(10000)) throw new TimeoutException();
             try
             {
-                lock (NodeDb.Context)
-                {
-                    return TL.Ret(
-                         (from rp in NodeDb.Context.AcceptedBroadcasts where rp.PublicKey == this.PublicKey && rp.SignedRequestPayloadId == signedrequestpayloadId select rp).FirstOrDefault()
-                    );
-                }
+                using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+                var ret = (from rp in NodeDb.Context.AcceptedBroadcasts where rp.PublicKey == this.PublicKey && rp.SignedRequestPayloadId == signedrequestpayloadId select rp).FirstOrDefault();
+                TX.Commit();
+                return TL.Ret(ret);
             }
             finally
             {
@@ -1349,12 +1356,11 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log();
         try
         {
-            lock (NodeDb.Context)
-            {
-                messageLocks = new ConcurrentDictionary<string, bool>(from m in NodeDb.Context.MessageTransactions where m.PublicKey == this.PublicKey select KeyValuePair.Create(m.MessageId, true));
-            }
+            using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+            messageLocks = new ConcurrentDictionary<string, bool>(from m in NodeDb.Context.MessageTransactions where m.PublicKey == this.PublicKey select KeyValuePair.Create(m.MessageId, true));
+            TX.Commit();
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             TL.Exception(ex);
             throw;
@@ -1380,20 +1386,20 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
         using var TL = TRACE.Log().Args(id);
         try
         {
-            lock (NodeDb.Context)
-            {
-                return TL.Ret(
-                NodeDb.Context.TryAddObject(new MessageTransactionRow()
-                    {
-                        MessageId = id,
-                        PublicKey = this.PublicKey,
-                        CreatedAt = createdAt,
-                        EventKind = kind
-                    })
-                );
-            }
+            using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+            var ret = NodeDb.Context
+                .INSERT(new MessageTransactionRow()
+                {
+                    MessageId = id,
+                    PublicKey = this.PublicKey,
+                    CreatedAt = createdAt,
+                    EventKind = kind
+                })
+                .TRY_SAVE();
+            TX.Commit();
+            return TL.Ret(ret);
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             TL.Exception(ex);
             throw;
@@ -1402,17 +1408,16 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
 
     public override DateTime? GetLastMessageCreatedAt(int kind, int secondsBefore)
     {
-        lock (NodeDb.Context)
-        {
-            var t = (from m in NodeDb.Context.MessageTransactions
-                     where m.PublicKey == this.PublicKey && m.EventKind == kind
-                     orderby m.CreatedAt descending
-                     select m).FirstOrDefault();
+        using var TX = NodeDb.Context.BEGIN_TRANSACTION();
+        var t = (from m in NodeDb.Context.MessageTransactions
+                 where m.PublicKey == this.PublicKey && m.EventKind == kind
+                 orderby m.CreatedAt descending
+                 select m).FirstOrDefault();
+        TX.Commit();
 
-            if (t == null)
-                return null;
-            return t.CreatedAt.AddSeconds(-secondsBefore);
-        }
+        if (t == null)
+            return null;
+        return t.CreatedAt.AddSeconds(-secondsBefore);
     }
 
 

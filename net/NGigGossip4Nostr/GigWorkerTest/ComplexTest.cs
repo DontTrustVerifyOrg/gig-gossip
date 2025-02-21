@@ -82,6 +82,7 @@ public class ComplexTest
             {
                 var nn = nod_name_f(nod_idx);
                 things[nn] = new GigGossipNode(
+                    Enum.Parse<DBProvider>(gridNodeSettings.DBProvider),
                     gridNodeSettings.ConnectionString,
                     Crypto.GeneratECPrivKey(),
                     gridNodeSettings.ChunkSize,
@@ -1192,6 +1193,7 @@ public class ApplicationSettings
 }
 public class NodeSettings
 {
+    public required string DBProvider { get; set; }
     public required string ConnectionString { get; set; }
     public required Uri GigWalletOpenApi { get; set; }
     public required string NostrRelays { get; set; }
