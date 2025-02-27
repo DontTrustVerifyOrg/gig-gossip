@@ -114,6 +114,4 @@ jobs:
           token: ${{ secrets.REGTEST_DEPLOY_TOKEN }}
           repository: ${{ secrets.REGTEST_DEPLOY_REPO }}
           event-type: deploy-giggossip-backend
-
-
-          event-type: deploy-backend
+          
