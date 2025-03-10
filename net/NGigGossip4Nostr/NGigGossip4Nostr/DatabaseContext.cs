@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Transactions;
 using GigGossip;
 using GigGossipSettlerAPIClient;
 using GigLNDWalletAPIClient;
@@ -234,7 +235,7 @@ public class GigGossipNodeContext : DbContext
         if (provider == DBProvider.Sqlite)
             return new NullTransaction(this);
         else
-            return this.Database.BeginTransaction(isolationLevel);
+            return new ThreadSafeTransaction(this, isolationLevel);
     }
 
     public DbSet<BroadcastHistoryRow> BroadcastHistory { get; set; }
@@ -425,6 +426,66 @@ public class NullTransaction : Microsoft.EntityFrameworkCore.Storage.IDbContextT
     }
 
     ~NullTransaction()
+    {
+        Rollback();
+    }
+}
+
+
+public class ThreadSafeTransaction : Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction
+{
+    public Guid TransactionId => Guid.NewGuid();
+    private bool open = true;
+    private GigGossipNodeContext ctx;
+    Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction TX;
+
+    public ThreadSafeTransaction(GigGossipNodeContext ctx, System.Data.IsolationLevel isolationLevel)
+    {
+        this.ctx = ctx;
+        Monitor.Enter(this.ctx);
+        this.TX = ctx.Database.BeginTransaction(isolationLevel);
+    }
+
+    public void Commit()
+    {
+        if (!open)
+            throw new InvalidOperationException();
+        TX.Commit();
+        open = false;
+        Monitor.Exit(this.ctx);
+    }
+
+    public async Task CommitAsync(CancellationToken cancellationToken = default)
+    {
+        Commit();
+    }
+
+    public void Dispose()
+    {
+        Rollback();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+    }
+
+    public void Rollback()
+    {
+        if (open)
+        {
+            TX.Rollback();
+            open = false;
+            Monitor.Exit(this.ctx);
+        }
+    }
+
+    public async Task RollbackAsync(CancellationToken cancellationToken = default)
+    {
+        Rollback();
+    }
+
+    ~ThreadSafeTransaction()
     {
         Rollback();
     }
