@@ -9,6 +9,8 @@ using GigLNDWalletAPIClient;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Internal;
 using NBitcoin.Protocol;
 using NBitcoin.Secp256k1;
 using Newtonsoft.Json;
@@ -113,7 +115,7 @@ public class Settler : CertificationAuthority
     public IWalletAPI lndWalletClient;
     private InvoiceStateUpdatesMonitor _invoiceStateUpdatesMonitor;
     private Guid walletTokenGuid;
-    public ThreadLocal<SettlerContext> settlerContext;
+    public SerttlerContextFactory settlerContextFactory;
     private IScheduler scheduler;
     private ISettlerSelector settlerSelector;
     private ScpSettings scpSettings;
@@ -153,9 +155,10 @@ public class Settler : CertificationAuthority
 #endif
         this.walletTokenGuid = WalletAPIResult.Get<Guid>(await lndWalletClient.GetTokenAsync(this.CaXOnlyPublicKey.AsHex(), CancellationTokenSource.Token));
 
+        settlerContextFactory = new SerttlerContextFactory(provider, connectionString);
 
-        settlerContext = new ThreadLocal<SettlerContext>(() => new SettlerContext(provider, connectionString));
-        settlerContext.Value.Database.EnsureCreated();
+        using var context = settlerContextFactory.Create();
+        context.Database.EnsureCreated();
 
         _invoiceStateUpdatesMonitor = new InvoiceStateUpdatesMonitor(this);
 
@@ -186,11 +189,12 @@ public class Settler : CertificationAuthority
 
     public Guid GetTokenGuid(string pubkey)
     {
-        var t = (from token in settlerContext.Value.Tokens where pubkey == token.PublicKey select token).FirstOrDefault();
+        using var settlerContext = settlerContextFactory.Create();
+        var t = (from token in settlerContext.Tokens where pubkey == token.PublicKey select token).FirstOrDefault();
         if (t == null)
         {
             t = new Token() { TokenId = Guid.NewGuid(), PublicKey = pubkey };
-            settlerContext.Value
+            settlerContext
                 .INSERT(t)
                 .SAVE();
         }
@@ -212,10 +216,11 @@ public class Settler : CertificationAuthority
         {
             var code = GenerateRandomString(length);
             {
-                using var TX = settlerContext.Value.BEGIN_TRANSACTION();
-                if (settlerContext.Value.AccessCodes.Where(a => a.Code == code).Count() == 0)
+                using var settlerContext = settlerContextFactory.Create();
+                using var TX = settlerContext.BEGIN_TRANSACTION();
+                if (settlerContext.AccessCodes.Where(a => a.Code == code).Count() == 0)
                 {
-                    settlerContext.Value
+                    settlerContext
                         .INSERT(new AccessCode()
                         {
                             Code = code,
@@ -237,15 +242,16 @@ public class Settler : CertificationAuthority
 
     public bool ValidateAccessCode(string code)
     {
-        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
+        using var settlerContext = settlerContextFactory.Create();
+        using var TX = settlerContext.BEGIN_TRANSACTION();
 
-        var ac = (from a in settlerContext.Value.AccessCodes where a.Code == code && !a.IsRevoked && a.ValidTill >= DateTime.UtcNow select a).FirstOrDefault();
+        var ac = (from a in settlerContext.AccessCodes where a.Code == code && !a.IsRevoked && a.ValidTill >= DateTime.UtcNow select a).FirstOrDefault();
         if (ac == null)
             return false;
         if (ac.SingleUse)
             ac.IsRevoked = true;
         ac.UseCount++;
-        settlerContext.Value
+        settlerContext
             .UPDATE(ac)
             .SAVE();
         TX.Commit();
@@ -254,13 +260,15 @@ public class Settler : CertificationAuthority
 
     public void RevokeAccessCode(string code)
     {
-        var query = (from a in settlerContext.Value.AccessCodes where a.Code == code select a);
+        using var settlerContext = settlerContextFactory.Create();
+        var query = (from a in settlerContext.AccessCodes where a.Code == code select a);
         query.ExecuteUpdate((x) => x.SetProperty(a => a.IsRevoked, true));
     }
 
     public string GetMemoFromAccessCode(string code)
     {
-        var ac = (from a in settlerContext.Value.AccessCodes where a.Code == code && !a.IsRevoked && a.ValidTill >= DateTime.UtcNow select a).FirstOrDefault();
+        using var settlerContext = settlerContextFactory.Create();
+        var ac = (from a in settlerContext.AccessCodes where a.Code == code && !a.IsRevoked && a.ValidTill >= DateTime.UtcNow select a).FirstOrDefault();
         if (ac == null)
             return "";
         return ac.Memo;
@@ -272,7 +280,8 @@ public class Settler : CertificationAuthority
         if (timedToken == null)
             throw new InvalidAuthTokenException();
 
-        var tk = (from token in settlerContext.Value.Tokens where token.PublicKey == timedToken.Header.PublicKey.Value.ToArray().AsHex() && token.TokenId == timedToken.Header.TokenId.AsGuid() select token).FirstOrDefault();
+        using var settlerContext = settlerContextFactory.Create();
+        var tk = (from token in settlerContext.Tokens where token.PublicKey == timedToken.Header.PublicKey.Value.ToArray().AsHex() && token.TokenId == timedToken.Header.TokenId.AsGuid() select token).FirstOrDefault();
         if (tk == null)
             throw new InvalidAuthTokenException();
 
@@ -290,7 +299,8 @@ public class Settler : CertificationAuthority
 
     public void SaveUserTraceProperty(string pubkey, string name, byte[] value)
     {
-        settlerContext.Value.UPDATE_OR_INSERT_AND_SAVE(
+        using var settlerContext = settlerContextFactory.Create();
+        settlerContext.INSERT_OR_UPDATE_AND_SAVE(
             new UserTraceProperty
             {
                 PublicKey = pubkey,
@@ -301,14 +311,15 @@ public class Settler : CertificationAuthority
 
     public void GiveUserProperty(string pubkey, string name, byte[] value, byte[] secret, DateTime validTill)
     {
-        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
+        using var settlerContext = settlerContextFactory.Create();
+        using var TX = settlerContext.BEGIN_TRANSACTION();
 
-        var up = (from u in settlerContext.Value.UserProperties
+        var up = (from u in settlerContext.UserProperties
                   where u.Name == name && u.PublicKey == pubkey
                   select u).FirstOrDefault();
         if (up == null)
         {
-            settlerContext.Value.INSERT(
+            settlerContext.INSERT(
             new UserProperty
             {
                 PropertyId = Guid.NewGuid(),
@@ -326,7 +337,7 @@ public class Settler : CertificationAuthority
             up.Value = value;
             up.Secret = secret;
             up.IsRevoked = false;
-            settlerContext.Value
+            settlerContext
                 .UPDATE(up)
                 .SAVE();
         }
@@ -335,19 +346,22 @@ public class Settler : CertificationAuthority
 
     public UserProperty? GetUserProperty(string pubkey, string name)
     {
-        return (from u in settlerContext.Value.UserProperties where u.Name == name && u.PublicKey == pubkey && u.IsRevoked == false select u).FirstOrDefault();
+        using var settlerContext = settlerContextFactory.Create();
+        return (from u in settlerContext.UserProperties where u.Name == name && u.PublicKey == pubkey && u.IsRevoked == false select u).FirstOrDefault();
     }
 
     public void RevokeUserProperty(string pubkey, string name)
     {
-        var query = (from u in settlerContext.Value.UserProperties where u.Name == name && u.PublicKey == pubkey && u.IsRevoked == false select u);
+        using var settlerContext = settlerContextFactory.Create();
+        var query = (from u in settlerContext.UserProperties where u.Name == name && u.PublicKey == pubkey && u.IsRevoked == false select u);
         query.ExecuteUpdate((x) => x.SetProperty(a => a.IsRevoked, true));
     }
 
     private CertificateHeader CreateCertificateHeader(string kind, Guid id, string pubkey, string[] properties) 
     {
-        var props = (from u in settlerContext.Value.UserProperties where u.PublicKey == pubkey && !u.IsRevoked && u.ValidTill >= DateTime.UtcNow && properties.Contains(u.Name) select u).ToArray();
-        var tracs = (from u in settlerContext.Value.UserTraceProperties where u.PublicKey == pubkey && properties.Contains(u.Name) select u).ToArray();
+        using var settlerContext = settlerContextFactory.Create();
+        var props = (from u in settlerContext.UserProperties where u.PublicKey == pubkey && !u.IsRevoked && u.ValidTill >= DateTime.UtcNow && properties.Contains(u.Name) select u).ToArray();
+        var tracs = (from u in settlerContext.UserTraceProperties where u.PublicKey == pubkey && properties.Contains(u.Name) select u).ToArray();
         var prp = (from p in props select KeyValuePair.Create(p.Name, p.Value)).ToList();
         var trp = (from p in tracs select KeyValuePair.Create(p.Name, p.Value)).ToList();
         prp.AddRange(trp);
@@ -368,11 +382,11 @@ public class Settler : CertificationAuthority
                                }).ToList());
 
         foreach (var p in props)
-            settlerContext.Value.INSERT(
+            settlerContext.INSERT(
                 new CertificateProperty() { Kind = kind, CertificateId = id, PropertyId = p.PropertyId })
                 .SAVE();
 
-        settlerContext.Value
+        settlerContext
             .INSERT(new UserCertificate() { Kind = kind, PublicKey = pubkey, CertificateId = id, IsRevoked = false })
             .SAVE();
 
@@ -381,12 +395,14 @@ public class Settler : CertificationAuthority
 
     public Guid[] ListCertificates(string pubkey)
     {
-        return (from cert in settlerContext.Value.UserCertificates where cert.PublicKey == pubkey && !cert.IsRevoked select cert.CertificateId).ToArray();
+        using var settlerContext = settlerContextFactory.Create();
+        return (from cert in settlerContext.UserCertificates where cert.PublicKey == pubkey && !cert.IsRevoked select cert.CertificateId).ToArray();
     }
 
     public bool IsCertificateRevoked(Guid certid)
     {
-        return (from c in settlerContext.Value.UserCertificates where c.CertificateId == certid && c.IsRevoked select c).FirstOrDefault() != null;
+        using var settlerContext = settlerContextFactory.Create();
+        return (from c in settlerContext.UserCertificates where c.CertificateId == certid && c.IsRevoked select c).FirstOrDefault() != null;
     }
 
     public string GenerateReplyPaymentPreimage(string pubkey, Guid tid, string replierpubkey)
@@ -394,7 +410,8 @@ public class Settler : CertificationAuthority
         var preimage = Crypto.GenerateRandomPreimage();
         var paymentHash = Crypto.ComputePaymentHash(preimage).AsHex();
 
-        settlerContext.Value
+        using var settlerContext = settlerContextFactory.Create();
+        settlerContext
             .INSERT(new InvoicePreimage() { PaymentHash = paymentHash, Preimage = preimage.AsHex(), SignedRequestPayloadId = tid, ReplierPublicKey = replierpubkey, PublicKey = pubkey, IsRevealed = false })
             .SAVE();
         return paymentHash;
@@ -402,16 +419,17 @@ public class Settler : CertificationAuthority
 
     public string GenerateRelatedPreimage(string pubkey, string paymentHash)
     {
-        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
+        using var settlerContext = settlerContextFactory.Create();
+        using var TX = settlerContext.BEGIN_TRANSACTION();
 
-        var pix = (from pi in settlerContext.Value.Preimages where pi.PaymentHash == paymentHash select pi).FirstOrDefault();
+        var pix = (from pi in settlerContext.Preimages where pi.PaymentHash == paymentHash select pi).FirstOrDefault();
         if (pix == null)
             throw new NotFoundException();
 
         var preimage = Crypto.GenerateRandomPreimage();
         var newPaymentHash = Crypto.ComputePaymentHash(preimage).AsHex();
 
-        settlerContext.Value
+        settlerContext
             .INSERT(new InvoicePreimage() { PaymentHash = newPaymentHash, Preimage = preimage.AsHex(), SignedRequestPayloadId = pix.SignedRequestPayloadId, ReplierPublicKey = pix.ReplierPublicKey, PublicKey = pubkey, IsRevealed = false })
             .SAVE();
 
@@ -421,10 +439,11 @@ public class Settler : CertificationAuthority
 
     public bool ValidateRelatedPaymentHashes(string paymentHash1, string paymentHash2)
     {
-        var pix1 = (from pi in settlerContext.Value.Preimages where pi.PaymentHash == paymentHash1 select pi).FirstOrDefault();
+        using var settlerContext = settlerContextFactory.Create();
+        var pix1 = (from pi in settlerContext.Preimages where pi.PaymentHash == paymentHash1 select pi).FirstOrDefault();
         if (pix1 == null)
             return false;
-        var pix2 = (from pi in settlerContext.Value.Preimages where pi.PaymentHash == paymentHash2 select pi).FirstOrDefault();
+        var pix2 = (from pi in settlerContext.Preimages where pi.PaymentHash == paymentHash2 select pi).FirstOrDefault();
         if (pix2 == null)
             return false;
         return pix1.SignedRequestPayloadId == pix2.SignedRequestPayloadId;
@@ -432,7 +451,8 @@ public class Settler : CertificationAuthority
 
     public string RevealPreimage(string pubkey, string paymentHash)
     {
-        var preimage = (from pi in settlerContext.Value.Preimages where pi.PublicKey == pubkey && pi.PaymentHash == paymentHash && pi.IsRevealed select pi).FirstOrDefault();
+        using var settlerContext = settlerContextFactory.Create();
+        var preimage = (from pi in settlerContext.Preimages where pi.PublicKey == pubkey && pi.PaymentHash == paymentHash && pi.IsRevealed select pi).FirstOrDefault();
         if (preimage == null)
             return "";
         else
@@ -441,7 +461,8 @@ public class Settler : CertificationAuthority
 
     public string RevealSymmetricKey(string pubkey, Guid signedRequestPayloadId, Guid repliercertificateId)
     {
-        var gig = (from g in settlerContext.Value.Gigs
+        using var settlerContext = settlerContextFactory.Create();
+        var gig = (from g in settlerContext.Gigs
                    where g.SignedRequestPayloadId == signedRequestPayloadId && g.ReplierCertificateId == repliercertificateId
                    select g).FirstOrDefault();
 
@@ -453,7 +474,8 @@ public class Settler : CertificationAuthority
 
     public GigStatusKey GetGigStatus(Guid signedRequestPayloadId, Guid repliercertificateid)
     {
-        var gig = (from g in settlerContext.Value.Gigs where g.ReplierCertificateId == repliercertificateid && g.SignedRequestPayloadId == signedRequestPayloadId select g).FirstOrDefault();
+        using var settlerContext = settlerContextFactory.Create();
+        var gig = (from g in settlerContext.Gigs where g.ReplierCertificateId == repliercertificateid && g.SignedRequestPayloadId == signedRequestPayloadId select g).FirstOrDefault();
         if (gig == null)
             return new GigStatusKey { SymmetricKey = "", JobReplyId = signedRequestPayloadId, JobRequestId = repliercertificateid, Status = GigStatus.Cancelled };
         else
@@ -470,12 +492,13 @@ public class Settler : CertificationAuthority
         var priceing = this.pricings[(signedRequestPayload.Header.Topic.Country.ToUpper(), decodedInv.Currency.ToUpper())];
 
         var invPaymentHash = decodedInv.PaymentHash;
-        if ((from pi in settlerContext.Value.Preimages where pi.SignedRequestPayloadId == signedRequestPayload.Header.JobRequestId.AsGuid() && pi.PaymentHash == invPaymentHash select pi).FirstOrDefault() == null)
+        using var settlerContext = settlerContextFactory.Create();
+        if ((from pi in settlerContext.Preimages where pi.SignedRequestPayloadId == signedRequestPayload.Header.JobRequestId.AsGuid() && pi.PaymentHash == invPaymentHash select pi).FirstOrDefault() == null)
             throw new UnknownPreimageException();
 
         byte[] symmetrickey = Crypto.GenerateSymmetricKey();
 
-        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
+        using var TX = settlerContext.BEGIN_TRANSACTION();
 
         var guid = Guid.NewGuid();
         var certHeader = this.CreateCertificateHeader(
@@ -509,7 +532,7 @@ public class Settler : CertificationAuthority
              MakeAuthToken(), (long)netinvamount, networkInvoicePaymentHash, "", (long)invoicePaymentTimeout.TotalSeconds, CancellationTokenSource.Token));
 
 
-        settlerContext.Value
+        settlerContext
             .INSERT(new Gig()
             {
                 ReplierCertificateId = replyPayload.Header.JobReplyId.AsGuid(),
@@ -559,7 +582,8 @@ public class Settler : CertificationAuthority
 
     public string GetPubkeyFromCertificateId(Guid certificateId)
     {
-        var pubkey = (from cert in settlerContext.Value.UserCertificates where cert.CertificateId == certificateId && !cert.IsRevoked select cert.PublicKey).FirstOrDefault();
+        using var settlerContext = settlerContextFactory.Create();
+        var pubkey = (from cert in settlerContext.UserCertificates where cert.CertificateId == certificateId && !cert.IsRevoked select cert.PublicKey).FirstOrDefault();
         if (pubkey == null)
             throw new NotFoundException();
         return pubkey;
@@ -572,7 +596,8 @@ public class Settler : CertificationAuthority
 
     public async Task<BroadcastRequest> GenerateRequestPayloadAsync(string senderspubkey, string[] sendersproperties, JobTopic topic)
     {
-        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
+        using var settlerContext = settlerContextFactory.Create();
+        using var TX = settlerContext.BEGIN_TRANSACTION();
 
         var guid = Guid.NewGuid();
         var jobRequestHeader = new JobRequestHeader
@@ -621,10 +646,11 @@ public class Settler : CertificationAuthority
     {
         try
         {
-            var appModes = (from g in settlerContext.Value.UserProperties where g.Name == "AppMode" select g).ToList().ToLookup(g => g.PublicKey).ToDictionary(g => g.Key, x => Encoding.Default.GetString(x.First().Secret));
-            var langs = (from g in settlerContext.Value.UserProperties where g.Name == "Language" select g).ToList().ToLookup(g => g.PublicKey).ToDictionary(g => g.Key, x => Encoding.Default.GetString(x.First().Secret));
-            var geohashes = (from g in settlerContext.Value.UserTraceProperties where g.Name == "Geohash" select g).ToList().ToLookup(g => g.PublicKey).ToDictionary(g => g.Key, x => Encoding.Default.GetString(x.First().Value));
-            foreach (var pn in (from g in settlerContext.Value.UserProperties where g.Name == "PushNotificationsToken" select g).ToList())
+            using var settlerContext = settlerContextFactory.Create();
+            var appModes = (from g in settlerContext.UserProperties where g.Name == "AppMode" select g).ToList().ToLookup(g => g.PublicKey).ToDictionary(g => g.Key, x => Encoding.Default.GetString(x.First().Secret));
+            var langs = (from g in settlerContext.UserProperties where g.Name == "Language" select g).ToList().ToLookup(g => g.PublicKey).ToDictionary(g => g.Key, x => Encoding.Default.GetString(x.First().Secret));
+            var geohashes = (from g in settlerContext.UserTraceProperties where g.Name == "Geohash" select g).ToList().ToLookup(g => g.PublicKey).ToDictionary(g => g.Key, x => Encoding.Default.GetString(x.First().Value));
+            foreach (var pn in (from g in settlerContext.UserProperties where g.Name == "PushNotificationsToken" select g).ToList())
             {
                 try
                 {
@@ -652,7 +678,7 @@ public class Settler : CertificationAuthority
                             catch (FirebaseMessagingException)
                             {
                                 Console.WriteLine("Cannot send PN - removing token");
-                                settlerContext.Value
+                                settlerContext
                                     .DELETE(pn)
                                     .SAVE();
                             }
@@ -772,15 +798,16 @@ public class Settler : CertificationAuthority
 
     public async Task ManageDisputeAsync(Guid tid, Guid repliercertificateId, bool open)
     {
-        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
+        using var settlerContext = settlerContextFactory.Create();
+        using var TX = settlerContext.BEGIN_TRANSACTION();
 
-        var gig = (from g in settlerContext.Value.Gigs where g.SignedRequestPayloadId == tid && g.ReplierCertificateId == repliercertificateId && g.Status == GigStatus.Accepted select g).FirstOrDefault();
+        var gig = (from g in settlerContext.Gigs where g.SignedRequestPayloadId == tid && g.ReplierCertificateId == repliercertificateId && g.Status == GigStatus.Accepted select g).FirstOrDefault();
         if (gig != null)
         {
             if (open)
                 await DescheduleGigAsync(gig);
             gig.Status = open ? GigStatus.Disuputed : GigStatus.Accepted;
-            settlerContext.Value
+            settlerContext
                 .UPDATE(gig)
                 .SAVE();
             if (!open)
@@ -792,9 +819,10 @@ public class Settler : CertificationAuthority
 
     public async Task CancelGigAsync(Guid tid, Guid repliercertificateId)
     {
-        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
+        using var settlerContext = settlerContextFactory.Create();
+        using var TX = settlerContext.BEGIN_TRANSACTION();
 
-        var gig = (from g in settlerContext.Value.Gigs
+        var gig = (from g in settlerContext.Gigs
                    where g.SignedRequestPayloadId == tid && g.ReplierCertificateId == repliercertificateId && (g.Status == GigStatus.Open || g.Status != GigStatus.Accepted)
                    select g).FirstOrDefault();
 
@@ -813,7 +841,7 @@ public class Settler : CertificationAuthority
         {
             gig.Status = GigStatus.Cancelled;
             gig.SubStatus = GigSubStatus.None;
-            settlerContext.Value
+            settlerContext
                 .UPDATE(gig)
                 .SAVE();
             FireOnGigStatus(tid, repliercertificateId, GigStatus.Cancelled);
@@ -829,7 +857,8 @@ public class Settler : CertificationAuthority
         {
             var me = (Settler)context.Scheduler.Context.Get("me");
             var gigid = context.JobDetail.JobDataMap.GetGuid("GigId");
-            var gig = (from g in me.settlerContext.Value.Gigs
+            using var settlerContext = me.settlerContextFactory.Create();
+            var gig = (from g in settlerContext.Gigs
                        where g.SignedRequestPayloadId == gigid
                        select g).FirstOrDefault();
             if (gig != null)
@@ -839,13 +868,14 @@ public class Settler : CertificationAuthority
 
     public async Task SettleGigAsync(Gig gig)
     {
-        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
+        using var settlerContext = settlerContextFactory.Create();
+        using var TX = settlerContext.BEGIN_TRANSACTION();
 
-        var replierpubkey = (from cert in this.settlerContext.Value.UserCertificates where cert.CertificateId == gig.ReplierCertificateId && !cert.IsRevoked select cert.PublicKey).FirstOrDefault();
+        var replierpubkey = (from cert in settlerContext.UserCertificates where cert.CertificateId == gig.ReplierCertificateId && !cert.IsRevoked select cert.PublicKey).FirstOrDefault();
         if (replierpubkey == null)
             throw new UnknownPreimageException();
 
-        var preims = (from pi in this.settlerContext.Value.Preimages where pi.ReplierPublicKey == replierpubkey && pi.SignedRequestPayloadId == gig.SignedRequestPayloadId select pi).ToList();
+        var preims = (from pi in settlerContext.Preimages where pi.ReplierPublicKey == replierpubkey && pi.SignedRequestPayloadId == gig.SignedRequestPayloadId select pi).ToList();
 
         var settletPi = (from pi in preims where pi.PublicKey == this.CaXOnlyPublicKey.AsHex() select pi).FirstOrDefault();
         if (settletPi == null)
@@ -854,13 +884,13 @@ public class Settler : CertificationAuthority
         foreach (var pi in preims)
         {
             pi.IsRevealed = true;
-            this.settlerContext.Value
+            settlerContext
                 .UPDATE(pi);
         }
 
         gig.Status = GigStatus.Completed;
         gig.SubStatus = GigSubStatus.None;
-        this.settlerContext.Value
+        settlerContext
             .UPDATE(gig)
             .SAVE();
 
@@ -895,15 +925,16 @@ public class Settler : CertificationAuthority
 
     public void DeletePersonalUserData(string pubkey)
     {
-        using var TX = settlerContext.Value.BEGIN_TRANSACTION();
+        using var settlerContext = settlerContextFactory.Create();
+        using var TX = settlerContext.BEGIN_TRANSACTION();
 
-        var certids = (from c in (from u in settlerContext.Value.UserCertificates where u.PublicKey == pubkey select u) select c.CertificateId).ToList().ToHashSet();
+        var certids = (from c in (from u in settlerContext.UserCertificates where u.PublicKey == pubkey select u) select c.CertificateId).ToList().ToHashSet();
         if (certids.Count > 0)
-            (from u in settlerContext.Value.CertificateProperties where certids.Contains(u.CertificateId) select u).ExecuteDelete();
+            (from u in settlerContext.CertificateProperties where certids.Contains(u.CertificateId) select u).ExecuteDelete();
 
-        (from u in settlerContext.Value.UserCertificates where u.PublicKey == pubkey select u).ExecuteDelete();
-        (from u in settlerContext.Value.UserProperties where u.PublicKey == pubkey select u).ExecuteDelete();
-        (from u in settlerContext.Value.UserTraceProperties where u.PublicKey == pubkey select u).ExecuteDelete();
+        (from u in settlerContext.UserCertificates where u.PublicKey == pubkey select u).ExecuteDelete();
+        (from u in settlerContext.UserProperties where u.PublicKey == pubkey select u).ExecuteDelete();
+        (from u in settlerContext.UserTraceProperties where u.PublicKey == pubkey select u).ExecuteDelete();
 
 
         TX.Commit();

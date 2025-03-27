@@ -340,7 +340,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             {
                 _contactList[c.ContactPublicKey] = c;
                 using var TX = NodeDb.Context.BEGIN_TRANSACTION();
-                NodeDb.Context.UPDATE_OR_INSERT_AND_SAVE(c);
+                NodeDb.Context.INSERT_OR_UPDATE_AND_SAVE(c);
                 TX.Commit();
             }
         }
@@ -510,10 +510,10 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             var bhrs = (from r in contacts.AsEnumerable().OrderBy(x => rnd.Next()).Take(this.fanout) select new BroadcastHistoryRow() { ContactPublicKey = r, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
             foreach (var brh in bhrs)
             {
-                NodeDb.Context.UPDATE_OR_INSERT_AND_SAVE(brh);
+                NodeDb.Context.INSERT_OR_UPDATE_AND_SAVE(brh);
             }
             if (originatorPublicKey != null)
-                NodeDb.Context.UPDATE_OR_INSERT_AND_SAVE(new BroadcastHistoryRow() { ContactPublicKey = originatorPublicKey, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
+                NodeDb.Context.INSERT_OR_UPDATE_AND_SAVE(new BroadcastHistoryRow() { ContactPublicKey = originatorPublicKey, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey });
 
             TX.Commit();
 
@@ -590,7 +590,7 @@ public class GigGossipNode : NostrNode, IInvoiceStateUpdatesMonitorEvents, IPaym
             var alreadyBroadcasted = new HashSet<string>((from inc in NodeDb.Context.BroadcastHistory where inc.PublicKey == this.PublicKey && inc.SignedRequestPayloadId == signedrequestpayloadId select inc.ContactPublicKey));
             alreadyBroadcasted.ExceptWith(alreadyBroadcastCanceled);
             foreach(var b in (from r in alreadyBroadcasted select new BroadcastCancelHistoryRow() { ContactPublicKey = r, SignedRequestPayloadId = signedrequestpayloadId, PublicKey = this.PublicKey }))
-                NodeDb.Context.UPDATE_OR_INSERT_AND_SAVE(b);
+                NodeDb.Context.INSERT_OR_UPDATE_AND_SAVE(b);
             TX.Commit();
             return TL.Ret(
                 alreadyBroadcasted.ToList()

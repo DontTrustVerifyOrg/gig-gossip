@@ -8,6 +8,8 @@ using System.Diagnostics;
 using GigGossipSettler;
 using Google.Protobuf.WellKnownTypes;
 using NBitcoin;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using System.Collections.Concurrent;
 
 namespace GigGossipSettler;
 
@@ -298,11 +300,43 @@ public class Token
     public required string PublicKey { get; set; }
 }
 
+public class SerttlerContextFactory : IDisposable
+{
+    DBProvider provider;
+    string connectionString;
+    ConcurrentQueue<SettlerContext> contexts = new();
+
+    public SerttlerContextFactory(DBProvider provider, string connectionString)
+    {
+        this.provider = provider;
+        this.connectionString = connectionString;
+    }
+
+    public SettlerContext Create()
+    {
+        if (!contexts.TryDequeue(out var context))
+            context = new SettlerContext(this, provider, connectionString);
+        return context;
+    }
+
+    public void Dispose()
+    {
+        while (contexts.TryDequeue(out var context))
+            context.HardDispose();
+    }
+
+    public void Release(SettlerContext context)
+    {
+        contexts.Enqueue(context);
+    }
+}
+
 /// <summary>
 /// This class establishes a context for communicating with a database using Entity Framework Core.
 /// </summary>
-public class SettlerContext : DbContext
+public class SettlerContext : DbContext, IDisposable
 {
+    SerttlerContextFactory factory;
     DBProvider provider;
     /// <summary>
     /// The connection string for the database.
@@ -313,8 +347,9 @@ public class SettlerContext : DbContext
     /// Creates a new instance of the SettlerContext class.
     /// </summary>
     /// <param name="connectionString">The connection string for the database.</param>
-    public SettlerContext(DBProvider provider, string connectionString)
+    public SettlerContext(SerttlerContextFactory factory, DBProvider provider, string connectionString)
     {
+        this.factory = factory;
         this.provider = provider;
         this.connectionString = connectionString;
     }
@@ -325,6 +360,16 @@ public class SettlerContext : DbContext
             return new NullTransaction();
         else
             return this.Database.BeginTransaction(isolationLevel);
+    }
+
+    public override void Dispose()
+    {
+        factory.Release(this);
+    }
+
+    public void HardDispose()
+    {
+        base.Dispose();
     }
 
 
@@ -429,15 +474,15 @@ public class SettlerContext : DbContext
         this.ChangeTracker.Clear();
     }
 
-    public void UPDATE_OR_INSERT_AND_SAVE<T>(T obj)
+    public void INSERT_OR_UPDATE_AND_SAVE<T>(T obj)
     {
         try
         {
-            this.UPDATE(obj).SAVE();
-        }
-        catch (DbUpdateException)
-        {
             this.INSERT(obj).SAVE();
+        }
+        catch 
+        {
+            this.UPDATE(obj).SAVE();
         }
     }
 }

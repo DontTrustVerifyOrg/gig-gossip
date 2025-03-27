@@ -11,6 +11,7 @@ using Newtonsoft.Json.Linq;
 using static System.Net.WebRequestMethods;
 using NetworkClientToolkit;
 using GigGossipSettler.Exceptions;
+using Microsoft.EntityFrameworkCore.Internal;
 
 namespace GigGossipSettler;
 
@@ -46,9 +47,10 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
             {
                 await invoiceStateUpdatesClient.ConnectAsync(settler.MakeAuthToken(), CancellationToken.None);
             },
-            async () =>
-            {
-                List<Gig> gigs = (from g in settler.settlerContext.Value.Gigs where (g.Status == GigStatus.Open || g.Status == GigStatus.Accepted) select g).ToList();
+        async () =>
+        {
+                using var settlerContext = settler.settlerContextFactory.Create();
+                List<Gig> gigs = (from g in settlerContext.Gigs where (g.Status == GigStatus.Open || g.Status == GigStatus.Accepted) select g).ToList();
 
                 foreach (var gig in gigs)
                 {
@@ -76,7 +78,7 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                             gig.Status = GigStatus.Accepted;
                             gig.SubStatus = GigSubStatus.None;
                             gig.DisputeDeadline = DateTime.UtcNow + settler.disputeTimeout;
-                            settler.settlerContext.Value
+                            settlerContext
                                 .UPDATE(gig)
                                 .SAVE();
                             await settler.ScheduleGigAsync(gig);
@@ -84,14 +86,14 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                         else if (network_invoice_state == InvoiceState.Accepted)
                         {
                             gig.SubStatus = GigSubStatus.AcceptedByNetwork;
-                            settler.settlerContext.Value
+                            settlerContext
                                 .UPDATE(gig)
                                 .SAVE();
                         }
                         else if (job_invoice_state == InvoiceState.Accepted)
                         {
                             gig.SubStatus = GigSubStatus.AcceptedByReply;
-                            settler.settlerContext.Value
+                            settlerContext
                                 .UPDATE(gig)
                                 .SAVE();
                         }
@@ -99,7 +101,7 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                         {
                             gig.Status = GigStatus.Cancelled;
                             gig.SubStatus = GigSubStatus.None;
-                            settler.settlerContext.Value
+                            settlerContext
                                 .UPDATE(gig)
                                 .SAVE();
                         }
@@ -132,7 +134,7 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
 
                     if (state == InvoiceState.Accepted)
                     {
-                        var gig = (from g in settler.settlerContext.Value.Gigs
+                        var gig = (from g in settlerContext.Gigs
                                    where (g.NetworkPaymentHash == payhash) || (g.PaymentHash == payhash)
                                    select g).FirstOrDefault();
                         if (gig != null)
@@ -140,14 +142,14 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                             if (gig.SubStatus == GigSubStatus.None && gig.NetworkPaymentHash == payhash && gig.Status == GigStatus.Open)
                             {
                                 gig.SubStatus = GigSubStatus.AcceptedByNetwork;
-                                settler.settlerContext.Value
+                                settlerContext
                                     .UPDATE(gig)
                                     .SAVE();
                             }
                             else if (gig.SubStatus == GigSubStatus.None && gig.PaymentHash == payhash && gig.Status == GigStatus.Open)
                             {
                                 gig.SubStatus = GigSubStatus.AcceptedByReply;
-                                settler.settlerContext.Value
+                                settlerContext
                                     .UPDATE(gig)
                                     .SAVE();
                             }
@@ -157,7 +159,7 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                                 gig.Status = GigStatus.Accepted;
                                 gig.SubStatus = GigSubStatus.None;
                                 gig.DisputeDeadline = DateTime.UtcNow + this.settler.disputeTimeout;
-                                settler.settlerContext.Value
+                                settlerContext
                                     .UPDATE(gig)
                                     .SAVE();
                                 settler.FireOnGigStatus(gig.SignedRequestPayloadId, gig.ReplierCertificateId, gig.Status, gig.SymmetricKey);
@@ -167,7 +169,7 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                     }
                     else if (state == InvoiceState.Cancelled)
                     {
-                        var gig = (from g in settler.settlerContext.Value.Gigs
+                        var gig = (from g in settlerContext.Gigs
                                    where (g.NetworkPaymentHash == payhash) || (g.PaymentHash == payhash)
                                    select g).FirstOrDefault();
                         if (gig != null)
@@ -183,7 +185,7 @@ public class InvoiceStateUpdatesMonitor : HubMonitor
                             {
                                 gig.Status = GigStatus.Cancelled;
                                 gig.SubStatus = GigSubStatus.None;
-                                settler.settlerContext.Value
+                                settlerContext
                                     .UPDATE(gig)
                                     .SAVE();
                                 settler.FireOnGigStatus(gig.SignedRequestPayloadId, gig.ReplierCertificateId, GigStatus.Cancelled);

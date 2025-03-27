@@ -345,15 +345,15 @@ public class GigGossipNodeContext : DbContext
         this.ChangeTracker.Clear();
     }
 
-    public void UPDATE_OR_INSERT_AND_SAVE<T>(T obj)
+    public void INSERT_OR_UPDATE_AND_SAVE<T>(T obj)
     {
         try
         {
-            this.UPDATE(obj).SAVE();
-        }
-        catch (DbUpdateException)
-        {
             this.INSERT(obj).SAVE();
+        }
+        catch
+        {
+            this.UPDATE(obj).SAVE();
         }
     }
 
